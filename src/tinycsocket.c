@@ -169,4 +169,27 @@ int tinycsocket_send_data(TinyCSocketCtx* inSocketCtx, const void* data, const s
   }
   return TINYCSOCKET_SUCCESS;
 }
+
+int tinycsocket_recieve_data(TinyCSocketCtx* inSocketCtx,
+                             const void* buffer,
+                             const size_t bufferByteSize,
+                             int* outBytesRecieved)
+{
+  if (inSocketCtx == NULL || buffer == NULL || bufferByteSize == NULL)
+  {
+    return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
+  }
+
+  TinyCSocketCtxInternal* pInternalCtx = inSocketCtx;
+  int recvResult = recv(pInternalCtx->soc, buffer, bufferByteSize, 0);
+  if (recvResult < 0)
+  {
+    return TINYCSOCKET_ERROR_UNKNOWN;
+  }
+  if (outBytesRecieved != NULL)
+  {
+    *outBytesRecieved = recvResult;
+  }
+  return TINYCSOCKET_SUCCESS;
+}
 #endif // WIN32
