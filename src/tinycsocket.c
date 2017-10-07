@@ -61,13 +61,13 @@ int tinycsocket_create_socket(TinyCSocketCtx** outSocketCtx)
   }
 
   // Allocate socket data
-  TinyCSocketCtxInternal **ppInternalCtx = (TinyCSocketCtxInternal**)outSocketCtx;
+  TinyCSocketCtxInternal** ppInternalCtx = (TinyCSocketCtxInternal**)outSocketCtx;
   *ppInternalCtx = (TinyCSocketCtxInternal*)malloc(sizeof(TinyCSocketCtxInternal));
   if (*ppInternalCtx == NULL)
   {
     return TINYCSOCKET_ERROR_MEMORY;
   }
-  TinyCSocketCtxInternal *pInternalCtx = (*ppInternalCtx);
+  TinyCSocketCtxInternal* pInternalCtx = (*ppInternalCtx);
 
   // Init data
   internal_init_ctx(pInternalCtx);
@@ -86,7 +86,7 @@ int tinycsocket_close_socket(TinyCSocketCtx** inoutSocketCtx)
   if (inoutSocketCtx == NULL)
     return TINYCSOCKET_SUCCESS;
 
-  TinyCSocketCtxInternal *pInternalCtx = (TinyCSocketCtxInternal*)(*inoutSocketCtx);
+  TinyCSocketCtxInternal* pInternalCtx = (TinyCSocketCtxInternal*)(*inoutSocketCtx);
   int shutdownErrorCode = shutdown(pInternalCtx->soc, SD_SEND);
 
   closesocket(pInternalCtx->soc);
@@ -104,7 +104,7 @@ int tinycsocket_close_socket(TinyCSocketCtx** inoutSocketCtx)
 
 int tinycsocket_connect(TinyCSocketCtx* inoutSocketCtx, const char* address, const char* port)
 {
-  TinyCSocketCtxInternal *pInternalCtx = inoutSocketCtx;
+  TinyCSocketCtxInternal* pInternalCtx = inoutSocketCtx;
   if (pInternalCtx == NULL || pInternalCtx->soc == INVALID_SOCKET)
   {
     return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
@@ -143,6 +143,30 @@ int tinycsocket_connect(TinyCSocketCtx* inoutSocketCtx, const char* address, con
     return TINYCSOCKET_ERROR_CONNECTION_REFUSED;
   }
 
+  return TINYCSOCKET_SUCCESS;
+}
+
+int tinycsocket_send_data(TinyCSocketCtx* inSocketCtx, const void* data, const size_t bytes)
+{
+  TinyCSocketCtxInternal* pInternalCtx = inSocketCtx;
+  if (pInternalCtx->soc == NULL)
+  {
+    return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
+  }
+
+  if (send(pInternalCtx->soc, data, bytes, 0) == SOCKET_ERROR)
+  {
+    int sendError = WSAGetLastError();
+    switch (sendError)
+    {
+      case WSANOTINITIALISED:
+        return TINYCSOCKET_ERROR_NOT_INITED;
+      case WSAETIMEDOUT:
+        return TINYCSOCKET_ERROR_TIMED_OUT;
+      default:
+        return TINYCSOCKET_ERROR_UNKNOWN;
+    }
+  }
   return TINYCSOCKET_SUCCESS;
 }
 #endif // WIN32

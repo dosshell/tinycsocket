@@ -1,7 +1,7 @@
 #include <tinycsocket.h>
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 int show_error(const char* error_text)
 {
@@ -25,7 +25,13 @@ int main(int argc, const char* argv[])
 
   if (tinycsocket_connect(socketCtx, "localhost", "1212") != TINYCSOCKET_SUCCESS)
   {
-    return show_error("Could not connect to localhost:1212");
+    return show_error("Could not connect to localhost at port 1212");
+  }
+
+  const char* msg = "hello world";
+  if (tinycsocket_send_data(socketCtx, msg, strlen(msg)) != TINYCSOCKET_SUCCESS)
+  {
+    return show_error("Could not send data");
   }
 
   if (tinycsocket_close_socket(&socketCtx) != TINYCSOCKET_SUCCESS)
@@ -39,5 +45,5 @@ int main(int argc, const char* argv[])
   }
   printf("OK");
   getchar();
-	return 0;
+  return 0;
 }
