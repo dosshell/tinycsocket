@@ -39,7 +39,7 @@ int tinycsocket_init()
     }
   }
   ++gInits;
-  return TINYCSOCKET_ERROR_KERNEL;
+  return TINYCSOCKET_SUCCESS;
 }
 
 int tinycsocket_free()
@@ -71,7 +71,7 @@ int tinycsocket_create_socket(TinyCSocketCtx** outSocketCtx)
 
   // Init data
   internal_init_ctx(pInternalCtx);
-  pInternalCtx->soc = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  pInternalCtx->soc = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (pInternalCtx->soc == INVALID_SOCKET)
   {
     tinycsocket_close_socket(&pInternalCtx);
@@ -102,4 +102,47 @@ int tinycsocket_close_socket(TinyCSocketCtx** inoutSocketCtx)
   return TINYCSOCKET_SUCCESS;
 }
 
+int tinycsocket_connect(TinyCSocketCtx* inoutSocketCtx, const char* address, const char* port)
+{
+  TinyCSocketCtxInternal *pInternalCtx = inoutSocketCtx;
+  if (pInternalCtx == NULL || pInternalCtx->soc == INVALID_SOCKET)
+  {
+    return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
+  }
+
+  struct addrinfo *result = NULL, *ptr = NULL, hints;
+
+  ZeroMemory(&hints, sizeof(hints));
+  hints.ai_family = AF_INET;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_protocol = IPPROTO_TCP;
+
+  if (getaddrinfo(address, port, &hints, &result) != 0)
+  {
+    return TINYCSOCKET_ERROR_ADDRESS_LOOKUP_FAILED;
+  }
+
+  // Try to connect
+  int connectionErrorCode = 0;
+  for (ptr = result; ptr != NULL; ptr = ptr->ai_next)
+  {
+    if (connect(pInternalCtx->soc, ptr->ai_addr, (int)ptr->ai_addrlen) == SOCKET_ERROR)
+    {
+      closesocket(pInternalCtx->soc);
+      connectionErrorCode = -1;
+      continue;
+    }
+    else
+      break;
+  }
+
+  freeaddrinfo(result);
+
+  if (connectionErrorCode != 0)
+  {
+    return TINYCSOCKET_ERROR_CONNECTION_REFUSED;
+  }
+
+  return TINYCSOCKET_SUCCESS;
+}
 #endif // WIN32

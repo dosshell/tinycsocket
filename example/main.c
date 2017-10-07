@@ -23,6 +23,11 @@ int main(int argc, const char* argv[])
     return show_error("Could not create a socket");
   }
 
+  if (tinycsocket_connect(socketCtx, "localhost", "1212") != TINYCSOCKET_SUCCESS)
+  {
+    return show_error("Could not connect to localhost:1212");
+  }
+
   if (tinycsocket_close_socket(&socketCtx) != TINYCSOCKET_SUCCESS)
   {
     return show_error("Could not close the socket");
