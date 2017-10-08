@@ -1,0 +1,10 @@
+Language: Cpp
+BasedOnStyle: Chromium
+AccessModifierOffset: -2
+AllowShortFunctionsOnASingleLine: None
+BinPackArguments: false
+BinPackParameters: false
+BreakBeforeBraces: Allman
+ColumnLimit: 100
+ReflowComments: false
+SpacesBeforeTrailingComments: 1
