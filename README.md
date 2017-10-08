@@ -1,12 +1,15 @@
 Tinycsockets
 ============
 
-Tinycsockets is a thin cross-platform socket library written in C. It focuses on a minimal
+Tinycsockets is a thin cross-platform socket library written in C99. It focuses on a minimal
 footprint, cross-platform and on simple usage.
 
 Currently support plattforms:
 - Windows 2000 SP1 and newer (XP, Server 2003, Vista, Server 2008, 7, 8, 8.1 and 10)
 - Windows IoT
+- MinGW32 and MinGW64
+- MSYS2 (msys/gcc)
+- POSIX (Linux, Android, FreeBSD, OpenBSD, NetBSD, Solaris, etc)
 
 Usage
 ------------
