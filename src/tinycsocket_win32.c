@@ -69,6 +69,7 @@ int tinycsocket_create_socket(TinyCSocketCtx** outSocketCtx)
   TinyCSocketCtxInternal* pInternalCtx = (*ppInternalCtx);
 
   // Init data
+  tinycsocket_init();
   internal_init_ctx(pInternalCtx);
   pInternalCtx->soc = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (pInternalCtx->soc == INVALID_SOCKET)
@@ -92,6 +93,7 @@ int tinycsocket_destroy_socket(TinyCSocketCtx** inoutSocketCtx)
 
   free(*inoutSocketCtx);
   *inoutSocketCtx = NULL;
+  tinycsocket_free();
 
   if (shutdownErrorCode == SOCKET_ERROR)
   {
