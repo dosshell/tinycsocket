@@ -44,7 +44,7 @@ int main(int argc, const char* argv[])
   buffer[bytesRecieved] = '\0';
   printf("recieved: %s\n", buffer);
 
-  if (tinycsocket_close_socket(&socketCtx) != TINYCSOCKET_SUCCESS)
+  if (tinycsocket_destroy_socket(&socketCtx) != TINYCSOCKET_SUCCESS)
   {
     return show_error("Could not close the socket");
   }

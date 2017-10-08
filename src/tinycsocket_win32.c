@@ -73,14 +73,14 @@ int tinycsocket_create_socket(TinyCSocketCtx** outSocketCtx)
   pInternalCtx->soc = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (pInternalCtx->soc == INVALID_SOCKET)
   {
-    tinycsocket_close_socket(&pInternalCtx);
+    tinycsocket_destroy_socket(&pInternalCtx);
     return TINYCSOCKET_ERROR_UNKNOWN;
   }
 
   return TINYCSOCKET_SUCCESS;
 }
 
-int tinycsocket_close_socket(TinyCSocketCtx** inoutSocketCtx)
+int tinycsocket_destroy_socket(TinyCSocketCtx** inoutSocketCtx)
 {
   if (inoutSocketCtx == NULL)
     return TINYCSOCKET_SUCCESS;
