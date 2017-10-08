@@ -77,7 +77,7 @@ int tinycsocket_create_socket(TinyCSocketCtx** outSocketCtx)
   pInternalCtx->soc = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (pInternalCtx->soc == INVALID_SOCKET)
   {
-    tinycsocket_destroy_socket(&pInternalCtx);
+    tinycsocket_destroy_socket(outSocketCtx);
     return TINYCSOCKET_ERROR_UNKNOWN;
   }
 
