@@ -1,3 +1,6 @@
+#include "implementation_detector.h"
+#ifdef USE_WIN32_IMPL
+
 #include "tinycsocket.h"
 
 #define WIN32_LEAN_AND_MEAN
@@ -193,3 +196,4 @@ int tinycsocket_recieve_data(TinyCSocketCtx* inSocketCtx,
   }
   return TINYCSOCKET_SUCCESS;
 }
+#endif

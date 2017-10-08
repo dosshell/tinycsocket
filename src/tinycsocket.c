@@ -1,17 +1,12 @@
-// This file will detect and include the correct implementation
-#if defined(__linux__) || defined(__sun) || defined(__FreeBSD__) || defined(__NetBSD__) || \
-    defined(__OpenBSD__) || defined(__APPLE__)
-#define __POSIX__
-#endif
+#include "tinycsocket.h"
 
 // Common code goes here
+int tinycsocket_send_netstring(TinyCSocketCtx* inSocketCtx, const char* text)
+{
+  return TINYCSOCKET_ERROR_NOT_IMPLEMENTED;
+}
 
-// Platform specific code is included here
-#if defined(WIN32)
-#include "tinycsocket_win32.c"
-#elif defined(__POSIX__)
-#include "tinycsocket_posix.c"
-#else
-#pragma message("Warning: Unknown OS, trying POSIX")
-#include "tinycsocket_posix.c"
-#endif
+int tinycsocket_recieve_netstring(TinyCSocketCtx* inSocketCtx, char** outText)
+{
+  return TINYCSOCKET_ERROR_NOT_IMPLEMENTED;
+}
