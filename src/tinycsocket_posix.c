@@ -169,4 +169,14 @@ int tinycsocket_recieve_data(TinyCSocketCtx* inSocketCtx,
   return TINYCSOCKET_SUCCESS;
 }
 
+int tinysocket_listen(TinyCSocketCtx* inSocketCtx, const char* address, const char* port)
+{
+  return TINYCSOCKET_ERROR_NOT_IMPLEMENTED;
+}
+
+int tinycsocket_accept(TinyCSocketCtx* inListenSocketCtx, TinyCSocketCtx* inoutBindedSocketCtx)
+{
+  return TINYCSOCKET_ERROR_NOT_IMPLEMENTED;
+}
+
 #endif
