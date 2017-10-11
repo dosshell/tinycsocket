@@ -76,12 +76,8 @@ int tinycsocket_create_socket(TinyCSocketCtx** outSocketCtx)
   // Init data
   tinycsocket_init();
   internal_init_ctx(pInternalCtx);
-  pInternalCtx->socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  if (pInternalCtx->socket == INVALID_SOCKET)
-  {
-    tinycsocket_destroy_socket(outSocketCtx);
-    return TINYCSOCKET_ERROR_UNKNOWN;
-  }
+
+  // Do not create the win-socket now, wait for it in the listen or connect part
 
   return TINYCSOCKET_SUCCESS;
 }
@@ -105,18 +101,18 @@ int tinycsocket_destroy_socket(TinyCSocketCtx** inoutSocketCtx)
 int tinycsocket_connect(TinyCSocketCtx* inoutSocketCtx, const char* address, const char* port)
 {
   TinyCSocketCtxInternal* pInternalCtx = inoutSocketCtx;
-  if (pInternalCtx == NULL || pInternalCtx->socket == INVALID_SOCKET)
+  if (pInternalCtx == NULL || pInternalCtx->socket != INVALID_SOCKET) // We create the win-socket here
   {
     return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
   }
 
-  struct addrinfo *result = NULL, *ptr = NULL, hints;
-
+  struct addrinfo hints;
   ZeroMemory(&hints, sizeof(hints));
   hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_protocol = IPPROTO_TCP;
 
+  struct addrinfo *result = NULL;
   if (getaddrinfo(address, port, &hints, &result) != 0)
   {
     return TINYCSOCKET_ERROR_ADDRESS_LOOKUP_FAILED;
@@ -124,18 +120,21 @@ int tinycsocket_connect(TinyCSocketCtx* inoutSocketCtx, const char* address, con
 
   // Try to connect
   BOOL didConnect = FALSE;
-  for (ptr = result; ptr != NULL; ptr = ptr->ai_next)
+  for (struct addrinfo *ptr = result; ptr != NULL; ptr = ptr->ai_next)
   {
-    if (connect(pInternalCtx->socket, ptr->ai_addr, (int)ptr->ai_addrlen) != SOCKET_ERROR)
+    pInternalCtx->socket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
+    if (pInternalCtx->socket == INVALID_SOCKET)
     {
-      didConnect = TRUE;
-      break;
+      continue;
     }
-    else
+
+    if (connect(pInternalCtx->socket, ptr->ai_addr, (int)ptr->ai_addrlen) == SOCKET_ERROR)
     {
       closesocket(pInternalCtx->socket);
       continue;
     }
+
+    didConnect = TRUE;
   }
 
   freeaddrinfo(result);
