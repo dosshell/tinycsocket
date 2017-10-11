@@ -6,7 +6,6 @@
 int show_error(const char* error_text)
 {
   fprintf(stderr, error_text);
-  getchar();
   return -1;
 }
 
@@ -53,7 +52,6 @@ int main(int argc, const char* argv[])
   {
     return show_error("Could not free tinycsocket");
   }
-  printf("OK");
-  getchar();
+  printf("OK\n");
   return 0;
 }
