@@ -3,6 +3,8 @@
 
 #include "tinycsocket.h"
 
+// Close to POSIX but we may want to handle some things different
+
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winsock2.h>
@@ -90,18 +92,12 @@ int tinycsocket_destroy_socket(TinyCSocketCtx** inoutSocketCtx)
     return TINYCSOCKET_SUCCESS;
 
   TinyCSocketCtxInternal* pInternalCtx = (TinyCSocketCtxInternal*)(*inoutSocketCtx);
-  int shutdownErrorCode = shutdown(pInternalCtx->soc, SD_SEND);
 
   closesocket(pInternalCtx->soc);
 
   free(*inoutSocketCtx);
   *inoutSocketCtx = NULL;
   tinycsocket_free();
-
-  if (shutdownErrorCode == SOCKET_ERROR)
-  {
-    return TINYCSOCKET_ERROR_UNKNOWN;
-  }
 
   return TINYCSOCKET_SUCCESS;
 }
@@ -127,22 +123,24 @@ int tinycsocket_connect(TinyCSocketCtx* inoutSocketCtx, const char* address, con
   }
 
   // Try to connect
-  int connectionErrorCode = 0;
+  BOOL didConnect = FALSE;
   for (ptr = result; ptr != NULL; ptr = ptr->ai_next)
   {
-    if (connect(pInternalCtx->soc, ptr->ai_addr, (int)ptr->ai_addrlen) == SOCKET_ERROR)
+    if (connect(pInternalCtx->soc, ptr->ai_addr, (int)ptr->ai_addrlen) != SOCKET_ERROR)
     {
-      closesocket(pInternalCtx->soc);
-      connectionErrorCode = -1;
-      continue;
+      didConnect = TRUE;
+      break;
     }
     else
-      break;
+    {
+      closesocket(pInternalCtx->soc);
+      continue;
+    }
   }
 
   freeaddrinfo(result);
 
-  if (connectionErrorCode != 0)
+  if (!didConnect)
   {
     return TINYCSOCKET_ERROR_CONNECTION_REFUSED;
   }
