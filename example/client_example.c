@@ -51,31 +51,6 @@ int main(int argc, const char* argv[])
     return show_error("Could not close the socket");
   }
 
-  // Server example
-  if (tinycsocket_create_socket(&socketCtx) != TINYCSOCKET_SUCCESS)
-  {
-    return show_error("Could not recreate the socket");
-  }
-
-  if (tinycsocket_listen(socketCtx, "localhost", "1212") != TINYCSOCKET_SUCCESS)
-  {
-    return show_error("Could not listen on localhost at port 1212");
-  }
-
-  TinyCSocketCtx* socketBindingCtx = NULL;
-  if (tinycsocket_create_socket(&socketCtx) != TINYCSOCKET_SUCCESS)
-  {
-    return show_error("Could not create the binding socket");
-  }
-  
-  if (tinycsocket_accept(socketCtx, socketBindingCtx) != TINYCSOCKET_SUCCESS)
-  {
-    return show_error("Could not accept socket");
-  }
-
-  const char msg[] = "hej hej";
-  tinycsocket_send_data(socketBindingCtx, msg, sizeof(msg));
-
   // Free resources
   if (tinycsocket_free() != TINYCSOCKET_SUCCESS)
   {
