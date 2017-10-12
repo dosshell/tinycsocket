@@ -26,17 +26,17 @@ typedef void TinyCSocketCtx;
 
 int tinycsocket_init();
 int tinycsocket_free();
-int tinycsocket_create_socket(TinyCSocketCtx** outSocketCtx);
-int tinycsocket_destroy_socket(TinyCSocketCtx** inoutSocketCtx);
-int tinycsocket_connect(TinyCSocketCtx* inoutSocketCtx, const char* address, const char* port);
-int tinycsocket_send_data(TinyCSocketCtx* inSocketCtx, const void* data, const size_t bytes);
-int tinycsocket_recieve_data(TinyCSocketCtx* inSocketCtx,
+int tinycsocket_create_socket(TinyCSocketCtx** socket_ctx);
+int tinycsocket_destroy_socket(TinyCSocketCtx** socket_ctx);
+int tinycsocket_connect(TinyCSocketCtx* socket_ctx, const char* address, const char* port);
+int tinycsocket_send_data(TinyCSocketCtx* socket_ctx, const void* data, const size_t bytes);
+int tinycsocket_recieve_data(TinyCSocketCtx* socket_ctx,
                              const void* buffer,
-                             const size_t bufferByteSize,
-                             int* outBytesRecieved);
-int tinycsocket_bind(TinyCSocketCtx* inSocketCtx, const char* address, const char* port);
-int tinycsocket_listen(TinyCSocketCtx* inoutListenSocketCtx);
-int tinycsocket_accept(TinyCSocketCtx* inListenSocketCtx, TinyCSocketCtx* inoutBindSocketCtx);
+                             const size_t buffer_byte_size,
+                             int* bytes_recieved);
+int tinycsocket_bind(TinyCSocketCtx* socket_ctx, const char* address, const char* port);
+int tinycsocket_listen(TinyCSocketCtx* socket_ctx);
+int tinycsocket_accept(TinyCSocketCtx* listen_socket_ctx, TinyCSocketCtx* bind_socket_ctx);
 
 #ifdef __cplusplus
 }
