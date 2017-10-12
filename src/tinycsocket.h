@@ -30,12 +30,13 @@ int tinycsocket_create_socket(TinyCSocketCtx** outSocketCtx);
 int tinycsocket_destroy_socket(TinyCSocketCtx** inoutSocketCtx);
 int tinycsocket_connect(TinyCSocketCtx* inoutSocketCtx, const char* address, const char* port);
 int tinycsocket_send_data(TinyCSocketCtx* inSocketCtx, const void* data, const size_t bytes);
-int tinycsocket_send_netstring(TinyCSocketCtx* inSocketCtx, const char* text);
-int tinycsocket_recieve_netstring(TinyCSocketCtx* inSocketCtx, char** outText);
 int tinycsocket_recieve_data(TinyCSocketCtx* inSocketCtx,
                              const void* buffer,
                              const size_t bufferByteSize,
                              int* outBytesRecieved);
+int tinycsocket_bind(TinyCSocketCtx* inSocketCtx, const char* address, const char* port);
+int tinycsocket_listen(TinyCSocketCtx* inoutListenSocketCtx);
+int tinycsocket_accept(TinyCSocketCtx* inListenSocketCtx, TinyCSocketCtx* inoutBindSocketCtx);
 
 #ifdef __cplusplus
 }

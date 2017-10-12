@@ -11,12 +11,15 @@ int show_error(const char* error_text)
 
 int main(int argc, const char* argv[])
 {
+  // Init library
   if (tinycsocket_init() != TINYCSOCKET_SUCCESS)
   {
     return show_error("Could not init tinycsocket");
   }
 
   TinyCSocketCtx* socketCtx = NULL;
+
+  // Client example
   if (tinycsocket_create_socket(&socketCtx) != TINYCSOCKET_SUCCESS)
   {
     return show_error("Could not create a socket");
@@ -48,6 +51,7 @@ int main(int argc, const char* argv[])
     return show_error("Could not close the socket");
   }
 
+  // Free resources
   if (tinycsocket_free() != TINYCSOCKET_SUCCESS)
   {
     return show_error("Could not free tinycsocket");
