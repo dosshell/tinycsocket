@@ -5,7 +5,7 @@
             "name": "C++ Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "/mnt/c/dev/tinycsockets/ninja/example/tinycsocket_example",
+            "program": "/mnt/c/dev/tinycsockets/ninja/example/server_example",
             "args": ["-fThreading"],
             "stopAtEntry": false,
             "cwd": "/mnt/c/dev/tinycsockets/ninja/example",
