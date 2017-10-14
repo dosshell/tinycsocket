@@ -8,3 +8,4 @@ BreakBeforeBraces: Allman
 ColumnLimit: 100
 ReflowComments: false
 SpacesBeforeTrailingComments: 1
+IndentWidth: 4
