@@ -1,7 +1,6 @@
 #include "tinycsocket.h"
 
 #ifdef WIN32
-
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winsock2.h>
@@ -9,14 +8,47 @@
 
 #include <stdlib.h>
 
+// Internal structures
 typedef struct TinyCSocketCtxInternal
 {
   SOCKET soc;
 } TinyCSocketCtxInternal;
 
-int init_internal_ctx(TinyCSocketCtxInternal* inoutInternalCtx)
+// Internal states
+static int gInits = 0;
+
+// Internal functions
+static int internal_init_ctx(TinyCSocketCtxInternal* inoutInternalCtx);
+
+int internal_init_ctx(TinyCSocketCtxInternal* inoutInternalCtx)
 {
   inoutInternalCtx->soc = INVALID_SOCKET;
+  return TINYCSOCKET_SUCCESS;
+}
+
+// Implementation of API
+int tinycsocket_init()
+{
+  if (gInits <= 0)
+  {
+    WSADATA wsaData;
+    int wsaStartupErrorCode = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    if (wsaStartupErrorCode != 0)
+    {
+      return TINYCSOCKET_ERROR_KERNEL;
+    }
+  }
+  ++gInits;
+  return TINYCSOCKET_ERROR_KERNEL;
+}
+
+int tinycsocket_free()
+{
+  gInits--;
+  if (gInits <= 0)
+  {
+    WSACleanup();
+  }
   return TINYCSOCKET_SUCCESS;
 }
 
@@ -27,37 +59,45 @@ int tinycsocket_create_socket(TinyCSocketCtx** outSocketCtx)
   {
     return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
   }
-  
+
+  // Allocate socket data
   TinyCSocketCtxInternal **ppInternalCtx = (TinyCSocketCtxInternal**)outSocketCtx;
   *ppInternalCtx = (TinyCSocketCtxInternal*)malloc(sizeof(TinyCSocketCtxInternal));
   if (*ppInternalCtx == NULL)
   {
     return TINYCSOCKET_ERROR_MEMORY;
   }
-  TinyCSocketCtxInternal &internalCtx = (**ppInternalCtx);
+  TinyCSocketCtxInternal *pInternalCtx = (*ppInternalCtx);
 
-  init_internal_ctx(&internalCtx);
-  internalCtx.soc = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-  if (internalCtx.soc != 0)
+  // Init data
+  internal_init_ctx(pInternalCtx);
+  pInternalCtx->soc = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  if (pInternalCtx->soc == INVALID_SOCKET)
   {
+    tinycsocket_close_socket(&pInternalCtx);
     return TINYCSOCKET_ERROR_UNKNOWN;
   }
 
   return TINYCSOCKET_SUCCESS;
 }
 
-int tinycsocket_connect_socket(TinyCSocketCtx* inoutSocketCtx, const int inPort)
-{
-  return TINYCSOCKET_SUCCESS;
-}
-
 int tinycsocket_close_socket(TinyCSocketCtx** inoutSocketCtx)
 {
-  if (inoutSocketCtx == nullptr)
+  if (inoutSocketCtx == NULL)
     return TINYCSOCKET_SUCCESS;
+
+  TinyCSocketCtxInternal *pInternalCtx = (TinyCSocketCtxInternal*)(*inoutSocketCtx);
+  int shutdownErrorCode = shutdown(pInternalCtx->soc, SD_SEND);
+
+  closesocket(pInternalCtx->soc);
 
   free(*inoutSocketCtx);
   *inoutSocketCtx = NULL;
+
+  if (shutdownErrorCode == SOCKET_ERROR)
+  {
+    return TINYCSOCKET_ERROR_UNKNOWN;
+  }
 
   return TINYCSOCKET_SUCCESS;
 }
