@@ -11,47 +11,47 @@ int show_error(const char* error_text)
 
 int main()
 {
-  TinyCSocketCtx* listenSocket = NULL;
-  if (tinycsocket_create_socket(&listenSocket) != TINYCSOCKET_SUCCESS)
+  TinyCSocketCtx* listen_socket = NULL;
+  if (tinycsocket_create_socket(&listen_socket) != TINYCSOCKET_SUCCESS)
   {
     return show_error("Could not recreate the socket");
   }
 
-  if (tinycsocket_bind(listenSocket, "localhost", "1212") != TINYCSOCKET_SUCCESS)
+  if (tinycsocket_bind(listen_socket, "localhost", "1212") != TINYCSOCKET_SUCCESS)
   {
     return show_error("Could not bind to localhost at port 1212");
   }
 
-  if (tinycsocket_listen(listenSocket) != TINYCSOCKET_SUCCESS)
+  if (tinycsocket_listen(listen_socket) != TINYCSOCKET_SUCCESS)
   {
     return show_error("Could not listen on localhost at port 1212");
   }
 
-  TinyCSocketCtx* bindingSocket = NULL;
-  if (tinycsocket_create_socket(&bindingSocket) != TINYCSOCKET_SUCCESS)
+  TinyCSocketCtx* binding_socket = NULL;
+  if (tinycsocket_create_socket(&binding_socket) != TINYCSOCKET_SUCCESS)
   {
     return show_error("Could not create the binding socket");
   }
 
-  if (tinycsocket_accept(listenSocket, bindingSocket) != TINYCSOCKET_SUCCESS)
+  if (tinycsocket_accept(listen_socket, binding_socket) != TINYCSOCKET_SUCCESS)
   {
     return show_error("Could not accept socket");
   }
 
   char buffer[1024];
-  int bytesRecieved = 0;
-  if (tinycsocket_recieve_data(bindingSocket, buffer, 1023, &bytesRecieved) != TINYCSOCKET_SUCCESS)
+  int bytes_recieved = 0;
+  if (tinycsocket_recieve_data(binding_socket, buffer, 1023, &bytes_recieved) != TINYCSOCKET_SUCCESS)
   {
     return show_error("Could not recieve data");
   }
   // Makes sure it is a NULL terminated string, this is why we only accept 1023 bytes in recieve
-  buffer[bytesRecieved] = '\0';
+  buffer[bytes_recieved] = '\0';
   printf("recieved: %s\n", buffer);
 
   char msg[] = "hello there";
-  if (tinycsocket_send_data(bindingSocket, msg, sizeof(msg)) != TINYCSOCKET_SUCCESS)
+  if (tinycsocket_send_data(binding_socket, msg, sizeof(msg)) != TINYCSOCKET_SUCCESS)
   {
-    return show_error("asd :/");
+    return show_error("Could not send message to client");
   }
 
   printf("OK\n");

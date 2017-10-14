@@ -17,36 +17,36 @@ int main(int argc, const char* argv[])
     return show_error("Could not init tinycsocket");
   }
 
-  TinyCSocketCtx* socketCtx = NULL;
+  TinyCSocketCtx* client_socket = NULL;
 
   // Client example
-  if (tinycsocket_create_socket(&socketCtx) != TINYCSOCKET_SUCCESS)
+  if (tinycsocket_create_socket(&client_socket) != TINYCSOCKET_SUCCESS)
   {
     return show_error("Could not create a socket");
   }
 
-  if (tinycsocket_connect(socketCtx, "localhost", "1212") != TINYCSOCKET_SUCCESS)
+  if (tinycsocket_connect(client_socket, "localhost", "1212") != TINYCSOCKET_SUCCESS)
   {
     return show_error("Could not connect to localhost at port 1212");
   }
 
   const char msg[] = "hello world";
-  if (tinycsocket_send_data(socketCtx, msg, sizeof(msg)) != TINYCSOCKET_SUCCESS)
+  if (tinycsocket_send_data(client_socket, msg, sizeof(msg)) != TINYCSOCKET_SUCCESS)
   {
     return show_error("Could not send data");
   }
 
-  char buffer[1024];
-  int bytesRecieved = 0;
-  if (tinycsocket_recieve_data(socketCtx, buffer, 1023, &bytesRecieved) != TINYCSOCKET_SUCCESS)
+  char recv_buffer[1024];
+  int bytes_recieved = 0;
+  if (tinycsocket_recieve_data(client_socket, recv_buffer, 1023, &bytes_recieved) != TINYCSOCKET_SUCCESS)
   {
     return show_error("Could not recieve data");
   }
   // Makes sure it is a NULL terminated string, this is why we only accept 1023 bytes in recieve
-  buffer[bytesRecieved] = '\0';
-  printf("recieved: %s\n", buffer);
+  recv_buffer[bytes_recieved] = '\0';
+  printf("recieved: %s\n", recv_buffer);
 
-  if (tinycsocket_destroy_socket(&socketCtx) != TINYCSOCKET_SUCCESS)
+  if (tinycsocket_destroy_socket(&client_socket) != TINYCSOCKET_SUCCESS)
   {
     return show_error("Could not close the socket");
   }
