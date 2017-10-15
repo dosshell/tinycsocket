@@ -1,7 +1,6 @@
-#include "implementation_detector.h"
-#ifdef USE_POSIX_IMPL
-
 #include "tinycsocket.h"
+
+#ifdef TINYCSOCKET_USE_POSIX_IMPL
 
 #include <arpa/inet.h> //inet_addr
 #include <netdb.h>
@@ -17,12 +16,6 @@
 static const int NO_SOCKET = -1;
 static const int FAILURE = -1;
 
-// Internal structures
-typedef struct TinyCSocketCtxInternal
-{
-    int socket;
-} TinyCSocketCtxInternal;
-
 int tinycsocket_init()
 {
     // Not needed for posix
@@ -35,43 +28,30 @@ int tinycsocket_free()
     return TINYCSOCKET_SUCCESS;
 }
 
-int tinycsocket_create_socket(TinyCSocketCtx** socket_ctx)
+int tinycsocket_create_socket(TinyCSocketCtx* socket_ctx)
 {
-    if (socket_ctx == NULL || *socket_ctx != NULL)
+    if (socket_ctx == NULL)
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
 
-    // Allocate socket data
-    TinyCSocketCtxInternal** internal_socket_ctx_ptr = (TinyCSocketCtxInternal**)socket_ctx;
-    *internal_socket_ctx_ptr = (TinyCSocketCtxInternal*)malloc(sizeof(TinyCSocketCtxInternal));
-    if (*internal_socket_ctx_ptr == NULL)
-    {
-        return TINYCSOCKET_ERROR_MEMORY;
-    }
-    TinyCSocketCtxInternal* internal_ctx = (*internal_socket_ctx_ptr);
-
-    internal_ctx->socket = NO_SOCKET;
+    socket_ctx->_socket = NO_SOCKET;
 
     return TINYCSOCKET_SUCCESS;
 }
 
-int tinycsocket_destroy_socket(TinyCSocketCtx** socket_ctx)
+int tinycsocket_destroy_socket(TinyCSocketCtx* socket_ctx)
 {
     if (socket_ctx == NULL)
         return TINYCSOCKET_SUCCESS;
 
-    TinyCSocketCtxInternal* internal_socket_ctx = (TinyCSocketCtxInternal*)(*socket_ctx);
-    close(internal_socket_ctx->socket);
-
-    free(*socket_ctx);
-    *socket_ctx = NULL;
+    close(socket_ctx->_socket);
+    socket_ctx->_socket = NO_SOCKET;
 
     return TINYCSOCKET_SUCCESS;
 }
 
 int tinycsocket_connect(TinyCSocketCtx* socket_ctx, const char* address, const char* port)
 {
-    TinyCSocketCtxInternal* internal_socket_ctx = socket_ctx;
-    if (internal_socket_ctx == NULL || internal_socket_ctx->socket != NO_SOCKET)
+    if (socket_ctx == NULL || socket_ctx->_socket != NO_SOCKET)
     {
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
     }
@@ -97,15 +77,15 @@ int tinycsocket_connect(TinyCSocketCtx* socket_ctx, const char* address, const c
     bool did_connect = false;
     for (ptr = serverinfo; ptr != NULL; ptr = ptr->ai_next)
     {
-        internal_socket_ctx->socket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
-        if (internal_socket_ctx->socket == NO_SOCKET)
+        socket_ctx->_socket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
+        if (socket_ctx->_socket == NO_SOCKET)
         {
             continue;
         }
 
-        if (connect(internal_socket_ctx->socket, ptr->ai_addr, ptr->ai_addrlen) == FAILURE)
+        if (connect(socket_ctx->_socket, ptr->ai_addr, ptr->ai_addrlen) == FAILURE)
         {
-            close(internal_socket_ctx->socket);
+            close(socket_ctx->_socket);
             continue;
         }
 
@@ -121,13 +101,12 @@ int tinycsocket_connect(TinyCSocketCtx* socket_ctx, const char* address, const c
 
 int tinycsocket_send_data(TinyCSocketCtx* socket_ctx, const void* data, const size_t bytes)
 {
-    TinyCSocketCtxInternal* internal_socket_ctx = socket_ctx;
-    if (internal_socket_ctx->socket == NO_SOCKET)
+    if (socket_ctx->_socket == NO_SOCKET)
     {
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
     }
 
-    if (send(internal_socket_ctx->socket, data, bytes, 0) == FAILURE)
+    if (send(socket_ctx->_socket, data, bytes, 0) == FAILURE)
     {
         int send_error_code = errno;
         switch (send_error_code)
@@ -151,8 +130,7 @@ int tinycsocket_recieve_data(TinyCSocketCtx* socket_ctx,
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
     }
 
-    TinyCSocketCtxInternal* internal_socket_ctx = socket_ctx;
-    int recv_status_code = recv(internal_socket_ctx->socket, buffer, buffer_byte_size, 0);
+    int recv_status_code = recv(socket_ctx->_socket, buffer, buffer_byte_size, 0);
     if (recv_status_code == -1)
     {
         return TINYCSOCKET_ERROR_UNKNOWN;
@@ -166,9 +144,7 @@ int tinycsocket_recieve_data(TinyCSocketCtx* socket_ctx,
 
 int tinycsocket_bind(TinyCSocketCtx* socket_ctx, const char* address, const char* port)
 {
-    TinyCSocketCtxInternal* internal_socket_ctx = socket_ctx;
-
-    if (internal_socket_ctx == NULL || internal_socket_ctx->socket != NO_SOCKET)
+    if (socket_ctx == NULL || socket_ctx->_socket != NO_SOCKET)
     {
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
     }
@@ -188,14 +164,13 @@ int tinycsocket_bind(TinyCSocketCtx* socket_ctx, const char* address, const char
     }
 
     bool did_connect = false;
-    internal_socket_ctx->socket =
-        socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-    if (internal_socket_ctx->socket == NO_SOCKET)
+    socket_ctx->_socket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+    if (socket_ctx->_socket == NO_SOCKET)
     {
         return TINYCSOCKET_ERROR_KERNEL;
     }
 
-    if (bind(internal_socket_ctx->socket, result->ai_addr, (int)result->ai_addrlen) != FAILURE)
+    if (bind(socket_ctx->_socket, result->ai_addr, (int)result->ai_addrlen) != FAILURE)
     {
         did_connect = true;
     }
@@ -212,14 +187,12 @@ int tinycsocket_bind(TinyCSocketCtx* socket_ctx, const char* address, const char
 
 int tinycsocket_listen(TinyCSocketCtx* socket_ctx)
 {
-    TinyCSocketCtxInternal* internal_socket_ctx = socket_ctx;
-
-    if (internal_socket_ctx == NULL || internal_socket_ctx->socket == NO_SOCKET)
+    if (socket_ctx == NULL || socket_ctx->_socket == NO_SOCKET)
     {
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
     }
 
-    if (listen(internal_socket_ctx->socket, SOMAXCONN) == FAILURE)
+    if (listen(socket_ctx->_socket, SOMAXCONN) == FAILURE)
     {
         return TINYCSOCKET_ERROR_UNKNOWN;
     }
@@ -229,25 +202,25 @@ int tinycsocket_listen(TinyCSocketCtx* socket_ctx)
 
 int tinycsocket_accept(TinyCSocketCtx* listen_socket_ctx, TinyCSocketCtx* bind_socket_ctx)
 {
-    TinyCSocketCtxInternal* internal_listen_socket_ctx = listen_socket_ctx;
-    TinyCSocketCtxInternal* internal_bind_socket_ctx = bind_socket_ctx;
-
-    internal_bind_socket_ctx->socket = accept(internal_listen_socket_ctx->socket, NULL, NULL);
+    bind_socket_ctx->_socket = accept(listen_socket_ctx->_socket, NULL, NULL);
 
     return TINYCSOCKET_SUCCESS;
 }
 
 int tinycsocket_close_socket(TinyCSocketCtx* socket_ctx)
 {
-    TinyCSocketCtxInternal* internal_ctx = socket_ctx;
-    if (internal_ctx == NULL || internal_ctx->socket == NO_SOCKET)
+    if (socket_ctx == NULL)
+    {
+        return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
+    }
+    if (socket_ctx->_socket == NO_SOCKET)
     {
         return TINYCSOCKET_SUCCESS;
     }
 
-    if (close(internal_ctx->socket) == FAILURE)
+    if (close(socket_ctx->_socket) == FAILURE)
     {
-        internal_ctx->socket = NO_SOCKET;
+        socket_ctx->_socket = NO_SOCKET;
         return TINYCSOCKET_ERROR_UNKNOWN;
     }
     return TINYCSOCKET_SUCCESS;
