@@ -256,4 +256,20 @@ int tinycsocket_accept(TinyCSocketCtx* listen_socket_ctx, TinyCSocketCtx* bind_s
     return TINYCSOCKET_SUCCESS;
 }
 
+tinycsocket_close_socket(TinyCSocketCtx* socket_ctx)
+{
+    TinyCSocketCtxInternal* internal_ctx = socket_ctx;
+    if (internal_ctx == NULL || internal_ctx->socket == INVALID_SOCKET)
+    {
+        return TINYCSOCKET_SUCCESS;
+    }
+
+    if (closesocket(internal_ctx->socket) != S_OK)
+    {
+        internal_ctx->socket = INVALID_SOCKET;
+        return TINYCSOCKET_ERROR_UNKNOWN;
+    }
+    return TINYCSOCKET_SUCCESS;
+}
+
 #endif
