@@ -5,7 +5,7 @@
 
 int show_error(const char* error_text)
 {
-    fprintf(stderr, error_text);
+    fprintf(stderr, "%s", error_text);
     return -1;
 }
 

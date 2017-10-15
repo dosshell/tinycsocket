@@ -140,7 +140,7 @@ int tinycsocket_connect(TinyCSocketCtx* socket_ctx, const char* address, const c
 int tinycsocket_send_data(TinyCSocketCtx* socket_ctx, const void* data, const size_t bytes)
 {
     TinyCSocketCtxInternal* internal_ctx = socket_ctx;
-    if (internal_ctx->socket == NULL)
+    if (internal_ctx->socket == INVALID_SOCKET)
     {
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
     }
@@ -162,11 +162,11 @@ int tinycsocket_send_data(TinyCSocketCtx* socket_ctx, const void* data, const si
 }
 
 int tinycsocket_recieve_data(TinyCSocketCtx* socket_ctx,
-                             const void* buffer,
+                             void* buffer,
                              const size_t buffer_byte_size,
                              int* outBytesRecieved)
 {
-    if (socket_ctx == NULL || buffer == NULL || buffer_byte_size == NULL)
+    if (socket_ctx == NULL || buffer == NULL || buffer_byte_size == 0)
     {
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
     }
