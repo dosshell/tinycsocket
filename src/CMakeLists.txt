@@ -1,7 +1,5 @@
 add_library (tinycsocket
 			 tinycsocket.h
-			 tinycsocket.c
-			 implementation_detector.h
 			 tinycsocket_win32.c
 			 tinycsocket_posix.c)
 
