@@ -123,7 +123,7 @@ int tinycsocket_send_data(TinyCSocketCtx* socket_ctx, const void* data, const si
 int tinycsocket_recieve_data(TinyCSocketCtx* socket_ctx,
                              void* buffer,
                              const size_t buffer_byte_size,
-                             int* bytes_recieved)
+                             size_t* bytes_recieved)
 {
     if (socket_ctx == NULL || buffer == NULL || buffer_byte_size == 0)
     {
