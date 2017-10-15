@@ -37,6 +37,7 @@ int tinycsocket_recieve_data(TinyCSocketCtx* socket_ctx,
 int tinycsocket_bind(TinyCSocketCtx* socket_ctx, const char* address, const char* port);
 int tinycsocket_listen(TinyCSocketCtx* socket_ctx);
 int tinycsocket_accept(TinyCSocketCtx* listen_socket_ctx, TinyCSocketCtx* bind_socket_ctx);
+int tinycsocket_close_socket(TinyCSocketCtx* socket_ctx);
 
 #ifdef __cplusplus
 }
