@@ -3,8 +3,8 @@
 #ifndef TINY_C_SOCKETS_H_
 #define TINY_C_SOCKETS_H_
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #if defined(WIN32) || defined(__MINGW32__)
 #define TINYCSOCKET_USE_WIN32_IMPL
@@ -40,20 +40,32 @@ static int TINYCSOCKET_ERROR_NOT_INITED = -7;
 static int TINYCSOCKET_ERROR_TIMED_OUT = -8;
 static int TINYCSOCKET_ERROR_NOT_IMPLEMENTED = -9;
 static int TINYCSOCKET_ERROR_NOT_CONNECTED = -10;
+static int TINYCSOCKET_ERROR_ILL_FORMED_MESSAGE = -11;
 
 int tinycsocket_init();
 int tinycsocket_free();
+
 int tinycsocket_create_socket(TinyCSocketCtx* socket_ctx);
 int tinycsocket_destroy_socket(TinyCSocketCtx* socket_ctx);
+
 int tinycsocket_connect(TinyCSocketCtx* socket_ctx, const char* address, const char* port);
+int tinycsocket_close_socket(TinyCSocketCtx* socket_ctx);
+
 int tinycsocket_send_data(TinyCSocketCtx* socket_ctx, const void* data, const size_t bytes);
 int tinycsocket_recieve_data(TinyCSocketCtx* socket_ctx,
                              void* buffer,
                              const size_t buffer_byte_size,
-                             int* bytes_recieved);
+                             size_t* bytes_recieved);
+
 int tinycsocket_bind(TinyCSocketCtx* socket_ctx, const char* address, const char* port);
 int tinycsocket_listen(TinyCSocketCtx* socket_ctx);
+int tinycsocket_bind_and_listen(TinyCSocketCtx* socket_ctx, const char* address, const char* port);
 int tinycsocket_accept(TinyCSocketCtx* listen_socket_ctx, TinyCSocketCtx* bind_socket_ctx);
-int tinycsocket_close_socket(TinyCSocketCtx* socket_ctx);
+
+int tinycsocket_send_netstring(TinyCSocketCtx* socket_ctx, const char* msg, const size_t bytes);
+int tinycsocket_recieve_netstring(TinyCSocketCtx* socket_ctx,
+                                  char* recieved_msg,
+                                  const size_t buffer_byte_size,
+                                  size_t* bytes_recieved);
 
 #endif
