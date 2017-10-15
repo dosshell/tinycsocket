@@ -7,6 +7,7 @@
 #include <netdb.h>
 #include <stdlib.h>
 #include <sys/socket.h>
+#include <unistd.h>
 
 #include <errno.h>
 #include <string.h>
@@ -141,11 +142,11 @@ int tinycsocket_send_data(TinyCSocketCtx* socket_ctx, const void* data, const si
 }
 
 int tinycsocket_recieve_data(TinyCSocketCtx* socket_ctx,
-                             const void* buffer,
+                             void* buffer,
                              const size_t buffer_byte_size,
                              int* bytes_recieved)
 {
-    if (socket_ctx == NULL || buffer == NULL || buffer_byte_size == NULL)
+    if (socket_ctx == NULL || buffer == NULL || buffer_byte_size == 0)
     {
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
     }

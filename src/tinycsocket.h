@@ -31,7 +31,7 @@ int tinycsocket_destroy_socket(TinyCSocketCtx** socket_ctx);
 int tinycsocket_connect(TinyCSocketCtx* socket_ctx, const char* address, const char* port);
 int tinycsocket_send_data(TinyCSocketCtx* socket_ctx, const void* data, const size_t bytes);
 int tinycsocket_recieve_data(TinyCSocketCtx* socket_ctx,
-                             const void* buffer,
+                             void* buffer,
                              const size_t buffer_byte_size,
                              int* bytes_recieved);
 int tinycsocket_bind(TinyCSocketCtx* socket_ctx, const char* address, const char* port);
