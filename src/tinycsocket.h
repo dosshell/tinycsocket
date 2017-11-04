@@ -16,18 +16,19 @@
 #define TINYCSOCKET_USE_POSIX_IMPL
 #endif
 
+extern const TinyCSocketCtx TINYCSOCKET_NULLSOCKET;
+
 #if defined(TINYCSOCKET_USE_WIN32_IMPL)
 #include <basetsd.h>
-typedef struct TinyCSocketCtx
-{
-    UINT_PTR _socket;
-} TinyCSocketCtx;
+typedef UINT_PTR TinyCSocketCtx;
 #elif defined(TINYCSOCKET_USE_POSIX_IMPL)
-typedef struct TinyCSocketCtx
-{
-    int _socket;
-} TinyCSocketCtx;
+typedef int TinyCSocketCtx;
+typedef uint_fast64_t ticktype_t;
 #endif
+
+static int TINYCSOCKET_RECIEVE = 1;
+static int TINYCSOCKET_SEND = 2;
+static int TINYCSOCKET_BOTH = 3;
 
 static int TINYCSOCKET_SUCCESS = 0;
 static int TINYCSOCKET_ERROR_UNKNOWN = -1;
@@ -43,29 +44,62 @@ static int TINYCSOCKET_ERROR_NOT_CONNECTED = -10;
 static int TINYCSOCKET_ERROR_ILL_FORMED_MESSAGE = -11;
 
 int tinycsocket_init();
+
 int tinycsocket_free();
 
-int tinycsocket_create_socket(TinyCSocketCtx* socket_ctx);
-int tinycsocket_destroy_socket(TinyCSocketCtx* socket_ctx);
+int tinycsocket_socket(TinyCSocketCtx* socket_ctx, int domain, int type, int protocol);
 
-int tinycsocket_connect(TinyCSocketCtx* socket_ctx, const char* address, const char* port);
-int tinycsocket_close_socket(TinyCSocketCtx* socket_ctx);
+int tinycsocket_bind(TinyCSocketCtx socket_ctx,
+                     struct TinyCSocketAddress* address,
+                     size_t address_length);
 
-int tinycsocket_send_data(TinyCSocketCtx* socket_ctx, const void* data, const size_t bytes);
-int tinycsocket_recieve_data(TinyCSocketCtx* socket_ctx,
-                             void* buffer,
-                             const size_t buffer_byte_size,
-                             size_t* bytes_recieved);
+int tinycsocket_connect(TinyCSocketCtx socket_ctx,
+                        struct TinyCSocketAddress* address,
+                        size_t address_length);
 
-int tinycsocket_bind(TinyCSocketCtx* socket_ctx, const char* address, const char* port);
-int tinycsocket_listen(TinyCSocketCtx* socket_ctx);
-int tinycsocket_bind_and_listen(TinyCSocketCtx* socket_ctx, const char* address, const char* port);
-int tinycsocket_accept(TinyCSocketCtx* listen_socket_ctx, TinyCSocketCtx* bind_socket_ctx);
+int tinycsocket_listen(TinyCSocketCtx socket_ctx, int backlog);
 
-int tinycsocket_send_netstring(TinyCSocketCtx* socket_ctx, const char* msg, const size_t bytes);
-int tinycsocket_recieve_netstring(TinyCSocketCtx* socket_ctx,
-                                  char* recieved_msg,
-                                  const size_t buffer_byte_size,
-                                  size_t* bytes_recieved);
+int tinycsocket_accept(TinyCSocketCtx socket_ctx,
+                       TinyCSocketCtx* child_socket_ctx,
+                       struct TinyCSocketAddress* address,
+                       size_t address_length);
+
+int tinycsocket_send(TinyCSocketCtx socket_ctx,
+                     const uint8_t* buffer,
+                     size_t buffer_length,
+                     uint_fast32_t flags,
+                     size_t* bytes_sent);
+
+int tinycsocket_sendto(TinyCSocketCtx socket_ctx,
+                       const uint8_t* buffer,
+                       size_t buffer_length,
+                       uint_fast32_t flags,
+                       const struct TinyCSocketAddress* destination_address,
+                       size_t destination_address_length,
+                       size_t* bytes_sent);
+
+int tinycsocket_recv(TinyCSocketCtx socket_ctx,
+                     uint8_t* buffer,
+                     size_t buffer_length,
+                     uint_fast32_t flags,
+                     size_t* bytes_recieved);
+
+int tinycsocket_recvfrom(TinyCSocketCtx socket_ctx,
+                         uint8_t* buffer,
+                         size_t buffer_length,
+                         uint_fast32_t flags,
+                         struct TinyCSocketAddress* source_address,
+                         size_t* source_address_length,
+                         size_t* bytes_recieved);
+
+int tinycsocket_setsockopt(TinyCSocketCtx socket_ctx,
+                           int_fast32_t level,
+                           int_fast32_t option_name,
+                           const void* option_value,
+                           size_t option_length);
+
+int tinycsocket_shutdown(TinyCSocketCtx socket_ctx, int how);
+
+int tinycsocket_closesocket(TinyCSocketCtx* socket_ctx);
 
 #endif
