@@ -16,32 +16,64 @@
 #define TINYCSOCKET_USE_POSIX_IMPL
 #endif
 
-extern const TinyCSocketCtx TINYCSOCKET_NULLSOCKET;
-
 #if defined(TINYCSOCKET_USE_WIN32_IMPL)
 #include <basetsd.h>
 typedef UINT_PTR TinyCSocketCtx;
 #elif defined(TINYCSOCKET_USE_POSIX_IMPL)
 typedef int TinyCSocketCtx;
-typedef uint_fast64_t ticktype_t;
 #endif
 
-static int TINYCSOCKET_RECIEVE = 1;
-static int TINYCSOCKET_SEND = 2;
-static int TINYCSOCKET_BOTH = 3;
+typedef int socklen_t;
 
-static int TINYCSOCKET_SUCCESS = 0;
-static int TINYCSOCKET_ERROR_UNKNOWN = -1;
-static int TINYCSOCKET_ERROR_MEMORY = -2;
-static int TINYCSOCKET_ERROR_INVALID_ARGUMENT = -3;
-static int TINYCSOCKET_ERROR_KERNEL = -4;
-static int TINYCSOCKET_ERROR_ADDRESS_LOOKUP_FAILED = -5;
-static int TINYCSOCKET_ERROR_CONNECTION_REFUSED = -6;
-static int TINYCSOCKET_ERROR_NOT_INITED = -7;
-static int TINYCSOCKET_ERROR_TIMED_OUT = -8;
-static int TINYCSOCKET_ERROR_NOT_IMPLEMENTED = -9;
-static int TINYCSOCKET_ERROR_NOT_CONNECTED = -10;
-static int TINYCSOCKET_ERROR_ILL_FORMED_MESSAGE = -11;
+struct TinyCSocketAddressInfo
+{
+    int ai_flags;
+    int ai_family;
+    int ai_socktype;
+    int ai_protocol;
+    socklen_t ai_addrlen;
+    char* ai_canonname;
+    struct TinyCSocketAddress* ai_addr;
+    struct TinyCSocketAddressInfo* ai_next;
+};
+
+extern const TinyCSocketCtx TINYCSOCKET_NULLSOCKET;
+
+// TODO: Problem with optimizing when they are in another translation unit? LTO?
+
+// Domain
+extern const int TINYCSOCKET_AF_INET;
+
+// Type
+extern const int TINYCSOCKET_SOCK_STREAM;
+
+// Protocol
+extern const int TINYCSOCKET_IPPROTO_TCP;
+
+// Flags
+extern const int TINYCSOCKET_AI_PASSIVE;
+
+// Backlog
+extern const int TINYCSOCKET_BACKLOG_SOMAXCONN;
+
+// How
+static const int TINYCSOCKET_RECIEVE = 1;
+static const int TINYCSOCKET_SEND = 2;
+static const int TINYCSOCKET_BOTH = 3;
+
+// Return codes
+static const int TINYCSOCKET_SUCCESS = 0;
+static const int TINYCSOCKET_ERROR_UNKNOWN = -1;
+static const int TINYCSOCKET_ERROR_MEMORY = -2;
+static const int TINYCSOCKET_ERROR_INVALID_ARGUMENT = -3;
+static const int TINYCSOCKET_ERROR_KERNEL = -4;
+static const int TINYCSOCKET_ERROR_ADDRESS_LOOKUP_FAILED = -5;
+static const int TINYCSOCKET_ERROR_CONNECTION_REFUSED = -6;
+static const int TINYCSOCKET_ERROR_NOT_INITED = -7;
+static const int TINYCSOCKET_ERROR_TIMED_OUT = -8;
+static const int TINYCSOCKET_ERROR_NOT_IMPLEMENTED = -9;
+static const int TINYCSOCKET_ERROR_NOT_CONNECTED = -10;
+static const int TINYCSOCKET_ERROR_ILL_FORMED_MESSAGE = -11;
 
 int tinycsocket_init();
 
@@ -50,19 +82,19 @@ int tinycsocket_free();
 int tinycsocket_socket(TinyCSocketCtx* socket_ctx, int domain, int type, int protocol);
 
 int tinycsocket_bind(TinyCSocketCtx socket_ctx,
-                     struct TinyCSocketAddress* address,
-                     size_t address_length);
+                     const struct TinyCSocketAddress* address,
+                     socklen_t address_length);
 
 int tinycsocket_connect(TinyCSocketCtx socket_ctx,
-                        struct TinyCSocketAddress* address,
-                        size_t address_length);
+                        const struct TinyCSocketAddress* address,
+                        socklen_t address_length);
 
 int tinycsocket_listen(TinyCSocketCtx socket_ctx, int backlog);
 
 int tinycsocket_accept(TinyCSocketCtx socket_ctx,
                        TinyCSocketCtx* child_socket_ctx,
                        struct TinyCSocketAddress* address,
-                       size_t address_length);
+                       socklen_t* address_length);
 
 int tinycsocket_send(TinyCSocketCtx socket_ctx,
                      const uint8_t* buffer,
@@ -96,10 +128,17 @@ int tinycsocket_setsockopt(TinyCSocketCtx socket_ctx,
                            int_fast32_t level,
                            int_fast32_t option_name,
                            const void* option_value,
-                           size_t option_length);
+                           socklen_t option_length);
 
 int tinycsocket_shutdown(TinyCSocketCtx socket_ctx, int how);
 
 int tinycsocket_closesocket(TinyCSocketCtx* socket_ctx);
+
+int tinycsocket_getaddrinfo(const char* node,
+                            const char* service,
+                            const struct TinyCSocketAddressInfo* hints,
+                            struct TinyCSocketAddressInfo** res);
+
+int tinycsocket_freeaddrinfo(struct TinyCSocketAddressInfo** addressinfo);
 
 #endif
