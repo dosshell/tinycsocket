@@ -2,6 +2,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
 
 int show_error(const char* error_text)
 {
@@ -11,31 +13,49 @@ int show_error(const char* error_text)
 
 int main(int argc, const char* argv[])
 {
-    TinyCSocketCtx client_socket;
+    if (tinycsocket_init() != TINYCSOCKET_SUCCESS)
+        return show_error("Could not init tinycsockets");
 
-    // Client example
-    if (tinycsocket_create_socket(&client_socket) != TINYCSOCKET_SUCCESS)
+    TinyCSocketCtx client_socket = TINYCSOCKET_NULLSOCKET;
+
+    if (tinycsocket_socket(&client_socket, TINYCSOCKET_AF_INET, TINYCSOCKET_SOCK_STREAM, TINYCSOCKET_IPPROTO_TCP) != TINYCSOCKET_SUCCESS)
         return show_error("Could not create a socket");
 
-    if (tinycsocket_connect(&client_socket, "localhost", "1212") != TINYCSOCKET_SUCCESS)
-        return show_error("Could not connect to localhost at port 1212");
+    struct TinyCSocketAddressInfo* address_info = NULL;
+    if (tinycsocket_getaddrinfo("localhost", "1212", NULL, &address_info) != TINYCSOCKET_SUCCESS)
+        return show_error("Could not resolve host");
 
-    char msg[] = "hellow world";
-    if (tinycsocket_send_netstring(&client_socket, "hello world", sizeof(msg)) !=
-        TINYCSOCKET_SUCCESS)
-        return show_error("Could not send data");
-
-    char recv_buffer[1024];
-    size_t bytes_recieved = 0;
-    if (tinycsocket_recieve_data(&client_socket, recv_buffer, 1023, &bytes_recieved) !=
-        TINYCSOCKET_SUCCESS)
+    bool isConnected = false;
+    for (struct TinyCSocketAddressInfo* address_iterator = address_info; address_iterator != NULL; address_iterator = address_iterator->ai_next)
     {
-        return show_error("Could not recieve data");
+        if (tinycsocket_connect(client_socket, address_iterator->ai_addr, address_iterator->ai_addrlen) == TINYCSOCKET_SUCCESS)
+        {
+            isConnected = true;
+            break;
+        }
     }
+
+    if (!isConnected)
+        return show_error("Could not connect to server");
+
+    char msg[] = "hello world\n";
+    tinycsocket_send(client_socket, msg, sizeof(msg), 0, NULL);
+
+    uint8_t recv_buffer[1024];
+    size_t bytes_recieved = 0;
+    if (tinycsocket_recv(client_socket, recv_buffer, sizeof(recv_buffer) - sizeof('\0'), 0, &bytes_recieved) != TINYCSOCKET_SUCCESS)
+        return show_error("Could not recieve data");
+
     // Makes sure it is a NULL terminated string, this is why we only accept 1023 bytes in recieve
     recv_buffer[bytes_recieved] = '\0';
     printf("recieved: %s\n", recv_buffer);
 
-    if (tinycsocket_destroy_socket(&client_socket) != TINYCSOCKET_SUCCESS)
-        return show_error("Could not destroy the socket");
+    if (tinycsocket_shutdown(client_socket, TINYCSOCKET_BOTH) != TINYCSOCKET_SUCCESS)
+        return show_error("Could not shutdown socket");
+
+    if (tinycsocket_closesocket(&client_socket) != TINYCSOCKET_SUCCESS)
+        return show_error("Could not close the socket");
+
+    if (tinycsocket_free() != TINYCSOCKET_SUCCESS)
+        return show_error("Could not free tinycsockets");
 }

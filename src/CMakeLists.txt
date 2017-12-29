@@ -1,6 +1,5 @@
 add_library (tinycsocket
 			 tinycsocket.h
-			 tinycsocket_common.c
 			 tinycsocket_win32.c
 			 tinycsocket_posix.c)
 

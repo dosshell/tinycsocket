@@ -11,38 +11,59 @@ int show_error(const char* error_text)
 
 int main()
 {
-    TinyCSocketCtx listen_socket;
-    TinyCSocketCtx binding_socket;
+    if (tinycsocket_init() != TINYCSOCKET_SUCCESS)
+        return show_error("Could not init tinycsockets");
 
-    if (tinycsocket_create_socket(&listen_socket) != TINYCSOCKET_SUCCESS)
-        return show_error("Could not recreate the socket");
+    TinyCSocketCtx listen_socket = TINYCSOCKET_NULLSOCKET;
+    TinyCSocketCtx child_socket = TINYCSOCKET_NULLSOCKET;
 
-    if (tinycsocket_create_socket(&binding_socket) != TINYCSOCKET_SUCCESS)
-        return show_error("Could not create the binding socket");
+    struct TinyCSocketAddressInfo hints = { 0 };
 
-    if (tinycsocket_bind_and_listen(&listen_socket, "localhost", "1212") != TINYCSOCKET_SUCCESS)
-        return show_error("Could not bind and listen to localhost at port 1212");
+    hints.ai_family = TINYCSOCKET_AF_INET;
+    hints.ai_protocol = TINYCSOCKET_IPPROTO_TCP;
+    hints.ai_socktype = TINYCSOCKET_SOCK_STREAM;
+    hints.ai_flags = TINYCSOCKET_AI_PASSIVE;
 
-    if (tinycsocket_accept(&listen_socket, &binding_socket) != TINYCSOCKET_SUCCESS)
+    struct TinyCSocketAddressInfo* listen_addressinfo = NULL;
+    if (tinycsocket_getaddrinfo(NULL, "1212", &hints, &listen_addressinfo) != TINYCSOCKET_SUCCESS)
+        return show_error("Could not resolve listen address");
+
+    if (tinycsocket_socket(&listen_socket, listen_addressinfo->ai_family, listen_addressinfo->ai_socktype, listen_addressinfo->ai_protocol) != TINYCSOCKET_SUCCESS)
+        return show_error("Could not create a listen socket");
+
+    if (tinycsocket_bind(listen_socket, listen_addressinfo->ai_addr, listen_addressinfo->ai_addrlen) != TINYCSOCKET_SUCCESS)
+        return show_error("Could not bind to listen address");
+
+    if (tinycsocket_freeaddrinfo(&listen_addressinfo) != TINYCSOCKET_SUCCESS)
+        return show_error("Could not free address info");
+
+    if (tinycsocket_listen(listen_socket, TINYCSOCKET_BACKLOG_SOMAXCONN) != TINYCSOCKET_SUCCESS)
+        return show_error("Could not listen");
+
+    if (tinycsocket_accept(listen_socket, &child_socket, NULL, NULL) != TINYCSOCKET_SUCCESS)
         return show_error("Could not accept socket");
 
-    char buffer[1024];
+    if (tinycsocket_closesocket(&listen_socket) != TINYCSOCKET_SUCCESS)
+        return show_error("Could not close listen socket");
+
+    uint8_t recv_buffer[1024];
     size_t bytes_recieved = 0;
-    if (tinycsocket_recieve_netstring(&binding_socket, buffer, 1023, &bytes_recieved) !=
-        TINYCSOCKET_SUCCESS)
-        return show_error("Could not recieve data");
+    if (tinycsocket_recv(child_socket, recv_buffer, sizeof(recv_buffer) - sizeof('\0'), 0, &bytes_recieved) != TINYCSOCKET_SUCCESS)
+        return show_error("Could not recieve data from client");
 
-    // Makes sure it is a NULL terminated string, this is why we only accept 1023 bytes in recieve
-    buffer[bytes_recieved] = '\0';
-    printf("recieved: %s\n", buffer);
+    recv_buffer[bytes_recieved] = '\0';
+    printf("recieved: %s\n", recv_buffer);
 
-    char msg[] = "hello there";
-    if (tinycsocket_send_data(&binding_socket, msg, sizeof(msg)) != TINYCSOCKET_SUCCESS)
-        return show_error("Could not send message to client");
+    char msg[] = "I here you loud and clear\n";
+    if (tinycsocket_send(child_socket, msg, sizeof(msg), 0, NULL) != TINYCSOCKET_SUCCESS)
+        return show_error("Could not send reply message");
 
-    if (tinycsocket_destroy_socket(&listen_socket) != TINYCSOCKET_SUCCESS)
-        return show_error("Could not destroy listening socket");
+    if (tinycsocket_shutdown(child_socket, TINYCSOCKET_BOTH) != TINYCSOCKET_SUCCESS)
+        return show_error("Could not shutdown socket");
 
-    if (tinycsocket_destroy_socket(&binding_socket) != TINYCSOCKET_SUCCESS)
-        return show_error("Could not destroy binding socket");
+    if (tinycsocket_closesocket(&child_socket) != TINYCSOCKET_SUCCESS)
+        return show_error("Could not close socket");
+
+    if (tinycsocket_free() != TINYCSOCKET_SUCCESS)
+        return show_error("Could not free tinycsockets");
 }
