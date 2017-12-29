@@ -60,6 +60,7 @@ extern const int TINYCSOCKET_AF_INET;
 
 // Type
 extern const int TINYCSOCKET_SOCK_STREAM;
+extern const int TINYCSOCKET_SOCK_DGRAM;
 
 // Protocol
 extern const int TINYCSOCKET_IPPROTO_TCP;
