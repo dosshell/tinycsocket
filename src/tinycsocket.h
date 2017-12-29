@@ -19,10 +19,6 @@
 #if defined(TINYCSOCKET_USE_WIN32_IMPL)
 #include <basetsd.h>
 typedef UINT_PTR TinyCSocketCtx;
-#elif defined(TINYCSOCKET_USE_POSIX_IMPL)
-typedef int TinyCSocketCtx;
-#endif
-
 typedef int socklen_t;
 
 struct TinyCSocketAddressInfo
@@ -36,6 +32,24 @@ struct TinyCSocketAddressInfo
     struct TinyCSocketAddress* ai_addr;
     struct TinyCSocketAddressInfo* ai_next;
 };
+
+#elif defined(TINYCSOCKET_USE_POSIX_IMPL)
+typedef int TinyCSocketCtx;
+typedef int socklen_t;
+
+struct TinyCSocketAddressInfo
+{
+    int ai_flags;
+    int ai_family;
+    int ai_socktype;
+    int ai_protocol;
+    socklen_t ai_addrlen;
+    struct TinyCSocketAddress* ai_addr;
+    char* ai_canonname;
+    struct TinyCSocketAddressInfo* ai_next;
+};
+
+#endif
 
 extern const TinyCSocketCtx TINYCSOCKET_NULLSOCKET;
 
