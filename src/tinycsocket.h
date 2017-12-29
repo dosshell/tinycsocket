@@ -51,6 +51,26 @@ struct TinyCSocketAddressInfo
 
 #endif
 
+// TODO: This needs to be plattform specific
+// This should work on linux and windows for now
+// Invistagte if MacOS/BSD uses uint8_t as sa_family_t
+
+typedef unsigned short int sa_family_t;
+
+#define _SS_MAXSIZE__ 128
+#define _SS_ALIGNSIZE__ (sizeof(int64_t))
+
+#define _SS_PAD1SIZE__ (_SS_ALIGNSIZE__ - sizeof(sa_family_t))
+#define _SS_PAD2SIZE__ (_SS_MAXSIZE__ - (sizeof(sa_family_t) + _SS_PAD1SIZE__ + _SS_ALIGNSIZE__))
+
+struct TinyCSocketAddress
+{
+    sa_family_t ss_family;
+    char __ss_pad1[_SS_PAD1SIZE__];
+    int64_t __ss_align;
+    char __ss_pad2[_SS_PAD2SIZE__];
+};
+
 extern const TinyCSocketCtx TINYCSOCKET_NULLSOCKET;
 
 // TODO: Problem with optimizing when they are in another translation unit? LTO?
@@ -60,6 +80,7 @@ extern const int TINYCSOCKET_AF_INET;
 
 // Type
 extern const int TINYCSOCKET_SOCK_STREAM;
+extern const int TINYCSOCKET_SOCK_DGRAM;
 
 // Protocol
 extern const int TINYCSOCKET_IPPROTO_TCP;
