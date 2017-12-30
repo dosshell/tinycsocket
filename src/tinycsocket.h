@@ -16,6 +16,10 @@
 #define TINYCSOCKET_USE_POSIX_IMPL
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if defined(TINYCSOCKET_USE_WIN32_IMPL)
 #include <basetsd.h>
 typedef UINT_PTR TinyCSocketCtx;
@@ -175,5 +179,9 @@ int tinycsocket_getaddrinfo(const char* node,
                             struct TinyCSocketAddressInfo** res);
 
 int tinycsocket_freeaddrinfo(struct TinyCSocketAddressInfo** addressinfo);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
