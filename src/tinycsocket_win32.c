@@ -11,7 +11,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-const TinyCSocketCtx TINYCSOCKET_NULLSOCKET = INVALID_SOCKET;
+const tcs_socket TINYCSOCKET_NULLSOCKET = INVALID_SOCKET;
 
 static int g_init_count = 0;
 
@@ -59,7 +59,7 @@ static inline int socketstatus2retcode(int status)
     }
 }
 
-int tinycsocket_init()
+int tcs_init()
 {
     if (g_init_count <= 0)
     {
@@ -74,7 +74,7 @@ int tinycsocket_init()
     return TINYCSOCKET_SUCCESS;
 }
 
-int tinycsocket_free()
+int tcs_free()
 {
     g_init_count--;
     if (g_init_count <= 0)
@@ -84,7 +84,7 @@ int tinycsocket_free()
     return TINYCSOCKET_SUCCESS;
 }
 
-int tinycsocket_socket(TinyCSocketCtx* socket_ctx, int domain, int type, int protocol)
+int tcs_new(tcs_socket* socket_ctx, int domain, int type, int protocol)
 {
     if (socket_ctx == NULL || *socket_ctx != TINYCSOCKET_NULLSOCKET)
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
@@ -103,9 +103,9 @@ int tinycsocket_socket(TinyCSocketCtx* socket_ctx, int domain, int type, int pro
     }
 }
 
-int tinycsocket_bind(TinyCSocketCtx socket_ctx,
-                     const struct TinyCSocketAddress* address,
-                     socklen_t address_length)
+int tcs_bind(tcs_socket socket_ctx,
+             const struct TinyCSocketAddress* address,
+             socklen_t address_length)
 {
     if (socket_ctx == TINYCSOCKET_NULLSOCKET)
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
@@ -114,9 +114,9 @@ int tinycsocket_bind(TinyCSocketCtx socket_ctx,
     return socketstatus2retcode(status);
 }
 
-int tinycsocket_connect(TinyCSocketCtx socket_ctx,
-                        const struct TinyCSocketAddress* address,
-                        socklen_t address_length)
+int tcs_connect(tcs_socket socket_ctx,
+                const struct TinyCSocketAddress* address,
+                socklen_t address_length)
 {
     if (socket_ctx == TINYCSOCKET_NULLSOCKET)
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
@@ -125,7 +125,7 @@ int tinycsocket_connect(TinyCSocketCtx socket_ctx,
     return socketstatus2retcode(status);
 }
 
-int tinycsocket_listen(TinyCSocketCtx socket_ctx, int backlog)
+int tcs_listen(tcs_socket socket_ctx, int backlog)
 {
     if (socket_ctx == TINYCSOCKET_NULLSOCKET)
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
@@ -134,10 +134,10 @@ int tinycsocket_listen(TinyCSocketCtx socket_ctx, int backlog)
     return socketstatus2retcode(status);
 }
 
-int tinycsocket_accept(TinyCSocketCtx socket_ctx,
-                       TinyCSocketCtx* child_socket_ctx,
-                       struct TinyCSocketAddress* address,
-                       socklen_t* address_length)
+int tcs_accept(tcs_socket socket_ctx,
+               tcs_socket* child_socket_ctx,
+               struct TinyCSocketAddress* address,
+               socklen_t* address_length)
 {
     if (socket_ctx == TINYCSOCKET_NULLSOCKET || child_socket_ctx == NULL ||
         *child_socket_ctx != TINYCSOCKET_NULLSOCKET)
@@ -156,11 +156,11 @@ int tinycsocket_accept(TinyCSocketCtx socket_ctx,
     }
 }
 
-int tinycsocket_send(TinyCSocketCtx socket_ctx,
-                     const uint8_t* buffer,
-                     size_t buffer_length,
-                     uint_fast32_t flags,
-                     size_t* bytes_sent)
+int tcs_send(tcs_socket socket_ctx,
+             const uint8_t* buffer,
+             size_t buffer_length,
+             uint_fast32_t flags,
+             size_t* bytes_sent)
 {
     if (socket_ctx == TINYCSOCKET_NULLSOCKET)
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
@@ -181,13 +181,13 @@ int tinycsocket_send(TinyCSocketCtx socket_ctx,
     }
 }
 
-int tinycsocket_sendto(TinyCSocketCtx socket_ctx,
-                       const uint8_t* buffer,
-                       size_t buffer_length,
-                       uint_fast32_t flags,
-                       const struct TinyCSocketAddress* destination_address,
-                       size_t destination_address_length,
-                       size_t* bytes_sent)
+int tcs_sendto(tcs_socket socket_ctx,
+               const uint8_t* buffer,
+               size_t buffer_length,
+               uint_fast32_t flags,
+               const struct TinyCSocketAddress* destination_address,
+               size_t destination_address_length,
+               size_t* bytes_sent)
 {
     if (socket_ctx == TINYCSOCKET_NULLSOCKET)
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
@@ -214,11 +214,11 @@ int tinycsocket_sendto(TinyCSocketCtx socket_ctx,
     }
 }
 
-int tinycsocket_recv(TinyCSocketCtx socket_ctx,
-                     uint8_t* buffer,
-                     size_t buffer_length,
-                     uint_fast32_t flags,
-                     size_t* bytes_recieved)
+int tcs_recv(tcs_socket socket_ctx,
+             uint8_t* buffer,
+             size_t buffer_length,
+             uint_fast32_t flags,
+             size_t* bytes_recieved)
 {
     if (socket_ctx == TINYCSOCKET_NULLSOCKET)
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
@@ -240,13 +240,13 @@ int tinycsocket_recv(TinyCSocketCtx socket_ctx,
     }
 }
 
-int tinycsocket_recvfrom(TinyCSocketCtx socket_ctx,
-                         uint8_t* buffer,
-                         size_t buffer_length,
-                         uint_fast32_t flags,
-                         struct TinyCSocketAddress* source_address,
-                         size_t* source_address_length,
-                         size_t* bytes_recieved)
+int tcs_recvfrom(tcs_socket socket_ctx,
+                 uint8_t* buffer,
+                 size_t buffer_length,
+                 uint_fast32_t flags,
+                 struct TinyCSocketAddress* source_address,
+                 size_t* source_address_length,
+                 size_t* bytes_recieved)
 {
     if (socket_ctx == TINYCSOCKET_NULLSOCKET)
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
@@ -273,11 +273,11 @@ int tinycsocket_recvfrom(TinyCSocketCtx socket_ctx,
     }
 }
 
-int tinycsocket_setsockopt(TinyCSocketCtx socket_ctx,
-                           int_fast32_t level,
-                           int_fast32_t option_name,
-                           const void* option_value,
-                           socklen_t option_length)
+int tcs_setsockopt(tcs_socket socket_ctx,
+                   int_fast32_t level,
+                   int_fast32_t option_name,
+                   const void* option_value,
+                   socklen_t option_length)
 {
     if (socket_ctx == TINYCSOCKET_NULLSOCKET)
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
@@ -287,7 +287,7 @@ int tinycsocket_setsockopt(TinyCSocketCtx socket_ctx,
     return socketstatus2retcode(status);
 }
 
-int tinycsocket_shutdown(TinyCSocketCtx socket_ctx, int how)
+int tcs_shutdown(tcs_socket socket_ctx, int how)
 {
     if (socket_ctx == TINYCSOCKET_NULLSOCKET)
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
@@ -299,7 +299,7 @@ int tinycsocket_shutdown(TinyCSocketCtx socket_ctx, int how)
     return socketstatus2retcode(status);
 }
 
-int tinycsocket_closesocket(TinyCSocketCtx* socket_ctx)
+int tcs_delete(tcs_socket* socket_ctx)
 {
     if (socket_ctx == NULL || *socket_ctx == TINYCSOCKET_NULLSOCKET)
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
@@ -316,10 +316,10 @@ int tinycsocket_closesocket(TinyCSocketCtx* socket_ctx)
     }
 }
 
-int tinycsocket_getaddrinfo(const char* node,
-                            const char* service,
-                            const struct TinyCSocketAddressInfo* hints,
-                            struct TinyCSocketAddressInfo** res)
+int tcs_getaddrinfo(const char* node,
+                    const char* service,
+                    const struct tcs_addrinfo* hints,
+                    struct tcs_addrinfo** res)
 {
     if ((node == NULL && service == NULL) || res == NULL)
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
@@ -335,7 +335,7 @@ int tinycsocket_getaddrinfo(const char* node,
     return TINYCSOCKET_SUCCESS;
 }
 
-int tinycsocket_freeaddrinfo(struct TinyCSocketAddressInfo** addressinfo)
+int tcs_freeaddrinfo(struct tcs_addrinfo** addressinfo)
 {
     if (addressinfo == NULL)
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
