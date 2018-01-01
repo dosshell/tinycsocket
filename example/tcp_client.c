@@ -50,7 +50,7 @@ int main(int argc, const char* argv[])
     recv_buffer[bytes_recieved] = '\0';
     printf("recieved: %s\n", recv_buffer);
 
-    if (tcs_shutdown(client_socket, TINYCSOCKET_BOTH) != TINYCSOCKET_SUCCESS)
+    if (tcs_shutdown(client_socket, TINYCSOCKET_SD_BOTH) != TINYCSOCKET_SUCCESS)
         return show_error("Could not shutdown socket");
 
     if (tcs_delete(&client_socket) != TINYCSOCKET_SUCCESS)

@@ -58,7 +58,7 @@ int main()
     if (tcs_send(child_socket, msg, sizeof(msg), 0, NULL) != TINYCSOCKET_SUCCESS)
         return show_error("Could not send reply message");
 
-    if (tcs_shutdown(child_socket, TINYCSOCKET_BOTH) != TINYCSOCKET_SUCCESS)
+    if (tcs_shutdown(child_socket, TINYCSOCKET_SD_BOTH) != TINYCSOCKET_SUCCESS)
         return show_error("Could not shutdown socket");
 
     if (tcs_delete(&child_socket) != TINYCSOCKET_SUCCESS)

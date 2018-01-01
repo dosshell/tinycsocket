@@ -19,12 +19,21 @@ const int TINYCSOCKET_SOCK_DGRAM = SOCK_DGRAM;
 
 // Protocol
 const int TINYCSOCKET_IPPROTO_TCP = IPPROTO_TCP;
+const int TINYCSOCKET_IPPROTO_UDP = IPPROTO_UDP;
 
 // Flags
 const int TINYCSOCKET_AI_PASSIVE = AI_PASSIVE;
 
 // Backlog
 const int TINYCSOCKET_BACKLOG_SOMAXCONN = SOMAXCONN;
+
+// How
+const int TINYCSOCKET_SD_RECIEVE = SD_RECEIVE;
+const int TINYCSOCKET_SD_SEND = SD_SEND;
+const int TINYCSOCKET_SD_BOTH = SD_BOTH;
+
+// Socket options
+const int TINYCSOCKET_SO_REUSEADDR = SO_REUSEADDR;
 
 int errno2retcode(int error_code)
 {
@@ -260,10 +269,7 @@ int tcs_shutdown(tcs_socket socket_ctx, int how)
     if (socket_ctx == TINYCSOCKET_NULLSOCKET)
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
 
-    // This translation makes it possible to use "binary OR" operations for how
-    int posix_how = how - 1;
-
-    if (shutdown(socket_ctx, posix_how) == 0)
+    if (shutdown(socket_ctx, how) == 0)
         return TINYCSOCKET_SUCCESS;
     else
         return errno2retcode(errno);

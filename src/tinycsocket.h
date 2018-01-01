@@ -89,6 +89,7 @@ extern const int TINYCSOCKET_SOCK_DGRAM;
 
 // Protocol
 extern const int TINYCSOCKET_IPPROTO_TCP;
+extern const int TINYCSOCKET_IPPROTO_UDP;
 
 // Flags
 extern const int TINYCSOCKET_AI_PASSIVE;
@@ -97,9 +98,12 @@ extern const int TINYCSOCKET_AI_PASSIVE;
 extern const int TINYCSOCKET_BACKLOG_SOMAXCONN;
 
 // How
-static const int TINYCSOCKET_RECIEVE = 1;
-static const int TINYCSOCKET_SEND = 2;
-static const int TINYCSOCKET_BOTH = 3;
+static const int TINYCSOCKET_SD_RECIEVE;
+static const int TINYCSOCKET_SD_SEND;
+static const int TINYCSOCKET_SD_BOTH;
+
+// Socket options
+static const int TINYCSOCKET_SO_REUSEADDR;
 
 // Return codes
 static const int TINYCSOCKET_SUCCESS = 0;
