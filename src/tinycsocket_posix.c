@@ -57,7 +57,7 @@ int tcs_new(tcs_socket* socket_ctx, int domain, int type, int protocol)
 }
 
 int tcs_bind(tcs_socket socket_ctx,
-                     const struct TinyCSocketAddress* address,
+                     const struct tcs_sockaddr* address,
                      socklen_t address_length)
 {
     if (socket_ctx == TINYCSOCKET_NULLSOCKET)
@@ -70,7 +70,7 @@ int tcs_bind(tcs_socket socket_ctx,
 }
 
 int tcs_connect(tcs_socket socket_ctx,
-                        const struct TinyCSocketAddress* address,
+                        const struct tcs_sockaddr* address,
                         socklen_t address_length)
 {
     if (socket_ctx == TINYCSOCKET_NULLSOCKET)
@@ -95,7 +95,7 @@ int tcs_listen(tcs_socket socket_ctx, int backlog)
 
 int tcs_accept(tcs_socket socket_ctx,
                        tcs_socket* child_socket_ctx,
-                       struct TinyCSocketAddress* address,
+                       struct tcs_sockaddr* address,
                        socklen_t* address_length)
 {
     if (socket_ctx == TINYCSOCKET_NULLSOCKET || child_socket_ctx == NULL ||
@@ -142,7 +142,7 @@ int tcs_sendto(tcs_socket socket_ctx,
                        const uint8_t* buffer,
                        size_t buffer_length,
                        uint_fast32_t flags,
-                       const struct TinyCSocketAddress* destination_address,
+                       const struct tcs_sockaddr* destination_address,
                        size_t destination_address_length,
                        size_t* bytes_sent)
 {
@@ -206,7 +206,7 @@ int tcs_recvfrom(tcs_socket socket_ctx,
                          uint8_t* buffer,
                          size_t buffer_length,
                          uint_fast32_t flags,
-                         struct TinyCSocketAddress* source_address,
+                         struct tcs_sockaddr* source_address,
                          size_t* source_address_length,
                          size_t* bytes_recieved)
 {
