@@ -41,7 +41,7 @@ int main(int argc, const char* argv[])
     if (!didBind)
         return show_error("Could not bind socket");
 
-    struct TinyCSocketAddress remote_address = { 0 };
+    struct tcs_sockaddr remote_address = { 0 };
     size_t remote_address_size = sizeof(remote_address);
     uint8_t recv_buffer[1024];
     size_t bytes_recieved = 0;

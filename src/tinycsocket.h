@@ -34,7 +34,7 @@ struct tcs_addrinfo
     int ai_protocol;
     socklen_t ai_addrlen;
     char* ai_canonname;
-    struct TinyCSocketAddress* ai_addr;
+    struct tcs_sockaddr* ai_addr;
     struct tcs_addrinfo* ai_next;
 };
 
@@ -49,7 +49,7 @@ struct tcs_addrinfo
     int ai_socktype;
     int ai_protocol;
     socklen_t ai_addrlen;
-    struct TinyCSocketAddress* ai_addr;
+    struct tcs_sockaddr* ai_addr;
     char* ai_canonname;
     struct tcs_addrinfo* ai_next;
 };
@@ -68,7 +68,7 @@ typedef unsigned short int sa_family_t;
 #define _SS_PAD1SIZE__ (_SS_ALIGNSIZE__ - sizeof(sa_family_t))
 #define _SS_PAD2SIZE__ (_SS_MAXSIZE__ - (sizeof(sa_family_t) + _SS_PAD1SIZE__ + _SS_ALIGNSIZE__))
 
-struct TinyCSocketAddress
+struct tcs_sockaddr
 {
     sa_family_t ss_family;
     char __ss_pad1[_SS_PAD1SIZE__];
@@ -122,18 +122,18 @@ int tcs_free();
 int tcs_new(tcs_socket* socket_ctx, int domain, int type, int protocol);
 
 int tcs_bind(tcs_socket socket_ctx,
-                const struct TinyCSocketAddress* address,
+                const struct tcs_sockaddr* address,
                 socklen_t address_length);
 
 int tcs_connect(tcs_socket socket_ctx,
-                const struct TinyCSocketAddress* address,
+                const struct tcs_sockaddr* address,
                 socklen_t address_length);
 
 int tcs_listen(tcs_socket socket_ctx, int backlog);
 
 int tcs_accept(tcs_socket socket_ctx,
                 tcs_socket* child_socket_ctx,
-                struct TinyCSocketAddress* address,
+                struct tcs_sockaddr* address,
                 socklen_t* address_length);
 
 int tcs_send(tcs_socket socket_ctx,
@@ -146,7 +146,7 @@ int tcs_sendto(tcs_socket socket_ctx,
                 const uint8_t* buffer,
                 size_t buffer_length,
                 uint_fast32_t flags,
-                const struct TinyCSocketAddress* destination_address,
+                const struct tcs_sockaddr* destination_address,
                 size_t destination_address_length,
                 size_t* bytes_sent);
 
@@ -160,7 +160,7 @@ int tcs_recvfrom(tcs_socket socket_ctx,
                     uint8_t* buffer,
                     size_t buffer_length,
                     uint_fast32_t flags,
-                    struct TinyCSocketAddress* source_address,
+                    struct tcs_sockaddr* source_address,
                     size_t* source_address_length,
                     size_t* bytes_recieved);
 
