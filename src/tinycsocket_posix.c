@@ -40,19 +40,19 @@ int errno2retcode(int error_code)
     return TINYCSOCKET_ERROR_UNKNOWN;
 }
 
-int tcs_init()
+int tcs_lib_init()
 {
     // Not needed for posix
     return TINYCSOCKET_SUCCESS;
 }
 
-int tcs_free()
+int tcs_lib_free()
 {
     // Not needed for posix
     return TINYCSOCKET_SUCCESS;
 }
 
-int tcs_new(tcs_socket* socket_ctx, int domain, int type, int protocol)
+int tcs_create(tcs_socket* socket_ctx, int domain, int type, int protocol)
 {
     if (socket_ctx == NULL || *socket_ctx != TINYCSOCKET_NULLSOCKET)
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
@@ -126,7 +126,7 @@ int tcs_accept(tcs_socket socket_ctx,
 int tcs_send(tcs_socket socket_ctx,
                      const uint8_t* buffer,
                      size_t buffer_length,
-                     uint_fast32_t flags,
+                     uint32_t flags,
                      size_t* bytes_sent)
 {
     if (socket_ctx == TINYCSOCKET_NULLSOCKET)
@@ -150,7 +150,7 @@ int tcs_send(tcs_socket socket_ctx,
 int tcs_sendto(tcs_socket socket_ctx,
                        const uint8_t* buffer,
                        size_t buffer_length,
-                       uint_fast32_t flags,
+                       uint32_t flags,
                        const struct tcs_sockaddr* destination_address,
                        size_t destination_address_length,
                        size_t* bytes_sent)
@@ -183,7 +183,7 @@ int tcs_sendto(tcs_socket socket_ctx,
 int tcs_recv(tcs_socket socket_ctx,
                      uint8_t* buffer,
                      size_t buffer_length,
-                     uint_fast32_t flags,
+                     uint32_t flags,
                      size_t* bytes_recieved)
 {
     if (socket_ctx == TINYCSOCKET_NULLSOCKET)
@@ -214,7 +214,7 @@ int tcs_recv(tcs_socket socket_ctx,
 int tcs_recvfrom(tcs_socket socket_ctx,
                          uint8_t* buffer,
                          size_t buffer_length,
-                         uint_fast32_t flags,
+                         uint32_t flags,
                          struct tcs_sockaddr* source_address,
                          size_t* source_address_length,
                          size_t* bytes_recieved)
@@ -250,8 +250,8 @@ int tcs_recvfrom(tcs_socket socket_ctx,
 }
 
 int tcs_setsockopt(tcs_socket socket_ctx,
-                           int_fast32_t level,
-                           int_fast32_t option_name,
+                           int32_t level,
+                           int32_t option_name,
                            const void* option_value,
                            socklen_t option_length)
 {
@@ -276,7 +276,7 @@ int tcs_shutdown(tcs_socket socket_ctx, int how)
 }
 
 
-int tcs_delete(tcs_socket* socket_ctx)
+int tcs_free(tcs_socket* socket_ctx)
 {
     if (socket_ctx == NULL || *socket_ctx == TINYCSOCKET_NULLSOCKET)
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;

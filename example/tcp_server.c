@@ -11,7 +11,7 @@ int show_error(const char* error_text)
 
 int main()
 {
-    if (tcs_init() != TINYCSOCKET_SUCCESS)
+    if (tcs_lib_init() != TINYCSOCKET_SUCCESS)
         return show_error("Could not init tinycsockets");
 
     tcs_socket listen_socket = TINYCSOCKET_NULLSOCKET;
@@ -28,7 +28,7 @@ int main()
     if (tcs_getaddrinfo(NULL, "1212", &hints, &listen_addressinfo) != TINYCSOCKET_SUCCESS)
         return show_error("Could not resolve listen address");
 
-    if (tcs_new(&listen_socket, listen_addressinfo->ai_family, listen_addressinfo->ai_socktype, listen_addressinfo->ai_protocol) != TINYCSOCKET_SUCCESS)
+    if (tcs_create(&listen_socket, listen_addressinfo->ai_family, listen_addressinfo->ai_socktype, listen_addressinfo->ai_protocol) != TINYCSOCKET_SUCCESS)
         return show_error("Could not create a listen socket");
 
     if (tcs_bind(listen_socket, listen_addressinfo->ai_addr, listen_addressinfo->ai_addrlen) != TINYCSOCKET_SUCCESS)
@@ -43,7 +43,7 @@ int main()
     if (tcs_accept(listen_socket, &child_socket, NULL, NULL) != TINYCSOCKET_SUCCESS)
         return show_error("Could not accept socket");
 
-    if (tcs_delete(&listen_socket) != TINYCSOCKET_SUCCESS)
+    if (tcs_free(&listen_socket) != TINYCSOCKET_SUCCESS)
         return show_error("Could not close listen socket");
 
     uint8_t recv_buffer[1024];
@@ -61,9 +61,9 @@ int main()
     if (tcs_shutdown(child_socket, TINYCSOCKET_SD_BOTH) != TINYCSOCKET_SUCCESS)
         return show_error("Could not shutdown socket");
 
-    if (tcs_delete(&child_socket) != TINYCSOCKET_SUCCESS)
+    if (tcs_free(&child_socket) != TINYCSOCKET_SUCCESS)
         return show_error("Could not close socket");
 
-    if (tcs_free() != TINYCSOCKET_SUCCESS)
+    if (tcs_lib_free() != TINYCSOCKET_SUCCESS)
         return show_error("Could not free tinycsockets");
 }
