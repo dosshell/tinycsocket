@@ -5,6 +5,6 @@
 
 TEST_CASE("TCP test")
 {
-    CHECK(tcs_init() == TINYCSOCKET_SUCCESS);
-    CHECK(tcs_free() == TINYCSOCKET_SUCCESS);
+    CHECK(tcs_lib_init() == TINYCSOCKET_SUCCESS);
+    CHECK(tcs_lib_free() == TINYCSOCKET_SUCCESS);
 }

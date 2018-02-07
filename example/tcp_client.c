@@ -13,12 +13,12 @@ int show_error(const char* error_text)
 
 int main(int argc, const char* argv[])
 {
-    if (tcs_init() != TINYCSOCKET_SUCCESS)
+    if (tcs_lib_init() != TINYCSOCKET_SUCCESS)
         return show_error("Could not init tinycsockets");
 
     tcs_socket client_socket = TINYCSOCKET_NULLSOCKET;
 
-    if (tcs_new(&client_socket, TINYCSOCKET_AF_INET, TINYCSOCKET_SOCK_STREAM, TINYCSOCKET_IPPROTO_TCP) != TINYCSOCKET_SUCCESS)
+    if (tcs_create(&client_socket, TINYCSOCKET_AF_INET, TINYCSOCKET_SOCK_STREAM, TINYCSOCKET_IPPROTO_TCP) != TINYCSOCKET_SUCCESS)
         return show_error("Could not create a socket");
 
     struct tcs_addrinfo* address_info = NULL;
@@ -53,9 +53,9 @@ int main(int argc, const char* argv[])
     if (tcs_shutdown(client_socket, TINYCSOCKET_SD_BOTH) != TINYCSOCKET_SUCCESS)
         return show_error("Could not shutdown socket");
 
-    if (tcs_delete(&client_socket) != TINYCSOCKET_SUCCESS)
+    if (tcs_free(&client_socket) != TINYCSOCKET_SUCCESS)
         return show_error("Could not close the socket");
 
-    if (tcs_free() != TINYCSOCKET_SUCCESS)
+    if (tcs_lib_free() != TINYCSOCKET_SUCCESS)
         return show_error("Could not free tinycsockets");
 }

@@ -11,7 +11,7 @@ int show_error(const char* error_text)
 
 int main(int argc, const char* argv[])
 {
-    if (tcs_init() != TINYCSOCKET_SUCCESS)
+    if (tcs_lib_init() != TINYCSOCKET_SUCCESS)
         return show_error("Could not init tinycsockets");
 
     tcs_socket socket = TINYCSOCKET_NULLSOCKET;
@@ -28,7 +28,7 @@ int main(int argc, const char* argv[])
     bool didBind = false;
     for (struct tcs_addrinfo* address_iterator = address_info; address_iterator != NULL; address_iterator = address_iterator->ai_next)
     {
-        if (tcs_new(&socket, address_iterator->ai_family, address_iterator->ai_socktype, address_iterator->ai_protocol) != TINYCSOCKET_SUCCESS)
+        if (tcs_create(&socket, address_iterator->ai_family, address_iterator->ai_socktype, address_iterator->ai_protocol) != TINYCSOCKET_SUCCESS)
             continue;
 
         if (tcs_bind(socket, address_iterator->ai_addr, address_iterator->ai_addrlen) != TINYCSOCKET_SUCCESS)
@@ -56,9 +56,9 @@ int main(int argc, const char* argv[])
     if (tcs_sendto(socket, msg, sizeof(msg), 0, &remote_address, sizeof(remote_address), NULL) != TINYCSOCKET_SUCCESS)
         return show_error("Could not send message");
 
-    if (tcs_delete(&socket) != TINYCSOCKET_SUCCESS)
+    if (tcs_free(&socket) != TINYCSOCKET_SUCCESS)
         return show_error("Could not close socket");
 
-    if (tcs_free() != TINYCSOCKET_SUCCESS)
+    if (tcs_lib_free() != TINYCSOCKET_SUCCESS)
         return show_error("Could not free tinycsockets");
 }
