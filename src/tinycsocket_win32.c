@@ -327,7 +327,7 @@ int tcs_shutdown(tcs_socket socket_ctx, int how)
     return socketstatus2retcode(status);
 }
 
-int tcs_free(tcs_socket* socket_ctx)
+int tcs_close(tcs_socket* socket_ctx)
 {
     if (socket_ctx == NULL || *socket_ctx == TINYCSOCKET_NULLSOCKET)
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
