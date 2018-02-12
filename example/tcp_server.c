@@ -43,7 +43,7 @@ int main()
     if (tcs_accept(listen_socket, &child_socket, NULL, NULL) != TINYCSOCKET_SUCCESS)
         return show_error("Could not accept socket");
 
-    if (tcs_free(&listen_socket) != TINYCSOCKET_SUCCESS)
+    if (tcs_close(&listen_socket) != TINYCSOCKET_SUCCESS)
         return show_error("Could not close listen socket");
 
     uint8_t recv_buffer[1024];
@@ -61,7 +61,7 @@ int main()
     if (tcs_shutdown(child_socket, TINYCSOCKET_SD_BOTH) != TINYCSOCKET_SUCCESS)
         return show_error("Could not shutdown socket");
 
-    if (tcs_free(&child_socket) != TINYCSOCKET_SUCCESS)
+    if (tcs_close(&child_socket) != TINYCSOCKET_SUCCESS)
         return show_error("Could not close socket");
 
     if (tcs_lib_free() != TINYCSOCKET_SUCCESS)

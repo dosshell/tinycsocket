@@ -56,7 +56,7 @@ int main(int argc, const char* argv[])
     if (tcs_sendto(socket, msg, sizeof(msg), 0, &remote_address, sizeof(remote_address), NULL) != TINYCSOCKET_SUCCESS)
         return show_error("Could not send message");
 
-    if (tcs_free(&socket) != TINYCSOCKET_SUCCESS)
+    if (tcs_close(&socket) != TINYCSOCKET_SUCCESS)
         return show_error("Could not close socket");
 
     if (tcs_lib_free() != TINYCSOCKET_SUCCESS)

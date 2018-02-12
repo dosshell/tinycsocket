@@ -53,7 +53,7 @@ int main(int argc, const char* argv[])
     if (tcs_shutdown(client_socket, TINYCSOCKET_SD_BOTH) != TINYCSOCKET_SUCCESS)
         return show_error("Could not shutdown socket");
 
-    if (tcs_free(&client_socket) != TINYCSOCKET_SUCCESS)
+    if (tcs_close(&client_socket) != TINYCSOCKET_SUCCESS)
         return show_error("Could not close the socket");
 
     if (tcs_lib_free() != TINYCSOCKET_SUCCESS)

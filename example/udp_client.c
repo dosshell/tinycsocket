@@ -53,7 +53,7 @@ int main(int argc, const char* argv[])
     recv_buffer[bytes_recieved] = '\0';
     printf("recieved: %s\n", recv_buffer);
 
-    if (tcs_free(&socket) != TINYCSOCKET_SUCCESS)
+    if (tcs_close(&socket) != TINYCSOCKET_SUCCESS)
         return show_error("Could not close socket");
 
     if (tcs_lib_free() != TINYCSOCKET_SUCCESS)
