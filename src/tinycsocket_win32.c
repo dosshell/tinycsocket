@@ -13,7 +13,7 @@
 
 const tcs_socket TINYCSOCKET_NULLSOCKET = INVALID_SOCKET;
 
-static int g_init_count = 0;
+int g_init_count = 0;
 
 // Domain
 const int TINYCSOCKET_AF_INET = AF_INET;
