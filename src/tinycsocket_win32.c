@@ -1,3 +1,25 @@
+﻿/*
+ * Copyright 2018 Markus Lindelöw
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files(the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "tinycsocket.h"
 
 #ifdef TINYCSOCKET_USE_WIN32_IMPL
@@ -12,8 +34,6 @@
 #include <stdlib.h>
 
 const tcs_socket TINYCSOCKET_NULLSOCKET = INVALID_SOCKET;
-
-int g_init_count = 0;
 
 // Domain
 const int TINYCSOCKET_AF_INET = AF_INET;
@@ -40,7 +60,7 @@ const int TINYCSOCKET_SD_BOTH = SD_BOTH;
 // Socket options
 const int TINYCSOCKET_SO_REUSEADDR = SO_REUSEADDR;
 
-static inline int wsaerror2retcode(int wsa_error)
+static int wsaerror2retcode(int wsa_error)
 {
     switch (wsa_error)
     {
@@ -51,7 +71,7 @@ static inline int wsaerror2retcode(int wsa_error)
     }
 }
 
-static inline int socketstatus2retcode(int status)
+static int socketstatus2retcode(int status)
 {
     if (status == 0)
     {
@@ -67,6 +87,8 @@ static inline int socketstatus2retcode(int status)
         return TINYCSOCKET_ERROR_UNKNOWN;
     }
 }
+
+int g_init_count = 0;
 
 int tcs_lib_init()
 {
