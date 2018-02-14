@@ -1,7 +1,8 @@
 add_library (tinycsocket
-			 tinycsocket.h
-			 tinycsocket_win32.c
-			 tinycsocket_posix.c)
+             tinycsocket.h
+             tinycsocket_simple.c
+             tinycsocket_win32.c
+             tinycsocket_posix.c)
 
 target_include_directories (tinycsocket PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
