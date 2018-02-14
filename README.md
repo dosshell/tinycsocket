@@ -13,6 +13,15 @@ Currently support plattforms:
 - Windows 2000 SP1 and newer (XP, Server 2003, Vista, Server 2008, 7, 8, 8.1 and 10)
 - Most POSIX-like systems (for example linux)
 
+Installation instructions
+------------
+
+Copy the src folder and add all the files to your project. If you are deploying against Windows
+you also need to link to wsock32.lib ws2_32.lib.
+
+However, if you are using cmake you can just add the src folder as a subdir,
+`add_subdirectory (tinycsockets/src)` and you are done.
+
 MFAQ (Made up Frequently Asked Questions)
 ------------
 
