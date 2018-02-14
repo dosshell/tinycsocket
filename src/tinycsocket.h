@@ -360,6 +360,16 @@ int tcs_getaddrinfo(const char* node,
  */
 int tcs_freeaddrinfo(struct tcs_addrinfo** addressinfo);
 
+/**
+ * @brief Creates a socket and connects to a node and a port
+ */
+int tcs_simple_connect(tcs_socket* socket_ctx, const char* hostname, const char* port, int domain, int protocol);
+
+/**
+* @brief Creates a socket and binds it to a node and a port
+*/
+int tcs_simple_bind(tcs_socket* socket_ctx, const char* hostname, const char* port, int domain, int protocol);
+
 #ifdef __cplusplus
 }
 #endif
