@@ -1,3 +1,25 @@
+﻿/*
+ * Copyright 2018 Markus Lindelöw
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files(the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include "tinycsocket.h"
 
 #ifdef TINYCSOCKET_USE_POSIX_IMPL
@@ -276,7 +298,7 @@ int tcs_shutdown(tcs_socket socket_ctx, int how)
 }
 
 
-int tcs_free(tcs_socket* socket_ctx)
+int tcs_close(tcs_socket* socket_ctx)
 {
     if (socket_ctx == NULL || *socket_ctx == TINYCSOCKET_NULLSOCKET)
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
