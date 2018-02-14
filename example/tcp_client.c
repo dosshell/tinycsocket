@@ -47,17 +47,19 @@ int main(int argc, const char* argv[])
     if (tcs_getaddrinfo("localhost", "1212", NULL, &address_info) != TINYCSOCKET_SUCCESS)
         return show_error("Could not resolve host");
 
-    bool isConnected = false;
+    bool is_connected = false;
     for (struct tcs_addrinfo* address_iterator = address_info; address_iterator != NULL; address_iterator = address_iterator->ai_next)
     {
         if (tcs_connect(client_socket, address_iterator->ai_addr, address_iterator->ai_addrlen) == TINYCSOCKET_SUCCESS)
         {
-            isConnected = true;
+            is_connected = true;
             break;
         }
     }
 
-    if (!isConnected)
+    tcs_freeaddrinfo(&address_info);
+
+    if (!is_connected)
         return show_error("Could not connect to server");
 
     char msg[] = "hello world\n";

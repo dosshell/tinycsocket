@@ -46,20 +46,24 @@ int main(int argc, const char* argv[])
 
     tcs_getaddrinfo("localhost", "1212", &hints, &remote_info);
 
-    bool didConnect = false;
+    bool is_connected = false;
     for (struct tcs_addrinfo* address_iterator = remote_info; address_iterator != NULL; address_iterator = address_iterator->ai_next)
     {
         if (tcs_create(&socket, address_iterator->ai_family, address_iterator->ai_socktype, address_iterator->ai_protocol) != TINYCSOCKET_SUCCESS)
             continue;
 
         if (tcs_connect(socket, address_iterator->ai_addr, address_iterator->ai_addrlen) != TINYCSOCKET_SUCCESS)
+        {
+            tcs_close(&socket);
             continue;
-
-        didConnect = true;
+        }
+        is_connected = true;
         break;
     }
 
-    if (!didConnect)
+    tcs_freeaddrinfo(&remote_info);
+
+    if (!is_connected)
         return show_error("Could not connect to server");
 
     char msg[] = "hello world\n";
