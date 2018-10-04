@@ -1,6 +1,33 @@
 Tinycsockets
 ============
 
+```cpp
+  tcs_lib_init();
+
+  tcs_socket listen_socket = TINYCSOCKET_NULLSOCKET;
+  tcs_socket accept_socket = TINYCSOCKET_NULLSOCKET;
+  tcs_socket client_socket = TINYCSOCKET_NULLSOCKET;
+
+  tcs_simple_listen(&listen_socket, "localhost", "1212", TINYCSOCKET_AF_INET);
+  tcs_simple_connect(&client_socket, "localhost", "1212", TINYCSOCKET_AF_INET, TINYCSOCKET_SOCK_STREAM);
+  tcs_accept(listen_socket, &accept_socket, NULL, NULL);
+
+  tcs_close(&listen_socket);
+
+  uint8_t recv_buffer[8] = { 0 };
+  uint8_t* send_buffer = (uint8_t*)"12345678";
+
+  tcs_send(client_socket, send_buffer, 8, 0, NULL);
+  tcs_simple_recv_fixed(accept_socket, recv_buffer, 8);
+
+  memcmp(recv_buffer, send_buffer, 8);
+
+  tcs_close(&client_socket);
+  tcs_close(&accept_socket);
+
+  tcs_lib_free();
+```
+
 Tinycsockets is a thin cross-platform socket library written in C99. It focuses on a minimal
 footprint, fast compilation times and cross-platform. The API is similar to BSD sockets with some
 differences. All functions return an error-code. The advantage is that the error handling is simple
