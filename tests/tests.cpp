@@ -44,7 +44,7 @@ TEST_CASE("UDP test")
 
   tcs_getaddrinfo("localhost", "1212", &hints, &address_info);
 
-  // Setup UDP reciever
+  // Setup UDP receiver
   CHECK(tcs_lib_init() == TINYCSOCKET_SUCCESS);
   tcs_socket recv_soc = TINYCSOCKET_NULLSOCKET;
 
@@ -115,7 +115,7 @@ TEST_CASE("Simple TCP test")
   CHECK(tcs_simple_connect(&client_socket, "localhost", "1212", TINYCSOCKET_AF_INET, TINYCSOCKET_SOCK_STREAM) == TINYCSOCKET_SUCCESS);
   CHECK(tcs_accept(listen_socket, &accept_socket, NULL, NULL) == TINYCSOCKET_SUCCESS);
 
-  tcs_close(&listen_socket);
+  CHECK(tcs_close(&listen_socket) == TINYCSOCKET_SUCCESS);
 
   uint8_t recv_buffer[8] = { 0 };
   uint8_t* send_buffer = (uint8_t*)"12345678";
@@ -125,8 +125,8 @@ TEST_CASE("Simple TCP test")
 
   CHECK(memcmp(recv_buffer, send_buffer, 8) == 0);
 
-  tcs_close(&client_socket);
-  tcs_close(&accept_socket);
+  CHECK(tcs_close(&client_socket) == TINYCSOCKET_SUCCESS);
+  CHECK(tcs_close(&accept_socket) == TINYCSOCKET_SUCCESS);
 
   tcs_lib_free();
 }
