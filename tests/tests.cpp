@@ -1,16 +1,16 @@
 ﻿/*
  * Copyright 2018 Markus Lindelöw
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
@@ -101,4 +101,32 @@ TEST_CASE("UDP test")
   CHECK(tcs_freeaddrinfo(&address_info) == TINYCSOCKET_SUCCESS);
   CHECK(tcs_close(&recv_soc) == TINYCSOCKET_SUCCESS);
   CHECK(tcs_lib_free() == TINYCSOCKET_SUCCESS);
+}
+
+TEST_CASE("Simple TCP test")
+{
+  CHECK(tcs_lib_init() == TINYCSOCKET_SUCCESS);
+
+  tcs_socket listen_socket = TINYCSOCKET_NULLSOCKET;
+  tcs_socket accept_socket = TINYCSOCKET_NULLSOCKET;
+  tcs_socket client_socket = TINYCSOCKET_NULLSOCKET;
+
+  CHECK(tcs_simple_listen(&listen_socket, "localhost", "1212", TINYCSOCKET_AF_INET) == TINYCSOCKET_SUCCESS);
+  CHECK(tcs_simple_connect(&client_socket, "localhost", "1212", TINYCSOCKET_AF_INET, TINYCSOCKET_SOCK_STREAM) == TINYCSOCKET_SUCCESS);
+  CHECK(tcs_accept(listen_socket, &accept_socket, NULL, NULL) == TINYCSOCKET_SUCCESS);
+
+  tcs_close(&listen_socket);
+
+  uint8_t recv_buffer[8] = { 0 };
+  uint8_t* send_buffer = (uint8_t*)"12345678";
+
+  CHECK(tcs_send(client_socket, send_buffer, 8, 0, NULL) == TINYCSOCKET_SUCCESS);
+  CHECK(tcs_simple_recv_fixed(accept_socket, recv_buffer, 8) == TINYCSOCKET_SUCCESS);
+
+  CHECK(memcmp(recv_buffer, send_buffer, 8) == 0);
+
+  tcs_close(&client_socket);
+  tcs_close(&accept_socket);
+
+  tcs_lib_free();
 }
