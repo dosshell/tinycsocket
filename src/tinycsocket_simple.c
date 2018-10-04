@@ -15,12 +15,12 @@ int tcs_simple_connect(tcs_socket* socket_ctx, const char* hostname, const char*
   bool is_connected = false;
   for (struct tcs_addrinfo* address_iterator = address_info; address_iterator != NULL; address_iterator = address_iterator->ai_next)
   {
-    if (tcs_create(&socket_ctx, address_iterator->ai_family, address_iterator->ai_socktype, address_iterator->ai_protocol) != TINYCSOCKET_SUCCESS)
+    if (tcs_create(socket_ctx, address_iterator->ai_family, address_iterator->ai_socktype, address_iterator->ai_protocol) != TINYCSOCKET_SUCCESS)
       continue;
 
-    if (tcs_connect(socket_ctx, address_iterator->ai_addr, address_iterator->ai_addrlen) != TINYCSOCKET_SUCCESS)
+    if (tcs_connect(*socket_ctx, address_iterator->ai_addr, address_iterator->ai_addrlen) != TINYCSOCKET_SUCCESS)
     {
-      tcs_close(&socket_ctx);
+      tcs_close(socket_ctx);
       continue;
     }
 
@@ -49,12 +49,12 @@ int tcs_simple_bind(tcs_socket* socket_ctx, const char* hostname, const char* po
   bool is_bounded = false;
   for (struct tcs_addrinfo* address_iterator = address_info; address_iterator != NULL; address_iterator = address_iterator->ai_next)
   {
-    if (tcs_create(&socket_ctx, address_iterator->ai_family, address_iterator->ai_socktype, address_iterator->ai_protocol) != TINYCSOCKET_SUCCESS)
+    if (tcs_create(socket_ctx, address_iterator->ai_family, address_iterator->ai_socktype, address_iterator->ai_protocol) != TINYCSOCKET_SUCCESS)
       continue;
 
-    if (tcs_bind(socket_ctx, address_iterator->ai_addr, address_iterator->ai_addrlen) != TINYCSOCKET_SUCCESS)
+    if (tcs_bind(*socket_ctx, address_iterator->ai_addr, address_iterator->ai_addrlen) != TINYCSOCKET_SUCCESS)
     {
-      tcs_close(&socket_ctx);
+      tcs_close(socket_ctx);
       continue;
     }
 
@@ -63,7 +63,9 @@ int tcs_simple_bind(tcs_socket* socket_ctx, const char* hostname, const char* po
   }
 
   if (!is_bounded)
+  {
     return TINYCSOCKET_ERROR_UNKNOWN;
+  }
 
   return TINYCSOCKET_SUCCESS;
 }

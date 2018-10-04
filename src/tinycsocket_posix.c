@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2018 Markus Lindelöw
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -50,9 +50,9 @@ const int TINYCSOCKET_AI_PASSIVE = AI_PASSIVE;
 const int TINYCSOCKET_BACKLOG_SOMAXCONN = SOMAXCONN;
 
 // How
-const int TINYCSOCKET_SD_RECIEVE = SD_RECEIVE;
-const int TINYCSOCKET_SD_SEND = SD_SEND;
-const int TINYCSOCKET_SD_BOTH = SD_BOTH;
+const int TINYCSOCKET_SD_RECIEVE = SHUT_RD;
+const int TINYCSOCKET_SD_SEND = SHUT_WR;
+const int TINYCSOCKET_SD_BOTH = SHUT_RDWR;
 
 // Socket options
 const int TINYCSOCKET_SO_REUSEADDR = SO_REUSEADDR;
