@@ -1,16 +1,16 @@
-﻿/*
+/*
  * Copyright 2018 Markus Lindelöw
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
@@ -78,11 +78,11 @@ struct tcs_addrinfo
 
 #endif
 
-// TODO: This needs to be plattform specific
-// This should work on linux and windows for now
-// Invistagte if MacOS/BSD uses uint8_t as sa_family_t
+// TODO: This needs to be platform specific
+// This should work on Linux and windows for now
+// Investigate if MacOS/BSD uses uint8_t as sa_family_t
 
-// tcs_sockaddr is an obaque type for addresses. (IPv4, IPv6 etc.)
+// tcs_sockaddr is an opaque type for addresses. (IPv4, IPv6 etc.)
 
 typedef unsigned short int sa_family_t;
 
@@ -112,14 +112,14 @@ extern const int TINYCSOCKET_SOCK_STREAM; /**< Use for streaming types like TCP 
 extern const int TINYCSOCKET_SOCK_DGRAM; /**< Use for datagrams types like UDP */
 
 // Protocol
-extern const int TINYCSOCKET_IPPROTO_TCP; /**< Use TCP protocoll (use with TINYCSOCKET_SOCK_STREAM for normal cases) */
-extern const int TINYCSOCKET_IPPROTO_UDP; /**< Use UDP protocoll (use with TINYCSOCKET_SOCK_DGRAM for normal cases) */
+extern const int TINYCSOCKET_IPPROTO_TCP; /**< Use TCP protocol (use with TINYCSOCKET_SOCK_STREAM for normal cases) */
+extern const int TINYCSOCKET_IPPROTO_UDP; /**< Use UDP protocol (use with TINYCSOCKET_SOCK_DGRAM for normal cases) */
 
 // Flags
 extern const int TINYCSOCKET_AI_PASSIVE; /**< Use this flag for pure listening sockets */
 
 // Backlog
-extern const int TINYCSOCKET_BACKLOG_SOMAXCONN; /**< Max number of queud sockets when listening */ 
+extern const int TINYCSOCKET_BACKLOG_SOMAXCONN; /**< Max number of queud sockets when listening */
 
 // How
 extern const int TINYCSOCKET_SD_RECIEVE; /**< To shutdown incoming packets for socket */
@@ -146,14 +146,14 @@ static const int TINYCSOCKET_ERROR_ILL_FORMED_MESSAGE = -11;
 /**
  * @brief Call this to initialize the library, eg. call this before any other function.
  *
- * @return #TINYCSOCKET_SUCCESS if successfull, otherwise the error code.
+ * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
  */
 int tcs_lib_init();
 
 /**
- * @brief Call this when you are done with tinycsocket lib to free resources.
+ * @brief Call this when you are done with tinycsockets lib to free resources.
  *
- * @return #TINYCSOCKET_SUCCESS if successfull, otherwise the error code.
+ * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
  */
 int tcs_lib_free();
 
@@ -169,7 +169,7 @@ int tcs_lib_free();
  * @param domain only supports #TINYCSOCKET_AF_INET for now.
  * @param type specifies the type of the socket, for example #TINYCSOCKET_SOCK_STREAM or #TINYCSOCKET_SOCK_DGRAM.
  * @param protocol specifies the protocol, for example #TINYCSOCKET_IPPROTO_TCP or #TINYCSOCKET_IPPROTO_UDP.
- * @return #TINYCSOCKET_SUCCESS if successfull, otherwise the error code.
+ * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
  * @see tcs_close()
  * @see tcs_lib_init()
  */
@@ -181,7 +181,7 @@ int tcs_create(tcs_socket* socket_ctx, int domain, int type, int protocol);
  * @param socket_ctx is you in-out socket context.
  * @param address is you address to bind to.
  * @param address_length is you byte size of your @p address argument.
- * @return #TINYCSOCKET_SUCCESS if successfull, otherwise the error code.
+ * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
  * @see tcs_getaddrinfo()
  */
 int tcs_bind(tcs_socket socket_ctx,
@@ -194,7 +194,7 @@ int tcs_bind(tcs_socket socket_ctx,
  * @param socket_ctx is your in-out socket context.
  * @param address is the remote address to connect to.
  * @param address_length is the byte size of the @p address argument.
- * @return #TINYCSOCKET_SUCCESS if successfull, otherwise the error code.
+ * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
  * @see tcs_shutdown()
  */
 int tcs_connect(tcs_socket socket_ctx,
@@ -203,22 +203,22 @@ int tcs_connect(tcs_socket socket_ctx,
 
 /**
  * @brief Start listen for incoming sockets.
- * 
+ *
  * @param socket_ctx is your in-out socket context.
  * @param backlog is the maximum number of queued incoming sockets. Use #TINYCSOCKET_BACKLOG_SOMAXCONN to set it to max.
- * @return #TINYCSOCKET_SUCCESS if successfull, otherwise the error code.
+ * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
  * @see tcs_accept()
  */
 int tcs_listen(tcs_socket socket_ctx, int backlog);
 
 /**
  * @brief Accepts a socket from a listen socket.
- * 
+ *
  * @param socket_ctx is your listening socket you used when you called #tcs_listen().
  * @param child_socket_ctx is you accepted socket. Must have the in value of #TINYCSOCKET_NULLSOCKET.
  * @param address is an optional pointer to a buffer where the underlaying address can be stored.
  * @param address_length is an optional in-out pointer to a #socklen_t containing the byte size of the address argument.
- * @return #TINYCSOCKET_SUCCESS if successfull, otherwise the error code.
+ * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
  */
 int tcs_accept(tcs_socket socket_ctx,
                 tcs_socket* child_socket_ctx,
@@ -233,7 +233,7 @@ int tcs_accept(tcs_socket socket_ctx,
  * @param buffer_length is number of bytes of the data you want to send.
  * @param flags is currently not in use.
  * @param bytes_sent is how many bytes that was successfully sent.
- * @return #TINYCSOCKET_SUCCESS if successfull, otherwise the error code.
+ * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
  * @see tcs_recv()
  */
 int tcs_send(tcs_socket socket_ctx,
@@ -252,7 +252,7 @@ int tcs_send(tcs_socket socket_ctx,
  * @param destination_address is the address to send to.
  * @param destination_address_length is the byte size of the @p destination_adress argument.
  * @param bytes_sent is how many bytes that was successfully sent.
- * @return #TINYCSOCKET_SUCCESS if successfull, otherwise the error code.
+ * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
  * @see tcs_recvfrom()
  * @see tcs_getaddrinfo()
  */
@@ -265,14 +265,14 @@ int tcs_sendto(tcs_socket socket_ctx,
                 size_t* bytes_sent);
 
 /**
-* @brief Recieve data from a socket to your buffer
+* @brief Receive data from a socket to your buffer
 *
 * @param socket_ctx is your in-out socket context.
 * @param buffer is a pointer to your buffer where you want to store the incoming data to.
 * @param buffer_length is the byte size of your buffer, for preventing overflows.
 * @param flags is currently not in use.
 * @param bytes_recieved is how many bytes that was successfully written to your buffer.
-* @return #TINYCSOCKET_SUCCESS if successfull, otherwise the error code.
+* @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
 * @see tcs_send()
 */
 int tcs_recv(tcs_socket socket_ctx,
@@ -288,10 +288,10 @@ int tcs_recv(tcs_socket socket_ctx,
 * @param buffer is a pointer to your buffer where you want to store the incoming data to.
 * @param buffer_length is the byte size of your buffer, for preventing overflows.
 * @param flags is currently not in use.
-* @param source_address is the address to recieve from.
+* @param source_address is the address to receive from.
 * @param source_address_length is the byte size of the @p source_address argument.
 * @param bytes_recieved is how many bytes that was successfully written to your buffer.
-* @return #TINYCSOCKET_SUCCESS if successfull, otherwise the error code.
+* @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
 * @see tcs_sendto()
 * @see tcs_getaddrinfo()
 */
@@ -311,7 +311,7 @@ int tcs_recvfrom(tcs_socket socket_ctx,
 * @param option_name is the option name.
 * @param option_value is a pointer to the option value.
 * @param option_length is the byte size of the data pointed by @p option_value.
-* @return #TINYCSOCKET_SUCCESS if successfull, otherwise the error code.
+* @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
 */
 int tcs_setsockopt(tcs_socket socket_ctx,
                     int32_t level,
@@ -324,7 +324,7 @@ int tcs_setsockopt(tcs_socket socket_ctx,
 *
 * @param socket_ctx is your in-out socket context.
 * @param how defines in which direction you want to turn off the communication.
-* @return #TINYCSOCKET_SUCCESS if successfull, otherwise the error code.
+* @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
 */
 int tcs_shutdown(tcs_socket socket_ctx, int how);
 
@@ -332,18 +332,18 @@ int tcs_shutdown(tcs_socket socket_ctx, int how);
 * @brief closes the socket, call this when you are done with the socket.
 *
 * @param socket_ctx is your in-out socket context.
-* @return #TINYCSOCKET_SUCCESS if successfull, otherwise the error code.
+* @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
 */
 int tcs_close(tcs_socket* socket_ctx);
 
 /**
 * @brief Get addresses you can connect to given a computer name and a port.
-* 
+*
 * @param node is your computer identifier: hostname, IPv4 or IPv6 address.
 * @param service is your port number. Also some support for common aliases like "http" exist.
 * @param hints is a struct with hints, for example if you only are interested in IPv6.
 * @param res is your output pointer to a linked list of addresses. You need to free this list when you are done with it.
-* @return #TINYCSOCKET_SUCCESS if successfull, otherwise the error code.
+* @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
 * @see tcs_freeaddrinfo()
 */
 int tcs_getaddrinfo(const char* node,
@@ -355,7 +355,7 @@ int tcs_getaddrinfo(const char* node,
  * @brief Frees your linked address list you acquired from tcs_getaddrinfo
  *
  * @param addressinfo is your linked list you acquired from tcs_getaddrinfo
- * @return #TINYCSOCKET_SUCCESS if successfull, otherwise the error code.
+ * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
  * @see tcs_getaddrinfo()
  */
 int tcs_freeaddrinfo(struct tcs_addrinfo** addressinfo);
@@ -369,6 +369,16 @@ int tcs_simple_connect(tcs_socket* socket_ctx, const char* hostname, const char*
 * @brief Creates a socket and binds it to a node and a port
 */
 int tcs_simple_bind(tcs_socket* socket_ctx, const char* hostname, const char* port, int domain, int protocol);
+
+/**
+* @brief Receives and fill the buffer width a fixed length of data (normal recv can fill the buffer less than the buffer length)
+*/
+int tcs_simple_recv_fixed(tcs_socket socket_ctx, uint8_t* buffer, size_t length);
+
+/**
+* @brief Listens to an address
+*/
+int tcs_simple_listen(tcs_socket* socket_ctx, const char* hostname, const char* port, int domain);
 
 #ifdef __cplusplus
 }
