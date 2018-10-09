@@ -371,14 +371,23 @@ int tcs_simple_connect(tcs_socket* socket_ctx, const char* hostname, const char*
 int tcs_simple_bind(tcs_socket* socket_ctx, const char* hostname, const char* port, int domain, int protocol);
 
 /**
-* @brief Receives and fill the buffer width a fixed length of data (normal recv can fill the buffer less than the buffer length)
-*/
-int tcs_simple_recv_fixed(tcs_socket socket_ctx, uint8_t* buffer, size_t length);
-
-/**
 * @brief Listens to an address
 */
 int tcs_simple_listen(tcs_socket* socket_ctx, const char* hostname, const char* port, int domain);
+
+/**
+* @brief Receives and fill the buffer width a fixed length of data (normal recv can fill the buffer less than the buffer length)
+*/
+int tcs_simple_recv_all(tcs_socket socket_ctx, uint8_t* buffer, size_t length);
+
+/**
+* @brief Sends the full buffer (normal send is allowed to send only a part of the buffer)
+*/
+int tcs_simple_send_all(tcs_socket socket_ctx, uint8_t* buffer, size_t length, uint32_t flags);
+
+int tcs_simple_recv_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length);
+
+int tcs_simple_send_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length);
 
 #ifdef __cplusplus
 }
