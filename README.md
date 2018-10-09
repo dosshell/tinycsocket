@@ -28,25 +28,41 @@ Tinycsockets
   tcs_lib_free();
 ```
 
-Tinycsockets is a thin cross-platform socket library written in C99. It focuses on a minimal
-footprint, fast compilation times and cross-platform. The API is similar to BSD sockets with some
-differences. All functions return an error-code. The advantage is that the error handling is simple
-to understand and to handle for all plattforms. The disadvantage is that the functions can not be
+Tinycsockets is a thin cross-platform socket library written in C99. It focuses
+on a minimal footprint, cross-platform and to also provide simple lowlevel utils
+(for example tcs_simple_connect(...) which resolves and connects to a hostname).
+The API is similar to BSD sockets with some differences. All functions return an
+error-code. The advantage is that the error handling is simple to understand and
+to handle for all plattforms. The disadvantage is that the functions can not be
 easily integrated in expressions.
 
 See the example folder for information of how to use tinycsockets.
 
 Currently support plattforms:
 - Windows 2000 SP1 and newer (XP, Server 2003, Vista, Server 2008, 7, 8, 8.1 and 10)
-- Most POSIX-like systems (for example linux)
+- Most POSIX-like systems (for example Linux)
 
 Installation instructions
 ------------
 
-If you are using a cmake project, it is recommended to include tinycsockets to your build system.
-Clone this repo and add `add_subdirectory (tinycsockets/src)` to your CMakeLists.txt.
+If you are using a cmake project, it is recommended to include tinycsockets to
+your build system. Clone this repo and add `add_subdirectory (tinycsockets/src)`
+to your CMakeLists.txt.
 
-You can also build this project and get a lib directory and an include directoy which you can use
-however you like. Generate a build-system out of tinycsockets with cmake and build the install
-target. Don't forget that if you are targeting Windows you also need to link to wsock32.lib and
-ws2_32.lib.
+You can also build this project to get a lib directory and an include directoy.
+Generate a build-system out of tinycsockets with cmake and build the install
+target. Don't forget that if you are targeting Windows you also need to link to
+wsock32.lib and ws2_32.lib.
+
+The following commands will create this include and lib folder in a folder named
+install:
+
+```
+git clone git@gitlab.com:dosshell/tinycsockets.git
+mkdir build
+cd build
+cmake -DCMAKE_INSTALL_PREFIX:Path=../install ../tinycsockets
+cmake --build . --target INSTALL --config Release
+```
+You can now remove the build directory and the tinycsockets directory if you
+like.
