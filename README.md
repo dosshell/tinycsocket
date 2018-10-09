@@ -17,8 +17,8 @@ Tinycsockets
   uint8_t recv_buffer[8] = { 0 };
   uint8_t* send_buffer = (uint8_t*)"12345678";
 
-  tcs_send(client_socket, send_buffer, 8, 0, NULL);
-  tcs_simple_recv_fixed(accept_socket, recv_buffer, 8);
+  tcs_simple_send_all(client_socket, send_buffer, 8, 0, NULL);
+  tcs_simple_recv_all(accept_socket, recv_buffer, 8);
 
   memcmp(recv_buffer, send_buffer, 8);
 

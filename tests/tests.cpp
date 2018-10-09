@@ -26,13 +26,13 @@
 #include <tinycsocket.h>
 #include <thread>
 
-TEST_CASE("init test")
+TEST_CASE("Init Test")
 {
     CHECK(tcs_lib_init() == TINYCSOCKET_SUCCESS);
     CHECK(tcs_lib_free() == TINYCSOCKET_SUCCESS);
 }
 
-TEST_CASE("UDP test")
+TEST_CASE("UDP Test")
 {
   CHECK(tcs_lib_init() == TINYCSOCKET_SUCCESS);
 
@@ -103,7 +103,7 @@ TEST_CASE("UDP test")
   CHECK(tcs_lib_free() == TINYCSOCKET_SUCCESS);
 }
 
-TEST_CASE("Simple TCP test")
+TEST_CASE("Simple TCP Test")
 {
   CHECK(tcs_lib_init() == TINYCSOCKET_SUCCESS);
 
@@ -120,8 +120,36 @@ TEST_CASE("Simple TCP test")
   uint8_t recv_buffer[8] = { 0 };
   uint8_t* send_buffer = (uint8_t*)"12345678";
 
-  CHECK(tcs_send(client_socket, send_buffer, 8, 0, NULL) == TINYCSOCKET_SUCCESS);
-  CHECK(tcs_simple_recv_fixed(accept_socket, recv_buffer, 8) == TINYCSOCKET_SUCCESS);
+  CHECK(tcs_simple_send_all(client_socket, send_buffer, 8, 0) == TINYCSOCKET_SUCCESS);
+  CHECK(tcs_simple_recv_all(accept_socket, recv_buffer, 8) == TINYCSOCKET_SUCCESS);
+
+  CHECK(memcmp(recv_buffer, send_buffer, 8) == 0);
+
+  CHECK(tcs_close(&client_socket) == TINYCSOCKET_SUCCESS);
+  CHECK(tcs_close(&accept_socket) == TINYCSOCKET_SUCCESS);
+
+  tcs_lib_free();
+}
+
+TEST_CASE("Simple TCP Netstring Test")
+{
+  CHECK(tcs_lib_init() == TINYCSOCKET_SUCCESS);
+
+  tcs_socket listen_socket = TINYCSOCKET_NULLSOCKET;
+  tcs_socket accept_socket = TINYCSOCKET_NULLSOCKET;
+  tcs_socket client_socket = TINYCSOCKET_NULLSOCKET;
+
+  CHECK(tcs_simple_listen(&listen_socket, "localhost", "1212", TINYCSOCKET_AF_INET) == TINYCSOCKET_SUCCESS);
+  CHECK(tcs_simple_connect(&client_socket, "localhost", "1212", TINYCSOCKET_AF_INET, TINYCSOCKET_SOCK_STREAM) == TINYCSOCKET_SUCCESS);
+  CHECK(tcs_accept(listen_socket, &accept_socket, NULL, NULL) == TINYCSOCKET_SUCCESS);
+
+  CHECK(tcs_close(&listen_socket) == TINYCSOCKET_SUCCESS);
+
+  uint8_t recv_buffer[16] = { 0 };
+  uint8_t* send_buffer = (uint8_t*)"12345678";
+
+  CHECK(tcs_simple_send_netstring(client_socket, send_buffer, 8) == TINYCSOCKET_SUCCESS);
+  CHECK(tcs_simple_recv_netstring(accept_socket, recv_buffer, 16) == TINYCSOCKET_SUCCESS);
 
   CHECK(memcmp(recv_buffer, send_buffer, 8) == 0);
 
