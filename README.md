@@ -43,32 +43,10 @@ Currently support plattforms:
 Installation instructions
 ------------
 
-Copy the src folder and add all the files to your project. If you are deploying against Windows
-you also need to link to wsock32.lib ws2_32.lib.
+If you are using a cmake project, it is recommended to include tinycsockets to your build system.
+Clone this repo and add `add_subdirectory (tinycsockets/src)` to your CMakeLists.txt.
 
-However, if you are using cmake you can just add the src folder as a subdir,
-`add_subdirectory (tinycsockets/src)` and you are done.
-
-MFAQ (Made up Frequently Asked Questions)
-------------
-
-- How do I contribute?
-  - You can create a merge-request at https://gitlab.com/dosshell/tinycsockets. Please note that we
-  use semi-linear history.
-
-- Why C and not \**random fancy language*\* ?
-  - The focus is cross-platform (hardware and OS). Almost all common platforms and OS:s have a
-  C-compiler. Many scripting languages also support bindings to a C ABI.
-
-- Does it support \**random fancy OS not in the list*\* ?
-  - No, but please make a merge-request.
-
-- Can I use this under license X ?
-  - No, but there is probably no need for that. This project uses the MIT license, which is a very
-  permissive license. You can even sell this code if you want to. The unwillingness of relicensing
-  is not only of practical reasons, but also because MIT gives us the authors a good liability
-  protection.
-
-- I don't get it. Do I need to initliaze tinycsockets or not?
-  - Yes, you need to initializ and free tinycsockets to support all plattforms. You also need to
-  free it as many times as you initialize it. Eg, you can use RAII to initialize and free it.
+You can also build this project and get a lib directory and an include directoy which you can use
+however you like. Generate a build-system out of tinycsockets with cmake and build the install
+target. Don't forget that if you are targeting Windows you also need to link to wsock32.lib and
+ws2_32.lib.
