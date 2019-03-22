@@ -2,6 +2,10 @@ Tinycsockets
 ============
 
 ```cpp
+#include "tinycsocket.h"
+
+int main(int argc, const char* argv[])
+{
   tcs_lib_init();
 
   tcs_socket listen_socket = TINYCSOCKET_NULLSOCKET;
@@ -17,7 +21,7 @@ Tinycsockets
   uint8_t recv_buffer[8] = { 0 };
   uint8_t* send_buffer = (uint8_t*)"12345678";
 
-  tcs_simple_send_all(client_socket, send_buffer, 8, 0, NULL);
+  tcs_simple_send_all(client_socket, send_buffer, 8, 0);
   tcs_simple_recv_all(accept_socket, recv_buffer, 8);
 
   memcmp(recv_buffer, send_buffer, 8);
@@ -26,6 +30,9 @@ Tinycsockets
   tcs_close(&accept_socket);
 
   tcs_lib_free();
+  
+  return 0;
+}
 ```
 
 Tinycsockets is a thin cross-platform socket library written in C99. It focuses
@@ -49,12 +56,19 @@ If you are using a cmake project, it is recommended to include tinycsockets to
 your build system. Clone this repo and add `add_subdirectory (tinycsockets/src)`
 to your CMakeLists.txt.
 
+```cmake
+...
+add_subdirectory(tinycsockets/src)
+target_link_libraries(your_target PRIVATE tinycsockets)
+```
+
+
 You can also build this project to get a lib directory and an include directoy.
 Generate a build-system out of tinycsockets with cmake and build the install
 target. Don't forget that if you are targeting Windows you also need to link to
 wsock32.lib and ws2_32.lib.
 
-The following commands will create this include and lib folder in a folder named
+The following commands will create these include- and lib folders in a folder named
 install:
 
 ```
