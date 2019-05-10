@@ -112,10 +112,12 @@ TEST_CASE("Simple TCP Test")
   tcs_socket accept_socket = TINYCSOCKET_NULLSOCKET;
   tcs_socket client_socket = TINYCSOCKET_NULLSOCKET;
 
-  CHECK(tcs_simple_listen(&listen_socket, "localhost", "1212", TINYCSOCKET_AF_INET) == TINYCSOCKET_SUCCESS);
-  CHECK(tcs_simple_connect(&client_socket, "localhost", "1212", TINYCSOCKET_AF_INET, TINYCSOCKET_SOCK_STREAM) == TINYCSOCKET_SUCCESS);
-  CHECK(tcs_accept(listen_socket, &accept_socket, NULL, NULL) == TINYCSOCKET_SUCCESS);
+  CHECK(tcs_simple_create_and_listen(&listen_socket, "localhost", "1212", TINYCSOCKET_AF_INET) == TINYCSOCKET_SUCCESS);
 
+  CHECK(tcs_create(&client_socket, TINYCSOCKET_AF_INET, TINYCSOCKET_SOCK_STREAM, TINYCSOCKET_IPPROTO_TCP) == TINYCSOCKET_SUCCESS);
+  CHECK(tcs_simple_connect(client_socket, "localhost", "1212") == TINYCSOCKET_SUCCESS);
+
+  CHECK(tcs_accept(listen_socket, &accept_socket, NULL, NULL) == TINYCSOCKET_SUCCESS);
   CHECK(tcs_close(&listen_socket) == TINYCSOCKET_SUCCESS);
 
   uint8_t recv_buffer[8] = { 0 };
@@ -140,10 +142,12 @@ TEST_CASE("Simple TCP Netstring Test")
   tcs_socket accept_socket = TINYCSOCKET_NULLSOCKET;
   tcs_socket client_socket = TINYCSOCKET_NULLSOCKET;
 
-  CHECK(tcs_simple_listen(&listen_socket, "localhost", "1212", TINYCSOCKET_AF_INET) == TINYCSOCKET_SUCCESS);
-  CHECK(tcs_simple_connect(&client_socket, "localhost", "1212", TINYCSOCKET_AF_INET, TINYCSOCKET_SOCK_STREAM) == TINYCSOCKET_SUCCESS);
-  CHECK(tcs_accept(listen_socket, &accept_socket, NULL, NULL) == TINYCSOCKET_SUCCESS);
+  CHECK(tcs_simple_create_and_listen(&listen_socket, "localhost", "1212", TINYCSOCKET_AF_INET) == TINYCSOCKET_SUCCESS);
 
+  CHECK(tcs_create(&client_socket, TINYCSOCKET_AF_INET, TINYCSOCKET_SOCK_STREAM, TINYCSOCKET_IPPROTO_TCP) == TINYCSOCKET_SUCCESS);
+  CHECK(tcs_simple_connect(client_socket, "localhost", "1212") == TINYCSOCKET_SUCCESS);
+
+  CHECK(tcs_accept(listen_socket, &accept_socket, NULL, NULL) == TINYCSOCKET_SUCCESS);
   CHECK(tcs_close(&listen_socket) == TINYCSOCKET_SUCCESS);
 
   uint8_t recv_buffer[16] = { 0 };

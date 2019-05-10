@@ -2,37 +2,13 @@
 #include <stdbool.h>
 #include <stdio.h> //sprintf
 
-
-
-int tcs_simple_connect(tcs_socket* socket_ctx, const char* hostname, const char* port, int domain, int type)
+int tcs_simple_connect(tcs_socket socket_ctx, const char* hostname, const char* port)
 {
-  if (socket_ctx == NULL || *socket_ctx != TINYCSOCKET_NULLSOCKET)
+  if (socket_ctx == TINYCSOCKET_NULLSOCKET)
     return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
-
-  int protocol = -1;
-  if (type == TINYCSOCKET_SOCK_STREAM)
-  {
-    protocol = TINYCSOCKET_IPPROTO_TCP;
-  }
-  else if (type == TINYCSOCKET_SOCK_DGRAM)
-  {
-    protocol = TINYCSOCKET_IPPROTO_UDP;
-  }
-  else
-  {
-    return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
-  }
-
-  int sts = TINYCSOCKET_SUCCESS;
-
-  sts = tcs_create(socket_ctx, domain, type, protocol);
-  if (sts != TINYCSOCKET_SUCCESS)
-  {
-    return sts;
-  }
 
   struct tcs_addrinfo* address_info = NULL;
-  sts = tcs_getaddrinfo(hostname, port, NULL, &address_info);
+  int sts = tcs_getaddrinfo(hostname, port, NULL, &address_info);
   if (sts != TINYCSOCKET_SUCCESS)
   {
     return sts;
@@ -41,7 +17,7 @@ int tcs_simple_connect(tcs_socket* socket_ctx, const char* hostname, const char*
   bool is_connected = false;
   for (struct tcs_addrinfo* address_iterator = address_info; address_iterator != NULL; address_iterator = address_iterator->ai_next)
   {
-    if (tcs_connect(*socket_ctx, address_iterator->ai_addr, address_iterator->ai_addrlen) == TINYCSOCKET_SUCCESS)
+    if (tcs_connect(socket_ctx, address_iterator->ai_addr, address_iterator->ai_addrlen) == TINYCSOCKET_SUCCESS)
     {
       is_connected = true;
       break;
@@ -92,7 +68,7 @@ int tcs_simple_bind(tcs_socket* socket_ctx, const char* hostname, const char* po
   return TINYCSOCKET_SUCCESS;
 }
 
-int tcs_simple_listen(tcs_socket* socket_ctx, const char* hostname, const char* port, int domain)
+int tcs_simple_create_and_listen(tcs_socket* socket_ctx, const char* hostname, const char* port, int domain)
 {
   if (socket_ctx == NULL || *socket_ctx != TINYCSOCKET_NULLSOCKET)
     return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
