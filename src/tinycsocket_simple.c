@@ -212,9 +212,11 @@ int tcs_simple_recv_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buf
   if (t != ',')
     return TINYCSOCKET_ERROR_ILL_FORMED_MESSAGE;
 
+  if (bytes_recieved != NULL)
+    *bytes_recieved = expected_length;
+
   return TINYCSOCKET_SUCCESS;
 }
-
 
 int tcs_simple_send_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length)
 {

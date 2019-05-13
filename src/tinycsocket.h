@@ -415,7 +415,7 @@ int tcs_simple_recv_all(tcs_socket socket_ctx, uint8_t* buffer, size_t length);
 */
 int tcs_simple_send_all(tcs_socket socket_ctx, uint8_t* buffer, size_t length, uint32_t flags);
 
-int tcs_simple_recv_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length);
+int tcs_simple_recv_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length, size_t* bytes_recieved);
 
 int tcs_simple_send_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length);
 
