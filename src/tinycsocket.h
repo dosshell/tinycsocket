@@ -119,7 +119,7 @@ extern const int TINYCSOCKET_IPPROTO_UDP; /**< Use UDP protocol (use with TINYCS
 extern const int TINYCSOCKET_AI_PASSIVE; /**< Use this flag for pure listening sockets */
 
 // Backlog
-extern const int TINYCSOCKET_BACKLOG_SOMAXCONN; /**< Max number of queud sockets when listening */
+extern const int TINYCSOCKET_BACKLOG_SOMAXCONN; /**< Max number of queued sockets when listening */
 
 // How
 extern const int TINYCSOCKET_SD_RECIEVE; /**< To shutdown incoming packets for socket */
@@ -360,23 +360,53 @@ int tcs_getaddrinfo(const char* node,
  */
 int tcs_freeaddrinfo(struct tcs_addrinfo** addressinfo);
 
-/**
- * @brief Creates a socket and connects to a node and a port
+ /**
+ * @brief Creates a socket and connects to a hostname and port
+ *
+ * @param socket_ctx is your out socket context. Must be of #TINYCSOCKET_NULLSOCKET value.
+ * @param hostname is the name of the host to connect to, for example localhost.
+ * @param port is a string representation of the port you want to connect to. Normally an integer, like "5000" but also some support for common aliases like "http" exist.
+ * @param domain only supports #TINYCSOCKET_AF_INET for now
+ * @param protocol specifies the protocol, for example #TINYCSOCKET_IPPROTO_TCP or #TINYCSOCKET_IPPROTO_UDP.
+ * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
+ * @see tcs_simple_listen()
+ * @see tcs_simple_bind()
  */
 int tcs_simple_connect(tcs_socket* socket_ctx, const char* hostname, const char* port, int domain, int protocol);
 
 /**
 * @brief Creates a socket and binds it to a node and a port
+*
+* @param socket_ctx is your out socket context. Must be of #TINYCSOCKET_NULLSOCKET value.
+* @param hostname is the name of the host to bind to, for example "192.168.0.1" or "localhost".
+* @param port is a string representation of the port you want to bind to. Normally an integer, like "5000" but also some support for common aliases like "http" exist.
+* @param domain only supports #TINYCSOCKET_AF_INET for now
+* @param protocol specifies the protocol, for example #TINYCSOCKET_IPPROTO_TCP or #TINYCSOCKET_IPPROTO_UDP.
+* @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
+* @see tcs_simple_connect()
 */
 int tcs_simple_bind(tcs_socket* socket_ctx, const char* hostname, const char* port, int domain, int protocol);
 
 /**
-* @brief Listens to an address
+* @brief Listens to an address with TCP
+*
+* @param socket_ctx is your out socket context. Must be of #TINYCSOCKET_NULLSOCKET value.
+* @param hostname is the name of the address to listen on, for example "192.168.0.1" or "localhost".
+* @param port is a string representation of the port you want to listen to. Normally an integer, like "5000" but also some support for common aliases like "http" exist.
+* @param domain only supports #TINYCSOCKET_AF_INET for now
+* @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
+* @see tcs_simple_connect()
 */
 int tcs_simple_listen(tcs_socket* socket_ctx, const char* hostname, const char* port, int domain);
 
 /**
 * @brief Receives and fill the buffer width a fixed length of data (normal recv can fill the buffer less than the buffer length)
+*
+* @param socket_ctx is your in-out socket context.
+* @param buffer is a pointer to your buffer where you want to store the incoming data to.
+* @param buffer_length is the byte size of your buffer, it will fill the complete buffer.
+* @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
+* @see tcs_send_all()
 */
 int tcs_simple_recv_all(tcs_socket socket_ctx, uint8_t* buffer, size_t length);
 
@@ -385,7 +415,7 @@ int tcs_simple_recv_all(tcs_socket socket_ctx, uint8_t* buffer, size_t length);
 */
 int tcs_simple_send_all(tcs_socket socket_ctx, uint8_t* buffer, size_t length, uint32_t flags);
 
-int tcs_simple_recv_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length);
+int tcs_simple_recv_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length, size_t* bytes_recieved);
 
 int tcs_simple_send_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length);
 

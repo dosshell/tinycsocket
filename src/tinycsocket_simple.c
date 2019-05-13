@@ -165,7 +165,7 @@ int tcs_simple_send_all(tcs_socket socket_ctx, uint8_t* buffer, size_t length, u
   return TINYCSOCKET_SUCCESS;
 }
 
-int tcs_simple_recv_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length)
+int tcs_simple_recv_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length, size_t* bytes_recieved)
 {
   if (socket_ctx == TINYCSOCKET_NULLSOCKET || buffer == NULL || buffer_length <= 0)
     return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
@@ -212,9 +212,11 @@ int tcs_simple_recv_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buf
   if (t != ',')
     return TINYCSOCKET_ERROR_ILL_FORMED_MESSAGE;
 
+  if (bytes_recieved != NULL)
+    *bytes_recieved = expected_length;
+
   return TINYCSOCKET_SUCCESS;
 }
-
 
 int tcs_simple_send_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length)
 {
