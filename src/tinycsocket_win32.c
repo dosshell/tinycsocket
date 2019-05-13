@@ -120,7 +120,7 @@ int tcs_create(tcs_socket* socket_ctx, int domain, int type, int protocol)
     if (socket_ctx == NULL || *socket_ctx != TINYCSOCKET_NULLSOCKET)
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
 
-    UINT_PTR new_socket = socket(domain, type, protocol);
+    tcs_socket new_socket = socket(domain, type, protocol);
 
     if (new_socket != INVALID_SOCKET)
     {
@@ -174,7 +174,7 @@ int tcs_accept(tcs_socket socket_ctx,
         *child_socket_ctx != TINYCSOCKET_NULLSOCKET)
         return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
 
-    int new_child_socket = accept(socket_ctx, (struct sockaddr*)address, address_length);
+    tcs_socket new_child_socket = accept(socket_ctx, (struct sockaddr*)address, address_length);
     if (new_child_socket != INVALID_SOCKET)
     {
         *child_socket_ctx = new_child_socket;

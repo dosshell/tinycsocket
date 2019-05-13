@@ -361,7 +361,7 @@ int tcs_getaddrinfo(const char* node,
 int tcs_freeaddrinfo(struct tcs_addrinfo** addressinfo);
 
  /**
- * @brief Creates a socket and connects to a hostname and port
+ * @brief Connects a socket to a node and a port
  *
  * @param socket_ctx is your out socket context. Must be of #TINYCSOCKET_NULLSOCKET value.
  * @param hostname is the name of the host to connect to, for example localhost.
@@ -372,7 +372,7 @@ int tcs_freeaddrinfo(struct tcs_addrinfo** addressinfo);
  * @see tcs_simple_listen()
  * @see tcs_simple_bind()
  */
-int tcs_simple_connect(tcs_socket* socket_ctx, const char* hostname, const char* port, int domain, int protocol);
+int tcs_simple_connect(tcs_socket socket_ctx, const char* hostname, const char* port);
 
 /**
 * @brief Creates a socket and binds it to a node and a port
@@ -388,7 +388,7 @@ int tcs_simple_connect(tcs_socket* socket_ctx, const char* hostname, const char*
 int tcs_simple_bind(tcs_socket* socket_ctx, const char* hostname, const char* port, int domain, int protocol);
 
 /**
-* @brief Listens to an address with TCP
+* @brief Creates a socket and starts to listen to an address with TCP
 *
 * @param socket_ctx is your out socket context. Must be of #TINYCSOCKET_NULLSOCKET value.
 * @param hostname is the name of the address to listen on, for example "192.168.0.1" or "localhost".
@@ -397,7 +397,7 @@ int tcs_simple_bind(tcs_socket* socket_ctx, const char* hostname, const char* po
 * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
 * @see tcs_simple_connect()
 */
-int tcs_simple_listen(tcs_socket* socket_ctx, const char* hostname, const char* port, int domain);
+int tcs_simple_create_and_listen(tcs_socket* socket_ctx, const char* hostname, const char* port, int domain);
 
 /**
 * @brief Receives and fill the buffer width a fixed length of data (normal recv can fill the buffer less than the buffer length)
