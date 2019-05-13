@@ -25,6 +25,7 @@
 
 #include <tinycsocket.h>
 #include <thread>
+#include <cstring>
 
 TEST_CASE("Init Test")
 {
@@ -149,7 +150,7 @@ TEST_CASE("Simple TCP Netstring Test")
   uint8_t* send_buffer = (uint8_t*)"12345678";
 
   CHECK(tcs_simple_send_netstring(client_socket, send_buffer, 8) == TINYCSOCKET_SUCCESS);
-  CHECK(tcs_simple_recv_netstring(accept_socket, recv_buffer, 16) == TINYCSOCKET_SUCCESS);
+  CHECK(tcs_simple_recv_netstring(accept_socket, recv_buffer, 16, NULL) == TINYCSOCKET_SUCCESS);
 
   CHECK(memcmp(recv_buffer, send_buffer, 8) == 0);
 
