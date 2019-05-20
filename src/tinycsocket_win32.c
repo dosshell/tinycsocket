@@ -58,7 +58,9 @@ const int TINYCSOCKET_SD_SEND = SD_SEND;
 const int TINYCSOCKET_SD_BOTH = SD_BOTH;
 
 // Socket options
+const int TINYCSOCKET_SOL_SOCKET = SOL_SOCKET;
 const int TINYCSOCKET_SO_REUSEADDR = SO_REUSEADDR;
+const int TINYCSOCKET_SO_RCVBUF = SO_RCVBUF;
 
 static int wsaerror2retcode(int wsa_error)
 {

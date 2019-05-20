@@ -55,7 +55,9 @@ const int TINYCSOCKET_SD_SEND = SHUT_WR;
 const int TINYCSOCKET_SD_BOTH = SHUT_RDWR;
 
 // Socket options
+const int TINYCSOCKET_SOL_SOCKET = SOL_SOCKET;
 const int TINYCSOCKET_SO_REUSEADDR = SO_REUSEADDR;
+const int TINYCSOCKET_SO_RCVBUF = SO_RCVBUF;
 
 int errno2retcode(int error_code)
 {
