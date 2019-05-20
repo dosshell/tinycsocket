@@ -109,7 +109,7 @@ extern const int TINYCSOCKET_AF_INET; /**< IPv4 interface */
 
 // Type
 extern const int TINYCSOCKET_SOCK_STREAM; /**< Use for streaming types like TCP */
-extern const int TINYCSOCKET_SOCK_DGRAM; /**< Use for datagrams types like UDP */
+extern const int TINYCSOCKET_SOCK_DGRAM;  /**< Use for datagrams types like UDP */
 
 // Protocol
 extern const int TINYCSOCKET_IPPROTO_TCP; /**< Use TCP protocol (use with TINYCSOCKET_SOCK_STREAM for normal cases) */
@@ -123,11 +123,13 @@ extern const int TINYCSOCKET_BACKLOG_SOMAXCONN; /**< Max number of queued socket
 
 // How
 extern const int TINYCSOCKET_SD_RECIEVE; /**< To shutdown incoming packets for socket */
-extern const int TINYCSOCKET_SD_SEND; /**< To shutdown outgoing packets for socket */
-extern const int TINYCSOCKET_SD_BOTH; /**< To shutdown both incoming and outgoing packets for socket */
+extern const int TINYCSOCKET_SD_SEND;    /**< To shutdown outgoing packets for socket */
+extern const int TINYCSOCKET_SD_BOTH;    /**< To shutdown both incoming and outgoing packets for socket */
 
 // Socket options
+extern const int TINYCSOCKET_SOL_SOCKET;   /**< Socket option level */
 extern const int TINYCSOCKET_SO_REUSEADDR; /**< This is a tricky one! */
+extern const int TINYCSOCKET_SO_RCVBUF;    /**< Byte size of receiving buffer */
 
 // Return codes
 static const int TINYCSOCKET_SUCCESS = 0;
@@ -184,9 +186,7 @@ int tcs_create(tcs_socket* socket_ctx, int domain, int type, int protocol);
  * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
  * @see tcs_getaddrinfo()
  */
-int tcs_bind(tcs_socket socket_ctx,
-                const struct tcs_sockaddr* address,
-                socklen_t address_length);
+int tcs_bind(tcs_socket socket_ctx, const struct tcs_sockaddr* address, socklen_t address_length);
 
 /**
  * @brief Connects to a remote address
@@ -221,9 +221,9 @@ int tcs_listen(tcs_socket socket_ctx, int backlog);
  * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
  */
 int tcs_accept(tcs_socket socket_ctx,
-                tcs_socket* child_socket_ctx,
-                struct tcs_sockaddr* address,
-                socklen_t* address_length);
+               tcs_socket* child_socket_ctx,
+               struct tcs_sockaddr* address,
+               socklen_t* address_length);
 
 /**
  * @brief Sends data on a socket, blocking
@@ -237,10 +237,10 @@ int tcs_accept(tcs_socket socket_ctx,
  * @see tcs_recv()
  */
 int tcs_send(tcs_socket socket_ctx,
-                const uint8_t* buffer,
-                size_t buffer_length,
-                uint32_t flags,
-                size_t* bytes_sent);
+             const uint8_t* buffer,
+             size_t buffer_length,
+             uint32_t flags,
+             size_t* bytes_sent);
 
 /**
  * @brief Sends data to an address, useful with UDP sockets.
@@ -257,12 +257,12 @@ int tcs_send(tcs_socket socket_ctx,
  * @see tcs_getaddrinfo()
  */
 int tcs_sendto(tcs_socket socket_ctx,
-                const uint8_t* buffer,
-                size_t buffer_length,
-                uint32_t flags,
-                const struct tcs_sockaddr* destination_address,
-                size_t destination_address_length,
-                size_t* bytes_sent);
+               const uint8_t* buffer,
+               size_t buffer_length,
+               uint32_t flags,
+               const struct tcs_sockaddr* destination_address,
+               size_t destination_address_length,
+               size_t* bytes_sent);
 
 /**
 * @brief Receive data from a socket to your buffer
@@ -276,10 +276,10 @@ int tcs_sendto(tcs_socket socket_ctx,
 * @see tcs_send()
 */
 int tcs_recv(tcs_socket socket_ctx,
-                uint8_t* buffer,
-                size_t buffer_length,
-                uint32_t flags,
-                size_t* bytes_recieved);
+             uint8_t* buffer,
+             size_t buffer_length,
+             uint32_t flags,
+             size_t* bytes_recieved);
 
 /**
 * @brief Sends data to an address, useful with UDP sockets.
@@ -296,12 +296,12 @@ int tcs_recv(tcs_socket socket_ctx,
 * @see tcs_getaddrinfo()
 */
 int tcs_recvfrom(tcs_socket socket_ctx,
-                    uint8_t* buffer,
-                    size_t buffer_length,
-                    uint32_t flags,
-                    struct tcs_sockaddr* source_address,
-                    size_t* source_address_length,
-                    size_t* bytes_recieved);
+                 uint8_t* buffer,
+                 size_t buffer_length,
+                 uint32_t flags,
+                 struct tcs_sockaddr* source_address,
+                 size_t* source_address_length,
+                 size_t* bytes_recieved);
 
 /**
 * @brief Set parameters on a socket
@@ -314,10 +314,10 @@ int tcs_recvfrom(tcs_socket socket_ctx,
 * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
 */
 int tcs_setsockopt(tcs_socket socket_ctx,
-                    int32_t level,
-                    int32_t option_name,
-                    const void* option_value,
-                    socklen_t option_length);
+                   int32_t level,
+                   int32_t option_name,
+                   const void* option_value,
+                   socklen_t option_length);
 
 /**
 * @brief Turn off communication for the socket.
@@ -360,7 +360,7 @@ int tcs_getaddrinfo(const char* node,
  */
 int tcs_freeaddrinfo(struct tcs_addrinfo** addressinfo);
 
- /**
+/**
  * @brief Connects a socket to a node and a port
  *
  * @param socket_ctx is your out socket context. Must be of #TINYCSOCKET_NULLSOCKET value.
@@ -385,7 +385,11 @@ int tcs_simple_connect(tcs_socket socket_ctx, const char* hostname, const char* 
 * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
 * @see tcs_simple_connect()
 */
-int tcs_simple_bind(tcs_socket* socket_ctx, const char* hostname, const char* port, int domain, int protocol);
+int tcs_simple_bind(tcs_socket* socket_ctx,
+                    const char* hostname,
+                    const char* port,
+                    int domain,
+                    int protocol);
 
 /**
 * @brief Creates a socket and starts to listen to an address with TCP
@@ -397,7 +401,10 @@ int tcs_simple_bind(tcs_socket* socket_ctx, const char* hostname, const char* po
 * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
 * @see tcs_simple_connect()
 */
-int tcs_simple_create_and_listen(tcs_socket* socket_ctx, const char* hostname, const char* port, int domain);
+int tcs_simple_create_and_listen(tcs_socket* socket_ctx,
+                                 const char* hostname,
+                                 const char* port,
+                                 int domain);
 
 /**
 * @brief Receives and fill the buffer width a fixed length of data (normal recv can fill the buffer less than the buffer length)
@@ -415,7 +422,10 @@ int tcs_simple_recv_all(tcs_socket socket_ctx, uint8_t* buffer, size_t length);
 */
 int tcs_simple_send_all(tcs_socket socket_ctx, uint8_t* buffer, size_t length, uint32_t flags);
 
-int tcs_simple_recv_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length, size_t* bytes_recieved);
+int tcs_simple_recv_netstring(tcs_socket socket_ctx,
+                              uint8_t* buffer,
+                              size_t buffer_length,
+                              size_t* bytes_recieved);
 
 int tcs_simple_send_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length);
 
