@@ -100,62 +100,63 @@ struct tcs_sockaddr
     char __ss_pad2[_SS_PAD2SIZE__];
 };
 
-extern const tcs_socket TINYCSOCKET_NULLSOCKET; /**< An empty socket, you should always define your new sockets to this value*/
+extern const tcs_socket TCS_NULLSOCKET; /**< An empty socket, you should always define your new sockets to this value*/
 
 // TODO: Problem with optimizing when they are in another translation unit. LTO?
 
 // Domain
-extern const int TINYCSOCKET_AF_INET; /**< IPv4 interface */
+extern const int TCS_AF_INET; /**< IPv4 interface */
 
 // Type
-extern const int TINYCSOCKET_SOCK_STREAM; /**< Use for streaming types like TCP */
-extern const int TINYCSOCKET_SOCK_DGRAM;  /**< Use for datagrams types like UDP */
+extern const int TCS_SOCK_STREAM; /**< Use for streaming types like TCP */
+extern const int TCS_SOCK_DGRAM;  /**< Use for datagrams types like UDP */
 
 // Protocol
-extern const int TINYCSOCKET_IPPROTO_TCP; /**< Use TCP protocol (use with TINYCSOCKET_SOCK_STREAM for normal cases) */
-extern const int TINYCSOCKET_IPPROTO_UDP; /**< Use UDP protocol (use with TINYCSOCKET_SOCK_DGRAM for normal cases) */
+extern const int TCS_IPPROTO_TCP; /**< Use TCP protocol (use with TCS_SOCK_STREAM for normal cases) */
+extern const int TCS_IPPROTO_UDP; /**< Use UDP protocol (use with TCS_SOCK_DGRAM for normal cases) */
 
 // Flags
-extern const int TINYCSOCKET_AI_PASSIVE; /**< Use this flag for pure listening sockets */
+extern const int TCS_AI_PASSIVE; /**< Use this flag for pure listening sockets */
 
 // Backlog
-extern const int TINYCSOCKET_BACKLOG_SOMAXCONN; /**< Max number of queued sockets when listening */
+extern const int TCS_BACKLOG_SOMAXCONN; /**< Max number of queued sockets when listening */
 
 // How
-extern const int TINYCSOCKET_SD_RECIEVE; /**< To shutdown incoming packets for socket */
-extern const int TINYCSOCKET_SD_SEND;    /**< To shutdown outgoing packets for socket */
-extern const int TINYCSOCKET_SD_BOTH;    /**< To shutdown both incoming and outgoing packets for socket */
+extern const int TCS_SD_RECIEVE; /**< To shutdown incoming packets for socket */
+extern const int TCS_SD_SEND;    /**< To shutdown outgoing packets for socket */
+extern const int TCS_SD_BOTH;    /**< To shutdown both incoming and outgoing packets for socket */
 
 // Socket options
-extern const int TINYCSOCKET_SOL_SOCKET;   /**< Socket option level */
-extern const int TINYCSOCKET_SO_REUSEADDR; /**< This is a tricky one! */
-extern const int TINYCSOCKET_SO_RCVBUF;    /**< Byte size of receiving buffer */
+extern const int TCS_SOL_SOCKET;   /**< Socket option level */
+extern const int TCS_SO_REUSEADDR; /**< This is a tricky one! */
+extern const int TCS_SO_RCVBUF;    /**< Byte size of receiving buffer */
+extern const int TCS_SO_SNDBUF;    /**< Byte size of receiving buffer */
 
 // Return codes
-static const int TINYCSOCKET_SUCCESS = 0;
-static const int TINYCSOCKET_ERROR_UNKNOWN = -1;
-static const int TINYCSOCKET_ERROR_MEMORY = -2;
-static const int TINYCSOCKET_ERROR_INVALID_ARGUMENT = -3;
-static const int TINYCSOCKET_ERROR_KERNEL = -4;
-static const int TINYCSOCKET_ERROR_ADDRESS_LOOKUP_FAILED = -5;
-static const int TINYCSOCKET_ERROR_CONNECTION_REFUSED = -6;
-static const int TINYCSOCKET_ERROR_NOT_INITED = -7;
-static const int TINYCSOCKET_ERROR_TIMED_OUT = -8;
-static const int TINYCSOCKET_ERROR_NOT_IMPLEMENTED = -9;
-static const int TINYCSOCKET_ERROR_NOT_CONNECTED = -10;
-static const int TINYCSOCKET_ERROR_ILL_FORMED_MESSAGE = -11;
+static const int TCS_SUCCESS = 0;
+static const int TCS_ERROR_UNKNOWN = -1;
+static const int TCS_ERROR_MEMORY = -2;
+static const int TCS_ERROR_INVALID_ARGUMENT = -3;
+static const int TCS_ERROR_KERNEL = -4;
+static const int TCS_ERROR_ADDRESS_LOOKUP_FAILED = -5;
+static const int TCS_ERROR_CONNECTION_REFUSED = -6;
+static const int TCS_ERROR_NOT_INITED = -7;
+static const int TCS_ERROR_TIMED_OUT = -8;
+static const int TCS_ERROR_NOT_IMPLEMENTED = -9;
+static const int TCS_ERROR_NOT_CONNECTED = -10;
+static const int TCS_ERROR_ILL_FORMED_MESSAGE = -11;
 
 /**
  * @brief Call this to initialize the library, eg. call this before any other function.
  *
- * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
+ * @return #TCS_SUCCESS if successful, otherwise the error code.
  */
 int tcs_lib_init();
 
 /**
  * @brief Call this when you are done with tinycsockets lib to free resources.
  *
- * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
+ * @return #TCS_SUCCESS if successful, otherwise the error code.
  */
 int tcs_lib_free();
 
@@ -163,15 +164,15 @@ int tcs_lib_free();
  * @brief Creates a new socket.
  *
  * @code
- * tcs_socket my_socket = TINYCSOCKET_NULLSOCKET;
- * tcs_create(&my_socket, TINYCSOCKET_AF_INET, TINYCSOCKET_SOCK_STREAM, TINYCSOCKET_IPPROTO_TCP);
+ * tcs_socket my_socket = TCS_NULLSOCKET;
+ * tcs_create(&my_socket, TCS_AF_INET, TCS_SOCK_STREAM, TCS_IPPROTO_TCP);
  * @endcode
  *
- * @param socket_ctx is your in-out pointer to the socket context, you must initialize the socket to #TINYCSOCKET_NULLSOCKET before use.
- * @param domain only supports #TINYCSOCKET_AF_INET for now.
- * @param type specifies the type of the socket, for example #TINYCSOCKET_SOCK_STREAM or #TINYCSOCKET_SOCK_DGRAM.
- * @param protocol specifies the protocol, for example #TINYCSOCKET_IPPROTO_TCP or #TINYCSOCKET_IPPROTO_UDP.
- * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
+ * @param socket_ctx is your in-out pointer to the socket context, you must initialize the socket to #TCS_NULLSOCKET before use.
+ * @param domain only supports #TCS_AF_INET for now.
+ * @param type specifies the type of the socket, for example #TCS_SOCK_STREAM or #TCS_SOCK_DGRAM.
+ * @param protocol specifies the protocol, for example #TCS_IPPROTO_TCP or #TCS_IPPROTO_UDP.
+ * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_close()
  * @see tcs_lib_init()
  */
@@ -183,7 +184,7 @@ int tcs_create(tcs_socket* socket_ctx, int domain, int type, int protocol);
  * @param socket_ctx is you in-out socket context.
  * @param address is you address to bind to.
  * @param address_length is you byte size of your @p address argument.
- * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
+ * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_getaddrinfo()
  */
 int tcs_bind(tcs_socket socket_ctx, const struct tcs_sockaddr* address, socklen_t address_length);
@@ -194,7 +195,7 @@ int tcs_bind(tcs_socket socket_ctx, const struct tcs_sockaddr* address, socklen_
  * @param socket_ctx is your in-out socket context.
  * @param address is the remote address to connect to.
  * @param address_length is the byte size of the @p address argument.
- * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
+ * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_shutdown()
  */
 int tcs_connect(tcs_socket socket_ctx,
@@ -205,8 +206,8 @@ int tcs_connect(tcs_socket socket_ctx,
  * @brief Start listen for incoming sockets.
  *
  * @param socket_ctx is your in-out socket context.
- * @param backlog is the maximum number of queued incoming sockets. Use #TINYCSOCKET_BACKLOG_SOMAXCONN to set it to max.
- * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
+ * @param backlog is the maximum number of queued incoming sockets. Use #TCS_BACKLOG_SOMAXCONN to set it to max.
+ * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_accept()
  */
 int tcs_listen(tcs_socket socket_ctx, int backlog);
@@ -215,10 +216,10 @@ int tcs_listen(tcs_socket socket_ctx, int backlog);
  * @brief Accepts a socket from a listen socket.
  *
  * @param socket_ctx is your listening socket you used when you called #tcs_listen().
- * @param child_socket_ctx is you accepted socket. Must have the in value of #TINYCSOCKET_NULLSOCKET.
+ * @param child_socket_ctx is you accepted socket. Must have the in value of #TCS_NULLSOCKET.
  * @param address is an optional pointer to a buffer where the underlaying address can be stored.
  * @param address_length is an optional in-out pointer to a #socklen_t containing the byte size of the address argument.
- * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
+ * @return #TCS_SUCCESS if successful, otherwise the error code.
  */
 int tcs_accept(tcs_socket socket_ctx,
                tcs_socket* child_socket_ctx,
@@ -233,7 +234,7 @@ int tcs_accept(tcs_socket socket_ctx,
  * @param buffer_length is number of bytes of the data you want to send.
  * @param flags is currently not in use.
  * @param bytes_sent is how many bytes that was successfully sent.
- * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
+ * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_recv()
  */
 int tcs_send(tcs_socket socket_ctx,
@@ -252,7 +253,7 @@ int tcs_send(tcs_socket socket_ctx,
  * @param destination_address is the address to send to.
  * @param destination_address_length is the byte size of the @p destination_adress argument.
  * @param bytes_sent is how many bytes that was successfully sent.
- * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
+ * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_recvfrom()
  * @see tcs_getaddrinfo()
  */
@@ -272,7 +273,7 @@ int tcs_sendto(tcs_socket socket_ctx,
 * @param buffer_length is the byte size of your buffer, for preventing overflows.
 * @param flags is currently not in use.
 * @param bytes_recieved is how many bytes that was successfully written to your buffer.
-* @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
+* @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_send()
 */
 int tcs_recv(tcs_socket socket_ctx,
@@ -291,7 +292,7 @@ int tcs_recv(tcs_socket socket_ctx,
 * @param source_address is the address to receive from.
 * @param source_address_length is the byte size of the @p source_address argument.
 * @param bytes_recieved is how many bytes that was successfully written to your buffer.
-* @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
+* @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_sendto()
 * @see tcs_getaddrinfo()
 */
@@ -311,7 +312,7 @@ int tcs_recvfrom(tcs_socket socket_ctx,
 * @param option_name is the option name.
 * @param option_value is a pointer to the option value.
 * @param option_length is the byte size of the data pointed by @p option_value.
-* @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
+* @return #TCS_SUCCESS if successful, otherwise the error code.
 */
 int tcs_setsockopt(tcs_socket socket_ctx,
                    int32_t level,
@@ -324,7 +325,7 @@ int tcs_setsockopt(tcs_socket socket_ctx,
 *
 * @param socket_ctx is your in-out socket context.
 * @param how defines in which direction you want to turn off the communication.
-* @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
+* @return #TCS_SUCCESS if successful, otherwise the error code.
 */
 int tcs_shutdown(tcs_socket socket_ctx, int how);
 
@@ -332,7 +333,7 @@ int tcs_shutdown(tcs_socket socket_ctx, int how);
 * @brief closes the socket, call this when you are done with the socket.
 *
 * @param socket_ctx is your in-out socket context.
-* @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
+* @return #TCS_SUCCESS if successful, otherwise the error code.
 */
 int tcs_close(tcs_socket* socket_ctx);
 
@@ -343,7 +344,7 @@ int tcs_close(tcs_socket* socket_ctx);
 * @param service is your port number. Also some support for common aliases like "http" exist.
 * @param hints is a struct with hints, for example if you only are interested in IPv6.
 * @param res is your output pointer to a linked list of addresses. You need to free this list when you are done with it.
-* @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
+* @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_freeaddrinfo()
 */
 int tcs_getaddrinfo(const char* node,
@@ -355,7 +356,7 @@ int tcs_getaddrinfo(const char* node,
  * @brief Frees your linked address list you acquired from tcs_getaddrinfo
  *
  * @param addressinfo is your linked list you acquired from tcs_getaddrinfo
- * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
+ * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_getaddrinfo()
  */
 int tcs_freeaddrinfo(struct tcs_addrinfo** addressinfo);
@@ -363,12 +364,12 @@ int tcs_freeaddrinfo(struct tcs_addrinfo** addressinfo);
 /**
  * @brief Connects a socket to a node and a port
  *
- * @param socket_ctx is your out socket context. Must be of #TINYCSOCKET_NULLSOCKET value.
+ * @param socket_ctx is your out socket context. Must have been previously created.
  * @param hostname is the name of the host to connect to, for example localhost.
  * @param port is a string representation of the port you want to connect to. Normally an integer, like "5000" but also some support for common aliases like "http" exist.
- * @param domain only supports #TINYCSOCKET_AF_INET for now
- * @param protocol specifies the protocol, for example #TINYCSOCKET_IPPROTO_TCP or #TINYCSOCKET_IPPROTO_UDP.
- * @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
+ * @param domain only supports #TCS_AF_INET for now
+ * @param protocol specifies the protocol, for example #TCS_IPPROTO_TCP or #TCS_IPPROTO_UDP.
+ * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_simple_listen()
  * @see tcs_simple_bind()
  */
@@ -377,12 +378,12 @@ int tcs_simple_connect(tcs_socket socket_ctx, const char* hostname, const char* 
 /**
 * @brief Creates a socket and binds it to a node and a port
 *
-* @param socket_ctx is your out socket context. Must be of #TINYCSOCKET_NULLSOCKET value.
+* @param socket_ctx is your out socket context. Must be of #TCS_NULLSOCKET value.
 * @param hostname is the name of the host to bind to, for example "192.168.0.1" or "localhost".
 * @param port is a string representation of the port you want to bind to. Normally an integer, like "5000" but also some support for common aliases like "http" exist.
-* @param domain only supports #TINYCSOCKET_AF_INET for now
-* @param protocol specifies the protocol, for example #TINYCSOCKET_IPPROTO_TCP or #TINYCSOCKET_IPPROTO_UDP.
-* @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
+* @param domain only supports #TCS_AF_INET for now
+* @param protocol specifies the protocol, for example #TCS_IPPROTO_TCP or #TCS_IPPROTO_UDP.
+* @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_simple_connect()
 */
 int tcs_simple_bind(tcs_socket* socket_ctx,
@@ -394,11 +395,11 @@ int tcs_simple_bind(tcs_socket* socket_ctx,
 /**
 * @brief Creates a socket and starts to listen to an address with TCP
 *
-* @param socket_ctx is your out socket context. Must be of #TINYCSOCKET_NULLSOCKET value.
+* @param socket_ctx is your out socket context. Must be of #TCS_NULLSOCKET value.
 * @param hostname is the name of the address to listen on, for example "192.168.0.1" or "localhost".
 * @param port is a string representation of the port you want to listen to. Normally an integer, like "5000" but also some support for common aliases like "http" exist.
-* @param domain only supports #TINYCSOCKET_AF_INET for now
-* @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
+* @param domain only supports #TCS_AF_INET for now
+* @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_simple_connect()
 */
 int tcs_simple_create_and_listen(tcs_socket* socket_ctx,
@@ -412,7 +413,7 @@ int tcs_simple_create_and_listen(tcs_socket* socket_ctx,
 * @param socket_ctx is your in-out socket context.
 * @param buffer is a pointer to your buffer where you want to store the incoming data to.
 * @param buffer_length is the byte size of your buffer, it will fill the complete buffer.
-* @return #TINYCSOCKET_SUCCESS if successful, otherwise the error code.
+* @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_send_all()
 */
 int tcs_simple_recv_all(tcs_socket socket_ctx, uint8_t* buffer, size_t length);

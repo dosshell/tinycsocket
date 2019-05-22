@@ -30,61 +30,62 @@
 #include <unistd.h> // close()
 #include <errno.h>
 
-const tcs_socket TINYCSOCKET_NULLSOCKET = -1;
+const tcs_socket TCS_NULLSOCKET = -1;
 
 // Domain
-const int TINYCSOCKET_AF_INET = AF_INET;
+const int TCS_AF_INET = AF_INET;
 
 // Type
-const int TINYCSOCKET_SOCK_STREAM = SOCK_STREAM;
-const int TINYCSOCKET_SOCK_DGRAM = SOCK_DGRAM;
+const int TCS_SOCK_STREAM = SOCK_STREAM;
+const int TCS_SOCK_DGRAM = SOCK_DGRAM;
 
 // Protocol
-const int TINYCSOCKET_IPPROTO_TCP = IPPROTO_TCP;
-const int TINYCSOCKET_IPPROTO_UDP = IPPROTO_UDP;
+const int TCS_IPPROTO_TCP = IPPROTO_TCP;
+const int TCS_IPPROTO_UDP = IPPROTO_UDP;
 
 // Flags
-const int TINYCSOCKET_AI_PASSIVE = AI_PASSIVE;
+const int TCS_AI_PASSIVE = AI_PASSIVE;
 
 // Backlog
-const int TINYCSOCKET_BACKLOG_SOMAXCONN = SOMAXCONN;
+const int TCS_BACKLOG_SOMAXCONN = SOMAXCONN;
 
 // How
-const int TINYCSOCKET_SD_RECIEVE = SHUT_RD;
-const int TINYCSOCKET_SD_SEND = SHUT_WR;
-const int TINYCSOCKET_SD_BOTH = SHUT_RDWR;
+const int TCS_SD_RECIEVE = SHUT_RD;
+const int TCS_SD_SEND = SHUT_WR;
+const int TCS_SD_BOTH = SHUT_RDWR;
 
 // Socket options
-const int TINYCSOCKET_SOL_SOCKET = SOL_SOCKET;
-const int TINYCSOCKET_SO_REUSEADDR = SO_REUSEADDR;
-const int TINYCSOCKET_SO_RCVBUF = SO_RCVBUF;
+const int TCS_SOL_SOCKET = SOL_SOCKET;
+const int TCS_SO_REUSEADDR = SO_REUSEADDR;
+const int TCS_SO_RCVBUF = SO_RCVBUF;
+const int TCS_SO_SNDBUF = SO_SNDBUF;
 
 int errno2retcode(int error_code)
 {
-    return TINYCSOCKET_ERROR_UNKNOWN;
+    return TCS_ERROR_UNKNOWN;
 }
 
 int tcs_lib_init()
 {
     // Not needed for posix
-    return TINYCSOCKET_SUCCESS;
+    return TCS_SUCCESS;
 }
 
 int tcs_lib_free()
 {
     // Not needed for posix
-    return TINYCSOCKET_SUCCESS;
+    return TCS_SUCCESS;
 }
 
 int tcs_create(tcs_socket* socket_ctx, int domain, int type, int protocol)
 {
-    if (socket_ctx == NULL || *socket_ctx != TINYCSOCKET_NULLSOCKET)
-        return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
+    if (socket_ctx == NULL || *socket_ctx != TCS_NULLSOCKET)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     *socket_ctx = socket(domain, type, protocol);
 
-    if (*socket_ctx != -1) // Same as TINYCSOCKET_NULLSOCKET
-        return TINYCSOCKET_SUCCESS;
+    if (*socket_ctx != -1) // Same as TCS_NULLSOCKET
+        return TCS_SUCCESS;
     else
         return errno2retcode(errno);
 }
@@ -93,11 +94,11 @@ int tcs_bind(tcs_socket socket_ctx,
                      const struct tcs_sockaddr* address,
                      socklen_t address_length)
 {
-    if (socket_ctx == TINYCSOCKET_NULLSOCKET)
-        return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
+    if (socket_ctx == TCS_NULLSOCKET)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     if (bind(socket_ctx, (const struct sockaddr*)address, (int)address_length) == 0)
-        return TINYCSOCKET_SUCCESS;
+        return TCS_SUCCESS;
     else
         return errno2retcode(errno);
 }
@@ -106,22 +107,22 @@ int tcs_connect(tcs_socket socket_ctx,
                         const struct tcs_sockaddr* address,
                         socklen_t address_length)
 {
-    if (socket_ctx == TINYCSOCKET_NULLSOCKET)
-        return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
+    if (socket_ctx == TCS_NULLSOCKET)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     if (connect(socket_ctx, (const struct sockaddr*)address, address_length) == 0)
-        return TINYCSOCKET_SUCCESS;
+        return TCS_SUCCESS;
     else
         return errno2retcode(errno);
 }
 
 int tcs_listen(tcs_socket socket_ctx, int backlog)
 {
-    if (socket_ctx == TINYCSOCKET_NULLSOCKET)
-        return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
+    if (socket_ctx == TCS_NULLSOCKET)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     if (listen(socket_ctx, backlog) == 0)
-        return TINYCSOCKET_SUCCESS;
+        return TCS_SUCCESS;
     else
         return errno2retcode(errno);
 }
@@ -131,15 +132,15 @@ int tcs_accept(tcs_socket socket_ctx,
                        struct tcs_sockaddr* address,
                        socklen_t* address_length)
 {
-    if (socket_ctx == TINYCSOCKET_NULLSOCKET || child_socket_ctx == NULL ||
-        *child_socket_ctx != TINYCSOCKET_NULLSOCKET)
-        return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
+    if (socket_ctx == TCS_NULLSOCKET || child_socket_ctx == NULL ||
+        *child_socket_ctx != TCS_NULLSOCKET)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     int new_child_socket = accept(socket_ctx, (struct sockaddr*)address, address_length);
     if (new_child_socket != -1)
     {
         *child_socket_ctx = new_child_socket;
-        return TINYCSOCKET_SUCCESS;
+        return TCS_SUCCESS;
     }
     else
     {
@@ -153,15 +154,15 @@ int tcs_send(tcs_socket socket_ctx,
                      uint32_t flags,
                      size_t* bytes_sent)
 {
-    if (socket_ctx == TINYCSOCKET_NULLSOCKET)
-        return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
+    if (socket_ctx == TCS_NULLSOCKET)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     int status = send(socket_ctx, (const char*)buffer, (int)buffer_length, (int)flags);
     if (status != -1)
     {
         if (bytes_sent != NULL)
             *bytes_sent = status;
-        return TINYCSOCKET_SUCCESS;
+        return TCS_SUCCESS;
     }
     else
     {
@@ -179,8 +180,8 @@ int tcs_sendto(tcs_socket socket_ctx,
                        size_t destination_address_length,
                        size_t* bytes_sent)
 {
-    if (socket_ctx == TINYCSOCKET_NULLSOCKET)
-        return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
+    if (socket_ctx == TCS_NULLSOCKET)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     int status = sendto(socket_ctx,
                         (const char*)buffer,
@@ -193,7 +194,7 @@ int tcs_sendto(tcs_socket socket_ctx,
     {
         if (bytes_sent != NULL)
             *bytes_sent = status;
-        return TINYCSOCKET_SUCCESS;
+        return TCS_SUCCESS;
     }
     else
     {
@@ -210,8 +211,8 @@ int tcs_recv(tcs_socket socket_ctx,
                      uint32_t flags,
                      size_t* bytes_recieved)
 {
-    if (socket_ctx == TINYCSOCKET_NULLSOCKET)
-        return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
+    if (socket_ctx == TCS_NULLSOCKET)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     int status = recv(socket_ctx, (char*)buffer, (int)buffer_length, (int)flags);
 
@@ -219,13 +220,13 @@ int tcs_recv(tcs_socket socket_ctx,
     {
         if (bytes_recieved != NULL)
             *bytes_recieved = status;
-        return TINYCSOCKET_SUCCESS;
+        return TCS_SUCCESS;
     }
     else if (status == 0)
     {
         if (bytes_recieved != NULL)
             *bytes_recieved = 0;
-        return TINYCSOCKET_ERROR_NOT_CONNECTED; // TODO: think about this
+        return TCS_ERROR_NOT_CONNECTED; // TODO: think about this
     }
     else
     {
@@ -243,8 +244,8 @@ int tcs_recvfrom(tcs_socket socket_ctx,
                          size_t* source_address_length,
                          size_t* bytes_recieved)
 {
-    if (socket_ctx == TINYCSOCKET_NULLSOCKET)
-        return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
+    if (socket_ctx == TCS_NULLSOCKET)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     int status = recvfrom(socket_ctx,
                           (char*)buffer,
@@ -257,13 +258,13 @@ int tcs_recvfrom(tcs_socket socket_ctx,
     {
         if (bytes_recieved != NULL)
             *bytes_recieved = status;
-        return TINYCSOCKET_SUCCESS;
+        return TCS_SUCCESS;
     }
     else if (status == 0)
     {
         if (bytes_recieved != NULL)
             *bytes_recieved = 0;
-        return TINYCSOCKET_ERROR_NOT_CONNECTED; // TODO: think about this
+        return TCS_ERROR_NOT_CONNECTED; // TODO: think about this
     }
     else
     {
@@ -279,22 +280,22 @@ int tcs_setsockopt(tcs_socket socket_ctx,
                            const void* option_value,
                            socklen_t option_length)
 {
-    if (socket_ctx == TINYCSOCKET_NULLSOCKET)
-        return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
+    if (socket_ctx == TCS_NULLSOCKET)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     if (setsockopt(socket_ctx, (int)level, (int)option_name, (const char*)option_value, (int)option_length) == 0)
-        return TINYCSOCKET_SUCCESS;
+        return TCS_SUCCESS;
     else
         return errno2retcode(errno);
 }
 
 int tcs_shutdown(tcs_socket socket_ctx, int how)
 {
-    if (socket_ctx == TINYCSOCKET_NULLSOCKET)
-        return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
+    if (socket_ctx == TCS_NULLSOCKET)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     if (shutdown(socket_ctx, how) == 0)
-        return TINYCSOCKET_SUCCESS;
+        return TCS_SUCCESS;
     else
         return errno2retcode(errno);
 }
@@ -302,13 +303,13 @@ int tcs_shutdown(tcs_socket socket_ctx, int how)
 
 int tcs_close(tcs_socket* socket_ctx)
 {
-    if (socket_ctx == NULL || *socket_ctx == TINYCSOCKET_NULLSOCKET)
-        return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
+    if (socket_ctx == NULL || *socket_ctx == TCS_NULLSOCKET)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     if (close(*socket_ctx) == 0)
     {
-        *socket_ctx = TINYCSOCKET_NULLSOCKET;
-        return TINYCSOCKET_SUCCESS;
+        *socket_ctx = TCS_NULLSOCKET;
+        return TCS_SUCCESS;
     }
     else
     {
@@ -322,26 +323,26 @@ int tcs_getaddrinfo(const char* node,
                             struct tcs_addrinfo** res)
 {
     if ((node == NULL && service == NULL) || res == NULL)
-        return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     int status = getaddrinfo(node, service, (const struct addrinfo*)hints, (struct addrinfo**)res);
     if (status == 0)
-        return TINYCSOCKET_SUCCESS;
+        return TCS_SUCCESS;
     else if (status == EAI_SYSTEM)
         return errno2retcode(errno);
     else
-        return TINYCSOCKET_ERROR_UNKNOWN;
+        return TCS_ERROR_UNKNOWN;
 }
 
 int tcs_freeaddrinfo(struct tcs_addrinfo** addressinfo)
 {
     if (addressinfo == NULL)
-        return TINYCSOCKET_ERROR_INVALID_ARGUMENT;
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     freeaddrinfo((struct addrinfo*)*addressinfo);
 
     *addressinfo = NULL;
-    return TINYCSOCKET_SUCCESS;
+    return TCS_SUCCESS;
 }
 
 #endif
