@@ -62,7 +62,14 @@ struct tcs_addrinfo
 
 #elif defined(TINYCSOCKET_USE_POSIX_IMPL)
 typedef int tcs_socket;
+
+#ifndef HAS_SOCKLEN_T
+#ifndef __socklen_t_defined
 typedef int socklen_t;
+#define HAS_SOCKLEN_T
+#endif
+#endif
+
 
 struct tcs_addrinfo
 {
