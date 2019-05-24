@@ -1,0 +1,13 @@
+image: alpine:3.9
+
+variables:
+  LC_ALL: C.UTF-8
+  LANG: C.UTF-8
+
+before_script:
+  - apk add cmake g++ ninja
+
+unit_tests:
+  script:
+    - mkdir build && cd build && cmake -G "Ninja" ../
+    - ninja
