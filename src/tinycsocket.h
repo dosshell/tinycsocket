@@ -46,7 +46,6 @@ extern "C"
 #if defined(TINYCSOCKET_USE_WIN32_IMPL)
 #include <basetsd.h>
 typedef UINT_PTR tcs_socket;
-typedef int socklen_t;
 
 struct tcs_addrinfo
 {
@@ -54,7 +53,7 @@ struct tcs_addrinfo
     int ai_family;
     int ai_socktype;
     int ai_protocol;
-    socklen_t ai_addrlen;
+    int ai_addrlen;
     char* ai_canonname;
     struct tcs_sockaddr* ai_addr;
     struct tcs_addrinfo* ai_next;
@@ -63,12 +62,6 @@ struct tcs_addrinfo
 #elif defined(TINYCSOCKET_USE_POSIX_IMPL)
 typedef int tcs_socket;
 
-#ifndef HAS_SOCKLEN_T
-#ifndef __socklen_t_defined
-typedef int socklen_t;
-#define HAS_SOCKLEN_T
-#endif
-#endif
 
 
 struct tcs_addrinfo
@@ -77,7 +70,7 @@ struct tcs_addrinfo
     int ai_family;
     int ai_socktype;
     int ai_protocol;
-    socklen_t ai_addrlen;
+    int ai_addrlen;
     struct tcs_sockaddr* ai_addr;
     char* ai_canonname;
     struct tcs_addrinfo* ai_next;
@@ -194,7 +187,7 @@ int tcs_create(tcs_socket* socket_ctx, int domain, int type, int protocol);
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_getaddrinfo()
  */
-int tcs_bind(tcs_socket socket_ctx, const struct tcs_sockaddr* address, socklen_t address_length);
+int tcs_bind(tcs_socket socket_ctx, const struct tcs_sockaddr* address, int address_length);
 
 /**
  * @brief Connects to a remote address
@@ -207,7 +200,7 @@ int tcs_bind(tcs_socket socket_ctx, const struct tcs_sockaddr* address, socklen_
  */
 int tcs_connect(tcs_socket socket_ctx,
                 const struct tcs_sockaddr* address,
-                socklen_t address_length);
+                int address_length);
 
 /**
  * @brief Start listen for incoming sockets.
@@ -225,13 +218,13 @@ int tcs_listen(tcs_socket socket_ctx, int backlog);
  * @param socket_ctx is your listening socket you used when you called #tcs_listen().
  * @param child_socket_ctx is you accepted socket. Must have the in value of #TCS_NULLSOCKET.
  * @param address is an optional pointer to a buffer where the underlaying address can be stored.
- * @param address_length is an optional in-out pointer to a #socklen_t containing the byte size of the address argument.
+ * @param address_length is an optional in-out pointer to a #int containing the byte size of the address argument.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  */
 int tcs_accept(tcs_socket socket_ctx,
                tcs_socket* child_socket_ctx,
                struct tcs_sockaddr* address,
-               socklen_t* address_length);
+               int* address_length);
 
 /**
  * @brief Sends data on a socket, blocking
@@ -325,7 +318,7 @@ int tcs_setsockopt(tcs_socket socket_ctx,
                    int32_t level,
                    int32_t option_name,
                    const void* option_value,
-                   socklen_t option_length);
+                   int option_length);
 
 /**
 * @brief Turn off communication for the socket.

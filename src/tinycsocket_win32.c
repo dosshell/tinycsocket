@@ -139,7 +139,7 @@ int tcs_create(tcs_socket* socket_ctx, int domain, int type, int protocol)
 
 int tcs_bind(tcs_socket socket_ctx,
              const struct tcs_sockaddr* address,
-             socklen_t address_length)
+             int address_length)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -150,7 +150,7 @@ int tcs_bind(tcs_socket socket_ctx,
 
 int tcs_connect(tcs_socket socket_ctx,
                 const struct tcs_sockaddr* address,
-                socklen_t address_length)
+                int address_length)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -171,7 +171,7 @@ int tcs_listen(tcs_socket socket_ctx, int backlog)
 int tcs_accept(tcs_socket socket_ctx,
                tcs_socket* child_socket_ctx,
                struct tcs_sockaddr* address,
-               socklen_t* address_length)
+               int* address_length)
 {
     if (socket_ctx == TCS_NULLSOCKET || child_socket_ctx == NULL ||
         *child_socket_ctx != TCS_NULLSOCKET)
@@ -311,7 +311,7 @@ int tcs_setsockopt(tcs_socket socket_ctx,
                    int32_t level,
                    int32_t option_name,
                    const void* option_value,
-                   socklen_t option_length)
+                   int option_length)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;

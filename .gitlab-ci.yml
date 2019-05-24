@@ -10,4 +10,5 @@ before_script:
 unit_tests:
   script:
     - mkdir build && cd build && cmake -G "Ninja" ../
-    - ninja
+    - ninja -v
+    - ./tests/tests
