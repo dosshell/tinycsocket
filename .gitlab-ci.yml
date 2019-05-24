@@ -11,3 +11,4 @@ unit_tests:
   script:
     - mkdir build && cd build && cmake -G "Ninja" ../
     - ninja -v
+    - ./tests/tests
