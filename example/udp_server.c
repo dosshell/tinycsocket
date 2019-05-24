@@ -33,27 +33,27 @@ int show_error(const char* error_text)
 
 int main(int argc, const char* argv[])
 {
-    if (tcs_lib_init() != TINYCSOCKET_SUCCESS)
+    if (tcs_lib_init() != TCS_SUCCESS)
         return show_error("Could not init tinycsockets");
 
-    tcs_socket socket = TINYCSOCKET_NULLSOCKET;
+    tcs_socket socket = TCS_NULLSOCKET;
 
     struct tcs_addrinfo* address_info = NULL;
 
     struct tcs_addrinfo hints = { 0 };
-    hints.ai_family = TINYCSOCKET_AF_INET;
-    hints.ai_socktype = TINYCSOCKET_SOCK_DGRAM;
-    hints.ai_flags = TINYCSOCKET_AI_PASSIVE;
+    hints.ai_family = TCS_AF_INET;
+    hints.ai_socktype = TCS_SOCK_DGRAM;
+    hints.ai_flags = TCS_AI_PASSIVE;
 
     tcs_getaddrinfo("localhost", "1212", &hints, &address_info);
 
     bool is_bounded = false;
     for (struct tcs_addrinfo* address_iterator = address_info; address_iterator != NULL; address_iterator = address_iterator->ai_next)
     {
-        if (tcs_create(&socket, address_iterator->ai_family, address_iterator->ai_socktype, address_iterator->ai_protocol) != TINYCSOCKET_SUCCESS)
+        if (tcs_create(&socket, address_iterator->ai_family, address_iterator->ai_socktype, address_iterator->ai_protocol) != TCS_SUCCESS)
             continue;
 
-        if (tcs_bind(socket, address_iterator->ai_addr, address_iterator->ai_addrlen) != TINYCSOCKET_SUCCESS)
+        if (tcs_bind(socket, address_iterator->ai_addr, address_iterator->ai_addrlen) != TCS_SUCCESS)
         {
             tcs_close(&socket);
             continue;
@@ -72,7 +72,7 @@ int main(int argc, const char* argv[])
     size_t remote_address_size = sizeof(remote_address);
     uint8_t recv_buffer[1024];
     size_t bytes_recieved = 0;
-    if (tcs_recvfrom(socket, recv_buffer, sizeof(recv_buffer) - sizeof('\0'), 0, &remote_address, &remote_address_size, &bytes_recieved) != TINYCSOCKET_SUCCESS)
+    if (tcs_recvfrom(socket, recv_buffer, sizeof(recv_buffer) - sizeof('\0'), 0, &remote_address, &remote_address_size, &bytes_recieved) != TCS_SUCCESS)
         return show_error("Could not recieve data");
     
     // Makes sure it is a NULL terminated string, this is why we only accept 1023 bytes in recieve
@@ -80,12 +80,12 @@ int main(int argc, const char* argv[])
     printf("recieved: %s\n", recv_buffer);
 
     char msg[] = "I here you loud and clear\n";
-    if (tcs_sendto(socket, msg, sizeof(msg), 0, &remote_address, sizeof(remote_address), NULL) != TINYCSOCKET_SUCCESS)
+    if (tcs_sendto(socket, msg, sizeof(msg), 0, &remote_address, sizeof(remote_address), NULL) != TCS_SUCCESS)
         return show_error("Could not send message");
 
-    if (tcs_close(&socket) != TINYCSOCKET_SUCCESS)
+    if (tcs_close(&socket) != TCS_SUCCESS)
         return show_error("Could not close socket");
 
-    if (tcs_lib_free() != TINYCSOCKET_SUCCESS)
+    if (tcs_lib_free() != TCS_SUCCESS)
         return show_error("Could not free tinycsockets");
 }
