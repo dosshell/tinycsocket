@@ -8,14 +8,16 @@ int main(int argc, const char* argv[])
 {
   tcs_lib_init();
 
-  tcs_socket listen_socket = TINYCSOCKET_NULLSOCKET;
-  tcs_socket accept_socket = TINYCSOCKET_NULLSOCKET;
-  tcs_socket client_socket = TINYCSOCKET_NULLSOCKET;
+  tcs_socket listen_socket = TCS_NULLSOCKET;
+  tcs_socket accept_socket = TCS_NULLSOCKET;
+  tcs_socket client_socket = TCS_NULLSOCKET;
 
-  tcs_simple_listen(&listen_socket, "localhost", "1212", TINYCSOCKET_AF_INET);
-  tcs_simple_connect(&client_socket, "localhost", "1212", TINYCSOCKET_AF_INET, TINYCSOCKET_SOCK_STREAM);
+  tcs_simple_create_and_listen(&listen_socket, "localhost", "1212", TCS_AF_INET);
+  
+  tcs_create(&socket, TCS_AF_INET, TCS_SOCK_STREAM, TCS_IPPROTO_TCP);
+  tcs_simple_connect(&client_socket, "localhost", "1212", TCS_AF_INET, TCS_SOCK_STREAM);
+  
   tcs_accept(listen_socket, &accept_socket, NULL, NULL);
-
   tcs_close(&listen_socket);
 
   uint8_t recv_buffer[8] = { 0 };
