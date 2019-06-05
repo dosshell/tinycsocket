@@ -115,6 +115,11 @@ extern const int TCS_IPPROTO_UDP; /**< Use UDP protocol (use with TCS_SOCK_DGRAM
 // Flags
 extern const int TCS_AI_PASSIVE; /**< Use this flag for pure listening sockets */
 
+// Recv flags
+extern const int TCS_MSG_WAITALL;
+extern const int TCS_MSG_PEEK;
+extern const int TCS_MSG_OOB;
+
 // Backlog
 extern const int TCS_BACKLOG_SOMAXCONN; /**< Max number of queued sockets when listening */
 

@@ -47,6 +47,11 @@ const int TCS_IPPROTO_UDP = IPPROTO_UDP;
 // Flags
 const int TCS_AI_PASSIVE = AI_PASSIVE;
 
+// Recv flags
+const int TCS_MSG_WAITALL = MSG_WAITALL;
+const int TCS_MSG_PEEK = MSG_PEEK;
+const int TCS_MSG_OOB = MSG_OOB;
+
 // Backlog
 const int TCS_BACKLOG_SOMAXCONN = SOMAXCONN;
 
