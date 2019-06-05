@@ -10,7 +10,7 @@ if(MSVC)
   endif()
 elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
 	set(COMMON_GXX_FLAGS "-Wall -Wextra -pedantic -Winit-self -Wpointer-arith -Wcast-align -Wconversion -Wshadow -Wundef -Wwrite-strings -Wswitch-enum -Wswitch-default")
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_GXX_FLAGS} -Wstrict-prototypes")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_GXX_FLAGS} -Wstrict-prototypes -Wmissing-prototypes -std=c99 -D_POSIX_C_SOURCE=200112L")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_GXX_FLAGS}")
 endif()
 

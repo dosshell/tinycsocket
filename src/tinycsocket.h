@@ -151,14 +151,14 @@ static const int TCS_ERROR_ILL_FORMED_MESSAGE = -11;
  *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  */
-int tcs_lib_init();
+int tcs_lib_init(void);
 
 /**
  * @brief Call this when you are done with tinycsockets lib to free resources.
  *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  */
-int tcs_lib_free();
+int tcs_lib_free(void);
 
 /**
  * @brief Creates a new socket.

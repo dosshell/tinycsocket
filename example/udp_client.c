@@ -25,13 +25,15 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+int show_error(const char* error_text);
+
 int show_error(const char* error_text)
 {
     fprintf(stderr, "%s", error_text);
     return -1;
 }
 
-int main(int argc, const char* argv[])
+int main(void)
 {
     if (tcs_lib_init() != TCS_SUCCESS)
         return show_error("Could not init tinycsockets");
@@ -67,7 +69,7 @@ int main(int argc, const char* argv[])
         return show_error("Could not connect to server");
 
     char msg[] = "hello world\n";
-    if (tcs_send(socket, msg, sizeof(msg), 0, NULL) != TCS_SUCCESS)
+    if (tcs_send(socket, (const uint8_t*)msg, sizeof(msg), 0, NULL) != TCS_SUCCESS)
         return show_error("Could not send message");
 
     uint8_t recv_buffer[1024];

@@ -25,13 +25,15 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+int show_error(const char* error_text);
+
 int show_error(const char* error_text)
 {
     fprintf(stderr, "%s", error_text);
     return -1;
 }
 
-int main(int argc, const char* argv[])
+int main(void)
 {
     if (tcs_lib_init() != TCS_SUCCESS)
         return show_error("Could not init tinycsockets");
@@ -80,7 +82,7 @@ int main(int argc, const char* argv[])
     printf("recieved: %s\n", recv_buffer);
 
     char msg[] = "I here you loud and clear\n";
-    if (tcs_sendto(socket, msg, sizeof(msg), 0, &remote_address, sizeof(remote_address), NULL) != TCS_SUCCESS)
+    if (tcs_sendto(socket, (const uint8_t*)msg, sizeof(msg), 0, &remote_address, sizeof(remote_address), NULL) != TCS_SUCCESS)
         return show_error("Could not send message");
 
     if (tcs_close(&socket) != TCS_SUCCESS)

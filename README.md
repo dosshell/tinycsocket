@@ -49,7 +49,7 @@ See the example folder for information of how to use tinycsockets.
 
 Currently support plattforms:
 - Windows 2000 SP1 and newer (XP, Server 2003, Vista, Server 2008, 7, 8, 8.1 and 10)
-- Most POSIX-like systems (for example Linux)
+- POSIX.1-2001 systems
 
 Installation instructions
 ------------

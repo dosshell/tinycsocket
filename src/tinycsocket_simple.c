@@ -167,7 +167,7 @@ int tcs_simple_recv_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buf
     if (is_end)
       break;
 
-    expected_length += t - '0';
+    expected_length += (size_t)(t - '0');
   }
 
   if (parsed >= max_header)
@@ -216,7 +216,7 @@ int tcs_simple_send_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buf
     return TCS_ERROR_INVALID_ARGUMENT;
 
   int sts = 0;
-  sts = tcs_simple_send_all(socket_ctx, (uint8_t*)netstring_header, header_length, 0);
+  sts = tcs_simple_send_all(socket_ctx, (uint8_t*)netstring_header, (size_t)header_length, 0);
   if (sts != TCS_SUCCESS)
     return sts;
 

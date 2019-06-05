@@ -24,10 +24,10 @@
 
 #ifdef TINYCSOCKET_USE_POSIX_IMPL
 
-#include <sys/socket.h> // pretty much everything
-#include <netdb.h> // Protocols and custom return codes
-#include <unistd.h> // close()
 #include <errno.h>
+#include <netdb.h>      // Protocols and custom return codes
+#include <sys/socket.h> // pretty much everything
+#include <unistd.h>     // close()
 
 const tcs_socket TCS_NULLSOCKET = -1;
 
@@ -61,7 +61,13 @@ const int TCS_SO_SNDBUF = SO_SNDBUF;
 
 int errno2retcode(int error_code)
 {
-    return TCS_ERROR_UNKNOWN;
+    switch (error_code)
+    {
+        case ECONNREFUSED:
+            return TCS_ERROR_CONNECTION_REFUSED;
+        default:
+            return TCS_ERROR_UNKNOWN;
+    }
 }
 
 int tcs_lib_init()
@@ -89,9 +95,7 @@ int tcs_create(tcs_socket* socket_ctx, int domain, int type, int protocol)
         return errno2retcode(errno);
 }
 
-int tcs_bind(tcs_socket socket_ctx,
-                     const struct tcs_sockaddr* address,
-                     int address_length)
+int tcs_bind(tcs_socket socket_ctx, const struct tcs_sockaddr* address, int address_length)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -102,9 +106,7 @@ int tcs_bind(tcs_socket socket_ctx,
         return errno2retcode(errno);
 }
 
-int tcs_connect(tcs_socket socket_ctx,
-                        const struct tcs_sockaddr* address,
-                        int address_length)
+int tcs_connect(tcs_socket socket_ctx, const struct tcs_sockaddr* address, int address_length)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -127,9 +129,9 @@ int tcs_listen(tcs_socket socket_ctx, int backlog)
 }
 
 int tcs_accept(tcs_socket socket_ctx,
-                       tcs_socket* child_socket_ctx,
-                       struct tcs_sockaddr* address,
-                       int* address_length)
+               tcs_socket* child_socket_ctx,
+               struct tcs_sockaddr* address,
+               int* address_length)
 {
     if (socket_ctx == TCS_NULLSOCKET || child_socket_ctx == NULL ||
         *child_socket_ctx != TCS_NULLSOCKET)
@@ -148,10 +150,10 @@ int tcs_accept(tcs_socket socket_ctx,
 }
 
 int tcs_send(tcs_socket socket_ctx,
-                     const uint8_t* buffer,
-                     size_t buffer_length,
-                     uint32_t flags,
-                     size_t* bytes_sent)
+             const uint8_t* buffer,
+             size_t buffer_length,
+             uint32_t flags,
+             size_t* bytes_sent)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -172,12 +174,12 @@ int tcs_send(tcs_socket socket_ctx,
 }
 
 int tcs_sendto(tcs_socket socket_ctx,
-                       const uint8_t* buffer,
-                       size_t buffer_length,
-                       uint32_t flags,
-                       const struct tcs_sockaddr* destination_address,
-                       size_t destination_address_length,
-                       size_t* bytes_sent)
+               const uint8_t* buffer,
+               size_t buffer_length,
+               uint32_t flags,
+               const struct tcs_sockaddr* destination_address,
+               size_t destination_address_length,
+               size_t* bytes_sent)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -205,10 +207,10 @@ int tcs_sendto(tcs_socket socket_ctx,
 }
 
 int tcs_recv(tcs_socket socket_ctx,
-                     uint8_t* buffer,
-                     size_t buffer_length,
-                     uint32_t flags,
-                     size_t* bytes_recieved)
+             uint8_t* buffer,
+             size_t buffer_length,
+             uint32_t flags,
+             size_t* bytes_recieved)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -236,12 +238,12 @@ int tcs_recv(tcs_socket socket_ctx,
 }
 
 int tcs_recvfrom(tcs_socket socket_ctx,
-                         uint8_t* buffer,
-                         size_t buffer_length,
-                         uint32_t flags,
-                         struct tcs_sockaddr* source_address,
-                         size_t* source_address_length,
-                         size_t* bytes_recieved)
+                 uint8_t* buffer,
+                 size_t buffer_length,
+                 uint32_t flags,
+                 struct tcs_sockaddr* source_address,
+                 size_t* source_address_length,
+                 size_t* bytes_recieved)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -274,15 +276,19 @@ int tcs_recvfrom(tcs_socket socket_ctx,
 }
 
 int tcs_setsockopt(tcs_socket socket_ctx,
-                           int32_t level,
-                           int32_t option_name,
-                           const void* option_value,
-                           int option_length)
+                   int32_t level,
+                   int32_t option_name,
+                   const void* option_value,
+                   int option_length)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (setsockopt(socket_ctx, (int)level, (int)option_name, (const char*)option_value, (int)option_length) == 0)
+    if (setsockopt(socket_ctx,
+                   (int)level,
+                   (int)option_name,
+                   (const char*)option_value,
+                   (int)option_length) == 0)
         return TCS_SUCCESS;
     else
         return errno2retcode(errno);
@@ -298,7 +304,6 @@ int tcs_shutdown(tcs_socket socket_ctx, int how)
     else
         return errno2retcode(errno);
 }
-
 
 int tcs_close(tcs_socket* socket_ctx)
 {
@@ -317,9 +322,9 @@ int tcs_close(tcs_socket* socket_ctx)
 }
 
 int tcs_getaddrinfo(const char* node,
-                            const char* service,
-                            const struct tcs_addrinfo* hints,
-                            struct tcs_addrinfo** res)
+                    const char* service,
+                    const struct tcs_addrinfo* hints,
+                    struct tcs_addrinfo** res)
 {
     if ((node == NULL && service == NULL) || res == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
