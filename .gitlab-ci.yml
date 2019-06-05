@@ -4,11 +4,14 @@ variables:
   LC_ALL: C.UTF-8
   LANG: C.UTF-8
 
-before_script:
-  - apk add cmake g++ ninja
-
 unit_tests:
   script:
+    - apk add cmake g++ ninja
     - mkdir build && cd build && cmake -G "Ninja" ../
     - ninja -v
     - ./tests/tests
+
+format_tests:
+  script:
+    - apk add clang python3
+    - python3 ./tests/run-clang-format.py -j 1 -r --exclude tests/doctest.h src tests examples
