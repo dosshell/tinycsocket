@@ -128,13 +128,9 @@ int tcs_listen(tcs_socket socket_ctx, int backlog)
         return errno2retcode(errno);
 }
 
-int tcs_accept(tcs_socket socket_ctx,
-               tcs_socket* child_socket_ctx,
-               struct tcs_sockaddr* address,
-               int* address_length)
+int tcs_accept(tcs_socket socket_ctx, tcs_socket* child_socket_ctx, struct tcs_sockaddr* address, int* address_length)
 {
-    if (socket_ctx == TCS_NULLSOCKET || child_socket_ctx == NULL ||
-        *child_socket_ctx != TCS_NULLSOCKET)
+    if (socket_ctx == TCS_NULLSOCKET || child_socket_ctx == NULL || *child_socket_ctx != TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     int new_child_socket = accept(socket_ctx, (struct sockaddr*)address, address_length);
@@ -149,11 +145,7 @@ int tcs_accept(tcs_socket socket_ctx,
     }
 }
 
-int tcs_send(tcs_socket socket_ctx,
-             const uint8_t* buffer,
-             size_t buffer_length,
-             uint32_t flags,
-             size_t* bytes_sent)
+int tcs_send(tcs_socket socket_ctx, const uint8_t* buffer, size_t buffer_length, uint32_t flags, size_t* bytes_sent)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -206,11 +198,7 @@ int tcs_sendto(tcs_socket socket_ctx,
     }
 }
 
-int tcs_recv(tcs_socket socket_ctx,
-             uint8_t* buffer,
-             size_t buffer_length,
-             uint32_t flags,
-             size_t* bytes_recieved)
+int tcs_recv(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length, uint32_t flags, size_t* bytes_recieved)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -284,11 +272,7 @@ int tcs_setsockopt(tcs_socket socket_ctx,
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (setsockopt(socket_ctx,
-                   (int)level,
-                   (int)option_name,
-                   (const char*)option_value,
-                   (int)option_length) == 0)
+    if (setsockopt(socket_ctx, (int)level, (int)option_name, (const char*)option_value, (int)option_length) == 0)
         return TCS_SUCCESS;
     else
         return errno2retcode(errno);
@@ -321,10 +305,7 @@ int tcs_close(tcs_socket* socket_ctx)
     }
 }
 
-int tcs_getaddrinfo(const char* node,
-                    const char* service,
-                    const struct tcs_addrinfo* hints,
-                    struct tcs_addrinfo** res)
+int tcs_getaddrinfo(const char* node, const char* service, const struct tcs_addrinfo* hints, struct tcs_addrinfo** res)
 {
     if ((node == NULL && service == NULL) || res == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;

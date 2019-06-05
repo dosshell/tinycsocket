@@ -22,8 +22,8 @@
 
 #include <tinycsocket.h>
 
-#include <stdio.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 int show_error(const char* error_text);
 
@@ -37,21 +37,24 @@ int main(void)
 {
     if (tcs_lib_init() != TCS_SUCCESS)
         return show_error("Could not init tinycsockets");
-    
+
     tcs_socket socket = TCS_NULLSOCKET;
 
     struct tcs_addrinfo* remote_info = NULL;
 
-    struct tcs_addrinfo hints = { 0 };
+    struct tcs_addrinfo hints = {0};
     hints.ai_family = TCS_AF_INET;
     hints.ai_socktype = TCS_SOCK_DGRAM;
 
     tcs_getaddrinfo("localhost", "1212", &hints, &remote_info);
 
     bool is_connected = false;
-    for (struct tcs_addrinfo* address_iterator = remote_info; address_iterator != NULL; address_iterator = address_iterator->ai_next)
+    for (struct tcs_addrinfo* address_iterator = remote_info; address_iterator != NULL;
+         address_iterator = address_iterator->ai_next)
     {
-        if (tcs_create(&socket, address_iterator->ai_family, address_iterator->ai_socktype, address_iterator->ai_protocol) != TCS_SUCCESS)
+        if (tcs_create(
+                &socket, address_iterator->ai_family, address_iterator->ai_socktype, address_iterator->ai_protocol) !=
+            TCS_SUCCESS)
             continue;
 
         if (tcs_connect(socket, address_iterator->ai_addr, address_iterator->ai_addrlen) != TCS_SUCCESS)

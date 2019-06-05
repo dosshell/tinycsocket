@@ -41,7 +41,7 @@ int main(void)
     tcs_socket listen_socket = TCS_NULLSOCKET;
     tcs_socket child_socket = TCS_NULLSOCKET;
 
-    struct tcs_addrinfo hints = { 0 };
+    struct tcs_addrinfo hints = {0};
 
     hints.ai_family = TCS_AF_INET;
     hints.ai_protocol = TCS_IPPROTO_TCP;
@@ -52,7 +52,10 @@ int main(void)
     if (tcs_getaddrinfo(NULL, "1212", &hints, &listen_addressinfo) != TCS_SUCCESS)
         return show_error("Could not resolve listen address");
 
-    if (tcs_create(&listen_socket, listen_addressinfo->ai_family, listen_addressinfo->ai_socktype, listen_addressinfo->ai_protocol) != TCS_SUCCESS)
+    if (tcs_create(&listen_socket,
+                   listen_addressinfo->ai_family,
+                   listen_addressinfo->ai_socktype,
+                   listen_addressinfo->ai_protocol) != TCS_SUCCESS)
         return show_error("Could not create a listen socket");
 
     if (tcs_bind(listen_socket, listen_addressinfo->ai_addr, listen_addressinfo->ai_addrlen) != TCS_SUCCESS)
