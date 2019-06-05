@@ -5,7 +5,7 @@ AllowShortFunctionsOnASingleLine: None
 BinPackArguments: false
 BinPackParameters: false
 BreakBeforeBraces: Allman
-ColumnLimit: 100
+ColumnLimit: 120
 ReflowComments: false
 SpacesBeforeTrailingComments: 1
 IndentWidth: 4

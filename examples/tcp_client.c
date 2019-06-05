@@ -22,9 +22,9 @@
 
 #include <tinycsocket.h>
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 
 int show_error(const char* error_text);
@@ -50,7 +50,8 @@ int main(void)
         return show_error("Could not resolve host");
 
     bool is_connected = false;
-    for (struct tcs_addrinfo* address_iterator = address_info; address_iterator != NULL; address_iterator = address_iterator->ai_next)
+    for (struct tcs_addrinfo* address_iterator = address_info; address_iterator != NULL;
+         address_iterator = address_iterator->ai_next)
     {
         if (tcs_connect(client_socket, address_iterator->ai_addr, address_iterator->ai_addrlen) == TCS_SUCCESS)
         {
