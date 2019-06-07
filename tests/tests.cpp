@@ -37,9 +37,9 @@ TEST_CASE("UDP Test")
 {
     CHECK(tcs_lib_init() == TCS_SUCCESS);
 
-    struct tcs_addrinfo* address_info = NULL;
+    tcs_addrinfo* address_info = NULL;
 
-    struct tcs_addrinfo hints = {0};
+    tcs_addrinfo hints = {0};
     hints.ai_family = TCS_AF_INET;
     hints.ai_socktype = TCS_SOCK_DGRAM;
 
@@ -50,7 +50,7 @@ TEST_CASE("UDP Test")
     tcs_socket recv_soc = TCS_NULLSOCKET;
 
     bool didBind = false;
-    for (struct tcs_addrinfo* address_iterator = address_info; address_iterator != NULL;
+    for (tcs_addrinfo* address_iterator = address_info; address_iterator != NULL;
          address_iterator = address_iterator->ai_next)
     {
         if (tcs_create(
@@ -67,7 +67,7 @@ TEST_CASE("UDP Test")
 
     CHECK(didBind);
 
-    struct tcs_sockaddr remote_address = {0};
+    tcs_sockaddr remote_address = {};
     size_t remote_address_size = sizeof(remote_address);
     uint8_t recv_buffer[1024] = {0};
     size_t bytes_recieved = 0;
@@ -87,7 +87,7 @@ TEST_CASE("UDP Test")
     tcs_socket socket = TCS_NULLSOCKET;
 
     bool didConnect = false;
-    for (struct tcs_addrinfo* address_iterator = address_info; address_iterator != NULL;
+    for (tcs_addrinfo* address_iterator = address_info; address_iterator != NULL;
          address_iterator = address_iterator->ai_next)
     {
         if (tcs_create(
