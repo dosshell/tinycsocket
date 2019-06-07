@@ -8,6 +8,8 @@ variables:
     - mkdir build && cd build && cmake -G "Ninja" ../
     - ninja -v
     - ./tests/tests
+  only:
+    - merge_requests
 
 Unit Tests x64:
   extends: .unit_tests
@@ -22,3 +24,5 @@ Code Format:
   script:
     - apk add clang python3
     - python3 ./tests/run-clang-format.py -j 1 -r --exclude tests/doctest.h src tests examples
+  only:
+    - merge_requests
