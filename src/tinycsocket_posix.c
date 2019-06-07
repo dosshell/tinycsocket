@@ -29,6 +29,8 @@
 #include <sys/socket.h> // pretty much everything
 #include <unistd.h>     // close()
 
+int errno2retcode(int error_code);
+
 const tcs_socket TCS_NULLSOCKET = -1;
 
 // Domain
@@ -100,7 +102,7 @@ int tcs_bind(tcs_socket socket_ctx, const struct tcs_sockaddr* address, int addr
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (bind(socket_ctx, (const struct sockaddr*)address, (int)address_length) == 0)
+    if (bind(socket_ctx, (const struct sockaddr*)address, (socklen_t)address_length) == 0)
         return TCS_SUCCESS;
     else
         return errno2retcode(errno);
@@ -111,7 +113,7 @@ int tcs_connect(tcs_socket socket_ctx, const struct tcs_sockaddr* address, int a
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (connect(socket_ctx, (const struct sockaddr*)address, address_length) == 0)
+    if (connect(socket_ctx, (const struct sockaddr*)address, (socklen_t)address_length) == 0)
         return TCS_SUCCESS;
     else
         return errno2retcode(errno);
@@ -133,7 +135,7 @@ int tcs_accept(tcs_socket socket_ctx, tcs_socket* child_socket_ctx, struct tcs_s
     if (socket_ctx == TCS_NULLSOCKET || child_socket_ctx == NULL || *child_socket_ctx != TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    int new_child_socket = accept(socket_ctx, (struct sockaddr*)address, address_length);
+    int new_child_socket = accept(socket_ctx, (struct sockaddr*)address, (socklen_t*)address_length);
     if (new_child_socket != -1)
     {
         *child_socket_ctx = new_child_socket;
@@ -150,11 +152,11 @@ int tcs_send(tcs_socket socket_ctx, const uint8_t* buffer, size_t buffer_length,
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    int status = send(socket_ctx, (const char*)buffer, (int)buffer_length, (int)flags);
-    if (status != -1)
+    ssize_t status = send(socket_ctx, (const char*)buffer, buffer_length, (int)flags);
+    if (status >= 0)
     {
         if (bytes_sent != NULL)
-            *bytes_sent = status;
+            *bytes_sent = (size_t)status;
         return TCS_SUCCESS;
     }
     else
@@ -176,17 +178,17 @@ int tcs_sendto(tcs_socket socket_ctx,
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    int status = sendto(socket_ctx,
-                        (const char*)buffer,
-                        (int)buffer_length,
-                        (int)flags,
-                        (const struct sockaddr*)destination_address,
-                        (int)destination_address_length);
+    ssize_t status = sendto(socket_ctx,
+                            (const char*)buffer,
+                            buffer_length,
+                            (int)flags,
+                            (const struct sockaddr*)destination_address,
+                            (socklen_t)destination_address_length);
 
-    if (status != -1)
+    if (status >= 0)
     {
         if (bytes_sent != NULL)
-            *bytes_sent = status;
+            *bytes_sent = (size_t)status;
         return TCS_SUCCESS;
     }
     else
@@ -203,12 +205,12 @@ int tcs_recv(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length, uint3
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    int status = recv(socket_ctx, (char*)buffer, (int)buffer_length, (int)flags);
+    ssize_t status = recv(socket_ctx, (char*)buffer, buffer_length, (int)flags);
 
     if (status > 0)
     {
         if (bytes_recieved != NULL)
-            *bytes_recieved = status;
+            *bytes_recieved = (size_t)status;
         return TCS_SUCCESS;
     }
     else if (status == 0)
@@ -236,17 +238,17 @@ int tcs_recvfrom(tcs_socket socket_ctx,
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    int status = recvfrom(socket_ctx,
-                          (char*)buffer,
-                          (int)buffer_length,
-                          (int)flags,
-                          (struct sockaddr*)source_address,
-                          (int*)source_address_length);
+    ssize_t status = recvfrom(socket_ctx,
+                              (char*)buffer,
+                              buffer_length,
+                              (int)flags,
+                              (struct sockaddr*)source_address,
+                              (socklen_t*)source_address_length);
 
     if (status > 0)
     {
         if (bytes_recieved != NULL)
-            *bytes_recieved = status;
+            *bytes_recieved = (size_t)status;
         return TCS_SUCCESS;
     }
     else if (status == 0)
@@ -272,7 +274,7 @@ int tcs_setsockopt(tcs_socket socket_ctx,
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (setsockopt(socket_ctx, (int)level, (int)option_name, (const char*)option_value, (int)option_length) == 0)
+    if (setsockopt(socket_ctx, (int)level, (int)option_name, (const char*)option_value, (socklen_t)option_length) == 0)
         return TCS_SUCCESS;
     else
         return errno2retcode(errno);
