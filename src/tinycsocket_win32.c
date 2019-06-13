@@ -243,7 +243,11 @@ int tcs_recv(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length, uint3
 
     int status = recv(socket_ctx, (char*)buffer, (int)buffer_length, (int)flags);
 
-    if (status != SOCKET_ERROR)
+    if (status == 0)
+    {
+        return TCS_ERROR_SOCKET_CLOSED;
+    }
+    else if (status != SOCKET_ERROR)
     {
         if (bytes_recieved != NULL)
             *bytes_recieved = status;
@@ -276,7 +280,11 @@ int tcs_recvfrom(tcs_socket socket_ctx,
                           (struct sockaddr*)source_address,
                           (int*)source_address_length);
 
-    if (status != SOCKET_ERROR)
+    if (status == 0)
+    {
+        return TCS_ERROR_SOCKET_CLOSED;
+    }
+    else if (status != SOCKET_ERROR)
     {
         if (bytes_recieved != NULL)
             *bytes_recieved = status;
