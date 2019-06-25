@@ -142,6 +142,7 @@ static const int TCS_ERROR_TIMED_OUT = -8;
 static const int TCS_ERROR_NOT_IMPLEMENTED = -9;
 static const int TCS_ERROR_NOT_CONNECTED = -10;
 static const int TCS_ERROR_ILL_FORMED_MESSAGE = -11;
+static const int TCS_ERROR_SOCKET_CLOSED = -13;
 
 /**
  * @brief Call this to initialize the library, eg. call this before any other function.
