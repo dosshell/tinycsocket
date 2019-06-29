@@ -17,9 +17,9 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'TinyCSockets'
-copyright = '2019, Markus Lindelöw'
-author = 'Markus Lindelöw'
+project = u'TinyCSockets'
+copyright = u'2019, Markus Lindelöw'
+author = u'Markus Lindelöw'
 
 
 # -- General configuration ---------------------------------------------------
