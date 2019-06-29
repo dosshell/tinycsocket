@@ -2,10 +2,12 @@ variables:
   LC_ALL: C.UTF-8
   LANG: C.UTF-8
 
+
 .unit_tests:
   script:
     - apk add cmake g++ ninja
-    - mkdir build && cd build && cmake -G "Ninja" ../
+    - mkdir build && cd build
+    - cmake -G "Ninja" ../
     - ninja -v
     - ./tests/tests
   only:
@@ -18,6 +20,18 @@ Unit Tests x64:
 Unit Tests i386:
   extends: .unit_tests
   image: i386/alpine:3.9
+
+
+Clang Tidy:
+  image: ubuntu:18.04
+  script:
+    - apt update
+    - apt install -y cmake g++ clang ninja-build clang-tidy
+    - mkdir build && cd build
+    - cmake -G "Ninja" ../ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+    - clang-tidy ../src/*.c ../examples/*.c
+  only:
+    - merge_requests
 
 Code Format:
   image: alpine:3.9
