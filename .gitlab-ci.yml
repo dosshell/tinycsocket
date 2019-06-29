@@ -40,3 +40,14 @@ Code Format:
     - python3 ./tests/run-clang-format.py -j 1 -r --exclude tests/doctest.h src tests examples
   only:
     - merge_requests
+
+Sphinx:
+  image: alpine:3.9
+  script:
+    - apk add python3 make
+    - pip3 install sphinx
+    - cd docs
+    - make html
+  only:
+    - merge_requests
+
