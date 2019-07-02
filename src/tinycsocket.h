@@ -157,7 +157,7 @@ static const int TCS_ERROR_SOCKET_CLOSED = -13;
 int tcs_lib_init(void);
 
 /**
- * @brief Call this when you are done with tinycsockets lib to free resources.
+ * @brief Call this when you are done with tinycsocket lib to free resources.
  *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  */

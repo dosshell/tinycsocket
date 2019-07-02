@@ -17,7 +17,7 @@
 
 # -- Project information -----------------------------------------------------
 
-project = u'TinyCSockets'
+project = u'TinyCSocket'
 copyright = u'2019, Markus Lindelöw'
 author = u'Markus Lindelöw'
 

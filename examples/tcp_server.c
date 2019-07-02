@@ -36,7 +36,7 @@ int show_error(const char* error_text)
 int main(void)
 {
     if (tcs_lib_init() != TCS_SUCCESS)
-        return show_error("Could not init tinycsockets");
+        return show_error("Could not init tinycsocket");
 
     tcs_socket listen_socket = TCS_NULLSOCKET;
     tcs_socket child_socket = TCS_NULLSOCKET;
@@ -92,5 +92,5 @@ int main(void)
         return show_error("Could not close socket");
 
     if (tcs_lib_free() != TCS_SUCCESS)
-        return show_error("Could not free tinycsockets");
+        return show_error("Could not free tinycsocket");
 }

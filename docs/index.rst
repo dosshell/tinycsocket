@@ -1,9 +1,9 @@
-.. TinyCSockets documentation master file, created by
+.. TinyCSocket documentation master file, created by
    sphinx-quickstart on Sat Jun 29 22:52:25 2019.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to TinyCSockets's documentation!
+Welcome to TinyCSocket's documentation!
 ========================================
 
 .. toctree::
