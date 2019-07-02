@@ -22,7 +22,7 @@ Unit Tests i386:
   image: i386/alpine:3.9
 
 
-Clang Tidy:
+Static Linting:
   image: ubuntu:18.04
   script:
     - apt update
