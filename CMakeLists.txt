@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.1)
-project(tinycsockets VERSION 0.1)
+project(tinycsocket VERSION 0.1)
 
 # Add warning levels for gcc and msvc
 if(MSVC)
