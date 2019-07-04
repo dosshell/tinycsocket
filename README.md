@@ -1,5 +1,8 @@
 Tinycsocket
 ============
+Crossplatform C socket library.
+
+Online documentation: https://tinycsocket.readthedocs.io/
 
 ```cpp
 #include "tinycsocket.h"
