@@ -13,11 +13,11 @@ variables:
   only:
     - merge_requests
 
-Unit Tests x64:
+Alpine 3.9 x64:
   extends: .unit_tests
   image: amd64/alpine:3.9
 
-Unit Tests i386:
+Alpine 3.9 i386:
   extends: .unit_tests
   image: i386/alpine:3.9
 
