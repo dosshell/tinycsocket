@@ -26,6 +26,7 @@
 
 #include <errno.h>
 #include <netdb.h>      // Protocols and custom return codes
+#include <netinet/in.h> // IPPROTO_XXP
 #include <sys/socket.h> // pretty much everything
 #include <unistd.h>     // close()
 
