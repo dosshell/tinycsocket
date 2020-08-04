@@ -45,7 +45,6 @@ Sphinx:
   image: alpine:3.9
   script:
     - apk add python3 make doxygen
-    - pip3 install sphinx
     - pip3 install -r docs/requirements.txt
     - cd docs
     - make html
