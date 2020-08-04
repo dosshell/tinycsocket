@@ -51,4 +51,3 @@ Sphinx:
     - make html
   only:
     - merge_requests
-
