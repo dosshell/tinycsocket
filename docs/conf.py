@@ -18,7 +18,7 @@ from subprocess import call
 # -- Project information -----------------------------------------------------
 
 project = u'TinyCSocket'
-copyright = u'2019, Markus Lindelöw'
+copyright = u'2020, Markus Lindelöw'
 author = u'Markus Lindelöw'
 
 
