@@ -10,10 +10,11 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+import os
+import sys
+sys.path.insert(0, os.path.abspath('.'))
 from subprocess import call
+import mygenerator
 
 # -- Project information -----------------------------------------------------
 
@@ -48,7 +49,6 @@ breathe_projects = {'TinyCSocket': '_doxyxml/'}
 breathe_default_project = 'TinyCSocket'
 
 
-
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -64,3 +64,4 @@ html_static_path = ['_static']
 
 # -- Generate doxygen xml ------
 call('doxygen')
+mygenerator.run()
