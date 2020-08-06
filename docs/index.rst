@@ -60,9 +60,13 @@ install:
 You can now remove the build directory and the tinycsocket directory if you
 like.
 
-
 Reference documentation
 =======================
+Currently available functions:
+
+.. include:: function_index.rst
+
+All References:
 
 .. doxygenindex::
 
