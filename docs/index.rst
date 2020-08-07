@@ -1,11 +1,6 @@
-.. TinyCSocket documentation master file, created by
-   sphinx-quickstart on Sat Jun 29 22:52:25 2019.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-***************************************
-Welcome to TinyCSocket's documentation!
-***************************************
+***********
+TinyCSocket
+***********
 
 Tinycsocket is a thin cross-platform socket library written in C99. It focuses
 on a minimal footprint, cross-platform and to also provide simple lowlevel utils
@@ -64,7 +59,7 @@ Reference documentation
 =======================
 Currently available functions:
 
-.. include:: function_index.rst
+.. include:: _mybuild/function_index.rst
 
 All References:
 
@@ -75,4 +70,3 @@ Indices and tables
 ==================
 
 * :ref:`genindex`
-
