@@ -88,7 +88,7 @@ int tcs_simple_create_and_listen(tcs_socket* socket_ctx, const char* hostname, c
     struct tcs_addrinfo* listen_addressinfo = NULL;
 
     int sts = 0;
-    sts = tcs_getaddrinfo(NULL, port, &hints, &listen_addressinfo);
+    sts = tcs_getaddrinfo(hostname, port, &hints, &listen_addressinfo);
     if (sts != TCS_SUCCESS)
         return sts;
 

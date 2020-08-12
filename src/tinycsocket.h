@@ -379,7 +379,7 @@ int tcs_simple_bind(tcs_socket* socket_ctx, const char* hostname, const char* po
 * @brief Creates a socket and starts to listen to an address with TCP
 *
 * @param socket_ctx is your out socket context. Must be of #TCS_NULLSOCKET value.
-* @param hostname is the name of the address to listen on, for example "192.168.0.1" or "localhost".
+* @param hostname is the name of the address to listen on, for example "192.168.0.1" or "localhost". Use NULL for all interfaces.
 * @param port is a string representation of the port you want to listen to. Normally an integer, like "5000" but also some support for common aliases like "http" exist.
 * @param domain only supports #TCS_AF_INET for now
 * @return #TCS_SUCCESS if successful, otherwise the error code.
