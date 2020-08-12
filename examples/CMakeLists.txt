@@ -14,3 +14,4 @@ target_link_libraries(udp_client PRIVATE tinycsocket)
 add_executable(udp_server udp_server.c)
 target_link_libraries(udp_server PRIVATE tinycsocket)
 
+set_target_properties(tcp_server tcp_client udp_client udp_server PROPERTIES FOLDER TCS/examples)

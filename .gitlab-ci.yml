@@ -7,7 +7,7 @@ variables:
   script:
     - apk add cmake g++ ninja
     - mkdir build && cd build
-    - cmake -G "Ninja" ../
+    - cmake -G "Ninja" ../ -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON
     - ninja -v
     - ./tests/tests
   only:
@@ -28,7 +28,7 @@ Static Linting:
     - apt update
     - apt install -y cmake g++ clang ninja-build clang-tidy
     - mkdir build && cd build
-    - cmake -G "Ninja" ../ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+    - cmake -G "Ninja" ../ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON
     - clang-tidy ../src/*.c ../examples/*.c
   only:
     - merge_requests

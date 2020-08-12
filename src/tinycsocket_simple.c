@@ -88,7 +88,7 @@ int tcs_simple_create_and_listen(tcs_socket* socket_ctx, const char* hostname, c
     struct tcs_addrinfo* listen_addressinfo = NULL;
 
     int sts = 0;
-    sts = tcs_getaddrinfo(NULL, port, &hints, &listen_addressinfo);
+    sts = tcs_getaddrinfo(hostname, port, &hints, &listen_addressinfo);
     if (sts != TCS_SUCCESS)
         return sts;
 
@@ -206,9 +206,11 @@ int tcs_simple_send_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buf
     if (buffer == NULL || buffer_length == 0)
         return TCS_ERROR_INVALID_ARGUMENT;
 
+#if SIZE_MAX > 0xffffffffffffffffULL
     // buffer_length bigger than 64 bits? (size_t can be bigger on some systems)
     if (buffer_length > 0xffffffffffffffffULL)
         return TCS_ERROR_INVALID_ARGUMENT;
+#endif
 
     int header_length = 0;
     char netstring_header[21] = {0};
