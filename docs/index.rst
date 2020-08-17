@@ -1,6 +1,6 @@
-***********
+###########
 TinyCSocket
-***********
+###########
 
 Tinycsocket is a thin cross-platform socket library written in C99. It focuses
 on a minimal footprint, cross-platform and to also provide simple lowlevel utils
@@ -16,12 +16,13 @@ Currently support plattforms:
 - POSIX.1-2001 systems
 
 
+*************************
 Installation Instructions
-=========================
+*************************
 Depending on if you use cmake or not there are two installation instructions.
 
-I want to use CMake and submodules
-**********************************
+Integrate with CMake
+====================
 If you are using a cmake project, it is recommended to include tinycsocket to
 your build system. Add this repo as a submodule and add tinycsocket/src to your
 CMakeLists.txt.
@@ -35,8 +36,8 @@ CMakeLists.txt.
 
 You can read more about how to use submodules here: https://git-scm.com/book/en/v2/Git-Tools-Submodules
 
-I just want the lib files and link by my self
-*********************************************
+Manually Linking
+================
 You can also build this project to get a lib directory and an include directoy.
 Generate a build-system out of tinycsocket with cmake and build the install
 target. Don't forget that if you are targeting Windows you also need to link to
@@ -55,13 +56,22 @@ install:
 You can now remove the build directory and the tinycsocket directory if you
 like.
 
-Reference documentation
-=======================
-Currently available functions:
+
+***********************
+Reference Documentation
+***********************
+
+This is the part you probably are looking for.
+
+List of All Functions
+=====================
+
+List of all available functions in TinyCSocket:
 
 .. include:: _mybuild/function_index.rst
 
-All References:
+All Reference Details
+=====================
 
 .. doxygenindex::
 
