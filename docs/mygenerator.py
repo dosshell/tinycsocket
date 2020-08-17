@@ -40,7 +40,7 @@ def write_function_index(m, file: Path):
 
 """)
     for n in m:
-        f.write(f'''    "`{n.name} <#{n.refid}>`_", "{n.description}"\n''')
+        f.write(f'''    "`{n.name} <#{n.refid}>`__", "{n.description}"\n''')
 
 
 def run():
