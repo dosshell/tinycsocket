@@ -68,15 +68,26 @@ List of All Functions
 
 List of all available functions in TinyCSocket:
 
-.. include:: _mybuild/function_index.rst
+.. csv-table::
+    :widths: auto
+    :file: _mybuild/function_index.csv
+    :header-rows: 1
 
-All Reference Details
+
+List of All Constants
 =====================
 
-.. doxygenindex::
+List of all available constants in TinyCSocket:
+
+.. csv-table::
+    :widths: auto
+    :file: _mybuild/variable_index.csv
+    :header-rows: 1
 
 
-Indices and tables
-==================
+Reference Details
+=================
 
-* :ref:`genindex`
+This section contains details of all functions.
+
+.. include:: _mybuild/function_references.rst
