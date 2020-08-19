@@ -52,7 +52,7 @@ struct tcs_addrinfo
     int ai_family;
     int ai_socktype;
     int ai_protocol;
-    int ai_addrlen;
+    size_t ai_addrlen;
     char* ai_canonname;
     struct tcs_sockaddr* ai_addr;
     struct tcs_addrinfo* ai_next;
@@ -124,7 +124,7 @@ extern const int TCS_MSG_OOB;
 extern const int TCS_BACKLOG_SOMAXCONN; /**< Max number of queued sockets when listening */
 
 // How
-extern const int TCS_SD_RECIEVE; /**< To shutdown incoming packets for socket */
+extern const int TCS_SD_RECEIVE; /**< To shutdown incoming packets for socket */
 extern const int TCS_SD_SEND;    /**< To shutdown outgoing packets for socket */
 extern const int TCS_SD_BOTH;    /**< To shutdown both incoming and outgoing packets for socket */
 
@@ -184,24 +184,24 @@ int tcs_create(tcs_socket* socket_ctx, int domain, int type, int protocol);
 /**
  * @brief Binds the socket to a local address.
  *
- * @param socket_ctx is you in-out socket context.
+ * @param socket_ctx is your in-out socket context.
  * @param address is you address to bind to.
- * @param address_length is you byte size of your @p address argument.
+ * @param address_size is you byte size of your @p address argument.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_getaddrinfo()
  */
-int tcs_bind(tcs_socket socket_ctx, const struct tcs_sockaddr* address, int address_length);
+int tcs_bind(tcs_socket socket_ctx, const struct tcs_sockaddr* address, size_t address_size);
 
 /**
  * @brief Connects to a remote address
  *
  * @param socket_ctx is your in-out socket context.
  * @param address is the remote address to connect to.
- * @param address_length is the byte size of the @p address argument.
+ * @param address_size is the byte size of the @p address argument.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_shutdown()
  */
-int tcs_connect(tcs_socket socket_ctx, const struct tcs_sockaddr* address, int address_length);
+int tcs_connect(tcs_socket socket_ctx, const struct tcs_sockaddr* address, size_t address_size);
 
 /**
  * @brief Start listen for incoming sockets.
@@ -219,33 +219,33 @@ int tcs_listen(tcs_socket socket_ctx, int backlog);
  * @param socket_ctx is your listening socket you used when you called #tcs_listen().
  * @param child_socket_ctx is you accepted socket. Must have the in value of #TCS_NULLSOCKET.
  * @param address is an optional pointer to a buffer where the underlaying address can be stored.
- * @param address_length is an optional in-out pointer to a #int containing the byte size of the address argument.
+ * @param address_size is an optional in-out pointer to a #int containing the byte size of the address argument.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  */
-int tcs_accept(tcs_socket socket_ctx, tcs_socket* child_socket_ctx, struct tcs_sockaddr* address, int* address_length);
+int tcs_accept(tcs_socket socket_ctx, tcs_socket* child_socket_ctx, struct tcs_sockaddr* address, size_t* address_size);
 
 /**
  * @brief Sends data on a socket, blocking
  *
  * @param socket_ctx is your in-out socket context.
  * @param buffer is a pointer to your data you want to send.
- * @param buffer_length is number of bytes of the data you want to send.
+ * @param buffer_size is number of bytes of the data you want to send.
  * @param flags is currently not in use.
  * @param bytes_sent is how many bytes that was successfully sent.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_recv()
  */
-int tcs_send(tcs_socket socket_ctx, const uint8_t* buffer, size_t buffer_length, uint32_t flags, size_t* bytes_sent);
+int tcs_send(tcs_socket socket_ctx, const uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* bytes_sent);
 
 /**
  * @brief Sends data to an address, useful with UDP sockets.
  *
  * @param socket_ctx is your in-out socket context.
  * @param buffer is a pointer to your data you want to send.
- * @param buffer_length is number of bytes of the data you want to send.
+ * @param buffer_size is number of bytes of the data you want to send.
  * @param flags is currently not in use.
  * @param destination_address is the address to send to.
- * @param destination_address_length is the byte size of the @p destination_adress argument.
+ * @param destination_address_size is the byte size of the @p destination_address argument.
  * @param bytes_sent is how many bytes that was successfully sent.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_recvfrom()
@@ -253,10 +253,10 @@ int tcs_send(tcs_socket socket_ctx, const uint8_t* buffer, size_t buffer_length,
  */
 int tcs_sendto(tcs_socket socket_ctx,
                const uint8_t* buffer,
-               size_t buffer_length,
+               size_t buffer_size,
                uint32_t flags,
                const struct tcs_sockaddr* destination_address,
-               size_t destination_address_length,
+               size_t destination_address_size,
                size_t* bytes_sent);
 
 /**
@@ -264,35 +264,35 @@ int tcs_sendto(tcs_socket socket_ctx,
 *
 * @param socket_ctx is your in-out socket context.
 * @param buffer is a pointer to your buffer where you want to store the incoming data to.
-* @param buffer_length is the byte size of your buffer, for preventing overflows.
+* @param buffer_size is the byte size of your buffer, for preventing overflows.
 * @param flags is currently not in use.
-* @param bytes_recieved is how many bytes that was successfully written to your buffer.
+* @param bytes_received is how many bytes that was successfully written to your buffer.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_send()
 */
-int tcs_recv(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length, uint32_t flags, size_t* bytes_recieved);
+int tcs_recv(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* bytes_received);
 
 /**
-* @brief Sends data to an address, useful with UDP sockets.
+* @brief Receive data from an address, useful with UDP sockets.
 *
 * @param socket_ctx is your in-out socket context.
 * @param buffer is a pointer to your buffer where you want to store the incoming data to.
-* @param buffer_length is the byte size of your buffer, for preventing overflows.
+* @param buffer_size is the byte size of your buffer, for preventing overflows.
 * @param flags is currently not in use.
 * @param source_address is the address to receive from.
-* @param source_address_length is the byte size of the @p source_address argument.
-* @param bytes_recieved is how many bytes that was successfully written to your buffer.
+* @param source_address_size is the byte size of the @p source_address argument.
+* @param bytes_received is how many bytes that was successfully written to your buffer.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_sendto()
 * @see tcs_getaddrinfo()
 */
 int tcs_recvfrom(tcs_socket socket_ctx,
                  uint8_t* buffer,
-                 size_t buffer_length,
+                 size_t buffer_size,
                  uint32_t flags,
                  struct tcs_sockaddr* source_address,
-                 size_t* source_address_length,
-                 size_t* bytes_recieved);
+                 size_t* source_address_size,
+                 size_t* bytes_received);
 
 /**
 * @brief Set parameters on a socket
@@ -301,17 +301,17 @@ int tcs_recvfrom(tcs_socket socket_ctx,
 * @param level is the definition level.
 * @param option_name is the option name.
 * @param option_value is a pointer to the option value.
-* @param option_length is the byte size of the data pointed by @p option_value.
+* @param option_size is the byte size of the data pointed by @p option_value.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
 int tcs_setsockopt(tcs_socket socket_ctx,
                    int32_t level,
                    int32_t option_name,
                    const void* option_value,
-                   int option_length);
+                   int option_size);
 
 /**
-* @brief Turn off communication for the socket.
+* @brief Turn off communication for the socket. Will finish all sends first.
 *
 * @param socket_ctx is your in-out socket context.
 * @param how defines in which direction you want to turn off the communication.
@@ -320,7 +320,7 @@ int tcs_setsockopt(tcs_socket socket_ctx,
 int tcs_shutdown(tcs_socket socket_ctx, int how);
 
 /**
-* @brief closes the socket, call this when you are done with the socket.
+* @brief Closes the socket, call this when you are done with the socket.
 *
 * @param socket_ctx is your in-out socket context.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
@@ -381,31 +381,34 @@ int tcs_simple_bind(tcs_socket* socket_ctx, const char* hostname, const char* po
 * @param socket_ctx is your out socket context. Must be of #TCS_NULLSOCKET value.
 * @param hostname is the name of the address to listen on, for example "192.168.0.1" or "localhost". Use NULL for all interfaces.
 * @param port is a string representation of the port you want to listen to. Normally an integer, like "5000" but also some support for common aliases like "http" exist.
-* @param domain only supports #TCS_AF_INET for now
+* @param domain only supports #TCS_AF_INET for now.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_simple_connect()
 */
 int tcs_simple_create_and_listen(tcs_socket* socket_ctx, const char* hostname, const char* port, int domain);
 
 /**
-* @brief Receives and fill the buffer width a fixed length of data (normal recv can fill the buffer less than the buffer length)
+* @brief Receive data until the buffer is filled (normal recv can fill the buffer less than the buffer length).
 *
 * @param socket_ctx is your in-out socket context.
 * @param buffer is a pointer to your buffer where you want to store the incoming data to.
-* @param buffer_length is the byte size of your buffer, it will fill the complete buffer.
+* @param buffer_size is the byte size of your buffer, it will fill the complete buffer.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_send_all()
 */
-int tcs_simple_recv_all(tcs_socket socket_ctx, uint8_t* buffer, size_t length);
+int tcs_simple_recv_all(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_size);
 
 /**
 * @brief Sends the full buffer (normal send is allowed to send only a part of the buffer)
+*
+* @param socket_ctx is your in-out socket context.
+* @param buffer is a pointer to your data you want to send.
 */
-int tcs_simple_send_all(tcs_socket socket_ctx, uint8_t* buffer, size_t length, uint32_t flags);
+int tcs_simple_send_all(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_size, uint32_t flags);
 
-int tcs_simple_recv_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length, size_t* bytes_recieved);
+int tcs_simple_recv_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_size, size_t* bytes_received);
 
-int tcs_simple_send_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length);
+int tcs_simple_send_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_size);
 
 #ifdef __cplusplus
 }

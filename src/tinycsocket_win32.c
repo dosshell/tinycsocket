@@ -144,21 +144,21 @@ int tcs_create(tcs_socket* socket_ctx, int domain, int type, int protocol)
     }
 }
 
-int tcs_bind(tcs_socket socket_ctx, const struct tcs_sockaddr* address, int address_length)
+int tcs_bind(tcs_socket socket_ctx, const struct tcs_sockaddr* address, size_t address_size)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    int status = bind(socket_ctx, (const struct sockaddr*)address, (int)address_length);
+    int status = bind(socket_ctx, (const struct sockaddr*)address, (int)address_size);
     return socketstatus2retcode(status);
 }
 
-int tcs_connect(tcs_socket socket_ctx, const struct tcs_sockaddr* address, int address_length)
+int tcs_connect(tcs_socket socket_ctx, const struct tcs_sockaddr* address, size_t address_size)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    int status = connect(socket_ctx, (const struct sockaddr*)address, address_length);
+    int status = connect(socket_ctx, (const struct sockaddr*)address, (int)address_size);
     return socketstatus2retcode(status);
 }
 
@@ -171,30 +171,30 @@ int tcs_listen(tcs_socket socket_ctx, int backlog)
     return socketstatus2retcode(status);
 }
 
-int tcs_accept(tcs_socket socket_ctx, tcs_socket* child_socket_ctx, struct tcs_sockaddr* address, int* address_length)
+int tcs_accept(tcs_socket socket_ctx, tcs_socket* child_socket_ctx, struct tcs_sockaddr* address, size_t* address_size)
 {
     if (socket_ctx == TCS_NULLSOCKET || child_socket_ctx == NULL || *child_socket_ctx != TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    tcs_socket new_child_socket = accept(socket_ctx, (struct sockaddr*)address, address_length);
-    if (new_child_socket != INVALID_SOCKET)
+    *child_socket_ctx = accept(socket_ctx, (struct sockaddr*)address, (int*)address_size);
+    if (*child_socket_ctx != INVALID_SOCKET)
     {
-        *child_socket_ctx = new_child_socket;
         return TCS_SUCCESS;
     }
     else
     {
+        *child_socket_ctx = TCS_NULLSOCKET;
         int error_code = WSAGetLastError();
         return wsaerror2retcode(error_code);
     }
 }
 
-int tcs_send(tcs_socket socket_ctx, const uint8_t* buffer, size_t buffer_length, uint32_t flags, size_t* bytes_sent)
+int tcs_send(tcs_socket socket_ctx, const uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* bytes_sent)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    int status = send(socket_ctx, (const char*)buffer, (int)buffer_length, (int)flags);
+    int status = send(socket_ctx, (const char*)buffer, (int)buffer_size, (int)flags);
     if (status != SOCKET_ERROR)
     {
         if (bytes_sent != NULL)
@@ -212,10 +212,10 @@ int tcs_send(tcs_socket socket_ctx, const uint8_t* buffer, size_t buffer_length,
 
 int tcs_sendto(tcs_socket socket_ctx,
                const uint8_t* buffer,
-               size_t buffer_length,
+               size_t buffer_size,
                uint32_t flags,
                const struct tcs_sockaddr* destination_address,
-               size_t destination_address_length,
+               size_t destination_address_size,
                size_t* bytes_sent)
 {
     if (socket_ctx == TCS_NULLSOCKET)
@@ -223,10 +223,10 @@ int tcs_sendto(tcs_socket socket_ctx,
 
     int status = sendto(socket_ctx,
                         (const char*)buffer,
-                        (int)buffer_length,
+                        (int)buffer_size,
                         (int)flags,
                         (const struct sockaddr*)destination_address,
-                        (int)destination_address_length);
+                        (int)destination_address_size);
 
     if (status != SOCKET_ERROR)
     {
@@ -243,12 +243,12 @@ int tcs_sendto(tcs_socket socket_ctx,
     }
 }
 
-int tcs_recv(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length, uint32_t flags, size_t* bytes_recieved)
+int tcs_recv(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* bytes_received)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    int status = recv(socket_ctx, (char*)buffer, (int)buffer_length, (int)flags);
+    int status = recv(socket_ctx, (char*)buffer, (int)buffer_size, (int)flags);
 
     if (status == 0)
     {
@@ -256,14 +256,14 @@ int tcs_recv(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length, uint3
     }
     else if (status != SOCKET_ERROR)
     {
-        if (bytes_recieved != NULL)
-            *bytes_recieved = status;
+        if (bytes_received != NULL)
+            *bytes_received = status;
         return TCS_SUCCESS;
     }
     else
     {
-        if (bytes_recieved != NULL)
-            *bytes_recieved = 0;
+        if (bytes_received != NULL)
+            *bytes_received = 0;
 
         return socketstatus2retcode(status);
     }
@@ -271,21 +271,21 @@ int tcs_recv(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length, uint3
 
 int tcs_recvfrom(tcs_socket socket_ctx,
                  uint8_t* buffer,
-                 size_t buffer_length,
+                 size_t buffer_size,
                  uint32_t flags,
                  struct tcs_sockaddr* source_address,
-                 size_t* source_address_length,
-                 size_t* bytes_recieved)
+                 size_t* source_address_size,
+                 size_t* bytes_received)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     int status = recvfrom(socket_ctx,
                           (char*)buffer,
-                          (int)buffer_length,
+                          (int)buffer_size,
                           (int)flags,
                           (struct sockaddr*)source_address,
-                          (int*)source_address_length);
+                          (int*)source_address_size);
 
     if (status == 0)
     {
@@ -293,29 +293,25 @@ int tcs_recvfrom(tcs_socket socket_ctx,
     }
     else if (status != SOCKET_ERROR)
     {
-        if (bytes_recieved != NULL)
-            *bytes_recieved = status;
+        if (bytes_received != NULL)
+            *bytes_received = status;
         return TCS_SUCCESS;
     }
     else
     {
-        if (bytes_recieved != NULL)
-            *bytes_recieved = 0;
+        if (bytes_received != NULL)
+            *bytes_received = 0;
 
         return socketstatus2retcode(status);
     }
 }
 
-int tcs_setsockopt(tcs_socket socket_ctx,
-                   int32_t level,
-                   int32_t option_name,
-                   const void* option_value,
-                   int option_length)
+int tcs_setsockopt(tcs_socket socket_ctx, int32_t level, int32_t option_name, const void* option_value, int option_size)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    int status = setsockopt(socket_ctx, (int)level, (int)option_name, (const char*)option_value, (int)option_length);
+    int status = setsockopt(socket_ctx, (int)level, (int)option_name, (const char*)option_value, (int)option_size);
     return socketstatus2retcode(status);
 }
 

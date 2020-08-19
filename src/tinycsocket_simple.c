@@ -18,7 +18,7 @@ int tcs_simple_connect(tcs_socket socket_ctx, const char* hostname, const char* 
     for (struct tcs_addrinfo* address_iterator = address_info; address_iterator != NULL;
          address_iterator = address_iterator->ai_next)
     {
-        if (tcs_connect(socket_ctx, address_iterator->ai_addr, address_iterator->ai_addrlen) == TCS_SUCCESS)
+        if (tcs_connect(socket_ctx, address_iterator->ai_addr, (size_t)address_iterator->ai_addrlen) == TCS_SUCCESS)
         {
             is_connected = true;
             break;
@@ -55,7 +55,7 @@ int tcs_simple_bind(tcs_socket* socket_ctx, const char* hostname, const char* po
                        address_iterator->ai_protocol) != TCS_SUCCESS)
             continue;
 
-        if (tcs_bind(*socket_ctx, address_iterator->ai_addr, address_iterator->ai_addrlen) != TCS_SUCCESS)
+        if (tcs_bind(*socket_ctx, address_iterator->ai_addr, (size_t)address_iterator->ai_addrlen) != TCS_SUCCESS)
         {
             tcs_close(socket_ctx);
             continue;
@@ -97,7 +97,7 @@ int tcs_simple_create_and_listen(tcs_socket* socket_ctx, const char* hostname, c
     if (sts != TCS_SUCCESS)
         return sts;
 
-    sts = tcs_bind(*socket_ctx, listen_addressinfo->ai_addr, listen_addressinfo->ai_addrlen);
+    sts = tcs_bind(*socket_ctx, listen_addressinfo->ai_addr, (size_t)listen_addressinfo->ai_addrlen);
     if (sts != TCS_SUCCESS)
         return sts;
 
@@ -120,12 +120,12 @@ int tcs_simple_recv_all(tcs_socket socket_ctx, uint8_t* buffer, size_t length)
     size_t bytes_left = length;
     while (bytes_left > 0)
     {
-        size_t bytes_recieved = 0;
-        int sts = tcs_recv(socket_ctx, buffer + bytes_recieved, bytes_left, 0, &bytes_recieved);
+        size_t bytes_received = 0;
+        int sts = tcs_recv(socket_ctx, buffer + bytes_received, bytes_left, 0, &bytes_received);
         if (sts != TCS_SUCCESS)
             return sts;
 
-        bytes_left -= bytes_recieved;
+        bytes_left -= bytes_received;
     }
     return TCS_SUCCESS;
 }
@@ -146,7 +146,7 @@ int tcs_simple_send_all(tcs_socket socket_ctx, uint8_t* buffer, size_t length, u
     return TCS_SUCCESS;
 }
 
-int tcs_simple_recv_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length, size_t* bytes_recieved)
+int tcs_simple_recv_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length, size_t* bytes_received)
 {
     if (socket_ctx == TCS_NULLSOCKET || buffer == NULL || buffer_length <= 0)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -192,8 +192,8 @@ int tcs_simple_recv_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buf
     if (t != ',')
         return TCS_ERROR_ILL_FORMED_MESSAGE;
 
-    if (bytes_recieved != NULL)
-        *bytes_recieved = expected_length;
+    if (bytes_received != NULL)
+        *bytes_received = expected_length;
 
     return TCS_SUCCESS;
 }
