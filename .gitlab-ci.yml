@@ -2,27 +2,60 @@ variables:
   LC_ALL: C.UTF-8
   LANG: C.UTF-8
 
+.only-default: &only-default
+  only:
+    - merge_requests
 
-.unit_tests:
+msvc v19.26 (x86 and x86_64):
+  <<: *only-default
+  tags:
+    - shared-windows
+    - windows
+    - windows-1809
+  script:
+    - echo "hello from windows"
+    - '& choco feature enable -n allowGlobalConfirmation'
+    - '& choco install cmake'
+    - mkdir build32
+    - cd build32
+    - '& "c:\Program Files\CMake\bin\cmake.exe" -G "Visual Studio 16 2019" -A "win32" ../ -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON'
+    - '& "c:\Program Files\CMake\bin\cmake.exe" --build . --target ALL_BUILD --config Debug'
+    - '& "c:\Program Files\CMake\bin\cmake.exe" --build . --target ALL_BUILD --config Release'
+    - cd ..
+    - mkdir build64
+    - cd build64
+    - '& "c:\Program Files\CMake\bin\cmake.exe" -G "Visual Studio 16 2019" -A "x64" ../ -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON'
+    - '& "c:\Program Files\CMake\bin\cmake.exe" --build . --target ALL_BUILD --config Debug'
+    - '& "c:\Program Files\CMake\bin\cmake.exe" --build . --target ALL_BUILD --config Release'
+    - cd ..
+    - '& build32/tests/Debug/tests.exe'
+    - '& build32/tests/Release/tests.exe'
+    - '& build64/tests/Debug/tests.exe'
+    - '& build64/tests/Release/tests.exe'
+
+.linux-unit-tests: &linux-unit-tests
+  <<: *only-default
+  tags:
+    - docker
   script:
     - apk add cmake g++ ninja
     - mkdir build && cd build
     - cmake -G "Ninja" ../ -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON
     - ninja -v
     - ./tests/tests
-  only:
-    - merge_requests
 
-Alpine 3.12 x64:
-  extends: .unit_tests
+gcc v9.3 (x86_64):
+  <<: *linux-unit-tests
   image: amd64/alpine:3.12
 
-Alpine 3.12 i386:
-  extends: .unit_tests
+gcc v9.3 (x86):
+  <<: *linux-unit-tests
   image: i386/alpine:3.12
 
-
-Static Linting:
+static linting:
+  <<: *only-default
+  tags:
+    - docker
   image: ubuntu:18.04
   script:
     - apt update
@@ -30,24 +63,24 @@ Static Linting:
     - mkdir build && cd build
     - cmake -G "Ninja" ../ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON
     - clang-tidy ../src/*.c ../examples/*.c
-  only:
-    - merge_requests
 
-Code Format:
+code format:
+  <<: *only-default
+  tags:
+    - docker
   image: alpine:3.12
   script:
     - apk add clang python3
     - clang-format --version
     - python3 ./tests/run-clang-format.py -j 1 -r --exclude tests/doctest.h src tests examples
-  only:
-    - merge_requests
 
-Sphinx:
+sphinx:
+  <<: *only-default
+  tags:
+    - docker
   image: alpine:3.12
   script:
     - apk add python3 cmd:pip3 make doxygen
     - pip3 install sphinx
     - cd docs
     - make html
-  only:
-    - merge_requests
