@@ -4,8 +4,24 @@ AccessModifierOffset: -2
 AllowShortFunctionsOnASingleLine: None
 BinPackArguments: false
 BinPackParameters: false
-BreakBeforeBraces: Allman
 ColumnLimit: 120
 ReflowComments: false
 SpacesBeforeTrailingComments: 1
 IndentWidth: 4
+BraceWrapping:
+  AfterClass: true
+  AfterControlStatement: true
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: true
+  AfterObjCDeclaration: true
+  AfterStruct: true
+  AfterUnion: true
+  AfterExternBlock: false
+  BeforeCatch: true
+  BeforeElse: true
+  IndentBraces: false
+  SplitEmptyFunction: false
+  SplitEmptyRecord: false
+  SplitEmptyNamespace: false
+BreakBeforeBraces: Custom
