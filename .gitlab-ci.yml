@@ -13,13 +13,13 @@ variables:
   only:
     - merge_requests
 
-Alpine 3.9 x64:
+Alpine 3.12 x64:
   extends: .unit_tests
-  image: amd64/alpine:3.9
+  image: amd64/alpine:3.12
 
-Alpine 3.9 i386:
+Alpine 3.12 i386:
   extends: .unit_tests
-  image: i386/alpine:3.9
+  image: i386/alpine:3.12
 
 
 Static Linting:
@@ -34,17 +34,18 @@ Static Linting:
     - merge_requests
 
 Code Format:
-  image: alpine:3.9
+  image: alpine:3.12
   script:
     - apk add clang python3
+    - clang-format --version
     - python3 ./tests/run-clang-format.py -j 1 -r --exclude tests/doctest.h src tests examples
   only:
     - merge_requests
 
 Sphinx:
-  image: alpine:3.9
+  image: alpine:3.12
   script:
-    - apk add python3 make doxygen
+    - apk add python3 cmd:pip3 make doxygen
     - pip3 install sphinx
     - cd docs
     - make html
