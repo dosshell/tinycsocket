@@ -18,13 +18,13 @@ msvc v19.26 (x86 and x86_64):
     - '& choco install cmake'
     - mkdir build32
     - cd build32
-    - '& "c:\Program Files\CMake\bin\cmake.exe" -G "Visual Studio 16 2019" -A "win32" ../ -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON'
+    - '& "c:\Program Files\CMake\bin\cmake.exe" -G "Visual Studio 16 2019" -A "win32" ../ -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON'
     - '& "c:\Program Files\CMake\bin\cmake.exe" --build . --target ALL_BUILD --config Debug'
     - '& "c:\Program Files\CMake\bin\cmake.exe" --build . --target ALL_BUILD --config Release'
     - cd ..
     - mkdir build64
     - cd build64
-    - '& "c:\Program Files\CMake\bin\cmake.exe" -G "Visual Studio 16 2019" -A "x64" ../ -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON'
+    - '& "c:\Program Files\CMake\bin\cmake.exe" -G "Visual Studio 16 2019" -A "x64" ../ -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON'
     - '& "c:\Program Files\CMake\bin\cmake.exe" --build . --target ALL_BUILD --config Debug'
     - '& "c:\Program Files\CMake\bin\cmake.exe" --build . --target ALL_BUILD --config Release'
     - cd ..
@@ -40,7 +40,7 @@ msvc v19.26 (x86 and x86_64):
   script:
     - apk add cmake g++ ninja
     - mkdir build && cd build
-    - cmake -G "Ninja" ../ -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON
+    - cmake -G "Ninja" ../ -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
     - ninja -v
     - ./tests/tests
 
