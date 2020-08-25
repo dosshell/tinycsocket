@@ -216,7 +216,7 @@ int tcs_simple_send_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buf
     char netstring_header[21] = {0};
 
     // %zu is not supported by all compilers, therefor we cast it to llu
-    header_length = sprintf(netstring_header, "%llu:", (unsigned long long)buffer_length);
+    header_length = snprintf(netstring_header, 21, "%llu:", (unsigned long long)buffer_length);
 
     if (header_length < 0)
         return TCS_ERROR_INVALID_ARGUMENT;
