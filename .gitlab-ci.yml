@@ -33,6 +33,13 @@ msvc v19.26 (x86 and x86_64):
     - '& build64/tests/Debug/tests.exe'
     - '& build64/tests/Release/tests.exe'
 
+cygwin-xp:
+  <<: *only-default
+  tags:
+    - windows-xp
+  script:
+    - ./ci/xp.sh
+
 .linux-unit-tests: &linux-unit-tests
   <<: *only-default
   tags:
