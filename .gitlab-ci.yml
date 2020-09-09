@@ -13,7 +13,6 @@ msvc v19.26 (x86 and x86_64):
     - windows
     - windows-1809
   script:
-    - echo "hello from windows"
     - '& choco feature enable -n allowGlobalConfirmation'
     - '& choco install cmake'
     - mkdir build32
