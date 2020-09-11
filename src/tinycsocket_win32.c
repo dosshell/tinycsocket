@@ -35,6 +35,11 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#if defined(_MSC_VER) || defined(__clang__)
+#pragma comment(lib, "wsock32.lib")
+#pragma comment(lib, "ws2_32.lib")
+#endif
+
 const tcs_socket TCS_NULLSOCKET = INVALID_SOCKET;
 
 // Domain
