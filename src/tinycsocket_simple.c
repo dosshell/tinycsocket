@@ -172,7 +172,7 @@ int tcs_simple_recv_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buf
         if (is_end)
             break;
 
-        expected_length += (size_t)(t - '0');
+        expected_length += (size_t)t - '0';
     }
 
     if (parsed >= max_header)
