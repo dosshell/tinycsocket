@@ -2,60 +2,66 @@
 #include <stdio.h> //sprintf
 #include "tinycsocket.h"
 
-int tcs_simple_connect(tcs_socket socket_ctx, const char* hostname, const char* port)
+int tcs_simple_create_and_connect(tcs_socket* socket_ctx, const char* hostname, const char* port, uint16_t family)
 {
-    if (socket_ctx == TCS_NULLSOCKET)
+    if (socket_ctx == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    struct tcs_addrinfo* address_info = NULL;
-    int sts = tcs_getaddrinfo(hostname, port, NULL, &address_info);
+    struct tcs_addrinfo address_info[32] = {0};
+    size_t found_addresses;
+    struct tcs_addrinfo hints = {0};
+    hints.family = family;
+    hints.protocol = TCS_IPPROTO_TCP;
+    hints.socktype = TCS_SOCK_STREAM;
+    int sts = tcs_getaddrinfo(hostname, port, &hints, address_info, 32, &found_addresses);
     if (sts != TCS_SUCCESS)
     {
         return sts;
     }
 
-    bool is_connected = false;
-    for (struct tcs_addrinfo* address_iterator = address_info; address_iterator != NULL;
-         address_iterator = address_iterator->ai_next)
+    for (size_t i = 0; i < found_addresses; ++i)
     {
-        if (tcs_connect(socket_ctx, address_iterator->ai_addr, (size_t)address_iterator->ai_addrlen) == TCS_SUCCESS)
+        sts = tcs_create(socket_ctx, address_info[i].family, address_info[i].socktype, address_info[i].protocol);
+        if (sts != TCS_SUCCESS)
         {
-            is_connected = true;
-            break;
+            continue;
+        }
+        if (tcs_connect(*socket_ctx, &address_info[i].address) == TCS_SUCCESS)
+        {
+            return TCS_SUCCESS;
+        }
+        else
+        {
+            tcs_close(socket_ctx);
         }
     }
 
-    tcs_freeaddrinfo(&address_info);
-
-    if (!is_connected)
-    {
-        return TCS_ERROR_CONNECTION_REFUSED;
-    }
-
-    return TCS_SUCCESS;
+    return TCS_ERROR_CONNECTION_REFUSED;
 }
 
-int tcs_simple_bind(tcs_socket* socket_ctx, const char* hostname, const char* port, int domain, int protocol)
+int tcs_simple_create_and_bind(tcs_socket* socket_ctx,
+                               const char* hostname,
+                               const char* port,
+                               uint16_t family,
+                               int protocol)
 {
     struct tcs_addrinfo hints = {0};
-    hints.ai_family = domain;
-    hints.ai_protocol = protocol;
-    hints.ai_flags = TCS_AI_PASSIVE;
+    hints.family = family;
+    hints.protocol = protocol;
+    hints.flags = TCS_AI_PASSIVE;
 
-    struct tcs_addrinfo* address_info = NULL;
-    tcs_getaddrinfo(hostname, port, &hints, &address_info);
+    struct tcs_addrinfo address_info[32] = {0};
+    size_t found_res;
+    tcs_getaddrinfo(hostname, port, &hints, address_info, 32, &found_res);
 
     bool is_bounded = false;
-    for (struct tcs_addrinfo* address_iterator = address_info; address_iterator != NULL;
-         address_iterator = address_iterator->ai_next)
+    for (size_t i = 0; i < found_res; ++i)
     {
-        if (tcs_create(socket_ctx,
-                       address_iterator->ai_family,
-                       address_iterator->ai_socktype,
-                       address_iterator->ai_protocol) != TCS_SUCCESS)
+        if (tcs_create(socket_ctx, address_info[i].family, address_info[i].socktype, address_info[i].protocol) !=
+            TCS_SUCCESS)
             continue;
 
-        if (tcs_bind(*socket_ctx, address_iterator->ai_addr, (size_t)address_iterator->ai_addrlen) != TCS_SUCCESS)
+        if (tcs_bind(*socket_ctx, &address_info[i].address) != TCS_SUCCESS)
         {
             tcs_close(socket_ctx);
             continue;
@@ -73,35 +79,30 @@ int tcs_simple_bind(tcs_socket* socket_ctx, const char* hostname, const char* po
     return TCS_SUCCESS;
 }
 
-int tcs_simple_create_and_listen(tcs_socket* socket_ctx, const char* hostname, const char* port, int domain)
+int tcs_simple_create_and_listen(tcs_socket* socket_ctx, const char* hostname, const char* port, uint16_t family)
 {
     if (socket_ctx == NULL || *socket_ctx != TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     struct tcs_addrinfo hints = {0};
 
-    hints.ai_family = domain;
-    hints.ai_protocol = TCS_IPPROTO_TCP;
-    hints.ai_socktype = TCS_SOCK_STREAM;
-    hints.ai_flags = TCS_AI_PASSIVE;
+    hints.family = family;
+    hints.protocol = TCS_IPPROTO_TCP;
+    hints.socktype = TCS_SOCK_STREAM;
+    hints.flags = TCS_AI_PASSIVE;
 
-    struct tcs_addrinfo* listen_addressinfo = NULL;
+    struct tcs_addrinfo listen_addressinfo = {0};
 
     int sts = 0;
-    sts = tcs_getaddrinfo(hostname, port, &hints, &listen_addressinfo);
+    sts = tcs_getaddrinfo(hostname, port, &hints, &listen_addressinfo, 1, NULL);
     if (sts != TCS_SUCCESS)
         return sts;
 
-    sts = tcs_create(
-        socket_ctx, listen_addressinfo->ai_family, listen_addressinfo->ai_socktype, listen_addressinfo->ai_protocol);
+    sts = tcs_create(socket_ctx, listen_addressinfo.family, listen_addressinfo.socktype, listen_addressinfo.protocol);
     if (sts != TCS_SUCCESS)
         return sts;
 
-    sts = tcs_bind(*socket_ctx, listen_addressinfo->ai_addr, (size_t)listen_addressinfo->ai_addrlen);
-    if (sts != TCS_SUCCESS)
-        return sts;
-
-    sts = tcs_freeaddrinfo(&listen_addressinfo);
+    sts = tcs_bind(*socket_ctx, &listen_addressinfo.address);
     if (sts != TCS_SUCCESS)
         return sts;
 

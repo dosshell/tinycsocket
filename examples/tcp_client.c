@@ -1,16 +1,16 @@
 ﻿/*
  * Copyright 2018 Markus Lindelöw
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
@@ -27,9 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-int show_error(const char* error_text);
-
-int show_error(const char* error_text)
+static int show_error(const char* error_text)
 {
     fprintf(stderr, "%s", error_text);
     return -1;
@@ -45,22 +43,20 @@ int main(void)
     if (tcs_create(&client_socket, TCS_AF_INET, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) != TCS_SUCCESS)
         return show_error("Could not create a socket");
 
-    struct tcs_addrinfo* address_info = NULL;
-    if (tcs_getaddrinfo("localhost", "1212", NULL, &address_info) != TCS_SUCCESS)
-        return show_error("Could not resolve host");
+    struct tcs_addrinfo address_info[32];
+    size_t found_addresses;
+    if (tcs_getaddrinfo("localhost", "1212", NULL, address_info, 32, &found_addresses) != TCS_SUCCESS)
+        return show_error("Could not resolve listen address");
 
     bool is_connected = false;
-    for (struct tcs_addrinfo* address_iterator = address_info; address_iterator != NULL;
-         address_iterator = address_iterator->ai_next)
+    for (int i = 0; i < found_addresses; ++i)
     {
-        if (tcs_connect(client_socket, address_iterator->ai_addr, address_iterator->ai_addrlen) == TCS_SUCCESS)
+        if (tcs_connect(client_socket, &address_info[i].address) == TCS_SUCCESS)
         {
             is_connected = true;
             break;
         }
     }
-
-    tcs_freeaddrinfo(&address_info);
 
     if (!is_connected)
         return show_error("Could not connect to server");
@@ -69,13 +65,13 @@ int main(void)
     tcs_send(client_socket, (const uint8_t*)msg, sizeof(msg), 0, NULL);
 
     uint8_t recv_buffer[1024];
-    size_t bytes_recieved = 0;
-    if (tcs_recv(client_socket, recv_buffer, sizeof(recv_buffer) - sizeof('\0'), 0, &bytes_recieved) != TCS_SUCCESS)
-        return show_error("Could not recieve data");
+    size_t bytes_received = 0;
+    if (tcs_recv(client_socket, recv_buffer, sizeof(recv_buffer) - sizeof('\0'), 0, &bytes_received) != TCS_SUCCESS)
+        return show_error("Could not receive data");
 
-    // Makes sure it is a NULL terminated string, this is why we only accept 1023 bytes in recieve
-    recv_buffer[bytes_recieved] = '\0';
-    printf("recieved: %s\n", recv_buffer);
+    // Makes sure it is a NULL terminated string, this is why we only accept 1023 bytes in receive
+    recv_buffer[bytes_received] = '\0';
+    printf("received: %s\n", recv_buffer);
 
     if (tcs_shutdown(client_socket, TCS_SD_BOTH) != TCS_SUCCESS)
         return show_error("Could not shutdown socket");

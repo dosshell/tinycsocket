@@ -45,64 +45,45 @@ extern "C" {
 #if defined(TINYCSOCKET_USE_WIN32_IMPL)
 #include <basetsd.h>
 typedef UINT_PTR tcs_socket;
-
-struct tcs_addrinfo
-{
-    int ai_flags;
-    int ai_family;
-    int ai_socktype;
-    int ai_protocol;
-    size_t ai_addrlen;
-    char* ai_canonname;
-    struct tcs_sockaddr* ai_addr;
-    struct tcs_addrinfo* ai_next;
-};
-
 #elif defined(TINYCSOCKET_USE_POSIX_IMPL)
 typedef int tcs_socket;
-
-struct tcs_addrinfo
-{
-    int ai_flags;
-    int ai_family;
-    int ai_socktype;
-    int ai_protocol;
-    int ai_addrlen;
-    struct tcs_sockaddr* ai_addr;
-    char* ai_canonname;
-    struct tcs_addrinfo* ai_next;
-};
-
 #endif
-
-// TODO: This needs to be platform specific
-// This should work on Linux and windows for now
-// Investigate if MacOS/BSD uses uint8_t as sa_family_t
-
-// tcs_sockaddr is an opaque type for addresses. (IPv4, IPv6 etc.)
-
-typedef unsigned short int sa_family_t;
-
-#define _SS_MAXSIZE__ 128
-#define _SS_ALIGNSIZE__ (sizeof(int64_t))
-
-#define _SS_PAD1SIZE__ (_SS_ALIGNSIZE__ - sizeof(sa_family_t))
-#define _SS_PAD2SIZE__ (_SS_MAXSIZE__ - (sizeof(sa_family_t) + _SS_PAD1SIZE__ + _SS_ALIGNSIZE__))
 
 struct tcs_sockaddr
 {
-    sa_family_t ss_family;
-    char __ss_pad1[_SS_PAD1SIZE__];
-    int64_t __ss_align;
-    char __ss_pad2[_SS_PAD2SIZE__];
+    uint16_t family;
+    union
+    {
+        struct
+        {
+            uint16_t port;
+            uint32_t addr;
+        } af_inet;
+        struct
+        {
+            uint16_t port;
+            uint32_t flowinfo;
+            uint64_t addr;
+            uint32_t scope_id;
+        } af_inet6;
+    } data;
 };
 
-extern const tcs_socket TCS_NULLSOCKET; /**< An empty socket, you should always define your new sockets to this value*/
+struct tcs_addrinfo
+{
+    uint16_t family;
+    int socktype;
+    int protocol;
+    uint32_t flags;
+    struct tcs_sockaddr address;
+};
 
-// TODO: Problem with optimizing when they are in another translation unit. LTO?
+extern const tcs_socket TCS_NULLSOCKET; /**< An empty socket, you should always define your new sockets to this value */
 
-// Domain
-extern const int TCS_AF_INET; /**< IPv4 interface */
+// Family
+extern const uint16_t TCS_AF_UNSPEC; /**< Layer 3 agnostic */
+extern const uint16_t TCS_AF_INET;   /**< IPv4 interface */
+extern const uint16_t TCS_AF_INET6;  /**< IPv6 interface */
 
 // Type
 extern const int TCS_SOCK_STREAM; /**< Use for streaming types like TCP */
@@ -113,7 +94,7 @@ extern const int TCS_IPPROTO_TCP; /**< Use TCP protocol (use with TCS_SOCK_STREA
 extern const int TCS_IPPROTO_UDP; /**< Use UDP protocol (use with TCS_SOCK_DGRAM for normal cases) */
 
 // Flags
-extern const int TCS_AI_PASSIVE; /**< Use this flag for pure listening sockets */
+extern const uint32_t TCS_AI_PASSIVE; /**< Use this flag for pure listening sockets */
 
 // Recv flags
 extern const int TCS_MSG_WAITALL;
@@ -172,36 +153,34 @@ int tcs_lib_free(void);
  * @endcode
  *
  * @param socket_ctx is your in-out pointer to the socket context, you must initialize the socket to #TCS_NULLSOCKET before use.
- * @param domain only supports #TCS_AF_INET for now.
+ * @param family only supports #TCS_AF_INET for now.
  * @param type specifies the type of the socket, for example #TCS_SOCK_STREAM or #TCS_SOCK_DGRAM.
  * @param protocol specifies the protocol, for example #TCS_IPPROTO_TCP or #TCS_IPPROTO_UDP.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_close()
  * @see tcs_lib_init()
  */
-int tcs_create(tcs_socket* socket_ctx, int domain, int type, int protocol);
+int tcs_create(tcs_socket* socket_ctx, int family, int type, int protocol);
 
 /**
  * @brief Binds the socket to a local address.
  *
  * @param socket_ctx is your in-out socket context.
  * @param address is you address to bind to.
- * @param address_size is you byte size of your @p address argument.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_getaddrinfo()
  */
-int tcs_bind(tcs_socket socket_ctx, const struct tcs_sockaddr* address, size_t address_size);
+int tcs_bind(tcs_socket socket_ctx, const struct tcs_sockaddr* address);
 
 /**
  * @brief Connects to a remote address
  *
  * @param socket_ctx is your in-out socket context.
  * @param address is the remote address to connect to.
- * @param address_size is the byte size of the @p address argument.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_shutdown()
  */
-int tcs_connect(tcs_socket socket_ctx, const struct tcs_sockaddr* address, size_t address_size);
+int tcs_connect(tcs_socket socket_ctx, const struct tcs_sockaddr* address);
 
 /**
  * @brief Start listen for incoming sockets.
@@ -219,10 +198,9 @@ int tcs_listen(tcs_socket socket_ctx, int backlog);
  * @param socket_ctx is your listening socket you used when you called #tcs_listen().
  * @param child_socket_ctx is you accepted socket. Must have the in value of #TCS_NULLSOCKET.
  * @param address is an optional pointer to a buffer where the underlaying address can be stored.
- * @param address_size is an optional in-out pointer to a #int containing the byte size of the address argument.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  */
-int tcs_accept(tcs_socket socket_ctx, tcs_socket* child_socket_ctx, struct tcs_sockaddr* address, size_t* address_size);
+int tcs_accept(tcs_socket socket_ctx, tcs_socket* child_socket_ctx, struct tcs_sockaddr* address);
 
 /**
  * @brief Sends data on a socket, blocking
@@ -245,7 +223,6 @@ int tcs_send(tcs_socket socket_ctx, const uint8_t* buffer, size_t buffer_size, u
  * @param buffer_size is number of bytes of the data you want to send.
  * @param flags is currently not in use.
  * @param destination_address is the address to send to.
- * @param destination_address_size is the byte size of the @p destination_address argument.
  * @param bytes_sent is how many bytes that was successfully sent.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_recvfrom()
@@ -256,7 +233,6 @@ int tcs_sendto(tcs_socket socket_ctx,
                size_t buffer_size,
                uint32_t flags,
                const struct tcs_sockaddr* destination_address,
-               size_t destination_address_size,
                size_t* bytes_sent);
 
 /**
@@ -280,7 +256,6 @@ int tcs_recv(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_size, uint32_
 * @param buffer_size is the byte size of your buffer, for preventing overflows.
 * @param flags is currently not in use.
 * @param source_address is the address to receive from.
-* @param source_address_size is the byte size of the @p source_address argument.
 * @param bytes_received is how many bytes that was successfully written to your buffer.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_sendto()
@@ -291,7 +266,6 @@ int tcs_recvfrom(tcs_socket socket_ctx,
                  size_t buffer_size,
                  uint32_t flags,
                  struct tcs_sockaddr* source_address,
-                 size_t* source_address_size,
                  size_t* bytes_received);
 
 /**
@@ -308,7 +282,7 @@ int tcs_setsockopt(tcs_socket socket_ctx,
                    int32_t level,
                    int32_t option_name,
                    const void* option_value,
-                   int option_size);
+                   size_t option_size);
 
 /**
 * @brief Turn off communication for the socket. Will finish all sends first.
@@ -330,37 +304,35 @@ int tcs_close(tcs_socket* socket_ctx);
 /**
 * @brief Get addresses you can connect to given a computer name and a port.
 *
+* Use NULL for @res to get the total number of addresses found.
+*
 * @param node is your computer identifier: hostname, IPv4 or IPv6 address.
 * @param service is your port number. Also some support for common aliases like "http" exist.
 * @param hints is a struct with hints, for example if you only are interested in IPv6.
-* @param res is your output pointer to a linked list of addresses. You need to free this list when you are done with it.
+* @param res is a pointer to your array where to store the result.
+* @param res_count is number of elements your @res array can store.
+* @param used_count will output the number of addresses that was populated in @res.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
-* @see tcs_freeaddrinfo()
 */
-int tcs_getaddrinfo(const char* node, const char* service, const struct tcs_addrinfo* hints, struct tcs_addrinfo** res);
+int tcs_getaddrinfo(const char* node,
+                    const char* service,
+                    const struct tcs_addrinfo* hints,
+                    struct tcs_addrinfo res[],
+                    size_t res_count,
+                    size_t* used_count);
 
 /**
- * @brief Frees your linked address list you acquired from tcs_getaddrinfo
- *
- * @param addressinfo is your linked list you acquired from tcs_getaddrinfo
- * @return #TCS_SUCCESS if successful, otherwise the error code.
- * @see tcs_getaddrinfo()
- */
-int tcs_freeaddrinfo(struct tcs_addrinfo** addressinfo);
-
-/**
- * @brief Connects a socket to a node and a port
+ * @brief Connects a socket to a node and a port.
  *
  * @param socket_ctx is your out socket context. Must have been previously created.
  * @param hostname is the name of the host to connect to, for example localhost.
  * @param port is a string representation of the port you want to connect to. Normally an integer, like "5000" but also some support for common aliases like "http" exist.
- * @param domain only supports #TCS_AF_INET for now
- * @param protocol specifies the protocol, for example #TCS_IPPROTO_TCP or #TCS_IPPROTO_UDP.
+ * @param family only supports #TCS_AF_INET for now
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_simple_listen()
  * @see tcs_simple_bind()
  */
-int tcs_simple_connect(tcs_socket socket_ctx, const char* hostname, const char* port);
+int tcs_simple_create_and_connect(tcs_socket* socket_ctx, const char* hostname, const char* port, uint16_t family);
 
 /**
 * @brief Creates a socket and binds it to a node and a port
@@ -368,12 +340,16 @@ int tcs_simple_connect(tcs_socket socket_ctx, const char* hostname, const char* 
 * @param socket_ctx is your out socket context. Must be of #TCS_NULLSOCKET value.
 * @param hostname is the name of the host to bind to, for example "192.168.0.1" or "localhost".
 * @param port is a string representation of the port you want to bind to. Normally an integer, like "5000" but also some support for common aliases like "http" exist.
-* @param domain only supports #TCS_AF_INET for now
+* @param family only supports #TCS_AF_INET for now
 * @param protocol specifies the protocol, for example #TCS_IPPROTO_TCP or #TCS_IPPROTO_UDP.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_simple_connect()
 */
-int tcs_simple_bind(tcs_socket* socket_ctx, const char* hostname, const char* port, int domain, int protocol);
+int tcs_simple_create_and_bind(tcs_socket* socket_ctx,
+                               const char* hostname,
+                               const char* port,
+                               uint16_t family,
+                               int protocol);
 
 /**
 * @brief Creates a socket and starts to listen to an address with TCP
@@ -381,11 +357,11 @@ int tcs_simple_bind(tcs_socket* socket_ctx, const char* hostname, const char* po
 * @param socket_ctx is your out socket context. Must be of #TCS_NULLSOCKET value.
 * @param hostname is the name of the address to listen on, for example "192.168.0.1" or "localhost". Use NULL for all interfaces.
 * @param port is a string representation of the port you want to listen to. Normally an integer, like "5000" but also some support for common aliases like "http" exist.
-* @param domain only supports #TCS_AF_INET for now.
+* @param family only supports #TCS_AF_INET for now.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_simple_connect()
 */
-int tcs_simple_create_and_listen(tcs_socket* socket_ctx, const char* hostname, const char* port, int domain);
+int tcs_simple_create_and_listen(tcs_socket* socket_ctx, const char* hostname, const char* port, uint16_t family);
 
 /**
 * @brief Receive data until the buffer is filled (normal recv can fill the buffer less than the buffer length).
@@ -403,6 +379,8 @@ int tcs_simple_recv_all(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_si
 *
 * @param socket_ctx is your in-out socket context.
 * @param buffer is a pointer to your data you want to send.
+* @param buffer_size is the total size of your buffer in bytes.
+* @param flags your flags.
 */
 int tcs_simple_send_all(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_size, uint32_t flags);
 

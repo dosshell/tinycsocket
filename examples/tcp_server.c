@@ -25,9 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int show_error(const char* error_text);
-
-int show_error(const char* error_text)
+static int show_error(const char* error_text)
 {
     fprintf(stderr, "%s", error_text);
     return -1;
@@ -43,43 +41,39 @@ int main(void)
 
     struct tcs_addrinfo hints = {0};
 
-    hints.ai_family = TCS_AF_INET;
-    hints.ai_protocol = TCS_IPPROTO_TCP;
-    hints.ai_socktype = TCS_SOCK_STREAM;
-    hints.ai_flags = TCS_AI_PASSIVE;
+    hints.family = TCS_AF_INET;
+    hints.protocol = TCS_IPPROTO_TCP;
+    hints.socktype = TCS_SOCK_STREAM;
+    hints.flags = TCS_AI_PASSIVE;
 
-    struct tcs_addrinfo* listen_addressinfo = NULL;
-    if (tcs_getaddrinfo(NULL, "1212", &hints, &listen_addressinfo) != TCS_SUCCESS)
+    struct tcs_addrinfo listen_addressinfo;
+    if (tcs_getaddrinfo(NULL, "1212", &hints, &listen_addressinfo, 1, NULL) != TCS_SUCCESS)
         return show_error("Could not resolve listen address");
 
-    if (tcs_create(&listen_socket,
-                   listen_addressinfo->ai_family,
-                   listen_addressinfo->ai_socktype,
-                   listen_addressinfo->ai_protocol) != TCS_SUCCESS)
+    if (tcs_create(
+            &listen_socket, listen_addressinfo.family, listen_addressinfo.socktype, listen_addressinfo.protocol) !=
+        TCS_SUCCESS)
         return show_error("Could not create a listen socket");
 
-    if (tcs_bind(listen_socket, listen_addressinfo->ai_addr, listen_addressinfo->ai_addrlen) != TCS_SUCCESS)
+    if (tcs_bind(listen_socket, &listen_addressinfo.address) != TCS_SUCCESS)
         return show_error("Could not bind to listen address");
-
-    if (tcs_freeaddrinfo(&listen_addressinfo) != TCS_SUCCESS)
-        return show_error("Could not free address info");
 
     if (tcs_listen(listen_socket, TCS_BACKLOG_SOMAXCONN) != TCS_SUCCESS)
         return show_error("Could not listen");
 
-    if (tcs_accept(listen_socket, &child_socket, NULL, NULL) != TCS_SUCCESS)
+    if (tcs_accept(listen_socket, &child_socket, NULL) != TCS_SUCCESS)
         return show_error("Could not accept socket");
 
     if (tcs_close(&listen_socket) != TCS_SUCCESS)
         return show_error("Could not close listen socket");
 
     uint8_t recv_buffer[1024];
-    size_t bytes_recieved = 0;
-    if (tcs_recv(child_socket, recv_buffer, sizeof(recv_buffer) - sizeof('\0'), 0, &bytes_recieved) != TCS_SUCCESS)
-        return show_error("Could not recieve data from client");
+    size_t bytes_received = 0;
+    if (tcs_recv(child_socket, recv_buffer, sizeof(recv_buffer) - sizeof('\0'), 0, &bytes_received) != TCS_SUCCESS)
+        return show_error("Could not receive data from client");
 
-    recv_buffer[bytes_recieved] = '\0';
-    printf("recieved: %s\n", recv_buffer);
+    recv_buffer[bytes_received] = '\0';
+    printf("received: %s\n", recv_buffer);
 
     char msg[] = "I here you loud and clear\n";
     if (tcs_send(child_socket, (const uint8_t*)msg, sizeof(msg), 0, NULL) != TCS_SUCCESS)
