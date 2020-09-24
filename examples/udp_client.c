@@ -25,9 +25,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-int show_error(const char* error_text);
-
-int show_error(const char* error_text)
+static int show_error(const char* error_text)
 {
     fprintf(stderr, "%s", error_text);
     return -1;
@@ -40,24 +38,22 @@ int main(void)
 
     tcs_socket socket = TCS_NULLSOCKET;
 
-    struct tcs_addrinfo* remote_info = NULL;
-
+    struct tcs_addrinfo remote_info[32];
+    size_t found_addresses = 0;
     struct tcs_addrinfo hints = {0};
-    hints.ai_family = TCS_AF_INET;
-    hints.ai_socktype = TCS_SOCK_DGRAM;
+    hints.family = TCS_AF_INET;
+    hints.socktype = TCS_SOCK_DGRAM;
 
-    tcs_getaddrinfo("localhost", "1212", &hints, &remote_info);
+    if (tcs_getaddrinfo("localhost", "1212", &hints, remote_info, 32, &found_addresses) != TCS_SUCCESS)
+        return show_error("Could not resolve localhost");
 
     bool is_connected = false;
-    for (struct tcs_addrinfo* address_iterator = remote_info; address_iterator != NULL;
-         address_iterator = address_iterator->ai_next)
+    for (size_t i = 0; i < found_addresses; ++i)
     {
-        if (tcs_create(
-                &socket, address_iterator->ai_family, address_iterator->ai_socktype, address_iterator->ai_protocol) !=
-            TCS_SUCCESS)
+        if (tcs_create(&socket, remote_info[i].family, remote_info[i].socktype, remote_info[i].protocol) != TCS_SUCCESS)
             continue;
 
-        if (tcs_connect(socket, address_iterator->ai_addr, address_iterator->ai_addrlen) != TCS_SUCCESS)
+        if (tcs_connect(socket, &remote_info[i].address) != TCS_SUCCESS)
         {
             tcs_close(&socket);
             continue;
@@ -65,8 +61,6 @@ int main(void)
         is_connected = true;
         break;
     }
-
-    tcs_freeaddrinfo(&remote_info);
 
     if (!is_connected)
         return show_error("Could not connect to server");
@@ -76,13 +70,13 @@ int main(void)
         return show_error("Could not send message");
 
     uint8_t recv_buffer[1024];
-    size_t bytes_recieved = 0;
-    if (tcs_recv(socket, recv_buffer, sizeof(recv_buffer) - sizeof('\0'), 0, &bytes_recieved) != TCS_SUCCESS)
-        return show_error("Could not recieve data");
+    size_t bytes_received = 0;
+    if (tcs_recv(socket, recv_buffer, sizeof(recv_buffer) - sizeof('\0'), 0, &bytes_received) != TCS_SUCCESS)
+        return show_error("Could not receive data");
 
-    // Makes sure it is a NULL terminated string, this is why we only accept 1023 bytes in recieve
-    recv_buffer[bytes_recieved] = '\0';
-    printf("recieved: %s\n", recv_buffer);
+    // Makes sure it is a NULL terminated string, this is why we only accept 1023 bytes in receive
+    recv_buffer[bytes_received] = '\0';
+    printf("received: %s\n", recv_buffer);
 
     if (tcs_close(&socket) != TCS_SUCCESS)
         return show_error("Could not close socket");
