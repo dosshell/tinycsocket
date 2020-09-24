@@ -31,7 +31,7 @@
 #include <sys/types.h>  // POSIX.1 compatibility
 #include <unistd.h>     // close()
 
-const tcs_socket TCS_NULLSOCKET = -1;
+const TcsSocket TCS_NULLSOCKET = -1;
 
 // Family
 const uint16_t TCS_AF_UNSPEC = AF_UNSPEC;
@@ -79,7 +79,7 @@ static int errno2retcode(int error_code)
     }
 }
 
-static int sockaddr2native(const struct tcs_sockaddr* in_addr, struct sockaddr* out_addr, socklen_t* out_addrlen)
+static int sockaddr2native(const struct TcsAddress* in_addr, struct sockaddr* out_addr, socklen_t* out_addrlen)
 {
     if (in_addr == NULL || out_addr == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -89,7 +89,7 @@ static int sockaddr2native(const struct tcs_sockaddr* in_addr, struct sockaddr* 
         struct sockaddr_in* addr = (struct sockaddr_in*)out_addr;
         addr->sin_family = (sa_family_t)AF_INET;
         addr->sin_port = (in_port_t)(in_addr->data.af_inet.port);
-        addr->sin_addr.s_addr = (in_addr_t)in_addr->data.af_inet.addr;
+        addr->sin_addr.s_addr = (in_addr_t)in_addr->data.af_inet.address;
 
         if (out_addrlen != NULL)
             *out_addrlen = sizeof(struct sockaddr_in);
@@ -107,7 +107,7 @@ static int sockaddr2native(const struct tcs_sockaddr* in_addr, struct sockaddr* 
     return TCS_ERROR_NOT_IMPLEMENTED;
 }
 
-static int native2sockaddr(const struct sockaddr* in_addr, struct tcs_sockaddr* out_addr)
+static int native2sockaddr(const struct sockaddr* in_addr, struct TcsAddress* out_addr)
 {
     if (in_addr == NULL || out_addr == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -117,7 +117,7 @@ static int native2sockaddr(const struct sockaddr* in_addr, struct tcs_sockaddr* 
         struct sockaddr_in* addr = (struct sockaddr_in*)in_addr;
         out_addr->family = TCS_AF_INET;
         out_addr->data.af_inet.port = (uint16_t)addr->sin_port;
-        out_addr->data.af_inet.addr = (uint32_t)addr->sin_addr.s_addr;
+        out_addr->data.af_inet.address = (uint32_t)addr->sin_addr.s_addr;
     }
     else if (in_addr->sa_family == TCS_AF_INET6)
     {
@@ -135,7 +135,7 @@ static int native2sockaddr(const struct sockaddr* in_addr, struct tcs_sockaddr* 
     return 0;
 }
 
-static int addrinfo2native(const struct tcs_addrinfo* in_info, struct addrinfo* out_info)
+static int addrinfo2native(const struct TcsAddressInfo* in_info, struct addrinfo* out_info)
 {
     if (in_info == NULL || out_info == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -152,7 +152,7 @@ static int addrinfo2native(const struct tcs_addrinfo* in_info, struct addrinfo* 
     return TCS_SUCCESS;
 }
 
-static int native2addrinfo(const struct addrinfo* in_info, struct tcs_addrinfo* out_info)
+static int native2addrinfo(const struct addrinfo* in_info, struct TcsAddressInfo* out_info)
 {
     if (in_info == NULL || out_info == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -181,7 +181,7 @@ int tcs_lib_free()
     return TCS_SUCCESS;
 }
 
-int tcs_create(tcs_socket* socket_ctx, int family, int type, int protocol)
+int tcs_create(TcsSocket* socket_ctx, int family, int type, int protocol)
 {
     if (socket_ctx == NULL || *socket_ctx != TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -194,7 +194,7 @@ int tcs_create(tcs_socket* socket_ctx, int family, int type, int protocol)
         return errno2retcode(errno);
 }
 
-int tcs_bind(tcs_socket socket_ctx, const struct tcs_sockaddr* address)
+int tcs_bind(TcsSocket socket_ctx, const struct TcsAddress* address)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -210,7 +210,7 @@ int tcs_bind(tcs_socket socket_ctx, const struct tcs_sockaddr* address)
         return errno2retcode(errno);
 }
 
-int tcs_connect(tcs_socket socket_ctx, const struct tcs_sockaddr* address)
+int tcs_connect(TcsSocket socket_ctx, const struct TcsAddress* address)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -227,7 +227,7 @@ int tcs_connect(tcs_socket socket_ctx, const struct tcs_sockaddr* address)
         return errno2retcode(errno);
 }
 
-int tcs_listen(tcs_socket socket_ctx, int backlog)
+int tcs_listen(TcsSocket socket_ctx, int backlog)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -238,7 +238,7 @@ int tcs_listen(tcs_socket socket_ctx, int backlog)
         return errno2retcode(errno);
 }
 
-int tcs_accept(tcs_socket socket_ctx, tcs_socket* child_socket_ctx, struct tcs_sockaddr* address)
+int tcs_accept(TcsSocket socket_ctx, TcsSocket* child_socket_ctx, struct TcsAddress* address)
 {
     if (socket_ctx == TCS_NULLSOCKET || child_socket_ctx == NULL || *child_socket_ctx != TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -264,7 +264,7 @@ int tcs_accept(tcs_socket socket_ctx, tcs_socket* child_socket_ctx, struct tcs_s
     }
 }
 
-int tcs_send(tcs_socket socket_ctx, const uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* bytes_sent)
+int tcs_send(TcsSocket socket_ctx, const uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* bytes_sent)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -284,11 +284,11 @@ int tcs_send(tcs_socket socket_ctx, const uint8_t* buffer, size_t buffer_size, u
     }
 }
 
-int tcs_sendto(tcs_socket socket_ctx,
+int tcs_sendto(TcsSocket socket_ctx,
                const uint8_t* buffer,
                size_t buffer_size,
                uint32_t flags,
-               const struct tcs_sockaddr* destination_address,
+               const struct TcsAddress* destination_address,
                size_t* bytes_sent)
 {
     if (socket_ctx == TCS_NULLSOCKET)
@@ -322,7 +322,7 @@ int tcs_sendto(tcs_socket socket_ctx,
     }
 }
 
-int tcs_recv(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* bytes_received)
+int tcs_recv(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* bytes_received)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -349,11 +349,11 @@ int tcs_recv(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_size, uint32_
     }
 }
 
-int tcs_recvfrom(tcs_socket socket_ctx,
+int tcs_recvfrom(TcsSocket socket_ctx,
                  uint8_t* buffer,
                  size_t buffer_size,
                  uint32_t flags,
-                 struct tcs_sockaddr* source_address,
+                 struct TcsAddress* source_address,
                  size_t* bytes_received)
 {
     if (socket_ctx == TCS_NULLSOCKET)
@@ -387,7 +387,7 @@ int tcs_recvfrom(tcs_socket socket_ctx,
     }
 }
 
-int tcs_setsockopt(tcs_socket socket_ctx,
+int tcs_setsockopt(TcsSocket socket_ctx,
                    int32_t level,
                    int32_t option_name,
                    const void* option_value,
@@ -402,7 +402,7 @@ int tcs_setsockopt(tcs_socket socket_ctx,
         return errno2retcode(errno);
 }
 
-int tcs_shutdown(tcs_socket socket_ctx, int how)
+int tcs_shutdown(TcsSocket socket_ctx, int how)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -413,7 +413,7 @@ int tcs_shutdown(tcs_socket socket_ctx, int how)
         return errno2retcode(errno);
 }
 
-int tcs_close(tcs_socket* socket_ctx)
+int tcs_close(TcsSocket* socket_ctx)
 {
     if (socket_ctx == NULL || *socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -431,8 +431,8 @@ int tcs_close(tcs_socket* socket_ctx)
 
 int tcs_getaddrinfo(const char* node,
                     const char* service,
-                    const struct tcs_addrinfo* hints,
-                    struct tcs_addrinfo res[],
+                    const struct TcsAddressInfo* hints,
+                    struct TcsAddressInfo res[],
                     size_t res_count,
                     size_t* used_count)
 {

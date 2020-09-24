@@ -36,17 +36,17 @@ int main(void)
     if (tcs_lib_init() != TCS_SUCCESS)
         return show_error("Could not init tinycsocket");
 
-    tcs_socket listen_socket = TCS_NULLSOCKET;
-    tcs_socket child_socket = TCS_NULLSOCKET;
+    TcsSocket listen_socket = TCS_NULLSOCKET;
+    TcsSocket child_socket = TCS_NULLSOCKET;
 
-    struct tcs_addrinfo hints = {0};
+    struct TcsAddressInfo hints = {0};
 
     hints.family = TCS_AF_INET;
     hints.protocol = TCS_IPPROTO_TCP;
     hints.socktype = TCS_SOCK_STREAM;
     hints.flags = TCS_AI_PASSIVE;
 
-    struct tcs_addrinfo listen_addressinfo;
+    struct TcsAddressInfo listen_addressinfo;
     if (tcs_getaddrinfo(NULL, "1212", &hints, &listen_addressinfo, 1, NULL) != TCS_SUCCESS)
         return show_error("Could not resolve listen address");
 

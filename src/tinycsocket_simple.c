@@ -2,14 +2,14 @@
 #include <stdio.h> //sprintf
 #include "tinycsocket.h"
 
-int tcs_simple_create_and_connect(tcs_socket* socket_ctx, const char* hostname, const char* port, uint16_t family)
+int tcs_simple_create_and_connect(TcsSocket* socket_ctx, const char* hostname, const char* port, uint16_t family)
 {
     if (socket_ctx == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    struct tcs_addrinfo address_info[32] = {0};
+    struct TcsAddressInfo address_info[32] = {0};
     size_t found_addresses;
-    struct tcs_addrinfo hints = {0};
+    struct TcsAddressInfo hints = {0};
     hints.family = family;
     hints.protocol = TCS_IPPROTO_TCP;
     hints.socktype = TCS_SOCK_STREAM;
@@ -39,18 +39,18 @@ int tcs_simple_create_and_connect(tcs_socket* socket_ctx, const char* hostname, 
     return TCS_ERROR_CONNECTION_REFUSED;
 }
 
-int tcs_simple_create_and_bind(tcs_socket* socket_ctx,
+int tcs_simple_create_and_bind(TcsSocket* socket_ctx,
                                const char* hostname,
                                const char* port,
                                uint16_t family,
                                int protocol)
 {
-    struct tcs_addrinfo hints = {0};
+    struct TcsAddressInfo hints = {0};
     hints.family = family;
     hints.protocol = protocol;
     hints.flags = TCS_AI_PASSIVE;
 
-    struct tcs_addrinfo address_info[32] = {0};
+    struct TcsAddressInfo address_info[32] = {0};
     size_t found_res;
     tcs_getaddrinfo(hostname, port, &hints, address_info, 32, &found_res);
 
@@ -79,19 +79,19 @@ int tcs_simple_create_and_bind(tcs_socket* socket_ctx,
     return TCS_SUCCESS;
 }
 
-int tcs_simple_create_and_listen(tcs_socket* socket_ctx, const char* hostname, const char* port, uint16_t family)
+int tcs_simple_create_and_listen(TcsSocket* socket_ctx, const char* hostname, const char* port, uint16_t family)
 {
     if (socket_ctx == NULL || *socket_ctx != TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    struct tcs_addrinfo hints = {0};
+    struct TcsAddressInfo hints = {0};
 
     hints.family = family;
     hints.protocol = TCS_IPPROTO_TCP;
     hints.socktype = TCS_SOCK_STREAM;
     hints.flags = TCS_AI_PASSIVE;
 
-    struct tcs_addrinfo listen_addressinfo = {0};
+    struct TcsAddressInfo listen_addressinfo = {0};
 
     int sts = 0;
     sts = tcs_getaddrinfo(hostname, port, &hints, &listen_addressinfo, 1, NULL);
@@ -113,7 +113,7 @@ int tcs_simple_create_and_listen(tcs_socket* socket_ctx, const char* hostname, c
     return TCS_SUCCESS;
 }
 
-int tcs_simple_recv_all(tcs_socket socket_ctx, uint8_t* buffer, size_t length)
+int tcs_simple_recv_all(TcsSocket socket_ctx, uint8_t* buffer, size_t length)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -131,7 +131,7 @@ int tcs_simple_recv_all(tcs_socket socket_ctx, uint8_t* buffer, size_t length)
     return TCS_SUCCESS;
 }
 
-int tcs_simple_send_all(tcs_socket socket_ctx, uint8_t* buffer, size_t length, uint32_t flags)
+int tcs_simple_send_all(TcsSocket socket_ctx, uint8_t* buffer, size_t length, uint32_t flags)
 {
     size_t left = length;
     size_t sent = 0;
@@ -147,7 +147,7 @@ int tcs_simple_send_all(tcs_socket socket_ctx, uint8_t* buffer, size_t length, u
     return TCS_SUCCESS;
 }
 
-int tcs_simple_recv_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length, size_t* bytes_received)
+int tcs_simple_recv_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_length, size_t* bytes_received)
 {
     if (socket_ctx == TCS_NULLSOCKET || buffer == NULL || buffer_length <= 0)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -199,7 +199,7 @@ int tcs_simple_recv_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buf
     return TCS_SUCCESS;
 }
 
-int tcs_simple_send_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_length)
+int tcs_simple_send_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_length)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;

@@ -36,14 +36,17 @@ int main(void)
     if (tcs_lib_init() != TCS_SUCCESS)
         return show_error("Could not init tinycsocket");
 
-    tcs_socket socket = TCS_NULLSOCKET;
+    TcsSocket socket = TCS_NULLSOCKET;
+    if (tcs_create(&socket, TCS_AF_INET, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) != TCS_SUCCESS)
+        return show_error("Could not create socket");
 
-    struct tcs_addrinfo address_info[32];
+    struct TcsAddressInfo address_info[32];
     size_t found_addresses = 0;
 
-    struct tcs_addrinfo hints = {0};
+    struct TcsAddressInfo hints = {0};
     hints.family = TCS_AF_INET;
     hints.socktype = TCS_SOCK_DGRAM;
+    hints.protocol = TCS_IPPROTO_UDP;
     hints.flags = TCS_AI_PASSIVE;
 
     if (tcs_getaddrinfo("localhost", "1212", &hints, address_info, 32, &found_addresses) != TCS_SUCCESS)
@@ -52,24 +55,18 @@ int main(void)
     bool is_bounded = false;
     for (size_t i = 0; i < found_addresses; ++i)
     {
-        if (tcs_create(&socket, address_info[i].family, address_info[i].socktype, address_info[i].protocol) !=
-            TCS_SUCCESS)
-            continue;
-
-        if (tcs_bind(socket, &address_info[i].address) != TCS_SUCCESS)
+        if (tcs_bind(socket, &address_info[i].address) == TCS_SUCCESS)
         {
-            tcs_close(&socket);
-            continue;
+            is_bounded = true;
+            break;
         }
-
-        is_bounded = true;
-        break;
+        tcs_close(&socket);
     }
 
     if (!is_bounded)
         return show_error("Could not bind socket");
 
-    struct tcs_sockaddr remote_address = {0};
+    struct TcsAddress remote_address = {0};
     uint8_t recv_buffer[1024];
     size_t bytes_received = 0;
     if (tcs_recvfrom(socket, recv_buffer, sizeof(recv_buffer) - sizeof('\0'), 0, &remote_address, &bytes_received) !=
