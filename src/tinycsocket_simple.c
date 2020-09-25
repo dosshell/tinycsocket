@@ -2,7 +2,10 @@
 #include <stdio.h> //sprintf
 #include "tinycsocket.h"
 
-int tcs_simple_create_and_connect(TcsSocket* socket_ctx, const char* hostname, const char* port, uint16_t family)
+TcsReturnCode tcs_simple_create_and_connect(TcsSocket* socket_ctx,
+                                            const char* hostname,
+                                            const char* port,
+                                            uint16_t family)
 {
     if (socket_ctx == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
