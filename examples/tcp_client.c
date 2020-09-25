@@ -38,18 +38,18 @@ int main(void)
     if (tcs_lib_init() != TCS_SUCCESS)
         return show_error("Could not init tinycsocket");
 
-    tcs_socket client_socket = TCS_NULLSOCKET;
+    TcsSocket client_socket = TCS_NULLSOCKET;
 
     if (tcs_create(&client_socket, TCS_AF_INET, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) != TCS_SUCCESS)
         return show_error("Could not create a socket");
 
-    struct tcs_addrinfo address_info[32];
+    struct TcsAddressInfo address_info[32];
     size_t found_addresses;
     if (tcs_getaddrinfo("localhost", "1212", NULL, address_info, 32, &found_addresses) != TCS_SUCCESS)
         return show_error("Could not resolve listen address");
 
     bool is_connected = false;
-    for (int i = 0; i < found_addresses; ++i)
+    for (size_t i = 0; i < found_addresses; ++i)
     {
         if (tcs_connect(client_socket, &address_info[i].address) == TCS_SUCCESS)
         {

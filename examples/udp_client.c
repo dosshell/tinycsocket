@@ -36,42 +36,26 @@ int main(void)
     if (tcs_lib_init() != TCS_SUCCESS)
         return show_error("Could not init tinycsocket");
 
-    tcs_socket socket = TCS_NULLSOCKET;
+    TcsSocket socket = TCS_NULLSOCKET;
+    if (tcs_create(&socket, TCS_AF_INET, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) != TCS_SUCCESS)
+        return show_error("Could not create socket");
 
-    struct tcs_addrinfo remote_info[32];
-    size_t found_addresses = 0;
-    struct tcs_addrinfo hints = {0};
+    struct TcsAddressInfo remote_info;
+    struct TcsAddressInfo hints = {0};
     hints.family = TCS_AF_INET;
     hints.socktype = TCS_SOCK_DGRAM;
+    hints.protocol = TCS_IPPROTO_UDP;
 
-    if (tcs_getaddrinfo("localhost", "1212", &hints, remote_info, 32, &found_addresses) != TCS_SUCCESS)
+    if (tcs_getaddrinfo("localhost", "1212", &hints, &remote_info, 1, NULL) != TCS_SUCCESS)
         return show_error("Could not resolve localhost");
 
-    bool is_connected = false;
-    for (size_t i = 0; i < found_addresses; ++i)
-    {
-        if (tcs_create(&socket, remote_info[i].family, remote_info[i].socktype, remote_info[i].protocol) != TCS_SUCCESS)
-            continue;
-
-        if (tcs_connect(socket, &remote_info[i].address) != TCS_SUCCESS)
-        {
-            tcs_close(&socket);
-            continue;
-        }
-        is_connected = true;
-        break;
-    }
-
-    if (!is_connected)
-        return show_error("Could not connect to server");
-
     char msg[] = "hello world\n";
-    if (tcs_send(socket, (const uint8_t*)msg, sizeof(msg), 0, NULL) != TCS_SUCCESS)
+    if (tcs_sendto(socket, (const uint8_t*)msg, sizeof(msg), 0, &remote_info.address, NULL) != TCS_SUCCESS)
         return show_error("Could not send message");
 
     uint8_t recv_buffer[1024];
     size_t bytes_received = 0;
-    if (tcs_recv(socket, recv_buffer, sizeof(recv_buffer) - sizeof('\0'), 0, &bytes_received) != TCS_SUCCESS)
+    if (tcs_recvfrom(socket, recv_buffer, sizeof(recv_buffer) - sizeof('\0'), 0, NULL, &bytes_received) != TCS_SUCCESS)
         return show_error("Could not receive data");
 
     // Makes sure it is a NULL terminated string, this is why we only accept 1023 bytes in receive

@@ -39,13 +39,13 @@ TEST_CASE("UDP Test")
 
     // Setup UDP receiver
     CHECK(tcs_lib_init() == TCS_SUCCESS);
-    tcs_socket recv_soc = TCS_NULLSOCKET;
+    TcsSocket recv_soc = TCS_NULLSOCKET;
 
-    tcs_addrinfo address_info[32];
+    TcsAddressInfo address_info[32];
 
     CHECK(tcs_create(&recv_soc, TCS_AF_INET, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
 
-    tcs_addrinfo hints = {};
+    TcsAddressInfo hints = {};
     hints.family = TCS_AF_INET;
     hints.socktype = TCS_SOCK_DGRAM;
     hints.protocol = TCS_IPPROTO_UDP;
@@ -79,7 +79,7 @@ TEST_CASE("UDP Test")
     std::this_thread::yield();
 
     // Setup UDP sender
-    tcs_socket send_socket = TCS_NULLSOCKET;
+    TcsSocket send_socket = TCS_NULLSOCKET;
     CHECK(tcs_create(&send_socket, TCS_AF_INET, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
 
     // Send message
@@ -99,9 +99,9 @@ TEST_CASE("Simple TCP Test")
 {
     CHECK(tcs_lib_init() == TCS_SUCCESS);
 
-    tcs_socket listen_socket = TCS_NULLSOCKET;
-    tcs_socket accept_socket = TCS_NULLSOCKET;
-    tcs_socket client_socket = TCS_NULLSOCKET;
+    TcsSocket listen_socket = TCS_NULLSOCKET;
+    TcsSocket accept_socket = TCS_NULLSOCKET;
+    TcsSocket client_socket = TCS_NULLSOCKET;
 
     CHECK(tcs_simple_create_and_listen(&listen_socket, "localhost", "1212", TCS_AF_INET) == TCS_SUCCESS);
     CHECK(tcs_simple_create_and_connect(&client_socket, "localhost", "1212", TCS_AF_INET) == TCS_SUCCESS);
@@ -127,9 +127,9 @@ TEST_CASE("Simple TCP Netstring Test")
 {
     CHECK(tcs_lib_init() == TCS_SUCCESS);
 
-    tcs_socket listen_socket = TCS_NULLSOCKET;
-    tcs_socket accept_socket = TCS_NULLSOCKET;
-    tcs_socket client_socket = TCS_NULLSOCKET;
+    TcsSocket listen_socket = TCS_NULLSOCKET;
+    TcsSocket accept_socket = TCS_NULLSOCKET;
+    TcsSocket client_socket = TCS_NULLSOCKET;
 
     CHECK(tcs_simple_create_and_listen(&listen_socket, "localhost", "1212", TCS_AF_INET) == TCS_SUCCESS);
     CHECK(tcs_simple_create_and_connect(&client_socket, "localhost", "1212", TCS_AF_INET) == TCS_SUCCESS);
@@ -155,7 +155,7 @@ TEST_CASE("Address information count")
 {
     CHECK(tcs_lib_init() == TCS_SUCCESS);
 
-    // struct tcs_addrinfo address_info_list[32];
+    // struct TcsAddressInfo address_info_list[32];
     size_t no_of_found_addresses = 0;
     tcs_getaddrinfo("localhost", NULL, NULL, NULL, 0, &no_of_found_addresses);
     CHECK(no_of_found_addresses > 0);
@@ -167,7 +167,7 @@ TEST_CASE("Example from README")
 {
     CHECK(tcs_lib_init() == TCS_SUCCESS);
 
-    tcs_socket client_socket = TCS_NULLSOCKET;
+    TcsSocket client_socket = TCS_NULLSOCKET;
     CHECK(tcs_simple_create_and_connect(&client_socket, "example.com", "80", TCS_AF_UNSPEC) == TCS_SUCCESS);
 
     uint8_t send_buffer[] = "GET / HTTP/1.1\nHost: example.com\n\n";

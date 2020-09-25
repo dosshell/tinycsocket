@@ -44,12 +44,12 @@ extern "C" {
 // Then we have some platforms specific definitions
 #if defined(TINYCSOCKET_USE_WIN32_IMPL)
 #include <basetsd.h>
-typedef UINT_PTR tcs_socket;
+typedef UINT_PTR TcsSocket;
 #elif defined(TINYCSOCKET_USE_POSIX_IMPL)
-typedef int tcs_socket;
+typedef int TcsSocket;
 #endif
 
-struct tcs_sockaddr
+struct TcsAddress
 {
     uint16_t family;
     union
@@ -57,28 +57,28 @@ struct tcs_sockaddr
         struct
         {
             uint16_t port;
-            uint32_t addr;
+            uint32_t address;
         } af_inet;
         struct
         {
             uint16_t port;
             uint32_t flowinfo;
-            uint64_t addr;
+            uint64_t address;
             uint32_t scope_id;
         } af_inet6;
     } data;
 };
 
-struct tcs_addrinfo
+struct TcsAddressInfo
 {
     uint16_t family;
     int socktype;
     int protocol;
     uint32_t flags;
-    struct tcs_sockaddr address;
+    struct TcsAddress address;
 };
 
-extern const tcs_socket TCS_NULLSOCKET; /**< An empty socket, you should always define your new sockets to this value */
+extern const TcsSocket TCS_NULLSOCKET; /**< An empty socket, you should always define your new sockets to this value */
 
 // Family
 extern const uint16_t TCS_AF_UNSPEC; /**< Layer 3 agnostic */
@@ -148,7 +148,7 @@ int tcs_lib_free(void);
  * @brief Creates a new socket.
  *
  * @code
- * tcs_socket my_socket = TCS_NULLSOCKET;
+ * TcsSocket my_socket = TCS_NULLSOCKET;
  * tcs_create(&my_socket, TCS_AF_INET, TCS_SOCK_STREAM, TCS_IPPROTO_TCP);
  * @endcode
  *
@@ -160,7 +160,7 @@ int tcs_lib_free(void);
  * @see tcs_close()
  * @see tcs_lib_init()
  */
-int tcs_create(tcs_socket* socket_ctx, int family, int type, int protocol);
+int tcs_create(TcsSocket* socket_ctx, int family, int type, int protocol);
 
 /**
  * @brief Binds the socket to a local address.
@@ -170,7 +170,7 @@ int tcs_create(tcs_socket* socket_ctx, int family, int type, int protocol);
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_getaddrinfo()
  */
-int tcs_bind(tcs_socket socket_ctx, const struct tcs_sockaddr* address);
+int tcs_bind(TcsSocket socket_ctx, const struct TcsAddress* address);
 
 /**
  * @brief Connects to a remote address
@@ -180,7 +180,7 @@ int tcs_bind(tcs_socket socket_ctx, const struct tcs_sockaddr* address);
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_shutdown()
  */
-int tcs_connect(tcs_socket socket_ctx, const struct tcs_sockaddr* address);
+int tcs_connect(TcsSocket socket_ctx, const struct TcsAddress* address);
 
 /**
  * @brief Start listen for incoming sockets.
@@ -190,7 +190,7 @@ int tcs_connect(tcs_socket socket_ctx, const struct tcs_sockaddr* address);
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_accept()
  */
-int tcs_listen(tcs_socket socket_ctx, int backlog);
+int tcs_listen(TcsSocket socket_ctx, int backlog);
 
 /**
  * @brief Accepts a socket from a listen socket.
@@ -200,7 +200,7 @@ int tcs_listen(tcs_socket socket_ctx, int backlog);
  * @param address is an optional pointer to a buffer where the underlaying address can be stored.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  */
-int tcs_accept(tcs_socket socket_ctx, tcs_socket* child_socket_ctx, struct tcs_sockaddr* address);
+int tcs_accept(TcsSocket socket_ctx, TcsSocket* child_socket_ctx, struct TcsAddress* address);
 
 /**
  * @brief Sends data on a socket, blocking
@@ -213,7 +213,7 @@ int tcs_accept(tcs_socket socket_ctx, tcs_socket* child_socket_ctx, struct tcs_s
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_recv()
  */
-int tcs_send(tcs_socket socket_ctx, const uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* bytes_sent);
+int tcs_send(TcsSocket socket_ctx, const uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* bytes_sent);
 
 /**
  * @brief Sends data to an address, useful with UDP sockets.
@@ -228,11 +228,11 @@ int tcs_send(tcs_socket socket_ctx, const uint8_t* buffer, size_t buffer_size, u
  * @see tcs_recvfrom()
  * @see tcs_getaddrinfo()
  */
-int tcs_sendto(tcs_socket socket_ctx,
+int tcs_sendto(TcsSocket socket_ctx,
                const uint8_t* buffer,
                size_t buffer_size,
                uint32_t flags,
-               const struct tcs_sockaddr* destination_address,
+               const struct TcsAddress* destination_address,
                size_t* bytes_sent);
 
 /**
@@ -246,7 +246,7 @@ int tcs_sendto(tcs_socket socket_ctx,
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_send()
 */
-int tcs_recv(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* bytes_received);
+int tcs_recv(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* bytes_received);
 
 /**
 * @brief Receive data from an address, useful with UDP sockets.
@@ -261,11 +261,11 @@ int tcs_recv(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_size, uint32_
 * @see tcs_sendto()
 * @see tcs_getaddrinfo()
 */
-int tcs_recvfrom(tcs_socket socket_ctx,
+int tcs_recvfrom(TcsSocket socket_ctx,
                  uint8_t* buffer,
                  size_t buffer_size,
                  uint32_t flags,
-                 struct tcs_sockaddr* source_address,
+                 struct TcsAddress* source_address,
                  size_t* bytes_received);
 
 /**
@@ -278,7 +278,7 @@ int tcs_recvfrom(tcs_socket socket_ctx,
 * @param option_size is the byte size of the data pointed by @p option_value.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-int tcs_setsockopt(tcs_socket socket_ctx,
+int tcs_setsockopt(TcsSocket socket_ctx,
                    int32_t level,
                    int32_t option_name,
                    const void* option_value,
@@ -291,7 +291,7 @@ int tcs_setsockopt(tcs_socket socket_ctx,
 * @param how defines in which direction you want to turn off the communication.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-int tcs_shutdown(tcs_socket socket_ctx, int how);
+int tcs_shutdown(TcsSocket socket_ctx, int how);
 
 /**
 * @brief Closes the socket, call this when you are done with the socket.
@@ -299,7 +299,7 @@ int tcs_shutdown(tcs_socket socket_ctx, int how);
 * @param socket_ctx is your in-out socket context.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-int tcs_close(tcs_socket* socket_ctx);
+int tcs_close(TcsSocket* socket_ctx);
 
 /**
 * @brief Get addresses you can connect to given a computer name and a port.
@@ -316,8 +316,8 @@ int tcs_close(tcs_socket* socket_ctx);
 */
 int tcs_getaddrinfo(const char* node,
                     const char* service,
-                    const struct tcs_addrinfo* hints,
-                    struct tcs_addrinfo res[],
+                    const struct TcsAddressInfo* hints,
+                    struct TcsAddressInfo res[],
                     size_t res_count,
                     size_t* used_count);
 
@@ -332,7 +332,7 @@ int tcs_getaddrinfo(const char* node,
  * @see tcs_simple_listen()
  * @see tcs_simple_bind()
  */
-int tcs_simple_create_and_connect(tcs_socket* socket_ctx, const char* hostname, const char* port, uint16_t family);
+int tcs_simple_create_and_connect(TcsSocket* socket_ctx, const char* hostname, const char* port, uint16_t family);
 
 /**
 * @brief Creates a socket and binds it to a node and a port
@@ -345,7 +345,7 @@ int tcs_simple_create_and_connect(tcs_socket* socket_ctx, const char* hostname, 
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_simple_connect()
 */
-int tcs_simple_create_and_bind(tcs_socket* socket_ctx,
+int tcs_simple_create_and_bind(TcsSocket* socket_ctx,
                                const char* hostname,
                                const char* port,
                                uint16_t family,
@@ -361,7 +361,7 @@ int tcs_simple_create_and_bind(tcs_socket* socket_ctx,
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_simple_connect()
 */
-int tcs_simple_create_and_listen(tcs_socket* socket_ctx, const char* hostname, const char* port, uint16_t family);
+int tcs_simple_create_and_listen(TcsSocket* socket_ctx, const char* hostname, const char* port, uint16_t family);
 
 /**
 * @brief Receive data until the buffer is filled (normal recv can fill the buffer less than the buffer length).
@@ -372,7 +372,7 @@ int tcs_simple_create_and_listen(tcs_socket* socket_ctx, const char* hostname, c
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_send_all()
 */
-int tcs_simple_recv_all(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_size);
+int tcs_simple_recv_all(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size);
 
 /**
 * @brief Sends the full buffer (normal send is allowed to send only a part of the buffer)
@@ -382,11 +382,11 @@ int tcs_simple_recv_all(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_si
 * @param buffer_size is the total size of your buffer in bytes.
 * @param flags your flags.
 */
-int tcs_simple_send_all(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_size, uint32_t flags);
+int tcs_simple_send_all(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, uint32_t flags);
 
-int tcs_simple_recv_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_size, size_t* bytes_received);
+int tcs_simple_recv_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, size_t* bytes_received);
 
-int tcs_simple_send_netstring(tcs_socket socket_ctx, uint8_t* buffer, size_t buffer_size);
+int tcs_simple_send_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size);
 
 #ifdef __cplusplus
 }
