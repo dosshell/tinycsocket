@@ -52,7 +52,7 @@ TEST_CASE("UDP Test")
     size_t found_addresses;
     size_t address_info_used = 0;
 
-    tcs_getaddrinfo("localhost", "1212", &hints, address_info, 32, &found_addresses);
+    CHECK(tcs_getaddrinfo("localhost", "1212", &hints, address_info, 32, &found_addresses) == TCS_SUCCESS);
 
     bool didBind = false;
 
