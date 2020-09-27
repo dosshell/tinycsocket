@@ -1,16 +1,16 @@
 /*
  * Copyright 2018 Markus Lindelöw
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
@@ -142,14 +142,19 @@ static TcsReturnCode addrinfo2native(const struct TcsAddressInfo* in_info, struc
     if (in_info == NULL || out_info == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
+    if (out_info->ai_addr != NULL)
+    {
+        TcsReturnCode convert_address_status =
+            sockaddr2native(&in_info->address, out_info->ai_addr, &out_info->ai_addrlen);
+        if (convert_address_status != TCS_SUCCESS)
+            return convert_address_status;
+    }
+
     out_info->ai_family = in_info->family;
     out_info->ai_socktype = in_info->socktype;
     out_info->ai_protocol = in_info->protocol;
     out_info->ai_flags = (int)in_info->flags;
     out_info->ai_next = NULL;
-    TcsReturnCode convert_address_status = sockaddr2native(&in_info->address, out_info->ai_addr, &out_info->ai_addrlen);
-    if (convert_address_status != TCS_SUCCESS)
-        return convert_address_status;
 
     return TCS_SUCCESS;
 }
@@ -458,7 +463,10 @@ TcsReturnCode tcs_getaddrinfo(const char* node,
     struct addrinfo native_hints = {0};
     if (hints != NULL)
     {
-        addrinfo2native(hints, &native_hints);
+        TcsReturnCode address_convert_status = addrinfo2native(hints, &native_hints);
+        if (address_convert_status != TCS_SUCCESS)
+            return address_convert_status;
+
         phints = &native_hints;
     }
 

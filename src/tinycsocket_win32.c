@@ -168,9 +168,13 @@ static TcsReturnCode addrinfo2native(const struct TcsAddressInfo* in_info, PADDR
     if (in_info == NULL || out_info == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    int convert_status = sockaddr2native(&in_info->address, out_info->ai_addr, (int*)&out_info->ai_addrlen);
-    if (convert_status != TCS_SUCCESS)
-        return convert_status;
+    if (out_info->ai_addr != NULL)
+    {
+        TcsReturnCode convert_address_status =
+            sockaddr2native(&in_info->address, out_info->ai_addr, (int*)&out_info->ai_addrlen);
+        if (convert_address_status != TCS_SUCCESS)
+            return convert_address_status;
+    }
 
     out_info->ai_family = in_info->family;
     out_info->ai_socktype = in_info->socktype;
@@ -488,6 +492,9 @@ TcsReturnCode tcs_getaddrinfo(const char* node,
     if (res == NULL && used_count == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
+    if (used_count != NULL)
+        *used_count = 0;
+
     PADDRINFOA phints = NULL;
     ADDRINFOA native_hints = {0};
     if (hints != NULL)
@@ -498,9 +505,6 @@ TcsReturnCode tcs_getaddrinfo(const char* node,
 
         phints = &native_hints;
     }
-
-    if (used_count != NULL)
-        *used_count = 0;
 
     PADDRINFOA native_addrinfo_list = NULL;
     int ret = getaddrinfo(node, service, phints, &native_addrinfo_list);
