@@ -1,6 +1,7 @@
+#include "tinycsocket.h"
+
 #include <stdbool.h>
 #include <stdio.h> //sprintf
-#include "tinycsocket.h"
 
 TcsReturnCode tcs_simple_create_and_connect(TcsSocket* socket_ctx,
                                             const char* hostname,
