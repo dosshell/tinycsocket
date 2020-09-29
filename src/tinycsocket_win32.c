@@ -27,13 +27,8 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-#include <mstcpip.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-
-#include <limits.h>
-#include <stdbool.h>
-#include <stdlib.h>
+#include <winsock2.h> // sockets
+#include <ws2tcpip.h> // getaddrinfo
 
 #if defined(_MSC_VER) || defined(__clang__)
 #pragma comment(lib, "wsock32.lib")
