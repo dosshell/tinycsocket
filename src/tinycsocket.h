@@ -69,15 +69,6 @@ struct TcsAddress
     } data;
 };
 
-struct TcsAddressInfo
-{
-    uint16_t family;
-    int socktype;
-    int protocol;
-    uint32_t flags;
-    struct TcsAddress address;
-};
-
 extern const TcsSocket TCS_NULLSOCKET; /**< An empty socket, you should always define your new sockets to this value */
 
 // Family
@@ -319,18 +310,18 @@ TcsReturnCode tcs_close(TcsSocket* socket_ctx);
 *
 * @param node is your computer identifier: hostname, IPv4 or IPv6 address.
 * @param service is your port number. Also some support for common aliases like "http" exist.
-* @param hints is a struct with hints, for example if you only are interested in IPv6.
-* @param res is a pointer to your array where to store the result.
-* @param res_count is number of elements your @res array can store.
-* @param used_count will output the number of addresses that was populated in @res.
+* @param address_family filters which address family you want, for example if you only are interested in IPv6. Use TCS_AF_UNSPEC to not filter.
+* @param found_address is a pointer to your array which will be populated with found addresses.
+* @param found_addresses_length is number of elements your @found_address array can store.
+* @param no_of_found_addresses will output the number of addresses that was populated in @found_address.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
 TcsReturnCode tcs_getaddrinfo(const char* node,
                               const char* service,
-                              const struct TcsAddressInfo* hints,
-                              struct TcsAddressInfo res[],
-                              size_t res_count,
-                              size_t* used_count);
+                              uint16_t address_family,
+                              struct TcsAddress found_addresses[],
+                              size_t found_addresses_length,
+                              size_t* no_of_found_addresses);
 
 /**
  * @brief Connects a socket to a node and a port.
@@ -349,21 +340,19 @@ TcsReturnCode tcs_simple_create_and_connect(TcsSocket* socket_ctx,
                                             uint16_t family);
 
 /**
-* @brief Creates a socket and binds it to a node and a port
+* @brief Creates a DATAGRAM socket and binds it to a node and a port.
 *
 * @param socket_ctx is your out socket context. Must be of #TCS_NULLSOCKET value.
 * @param hostname is the name of the host to bind to, for example "192.168.0.1" or "localhost".
 * @param port is a string representation of the port you want to bind to. Normally an integer, like "5000" but also some support for common aliases like "http" exist.
 * @param family only supports #TCS_AF_INET for now
-* @param protocol specifies the protocol, for example #TCS_IPPROTO_TCP or #TCS_IPPROTO_UDP.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_simple_connect()
 */
 TcsReturnCode tcs_simple_create_and_bind(TcsSocket* socket_ctx,
                                          const char* hostname,
                                          const char* port,
-                                         uint16_t family,
-                                         int protocol);
+                                         uint16_t family);
 
 /**
 * @brief Creates a socket and starts to listen to an address with TCP

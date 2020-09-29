@@ -1,16 +1,16 @@
 ﻿/*
  * Copyright 2018 Markus Lindelöw
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files(the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
@@ -40,17 +40,13 @@ int main(void)
     if (tcs_create(&socket, TCS_AF_INET, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) != TCS_SUCCESS)
         return show_error("Could not create socket");
 
-    struct TcsAddressInfo remote_info;
-    struct TcsAddressInfo hints = {0};
-    hints.family = TCS_AF_INET;
-    hints.socktype = TCS_SOCK_DGRAM;
-    hints.protocol = TCS_IPPROTO_UDP;
+    struct TcsAddress remote_info;
 
-    if (tcs_getaddrinfo("localhost", "1212", &hints, &remote_info, 1, NULL) != TCS_SUCCESS)
+    if (tcs_getaddrinfo("localhost", "1212", TCS_AF_INET, &remote_info, 1, NULL) != TCS_SUCCESS)
         return show_error("Could not resolve localhost");
 
     char msg[] = "hello world\n";
-    if (tcs_sendto(socket, (const uint8_t*)msg, sizeof(msg), 0, &remote_info.address, NULL) != TCS_SUCCESS)
+    if (tcs_sendto(socket, (const uint8_t*)msg, sizeof(msg), 0, &remote_info, NULL) != TCS_SUCCESS)
         return show_error("Could not send message");
 
     uint8_t recv_buffer[1024];

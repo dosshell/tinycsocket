@@ -10,26 +10,20 @@ TcsReturnCode tcs_simple_create_and_connect(TcsSocket* socket_ctx,
     if (socket_ctx == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    struct TcsAddressInfo address_info[32] = {0};
-    size_t found_addresses;
-    struct TcsAddressInfo hints = {0};
-    hints.family = family;
-    hints.protocol = TCS_IPPROTO_TCP;
-    hints.socktype = TCS_SOCK_STREAM;
-    int sts = tcs_getaddrinfo(hostname, port, &hints, address_info, 32, &found_addresses);
+    struct TcsAddress found_addresses[32] = {0};
+    size_t no_of_found_addresses = 0;
+    int sts = tcs_getaddrinfo(hostname, port, family, found_addresses, 32, &no_of_found_addresses);
     if (sts != TCS_SUCCESS)
-    {
         return sts;
-    }
 
-    for (size_t i = 0; i < found_addresses; ++i)
+    for (size_t i = 0; i < no_of_found_addresses; ++i)
     {
-        sts = tcs_create(socket_ctx, address_info[i].family, address_info[i].socktype, address_info[i].protocol);
+        sts = tcs_create(socket_ctx, found_addresses[i].family, TCS_SOCK_STREAM, 0);
         if (sts != TCS_SUCCESS)
         {
             continue;
         }
-        if (tcs_connect(*socket_ctx, &address_info[i].address) == TCS_SUCCESS)
+        if (tcs_connect(*socket_ctx, &found_addresses[i]) == TCS_SUCCESS)
         {
             return TCS_SUCCESS;
         }
@@ -42,29 +36,21 @@ TcsReturnCode tcs_simple_create_and_connect(TcsSocket* socket_ctx,
     return TCS_ERROR_CONNECTION_REFUSED;
 }
 
-int tcs_simple_create_and_bind(TcsSocket* socket_ctx,
-                               const char* hostname,
-                               const char* port,
-                               uint16_t family,
-                               int protocol)
+int tcs_simple_create_and_bind(TcsSocket* socket_ctx, const char* hostname, const char* port, uint16_t family)
 {
-    struct TcsAddressInfo hints = {0};
-    hints.family = family;
-    hints.protocol = protocol;
-    hints.flags = TCS_AI_PASSIVE;
-
-    struct TcsAddressInfo address_info[32] = {0};
-    size_t found_res;
-    tcs_getaddrinfo(hostname, port, &hints, address_info, 32, &found_res);
+    struct TcsAddress found_addresses[32] = {0};
+    size_t no_of_found_addresses = 0;
+    int sts = tcs_getaddrinfo(hostname, port, family, found_addresses, 32, &no_of_found_addresses);
+    if (sts != TCS_SUCCESS)
+        return sts;
 
     bool is_bounded = false;
-    for (size_t i = 0; i < found_res; ++i)
+    for (size_t i = 0; i < no_of_found_addresses; ++i)
     {
-        if (tcs_create(socket_ctx, address_info[i].family, address_info[i].socktype, address_info[i].protocol) !=
-            TCS_SUCCESS)
+        if (tcs_create(socket_ctx, found_addresses[i].family, TCS_SOCK_DGRAM, 0) != TCS_SUCCESS)
             continue;
 
-        if (tcs_bind(*socket_ctx, &address_info[i].address) != TCS_SUCCESS)
+        if (tcs_bind(*socket_ctx, &found_addresses[i]) != TCS_SUCCESS)
         {
             tcs_close(socket_ctx);
             continue;
@@ -87,25 +73,18 @@ int tcs_simple_create_and_listen(TcsSocket* socket_ctx, const char* hostname, co
     if (socket_ctx == NULL || *socket_ctx != TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    struct TcsAddressInfo hints = {0};
-
-    hints.family = family;
-    hints.protocol = TCS_IPPROTO_TCP;
-    hints.socktype = TCS_SOCK_STREAM;
-    hints.flags = TCS_AI_PASSIVE;
-
-    struct TcsAddressInfo listen_addressinfo = {0};
+    struct TcsAddress found_address = {0};
 
     int sts = 0;
-    sts = tcs_getaddrinfo(hostname, port, &hints, &listen_addressinfo, 1, NULL);
+    sts = tcs_getaddrinfo(hostname, port, family, &found_address, 1, NULL);
     if (sts != TCS_SUCCESS)
         return sts;
 
-    sts = tcs_create(socket_ctx, listen_addressinfo.family, listen_addressinfo.socktype, listen_addressinfo.protocol);
+    sts = tcs_create(socket_ctx, found_address.family, TCS_SOCK_STREAM, 0);
     if (sts != TCS_SUCCESS)
         return sts;
 
-    sts = tcs_bind(*socket_ctx, &listen_addressinfo.address);
+    sts = tcs_bind(*socket_ctx, &found_address);
     if (sts != TCS_SUCCESS)
         return sts;
 
