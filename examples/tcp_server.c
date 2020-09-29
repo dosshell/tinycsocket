@@ -39,23 +39,14 @@ int main(void)
     TcsSocket listen_socket = TCS_NULLSOCKET;
     TcsSocket child_socket = TCS_NULLSOCKET;
 
-    struct TcsAddressInfo hints = {0};
-
-    hints.family = TCS_AF_INET;
-    hints.protocol = TCS_IPPROTO_TCP;
-    hints.socktype = TCS_SOCK_STREAM;
-    hints.flags = TCS_AI_PASSIVE;
-
-    struct TcsAddressInfo listen_addressinfo;
-    if (tcs_getaddrinfo(NULL, "1212", &hints, &listen_addressinfo, 1, NULL) != TCS_SUCCESS)
+    struct TcsAddress listen_address;
+    if (tcs_getaddrinfo(NULL, "1212", TCS_AF_INET, &listen_address, 1, NULL) != TCS_SUCCESS)
         return show_error("Could not resolve listen address");
 
-    if (tcs_create(
-            &listen_socket, listen_addressinfo.family, listen_addressinfo.socktype, listen_addressinfo.protocol) !=
-        TCS_SUCCESS)
+    if (tcs_create(&listen_socket, listen_address.family, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) != TCS_SUCCESS)
         return show_error("Could not create a listen socket");
 
-    if (tcs_bind(listen_socket, &listen_addressinfo.address) != TCS_SUCCESS)
+    if (tcs_bind(listen_socket, &listen_address) != TCS_SUCCESS)
         return show_error("Could not bind to listen address");
 
     if (tcs_listen(listen_socket, TCS_BACKLOG_SOMAXCONN) != TCS_SUCCESS)

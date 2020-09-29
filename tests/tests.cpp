@@ -41,24 +41,20 @@ TEST_CASE("UDP Test")
     CHECK(tcs_lib_init() == TCS_SUCCESS);
     TcsSocket recv_soc = TCS_NULLSOCKET;
 
-    TcsAddressInfo address_info[32];
-
     CHECK(tcs_create(&recv_soc, TCS_AF_INET, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
 
-    TcsAddressInfo hints = {};
-    hints.family = TCS_AF_INET;
-    hints.socktype = TCS_SOCK_DGRAM;
-    hints.protocol = TCS_IPPROTO_UDP;
-    size_t found_addresses;
+    TcsAddress found_addresses[32];
+    size_t no_of_found_addresses;
     size_t address_info_used = 0;
 
-    CHECK(tcs_getaddrinfo("localhost", "1212", &hints, address_info, 32, &found_addresses) == TCS_SUCCESS);
+    CHECK(tcs_getaddrinfo("localhost", "1212", TCS_AF_INET, found_addresses, 32, &no_of_found_addresses) ==
+          TCS_SUCCESS);
 
     bool didBind = false;
 
-    for (size_t i = 0; i < found_addresses; ++i)
+    for (size_t i = 0; i < no_of_found_addresses; ++i)
     {
-        if (tcs_bind(recv_soc, &address_info[i].address) != TCS_SUCCESS)
+        if (tcs_bind(recv_soc, &found_addresses[i]) != TCS_SUCCESS)
             continue;
 
         address_info_used = i;
@@ -85,7 +81,7 @@ TEST_CASE("UDP Test")
     // Send message
     uint8_t msg[] = "hello world\n";
     size_t sent;
-    CHECK(tcs_sendto(send_socket, msg, sizeof(msg), 0, &address_info[address_info_used].address, &sent) == TCS_SUCCESS);
+    CHECK(tcs_sendto(send_socket, msg, sizeof(msg), 0, &found_addresses[address_info_used], &sent) == TCS_SUCCESS);
     CHECK(sent > 0);
     // Join threads and check if we did send the message correctly
     recv_thread.join();

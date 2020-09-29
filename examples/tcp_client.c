@@ -40,18 +40,18 @@ int main(void)
 
     TcsSocket client_socket = TCS_NULLSOCKET;
 
+    struct TcsAddress address[32];
+    size_t found_addresses;
+    if (tcs_getaddrinfo("localhost", "1212", TCS_AF_INET, address, 32, &found_addresses) != TCS_SUCCESS)
+        return show_error("Could not resolve listen address");
+
     if (tcs_create(&client_socket, TCS_AF_INET, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) != TCS_SUCCESS)
         return show_error("Could not create a socket");
-
-    struct TcsAddressInfo address_info[32];
-    size_t found_addresses;
-    if (tcs_getaddrinfo("localhost", "1212", NULL, address_info, 32, &found_addresses) != TCS_SUCCESS)
-        return show_error("Could not resolve listen address");
 
     bool is_connected = false;
     for (size_t i = 0; i < found_addresses; ++i)
     {
-        if (tcs_connect(client_socket, &address_info[i].address) == TCS_SUCCESS)
+        if (tcs_connect(client_socket, &address[i]) == TCS_SUCCESS)
         {
             is_connected = true;
             break;

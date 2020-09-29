@@ -137,45 +137,6 @@ static TcsReturnCode native2sockaddr(const struct sockaddr* in_addr, struct TcsA
     return 0;
 }
 
-static TcsReturnCode addrinfo2native(const struct TcsAddressInfo* in_info, struct addrinfo* out_info)
-{
-    if (in_info == NULL || out_info == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    if (out_info->ai_addr != NULL)
-    {
-        TcsReturnCode convert_address_status =
-            sockaddr2native(&in_info->address, out_info->ai_addr, &out_info->ai_addrlen);
-        if (convert_address_status != TCS_SUCCESS)
-            return convert_address_status;
-    }
-
-    out_info->ai_family = in_info->family;
-    out_info->ai_socktype = in_info->socktype;
-    out_info->ai_protocol = in_info->protocol;
-    out_info->ai_flags = (int)in_info->flags;
-    out_info->ai_next = NULL;
-
-    return TCS_SUCCESS;
-}
-
-static TcsReturnCode native2addrinfo(const struct addrinfo* in_info, struct TcsAddressInfo* out_info)
-{
-    if (in_info == NULL || out_info == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    TcsReturnCode convert_address_status = native2sockaddr(in_info->ai_addr, &out_info->address);
-    if (convert_address_status != TCS_SUCCESS)
-        return convert_address_status;
-
-    out_info->family = (uint16_t)in_info->ai_family;
-    out_info->socktype = in_info->ai_socktype;
-    out_info->protocol = in_info->ai_protocol;
-    out_info->flags = (uint32_t)in_info->ai_flags;
-
-    return TCS_SUCCESS;
-}
-
 TcsReturnCode tcs_lib_init()
 {
     // Not needed for posix
@@ -448,60 +409,55 @@ TcsReturnCode tcs_close(TcsSocket* socket_ctx)
 
 TcsReturnCode tcs_getaddrinfo(const char* node,
                               const char* service,
-                              const struct TcsAddressInfo* hints,
-                              struct TcsAddressInfo res[],
-                              size_t res_count,
-                              size_t* used_count)
+                              uint16_t address_family,
+                              struct TcsAddress found_addresses[],
+                              size_t found_addresses_length,
+                              size_t* no_of_found_addresses)
 {
     if (node == NULL && service == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (res == NULL && used_count == NULL)
+    if (found_addresses == NULL && no_of_found_addresses == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    struct addrinfo* phints = NULL;
+    if (no_of_found_addresses != NULL)
+        *no_of_found_addresses = 0;
+
     struct addrinfo native_hints = {0};
-    if (hints != NULL)
-    {
-        TcsReturnCode address_convert_status = addrinfo2native(hints, &native_hints);
-        if (address_convert_status != TCS_SUCCESS)
-            return address_convert_status;
+    native_hints.ai_family = address_family;
+    if (node == NULL)
+        native_hints.ai_flags = AI_PASSIVE;
 
-        phints = &native_hints;
-    }
-
-    if (used_count != NULL)
-        *used_count = 0;
-
-    struct addrinfo* native_res = NULL;
-    int sts = getaddrinfo(node, service, phints, &native_res);
+    struct addrinfo* native_addrinfo_list = NULL;
+    int sts = getaddrinfo(node, service, &native_hints, &native_addrinfo_list);
     if (sts == EAI_SYSTEM)
         return errno2retcode(errno);
-    else if (native_res == NULL)
+    else if (native_addrinfo_list == NULL)
         return TCS_ERROR_UNKNOWN;
     else if (sts != 0)
         return TCS_ERROR_UNKNOWN;
 
     size_t i = 0;
-    if (res == NULL)
+    if (found_addresses == NULL)
     {
-        for (struct addrinfo* iter = native_res; iter != NULL; iter = iter->ai_next)
+        for (struct addrinfo* iter = native_addrinfo_list; iter != NULL; iter = iter->ai_next)
             i++;
     }
     else
     {
-        for (struct addrinfo* iter = native_res; iter != NULL && i < res_count; iter = iter->ai_next)
+        for (struct addrinfo* iter = native_addrinfo_list; iter != NULL && i < found_addresses_length;
+             iter = iter->ai_next)
         {
-            TcsReturnCode convert_address_status = native2addrinfo(iter, &res[i]);
+            TcsReturnCode convert_address_status = native2sockaddr(iter->ai_addr, &found_addresses[i]);
             if (convert_address_status != TCS_SUCCESS)
                 continue;
             i++;
         }
     }
-    if (used_count != NULL)
-        *used_count = i;
+    if (no_of_found_addresses != NULL)
+        *no_of_found_addresses = i;
 
-    freeaddrinfo(native_res);
+    freeaddrinfo(native_addrinfo_list);
 
     if (i == 0)
         return TCS_ERROR_ADDRESS_LOOKUP_FAILED;
