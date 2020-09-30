@@ -151,9 +151,8 @@ TEST_CASE("Address information count")
 {
     CHECK(tcs_lib_init() == TCS_SUCCESS);
 
-    // struct TcsAddressInfo address_info_list[32];
     size_t no_of_found_addresses = 0;
-    tcs_getaddrinfo("localhost", NULL, NULL, NULL, 0, &no_of_found_addresses);
+    tcs_getaddrinfo("localhost", NULL, TCS_AF_UNSPEC, NULL, 0, &no_of_found_addresses);
     CHECK(no_of_found_addresses > 0);
 
     CHECK(tcs_lib_free() == TCS_SUCCESS);
