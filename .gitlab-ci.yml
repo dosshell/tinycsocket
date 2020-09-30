@@ -11,7 +11,20 @@ stages:
   - build
   - test
   - deploy
-  
+
+
+code format:
+  <<: *only-default
+  tags:
+    - docker
+  image: alpine:3.12
+  stage: linting
+  needs: []
+  script:
+    - apk add clang python3
+    - clang-format --version
+    - python3 ./ci/run-clang-format.py -j 1 -r --exclude tests/doctest.h src tests examples
+
 static linting:
   <<: *only-default
   tags:
@@ -25,18 +38,6 @@ static linting:
     - mkdir build && cd build
     - cmake -G "Ninja" ../ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON
     - clang-tidy ../src/*.c ../examples/*.c
-
-code format:
-  <<: *only-default
-  tags:
-    - docker
-  image: alpine:3.12
-  stage: linting
-  needs: []
-  script:
-    - apk add clang python3
-    - clang-format --version
-    - python3 ./ci/run-clang-format.py -j 1 -r --exclude tests/doctest.h src tests examples
 
 Windows MSVC v19.26 x86 and x86_64:
   <<: *only-default
@@ -94,7 +95,6 @@ linux gcc v9.3 i386:
     paths:
       - ./build/tests_linux_gcc_i386
 
-
 Windows 10 x86_64:
   <<: *only-default
   tags:
@@ -104,10 +104,17 @@ Windows 10 x86_64:
   stage: test
   needs: ["Windows MSVC v19.26 x86 and x86_64"]
   script:
-    - ./build/tests_msvc_debug_x86.exe
-    - ./build/tests_msvc_release_x86.exe
-    - ./build/tests_msvc_debug_x64.exe
-    - ./build/tests_msvc_release_x64.exe
+    - ./build/tests_msvc_debug_x86.exe -s -d --reporters=junit --out=./report_windows10_msvc_debug_x86.xml
+    - ./build/tests_msvc_release_x86.exe -s -d --reporters=junit --out=./report_windows10_msvc_release_x86.xml
+    - ./build/tests_msvc_debug_x64.exe -s -d --reporters=junit --out=./report_windows10_msvc_debug_x64.xml
+    - ./build/tests_msvc_release_x64.exe -s -d --reporters=junit --out=./report_windows10_msvc_release_x64.xml
+  artifacts:
+    reports:
+      junit:
+        - report_windows10_msvc_debug_x86.xml
+        - report_windows10_msvc_release_x86.xml
+        - report_windows10_msvc_debug_x64.xml
+        - report_windows10_msvc_release_x64.xml
 
 linux test x86_64:
   <<: *only-default
@@ -118,7 +125,10 @@ linux test x86_64:
   needs: ["linux gcc v9.3 x86_64"]
   script:
     - apk add libstdc++
-    - ./build/tests_linux_gcc_amd64
+    - ./build/tests_linux_gcc_amd64 -s -d --reporters=junit --out=./report_linux_gcc_amd64.xml
+  artifacts:
+    reports:
+      junit: report_linux_gcc_amd64.xml
 
 linux test i386:
   <<: *only-default
@@ -129,7 +139,10 @@ linux test i386:
   needs: ["linux gcc v9.3 i386"]
   script:
     - apk add libstdc++
-    - ./build/tests_linux_gcc_i386
+    - ./build/tests_linux_gcc_i386 -s -d --reporters=junit --out=./report_linux_gcc_i386.xml
+  artifacts:
+    reports:
+      junit: report_linux_gcc_i386.xml
 
 sphinx:
   <<: *only-default
