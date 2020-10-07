@@ -42,7 +42,7 @@ int main(void)
 
     struct TcsAddress address[32];
     size_t found_addresses;
-    if (tcs_getaddrinfo("localhost", "1212", TCS_AF_INET, address, 32, &found_addresses) != TCS_SUCCESS)
+    if (tcs_get_addresses("localhost", "1212", TCS_AF_INET, address, 32, &found_addresses) != TCS_SUCCESS)
         return show_error("Could not resolve listen address");
 
     if (tcs_create(&client_socket, TCS_AF_INET, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) != TCS_SUCCESS)

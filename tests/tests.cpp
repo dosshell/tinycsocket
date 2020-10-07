@@ -25,7 +25,28 @@
 
 #include <tinycsocket.h>
 #include <cstring>
+#include <iostream>
 #include <thread>
+
+namespace
+{
+std::ostream& operator<<(std::ostream& o, const TcsAddress& address)
+{
+    if (address.family == TCS_AF_INET)
+    {
+        uint32_t ipv4 = address.data.af_inet.address;
+        int b1 = ipv4 & 0xFF;
+        int b2 = (ipv4 >> 8) & 0xFF;
+        int b3 = (ipv4 >> 16) & 0xFF;
+        int b4 = (ipv4 >> 24) & 0xFF;
+        return o << b1 << "." << b2 << "." << b3 << "." << b4;
+    }
+    else
+    {
+        return o << "?";
+    }
+}
+} // namespace
 
 TEST_CASE("Init Test")
 {
@@ -47,7 +68,7 @@ TEST_CASE("UDP Test")
     size_t no_of_found_addresses;
     size_t address_info_used = 0;
 
-    CHECK(tcs_getaddrinfo("localhost", "1212", TCS_AF_INET, found_addresses, 32, &no_of_found_addresses) ==
+    CHECK(tcs_get_addresses("localhost", "1212", TCS_AF_INET, found_addresses, 32, &no_of_found_addresses) ==
           TCS_SUCCESS);
 
     bool didBind = false;
@@ -149,13 +170,73 @@ TEST_CASE("Simple TCP Netstring Test")
 
 TEST_CASE("Address information count")
 {
-    CHECK(tcs_lib_init() == TCS_SUCCESS);
-
+    // Given
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
     size_t no_of_found_addresses = 0;
-    tcs_getaddrinfo("localhost", NULL, TCS_AF_UNSPEC, NULL, 0, &no_of_found_addresses);
+
+    // When
+    CHECK(tcs_get_addresses("localhost", NULL, TCS_AF_UNSPEC, NULL, 0, &no_of_found_addresses) == TCS_SUCCESS);
+
+    // Then
     CHECK(no_of_found_addresses > 0);
 
+    // Clean up
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
+TEST_CASE("Get number of local addresses")
+{
+    // Given
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+    size_t peek_no_of_found_addresses = 0;
+    size_t no_of_found_addresses = 0;
+    struct TcsInterface interfaces[128];
+
+    // When
+    CHECK(tcs_get_interfaces(NULL, 0, &peek_no_of_found_addresses) == TCS_SUCCESS);
+    CHECK(tcs_get_interfaces(interfaces, 128, &no_of_found_addresses) == TCS_SUCCESS);
+
+    // Then
+    CHECK(no_of_found_addresses > 0);
+    CHECK(peek_no_of_found_addresses == no_of_found_addresses); // Fails if computer has more than 128 addresses
+
+    // Clean up
     CHECK(tcs_lib_free() == TCS_SUCCESS);
+}
+
+TEST_CASE("Get loopback address")
+{
+    // Given
+    size_t no_of_found_addresses = 0;
+    struct TcsInterface interfaces[32];
+    bool found_loopback = false;
+    const int LOOPBACK_ADDRESS = 0x0100007F; // 127.0.0.1 bigendian
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // When
+    CHECK(tcs_get_interfaces(interfaces, 32, &no_of_found_addresses) == TCS_SUCCESS);
+    // find IPv4 loopback
+    for (size_t i = 0; i < no_of_found_addresses; ++i)
+    {
+        if (interfaces[i].address.family == TCS_AF_INET &&
+            interfaces[i].address.data.af_inet.address == LOOPBACK_ADDRESS)
+        {
+            found_loopback = true;
+        }
+    }
+
+    // Inspect
+    for (size_t i = 0; i < no_of_found_addresses; ++i)
+    {
+        std::cout << interfaces[i].name << " => " << interfaces[i].address << std::endl;
+    }
+
+    // Then
+    CHECK(no_of_found_addresses > 0);
+    CHECK(found_loopback);
+
+    // Clean up
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS); // We are in C++, we should use defer
 }
 
 TEST_CASE("Example from README")

@@ -1,6 +1,8 @@
 cmake_minimum_required (VERSION 3.1)
 project(tinycsocket VERSION 0.1)
 
+include(CheckSymbolExists)
+
 # Add warning levels for gcc and msvc
 if (MSVC)
   if (CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
@@ -14,14 +16,21 @@ if (MSVC)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W4")
   endif ()
 elseif (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
-	set(COMMON_GXX_FLAGS "-Wall -Wextra -pedantic -Winit-self -Wpointer-arith -Wcast-align -Wconversion -Wshadow -Wundef -Wwrite-strings -Wswitch-enum -Wswitch-default")
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_GXX_FLAGS} -Wstrict-prototypes -Wmissing-prototypes -std=c99 -D_POSIX_C_SOURCE=200112L")
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_GXX_FLAGS}")
+  set(COMMON_GXX_FLAGS "-Wall -Wextra -pedantic -Winit-self -Wpointer-arith -Wcast-align -Wconversion -Wshadow -Wundef -Wwrite-strings -Wswitch-enum -Wswitch-default")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_GXX_FLAGS} -Wstrict-prototypes -Wmissing-prototypes -std=c99")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_GXX_FLAGS}")
+  add_definitions(-D_POSIX_C_SOURCE=200112L -D_DEFAULT_SOURCE -D_ISOC99_SOURCE)
 endif ()
 
 option(TCS_ENABLE_TESTS "Enable tests" OFF)
 option(TCS_ENABLE_EXAMPLES "Enable examples" OFF)
 option(TCS_WARNINGS_AS_ERRORS "Enable treat warnings as errors" OFF)
+
+check_symbol_exists(getifaddrs "sys/types.h;ifaddrs.h" TCS_HAVE_IFADDRS)
+
+if (TCS_HAVE_IFADDRS)
+add_definitions("-DTCS_HAVE_IFADDRS")
+endif ()
 
 add_subdirectory(src)
 if (TCS_ENABLE_TESTS)

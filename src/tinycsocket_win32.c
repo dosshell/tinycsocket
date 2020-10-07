@@ -24,15 +24,36 @@
 
 #ifdef TINYCSOCKET_USE_WIN32_IMPL
 
+#if !defined(NTDDI_VERSION) && !defined(WINVER) && !defined(NTDDI_VERSION)
+
+#ifdef _WIN64
+#define NTDDI_VERSION 0x05020000
+#define _WIN32_WINNT 0x0502
+#define WINVER 0x0502
+#else
+#define NTDDI_VERSION 0x05010300
+#define _WIN32_WINNT 0x0501
+#define WINVER 0x0501
+#endif
+
+#endif
+
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
+// after windows.h
 #include <winsock2.h> // sockets
 #include <ws2tcpip.h> // getaddrinfo
+
+// after winsock2
+#include <iphlpapi.h> // GetAdaptersAddresses
+
+#include <stdlib.h> // Malloc for GetAdaptersAddresses
 
 #if defined(_MSC_VER) || defined(__clang__)
 #pragma comment(lib, "wsock32.lib")
 #pragma comment(lib, "ws2_32.lib")
+#pragma comment(lib, "Iphlpapi.lib")
 #endif
 
 const TcsSocket TCS_NULLSOCKET = INVALID_SOCKET;
@@ -54,7 +75,6 @@ const int TCS_IPPROTO_UDP = IPPROTO_UDP;
 const uint32_t TCS_AI_PASSIVE = AI_PASSIVE;
 
 // Recv flags
-const int TCS_MSG_WAITALL = MSG_WAITALL;
 const int TCS_MSG_PEEK = MSG_PEEK;
 const int TCS_MSG_OOB = MSG_OOB;
 
@@ -62,7 +82,7 @@ const int TCS_MSG_OOB = MSG_OOB;
 const int TCS_BACKLOG_SOMAXCONN = SOMAXCONN;
 
 // How
-const int TCS_SD_RECIEVE = SD_RECEIVE;
+const int TCS_SD_RECEIVE = SD_RECEIVE;
 const int TCS_SD_SEND = SD_SEND;
 const int TCS_SD_BOTH = SD_BOTH;
 
@@ -148,14 +168,14 @@ static TcsReturnCode native2sockaddr(const PSOCKADDR in_addr, struct TcsAddress*
     }
     else if (in_addr->sa_family == TCS_AF_UNSPEC)
     {
-        return TCS_ERROR_NOT_IMPLEMENTED;
+        return TCS_ERROR_INVALID_ARGUMENT;
     }
     else
     {
         return TCS_ERROR_NOT_IMPLEMENTED;
     }
 
-    return 0;
+    return TCS_SUCCESS;
 }
 
 TcsReturnCode tcs_lib_init()
@@ -436,12 +456,12 @@ TcsReturnCode tcs_close(TcsSocket* socket_ctx)
     }
 }
 
-TcsReturnCode tcs_getaddrinfo(const char* node,
-                              const char* service,
-                              uint16_t address_family,
-                              struct TcsAddress found_addresses[],
-                              size_t found_addresses_length,
-                              size_t* no_of_found_addresses)
+TcsReturnCode tcs_get_addresses(const char* node,
+                                const char* service,
+                                uint16_t address_family,
+                                struct TcsAddress found_addresses[],
+                                size_t found_addresses_length,
+                                size_t* no_of_found_addresses)
 {
     if (node == NULL && service == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -492,4 +512,67 @@ TcsReturnCode tcs_getaddrinfo(const char* node,
     return TCS_SUCCESS;
 }
 
+TcsReturnCode tcs_get_interfaces(struct TcsInterface found_interfaces[],
+                                 size_t found_interfaces_length,
+                                 size_t* no_of_found_interfaces)
+{
+    if (found_interfaces == NULL && no_of_found_interfaces == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    if (found_interfaces == NULL && found_interfaces_length != 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    if (no_of_found_interfaces != NULL)
+        *no_of_found_interfaces = 0;
+
+    const int MAX_TRIES = 3;
+    ULONG adapeters_buffer_size = 15000;
+    PIP_ADAPTER_ADDRESSES adapters = NULL;
+    ULONG adapter_sts = ERROR_NO_DATA;
+    for (int i = 0; i < MAX_TRIES; ++i)
+    {
+        adapters = malloc(adapeters_buffer_size);
+        adapter_sts = GetAdaptersAddresses(AF_UNSPEC, 0, NULL, adapters, &adapeters_buffer_size);
+        if (adapter_sts == ERROR_BUFFER_OVERFLOW)
+        {
+            free(adapters);
+            adapters = NULL;
+        }
+    }
+    if (adapter_sts != NO_ERROR)
+    {
+        if (adapters != NULL)
+            free(adapters);
+        return TCS_ERROR_UNKNOWN;
+    }
+
+    size_t i = 0;
+    for (PIP_ADAPTER_ADDRESSES_XP iter = adapters;
+         iter != NULL && (found_interfaces == NULL || i < found_interfaces_length);
+         iter = iter->Next)
+    {
+        if (iter->OperStatus != IfOperStatusUp)
+            continue;
+        for (PIP_ADAPTER_UNICAST_ADDRESS_XP address_iter = iter->FirstUnicastAddress; address_iter != NULL;
+             address_iter = address_iter->Next)
+        {
+            struct TcsAddress t;
+            if (native2sockaddr(address_iter->Address.lpSockaddr, &t) != TCS_SUCCESS)
+                continue;
+            if (found_interfaces != NULL)
+            {
+                found_interfaces[i].address = t;
+                memset(found_interfaces[i].name, '\0', 32);
+                WideCharToMultiByte(CP_UTF8, 0, iter->FriendlyName, -1, found_interfaces[i].name, 31, NULL, NULL);
+            }
+            ++i;
+        }
+    }
+    if (adapters != NULL)
+        free(adapters);
+    if (no_of_found_interfaces != NULL)
+        *no_of_found_interfaces = i;
+
+    return TCS_SUCCESS;
+}
 #endif

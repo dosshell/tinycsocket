@@ -42,7 +42,7 @@ int main(void)
 
     struct TcsAddress remote_info;
 
-    if (tcs_getaddrinfo("localhost", "1212", TCS_AF_INET, &remote_info, 1, NULL) != TCS_SUCCESS)
+    if (tcs_get_addresses("localhost", "1212", TCS_AF_INET, &remote_info, 1, NULL) != TCS_SUCCESS)
         return show_error("Could not resolve localhost");
 
     char msg[] = "hello world\n";
