@@ -39,7 +39,7 @@ static linting:
     - cmake -G "Ninja" ../ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON
     - clang-tidy ../src/*.c ../examples/*.c
 
-Windows MSVC v19.26 x86 and x86_64:
+win-1809 msvc v19.26 x86 and x86_64:
   <<: *only-default
   tags:
     - shared-windows
@@ -95,26 +95,40 @@ linux gcc v9.3 i386:
     paths:
       - ./build/tests_linux_gcc_i386
 
-Windows 10 x86_64:
+win-1809 test x86 and x86_64:
   <<: *only-default
   tags:
     - shared-windows
     - windows
     - windows-1809
   stage: test
-  needs: ["Windows MSVC v19.26 x86 and x86_64"]
+  needs: ["win-1809 msvc v19.26 x86 and x86_64"]
   script:
-    - ./build/tests_msvc_debug_x86.exe -s -d --reporters=junit --out=./report_windows10_msvc_debug_x86.xml
-    - ./build/tests_msvc_release_x86.exe -s -d --reporters=junit --out=./report_windows10_msvc_release_x86.xml
-    - ./build/tests_msvc_debug_x64.exe -s -d --reporters=junit --out=./report_windows10_msvc_debug_x64.xml
-    - ./build/tests_msvc_release_x64.exe -s -d --reporters=junit --out=./report_windows10_msvc_release_x64.xml
+    - ./build/tests_msvc_debug_x86.exe -s -d --reporters=junit --out=./report_win-1809_msvc_debug_x86.xml
+    - ./build/tests_msvc_release_x86.exe -s -d --reporters=junit --out=./report_win-1809_msvc_release_x86.xml
+    - ./build/tests_msvc_debug_x64.exe -s -d --reporters=junit --out=./report_win-1809_msvc_debug_x64.xml
+    - ./build/tests_msvc_release_x64.exe -s -d --reporters=junit --out=./report_win-1809_msvc_release_x64.xml
   artifacts:
     reports:
       junit:
-        - report_windows10_msvc_debug_x86.xml
-        - report_windows10_msvc_release_x86.xml
-        - report_windows10_msvc_debug_x64.xml
-        - report_windows10_msvc_release_x64.xml
+        - report_win-1809_msvc_debug_x86.xml
+        - report_win-1809_msvc_release_x86.xml
+        - report_win-1809_msvc_debug_x64.xml
+        - report_win-1809_msvc_release_x64.xml
+
+win-xp test x86:
+  <<: *only-default
+  tags:
+    - andromeda
+    - windows-xp
+  stage: test
+  needs: ["win-1809 msvc v19.26 x86 and x86_64"]
+  script:
+    - ./build/tests_msvc_release_x86 -s -d --reporters=junit --out=./report_win-xp_msvc_x86.xml
+  artifacts:
+    reports:
+      junit: report_win-xp_msvc_x86.xml
+  allow_failure: true
 
 linux test x86_64:
   <<: *only-default
