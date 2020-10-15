@@ -13,7 +13,7 @@ TcsReturnCode tcs_simple_create_and_connect(TcsSocket* socket_ctx,
 
     struct TcsAddress found_addresses[32] = {0};
     size_t no_of_found_addresses = 0;
-    int sts = tcs_getaddrinfo(hostname, port, family, found_addresses, 32, &no_of_found_addresses);
+    int sts = tcs_get_addresses(hostname, port, family, found_addresses, 32, &no_of_found_addresses);
     if (sts != TCS_SUCCESS)
         return sts;
 
@@ -41,7 +41,7 @@ int tcs_simple_create_and_bind(TcsSocket* socket_ctx, const char* hostname, cons
 {
     struct TcsAddress found_addresses[32] = {0};
     size_t no_of_found_addresses = 0;
-    int sts = tcs_getaddrinfo(hostname, port, family, found_addresses, 32, &no_of_found_addresses);
+    int sts = tcs_get_addresses(hostname, port, family, found_addresses, 32, &no_of_found_addresses);
     if (sts != TCS_SUCCESS)
         return sts;
 
@@ -77,7 +77,7 @@ int tcs_simple_create_and_listen(TcsSocket* socket_ctx, const char* hostname, co
     struct TcsAddress found_address = {0};
 
     int sts = 0;
-    sts = tcs_getaddrinfo(hostname, port, family, &found_address, 1, NULL);
+    sts = tcs_get_addresses(hostname, port, family, &found_address, 1, NULL);
     if (sts != TCS_SUCCESS)
         return sts;
 

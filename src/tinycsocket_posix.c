@@ -20,13 +20,27 @@
  * SOFTWARE.
  */
 
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200112L
+#endif
+#ifndef _ISOC99_SOURCE
+#define _ISOC99_SOURCE
+#endif
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE
+#endif
+
 #include "tinycsocket.h"
 
 #ifdef TINYCSOCKET_USE_POSIX_IMPL
 
 #include <errno.h>
+#include <ifaddrs.h>    // getifaddr()
+#include <net/if.h>     // Flags for ifaddrs (?)
 #include <netdb.h>      // Protocols and custom return codes
 #include <netinet/in.h> // IPPROTO_XXP
+#include <string.h>     // strcpy
+#include <sys/ioctl.h>  // Flags for ifaddrs
 #include <sys/socket.h> // pretty much everything
 #include <sys/types.h>  // POSIX.1 compatibility
 #include <unistd.h>     // close()
@@ -50,7 +64,6 @@ const int TCS_IPPROTO_UDP = IPPROTO_UDP;
 const uint32_t TCS_AI_PASSIVE = AI_PASSIVE;
 
 // Recv flags
-const int TCS_MSG_WAITALL = MSG_WAITALL;
 const int TCS_MSG_PEEK = MSG_PEEK;
 const int TCS_MSG_OOB = MSG_OOB;
 
@@ -58,7 +71,7 @@ const int TCS_MSG_OOB = MSG_OOB;
 const int TCS_BACKLOG_SOMAXCONN = SOMAXCONN;
 
 // How
-const int TCS_SD_RECIEVE = SHUT_RD;
+const int TCS_SD_RECEIVE = SHUT_RD;
 const int TCS_SD_SEND = SHUT_WR;
 const int TCS_SD_BOTH = SHUT_RDWR;
 
@@ -127,14 +140,14 @@ static TcsReturnCode native2sockaddr(const struct sockaddr* in_addr, struct TcsA
     }
     else if (in_addr->sa_family == TCS_AF_UNSPEC)
     {
-        return TCS_ERROR_NOT_IMPLEMENTED;
+        return TCS_ERROR_INVALID_ARGUMENT;
     }
     else
     {
         return TCS_ERROR_NOT_IMPLEMENTED;
     }
 
-    return 0;
+    return TCS_SUCCESS;
 }
 
 TcsReturnCode tcs_lib_init()
@@ -407,12 +420,12 @@ TcsReturnCode tcs_close(TcsSocket* socket_ctx)
     }
 }
 
-TcsReturnCode tcs_getaddrinfo(const char* node,
-                              const char* service,
-                              uint16_t address_family,
-                              struct TcsAddress found_addresses[],
-                              size_t found_addresses_length,
-                              size_t* no_of_found_addresses)
+TcsReturnCode tcs_get_addresses(const char* node,
+                                const char* service,
+                                uint16_t address_family,
+                                struct TcsAddress found_addresses[],
+                                size_t found_addresses_length,
+                                size_t* no_of_found_addresses)
 {
     if (node == NULL && service == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -465,4 +478,104 @@ TcsReturnCode tcs_getaddrinfo(const char* node,
     return TCS_SUCCESS;
 }
 
+// This is not part of posix, we need to be platform specific here
+#if TCS_HAVE_IFADDRS // acquired from CMake
+TcsReturnCode tcs_get_interfaces(struct TcsInterface found_interfaces[],
+                                 size_t found_interfaces_length,
+                                 size_t* no_of_found_interfaces)
+{
+    if (found_interfaces == NULL && no_of_found_interfaces == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    if (found_interfaces == NULL && found_interfaces_length != 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    if (no_of_found_interfaces != NULL)
+        *no_of_found_interfaces = 0;
+
+    struct ifaddrs* interfaces;
+    getifaddrs(&interfaces);
+    size_t i = 0;
+
+    for (struct ifaddrs* iter = interfaces; iter != NULL && (found_interfaces == NULL || i < found_interfaces_length);
+         iter = iter->ifa_next)
+    {
+        if (iter->ifa_flags & IFF_UP)
+        {
+            struct TcsAddress t;
+            if (native2sockaddr(iter->ifa_addr, &t) != TCS_SUCCESS)
+                continue;
+            if (found_interfaces != NULL)
+            {
+                found_interfaces[i].address = t;
+                strncpy(found_interfaces[i].name, iter->ifa_name, 31);
+                found_interfaces[i].name[31] = '\0';
+            }
+            i++;
+        }
+    }
+    freeifaddrs(interfaces);
+    if (no_of_found_interfaces != NULL)
+        *no_of_found_interfaces = i;
+    return TCS_SUCCESS;
+}
+#else
+// SunOS before 2010, HP and AIX does not support getifaddrs
+// ioctl implementation,
+// https://stackoverflow.com/questions/4139405/how-can-i-get-to-know-the-ip-address-for-interfaces-in-c/4139811#4139811
+TcsReturnCode tcs_get_interfaces(struct TcsInterface found_interfaces[],
+                                 size_t found_interfaces_length,
+                                 size_t* no_of_found_interfaces)
+{
+    if (found_interfaces == NULL && no_of_found_interfaces == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    if (found_interfaces == NULL && found_interfaces_length != 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    if (no_of_found_interfaces != NULL)
+        *no_of_found_interfaces = 0;
+
+    int fd = socket(PF_INET, SOCK_DGRAM, 0);
+    if (fd < 0)
+        return TCS_ERROR_UNKNOWN;
+
+    struct ifconf adapters;
+    char buf[16384];
+    adapters.ifc_len = sizeof(buf);
+    adapters.ifc_buf = buf;
+    if (ioctl(fd, SIOCGIFCONF, &adapters) != 0) // todo(markus): add tries as for Windows
+    {
+        close(fd);
+        return TCS_ERROR_UNKNOWN;
+    }
+
+    struct ifreq* ifr_iterator = adapters.ifc_req;
+    int offset = 0;
+    int len;
+    size_t i = 0;
+    while (offset < adapters.ifc_len)
+    {
+        // todo: we need to investigate which OS uses which system, scheduled to after CI with multiple OS
+#ifndef __linux__
+        len = IFNAMSIZ + ifr_iterator->ifr_addr.sa_len;
+#else
+        len = sizeof(struct ifreq);
+#endif
+        if (found_interfaces != NULL)
+        {
+            native2sockaddr((struct sockaddr*)&ifr_iterator->ifr_addr, &found_interfaces[i].address);
+            strncpy(found_interfaces[i].name, ifr_iterator->ifr_name, 31);
+            found_interfaces[i].name[31] = '\0';
+        }
+        ++i;
+        ifr_iterator = (struct ifreq*)((uint8_t*)ifr_iterator + len);
+        offset += len;
+    }
+    if (no_of_found_interfaces != NULL)
+        *no_of_found_interfaces = i;
+    close(fd);
+    return TCS_SUCCESS;
+}
+#endif
 #endif

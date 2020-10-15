@@ -30,7 +30,7 @@
 #if defined(WIN32) || defined(__MINGW32__)
 #define TINYCSOCKET_USE_WIN32_IMPL
 #elif defined(__linux__) || defined(__sun) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || \
-    defined(__APPLE__) || defined(__MSYS__)
+    (defined(__APPLE__) && defined(__MACH__)) || defined(__MSYS__) || defined(__unix__)
 #define TINYCSOCKET_USE_POSIX_IMPL
 #else
 #pragma message("Warning: Unknown OS, trying POSIX")
@@ -69,6 +69,12 @@ struct TcsAddress
     } data;
 };
 
+struct TcsInterface
+{
+    struct TcsAddress address;
+    char name[32];
+};
+
 extern const TcsSocket TCS_NULLSOCKET; /**< An empty socket, you should always define your new sockets to this value */
 
 // Family
@@ -88,7 +94,6 @@ extern const int TCS_IPPROTO_UDP; /**< Use UDP protocol (use with TCS_SOCK_DGRAM
 extern const uint32_t TCS_AI_PASSIVE; /**< Use this flag for pure listening sockets */
 
 // Recv flags
-extern const int TCS_MSG_WAITALL;
 extern const int TCS_MSG_PEEK;
 extern const int TCS_MSG_OOB;
 
@@ -311,17 +316,32 @@ TcsReturnCode tcs_close(TcsSocket* socket_ctx);
 * @param node is your computer identifier: hostname, IPv4 or IPv6 address.
 * @param service is your port number. Also some support for common aliases like "http" exist.
 * @param address_family filters which address family you want, for example if you only are interested in IPv6. Use TCS_AF_UNSPEC to not filter.
-* @param found_address is a pointer to your array which will be populated with found addresses.
-* @param found_addresses_length is number of elements your @found_address array can store.
-* @param no_of_found_addresses will output the number of addresses that was populated in @found_address.
+* @param found_addresses is a pointer to your array which will be populated with found addresses.
+* @param found_addresses_length is number of elements your @found_addresses array can store.
+* @param no_of_found_addresses will output the number of addresses that was populated in @found_addresses.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsReturnCode tcs_getaddrinfo(const char* node,
-                              const char* service,
-                              uint16_t address_family,
-                              struct TcsAddress found_addresses[],
-                              size_t found_addresses_length,
-                              size_t* no_of_found_addresses);
+TcsReturnCode tcs_get_addresses(const char* node,
+                                const char* service,
+                                uint16_t address_family,
+                                struct TcsAddress found_addresses[],
+                                size_t found_addresses_length,
+                                size_t* no_of_found_addresses);
+
+/**
+* @brief Get local addresses of your computer.
+*
+* Use NULL for @res to get the total number of addresses found.
+*
+* @param address_family filters which address family you want, for example if you only are interested in IPv6. Use TCS_AF_UNSPEC to not filter.
+* @param found_interfaces is a pointer to your array which will be populated with found interfaces.
+* @param found_interfaces_length is number of elements your @found_interfaces array can store.
+* @param no_of_found_interfaces will output the number of addresses that was populated in @found_interfaces.
+* @return #TCS_SUCCESS if successful, otherwise the error code.
+*/
+TcsReturnCode tcs_get_interfaces(struct TcsInterface found_interfaces[],
+                                 size_t found_interfaces_length,
+                                 size_t* no_of_found_interfaces);
 
 /**
  * @brief Connects a socket to a node and a port.

@@ -40,7 +40,7 @@ int main(void)
     TcsSocket child_socket = TCS_NULLSOCKET;
 
     struct TcsAddress listen_address;
-    if (tcs_getaddrinfo(NULL, "1212", TCS_AF_INET, &listen_address, 1, NULL) != TCS_SUCCESS)
+    if (tcs_get_addresses(NULL, "1212", TCS_AF_INET, &listen_address, 1, NULL) != TCS_SUCCESS)
         return show_error("Could not resolve listen address");
 
     if (tcs_create(&listen_socket, listen_address.family, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) != TCS_SUCCESS)
