@@ -48,12 +48,7 @@ win-1809 msvc v19.26 x86 and x86_64:
   stage: build
   needs: []
   script:
-    - '& ./ci/build_msvc.bat'
-    - 'mkdir build'
-    - 'mv build32/tests/Debug/tests.exe ./build/tests_msvc_debug_x86.exe'
-    - 'mv build32/tests/Release/tests.exe ./build/tests_msvc_release_x86.exe'
-    - 'mv build64/tests/Debug/tests.exe ./build/tests_msvc_debug_x64.exe'
-    - 'mv build64/tests/Release/tests.exe ./build/tests_msvc_release_x64.exe'
+    - '& ./ci/build_msvc.ps1 -dependencies'
   artifacts:
     paths:
       - ./build/tests_msvc_debug_x86.exe
