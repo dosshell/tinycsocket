@@ -49,15 +49,24 @@ typedef UINT_PTR TcsSocket;
 typedef int TcsSocket;
 #endif
 
+// Address Family
+typedef enum
+{
+    TCS_AF_ANY, /**< Layer 3 agnostic */
+    TCS_AF_IP4, /**< INET IPv4 interface */
+    TCS_AF_IP6, /**< INET IPv6 interface */
+    TCS_AF_LENGTH
+} TcsAddressFamily;
+
 struct TcsAddress
 {
-    uint16_t family;
+    TcsAddressFamily family;
     union
     {
         struct
         {
-            uint16_t port;
-            uint32_t address;
+            uint16_t port;    /**< Same byte order as the host */
+            uint32_t address; /**< Same byte order as the host */
         } af_inet;
         struct
         {
@@ -76,11 +85,6 @@ struct TcsInterface
 };
 
 extern const TcsSocket TCS_NULLSOCKET; /**< An empty socket, you should always define your new sockets to this value */
-
-// Family
-extern const uint16_t TCS_AF_UNSPEC; /**< Layer 3 agnostic */
-extern const uint16_t TCS_AF_INET;   /**< IPv4 interface */
-extern const uint16_t TCS_AF_INET6;  /**< IPv6 interface */
 
 // Type
 extern const int TCS_SOCK_STREAM; /**< Use for streaming types like TCP */
@@ -129,6 +133,12 @@ typedef enum
     TCS_ERROR_SOCKET_CLOSED = -13
 } TcsReturnCode;
 
+// Helper functions
+inline uint32_t tcs_util_ipv4_args(uint8_t a, uint8_t b, uint8_t c, uint8_t d)
+{
+    return (uint32_t)a << 24 | (uint32_t)b << 16 | (uint32_t)c << 8 | d;
+}
+
 /**
  * @brief Call this to initialize the library, eg. call this before any other function.
  *
@@ -148,18 +158,18 @@ TcsReturnCode tcs_lib_free(void);
  *
  * @code
  * TcsSocket my_socket = TCS_NULLSOCKET;
- * tcs_create(&my_socket, TCS_AF_INET, TCS_SOCK_STREAM, TCS_IPPROTO_TCP);
+ * tcs_create(&my_socket, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_IPPROTO_TCP);
  * @endcode
  *
  * @param socket_ctx is your in-out pointer to the socket context, you must initialize the socket to #TCS_NULLSOCKET before use.
- * @param family only supports #TCS_AF_INET for now.
+ * @param family only supports #TCS_AF_IP4 for now.
  * @param type specifies the type of the socket, for example #TCS_SOCK_STREAM or #TCS_SOCK_DGRAM.
  * @param protocol specifies the protocol, for example #TCS_IPPROTO_TCP or #TCS_IPPROTO_UDP.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_close()
  * @see tcs_lib_init()
  */
-TcsReturnCode tcs_create(TcsSocket* socket_ctx, int family, int type, int protocol);
+TcsReturnCode tcs_create(TcsSocket* socket_ctx, TcsAddressFamily family, int type, int protocol);
 
 /**
  * @brief Binds the socket to a local address.
@@ -323,7 +333,7 @@ TcsReturnCode tcs_close(TcsSocket* socket_ctx);
 */
 TcsReturnCode tcs_get_addresses(const char* node,
                                 const char* service,
-                                uint16_t address_family,
+                                TcsAddressFamily address_family,
                                 struct TcsAddress found_addresses[],
                                 size_t found_addresses_length,
                                 size_t* no_of_found_addresses);
@@ -349,7 +359,7 @@ TcsReturnCode tcs_get_interfaces(struct TcsInterface found_interfaces[],
  * @param socket_ctx is your out socket context. Must have been previously created.
  * @param hostname is the name of the host to connect to, for example localhost.
  * @param port is a string representation of the port you want to connect to. Normally an integer, like "5000" but also some support for common aliases like "http" exist.
- * @param family only supports #TCS_AF_INET for now
+ * @param family only supports #TCS_AF_IP4 for now
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_simple_listen()
  * @see tcs_simple_bind()
@@ -357,7 +367,7 @@ TcsReturnCode tcs_get_interfaces(struct TcsInterface found_interfaces[],
 TcsReturnCode tcs_simple_create_and_connect(TcsSocket* socket_ctx,
                                             const char* hostname,
                                             const char* port,
-                                            uint16_t family);
+                                            TcsAddressFamily family);
 
 /**
 * @brief Creates a DATAGRAM socket and binds it to a node and a port.
@@ -365,14 +375,14 @@ TcsReturnCode tcs_simple_create_and_connect(TcsSocket* socket_ctx,
 * @param socket_ctx is your out socket context. Must be of #TCS_NULLSOCKET value.
 * @param hostname is the name of the host to bind to, for example "192.168.0.1" or "localhost".
 * @param port is a string representation of the port you want to bind to. Normally an integer, like "5000" but also some support for common aliases like "http" exist.
-* @param family only supports #TCS_AF_INET for now
+* @param family only supports #TCS_AF_IP4 for now
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_simple_connect()
 */
 TcsReturnCode tcs_simple_create_and_bind(TcsSocket* socket_ctx,
                                          const char* hostname,
                                          const char* port,
-                                         uint16_t family);
+                                         TcsAddressFamily family);
 
 /**
 * @brief Creates a socket and starts to listen to an address with TCP
@@ -380,14 +390,14 @@ TcsReturnCode tcs_simple_create_and_bind(TcsSocket* socket_ctx,
 * @param socket_ctx is your out socket context. Must be of #TCS_NULLSOCKET value.
 * @param hostname is the name of the address to listen on, for example "192.168.0.1" or "localhost". Use NULL for all interfaces.
 * @param port is a string representation of the port you want to listen to. Normally an integer, like "5000" but also some support for common aliases like "http" exist.
-* @param family only supports #TCS_AF_INET for now.
+* @param family only supports #TCS_AF_IP4 for now.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_simple_connect()
 */
 TcsReturnCode tcs_simple_create_and_listen(TcsSocket* socket_ctx,
                                            const char* hostname,
                                            const char* port,
-                                           uint16_t family);
+                                           TcsAddressFamily family);
 
 /**
 * @brief Receive data until the buffer is filled (normal recv can fill the buffer less than the buffer length).

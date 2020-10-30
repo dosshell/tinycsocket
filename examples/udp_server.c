@@ -37,13 +37,13 @@ int main(void)
         return show_error("Could not init tinycsocket");
 
     TcsSocket socket = TCS_NULLSOCKET;
-    if (tcs_create(&socket, TCS_AF_INET, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) != TCS_SUCCESS)
+    if (tcs_create(&socket, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) != TCS_SUCCESS)
         return show_error("Could not create socket");
 
     struct TcsAddress address[32];
     size_t found_addresses = 0;
 
-    if (tcs_get_addresses("localhost", "1212", TCS_AF_INET, address, 32, &found_addresses) != TCS_SUCCESS)
+    if (tcs_get_addresses("localhost", "1212", TCS_AF_IP4, address, 32, &found_addresses) != TCS_SUCCESS)
         return show_error("Could not resolve listen address");
 
     bool is_bounded = false;

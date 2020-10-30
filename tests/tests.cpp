@@ -32,7 +32,7 @@ namespace
 {
 std::ostream& operator<<(std::ostream& o, const TcsAddress& address)
 {
-    if (address.family == TCS_AF_INET)
+    if (address.family == TCS_AF_IP4)
     {
         uint32_t ipv4 = address.data.af_inet.address;
         int b1 = ipv4 & 0xFF;
@@ -62,13 +62,13 @@ TEST_CASE("UDP Test")
     CHECK(tcs_lib_init() == TCS_SUCCESS);
     TcsSocket recv_soc = TCS_NULLSOCKET;
 
-    CHECK(tcs_create(&recv_soc, TCS_AF_INET, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
+    CHECK(tcs_create(&recv_soc, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
 
     TcsAddress found_addresses[32];
     size_t no_of_found_addresses;
     size_t address_info_used = 0;
 
-    CHECK(tcs_get_addresses("localhost", "1212", TCS_AF_INET, found_addresses, 32, &no_of_found_addresses) ==
+    CHECK(tcs_get_addresses("localhost", "1212", TCS_AF_IP4, found_addresses, 32, &no_of_found_addresses) ==
           TCS_SUCCESS);
 
     bool didBind = false;
@@ -97,7 +97,7 @@ TEST_CASE("UDP Test")
 
     // Setup UDP sender
     TcsSocket send_socket = TCS_NULLSOCKET;
-    CHECK(tcs_create(&send_socket, TCS_AF_INET, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
+    CHECK(tcs_create(&send_socket, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
 
     // Send message
     uint8_t msg[] = "hello world\n";
@@ -120,8 +120,8 @@ TEST_CASE("Simple TCP Test")
     TcsSocket accept_socket = TCS_NULLSOCKET;
     TcsSocket client_socket = TCS_NULLSOCKET;
 
-    CHECK(tcs_simple_create_and_listen(&listen_socket, "localhost", "1212", TCS_AF_INET) == TCS_SUCCESS);
-    CHECK(tcs_simple_create_and_connect(&client_socket, "localhost", "1212", TCS_AF_INET) == TCS_SUCCESS);
+    CHECK(tcs_simple_create_and_listen(&listen_socket, "localhost", "1212", TCS_AF_IP4) == TCS_SUCCESS);
+    CHECK(tcs_simple_create_and_connect(&client_socket, "localhost", "1212", TCS_AF_IP4) == TCS_SUCCESS);
 
     CHECK(tcs_accept(listen_socket, &accept_socket, NULL) == TCS_SUCCESS);
     CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
@@ -148,8 +148,8 @@ TEST_CASE("Simple TCP Netstring Test")
     TcsSocket accept_socket = TCS_NULLSOCKET;
     TcsSocket client_socket = TCS_NULLSOCKET;
 
-    CHECK(tcs_simple_create_and_listen(&listen_socket, "localhost", "1212", TCS_AF_INET) == TCS_SUCCESS);
-    CHECK(tcs_simple_create_and_connect(&client_socket, "localhost", "1212", TCS_AF_INET) == TCS_SUCCESS);
+    CHECK(tcs_simple_create_and_listen(&listen_socket, "localhost", "1212", TCS_AF_IP4) == TCS_SUCCESS);
+    CHECK(tcs_simple_create_and_connect(&client_socket, "localhost", "1212", TCS_AF_IP4) == TCS_SUCCESS);
 
     CHECK(tcs_accept(listen_socket, &accept_socket, NULL) == TCS_SUCCESS);
     CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
@@ -175,7 +175,7 @@ TEST_CASE("Address information count")
     size_t no_of_found_addresses = 0;
 
     // When
-    CHECK(tcs_get_addresses("localhost", NULL, TCS_AF_UNSPEC, NULL, 0, &no_of_found_addresses) == TCS_SUCCESS);
+    CHECK(tcs_get_addresses("localhost", NULL, TCS_AF_IP4, NULL, 0, &no_of_found_addresses) == TCS_SUCCESS);
 
     // Then
     CHECK(no_of_found_addresses > 0);
@@ -210,7 +210,7 @@ TEST_CASE("Get loopback address")
     size_t no_of_found_addresses = 0;
     struct TcsInterface interfaces[32];
     bool found_loopback = false;
-    const int LOOPBACK_ADDRESS = 0x0100007F; // 127.0.0.1 bigendian
+    uint32_t LOOPBACK_ADDRESS = tcs_util_ipv4_args(127, 0, 0, 1);
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
 
     // When
@@ -218,7 +218,7 @@ TEST_CASE("Get loopback address")
     // find IPv4 loopback
     for (size_t i = 0; i < no_of_found_addresses; ++i)
     {
-        if (interfaces[i].address.family == TCS_AF_INET &&
+        if (interfaces[i].address.family == TCS_AF_IP4 &&
             interfaces[i].address.data.af_inet.address == LOOPBACK_ADDRESS)
         {
             found_loopback = true;
@@ -244,7 +244,7 @@ TEST_CASE("Example from README")
     CHECK(tcs_lib_init() == TCS_SUCCESS);
 
     TcsSocket client_socket = TCS_NULLSOCKET;
-    CHECK(tcs_simple_create_and_connect(&client_socket, "example.com", "80", TCS_AF_UNSPEC) == TCS_SUCCESS);
+    CHECK(tcs_simple_create_and_connect(&client_socket, "example.com", "80", TCS_AF_ANY) == TCS_SUCCESS);
 
     uint8_t send_buffer[] = "GET / HTTP/1.1\nHost: example.com\n\n";
     CHECK(tcs_simple_send_all(client_socket, send_buffer, sizeof(send_buffer), 0) == TCS_SUCCESS);
