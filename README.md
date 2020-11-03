@@ -12,7 +12,7 @@ int main(int argc, const char* argv[])
     tcs_lib_init();
 
     TcsSocket client_socket = TCS_NULLSOCKET;
-    tcs_simple_create_and_connect(&client_socket, "example.com", "80", TCS_AF_UNSPEC);
+    tcs_simple_create_and_connect(&client_socket, "example.com", "80", TCS_AF_ANY);
 
     uint8_t send_buffer[] = "GET / HTTP/1.1\nHost: example.com\n\n";
     tcs_simple_send_all(client_socket, send_buffer, sizeof(send_buffer), 0);

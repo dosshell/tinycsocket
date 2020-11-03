@@ -37,12 +37,12 @@ int main(void)
         return show_error("Could not init tinycsocket");
 
     TcsSocket socket = TCS_NULLSOCKET;
-    if (tcs_create(&socket, TCS_AF_INET, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) != TCS_SUCCESS)
+    if (tcs_create(&socket, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) != TCS_SUCCESS)
         return show_error("Could not create socket");
 
     struct TcsAddress remote_info;
 
-    if (tcs_get_addresses("localhost", "1212", TCS_AF_INET, &remote_info, 1, NULL) != TCS_SUCCESS)
+    if (tcs_get_addresses("localhost", "1212", TCS_AF_IP4, &remote_info, 1, NULL) != TCS_SUCCESS)
         return show_error("Could not resolve localhost");
 
     char msg[] = "hello world\n";

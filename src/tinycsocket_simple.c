@@ -6,7 +6,7 @@
 TcsReturnCode tcs_simple_create_and_connect(TcsSocket* socket_ctx,
                                             const char* hostname,
                                             const char* port,
-                                            uint16_t family)
+                                            TcsAddressFamily family)
 {
     if (socket_ctx == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -37,7 +37,7 @@ TcsReturnCode tcs_simple_create_and_connect(TcsSocket* socket_ctx,
     return TCS_ERROR_CONNECTION_REFUSED;
 }
 
-int tcs_simple_create_and_bind(TcsSocket* socket_ctx, const char* hostname, const char* port, uint16_t family)
+int tcs_simple_create_and_bind(TcsSocket* socket_ctx, const char* hostname, const char* port, TcsAddressFamily family)
 {
     struct TcsAddress found_addresses[32] = {0};
     size_t no_of_found_addresses = 0;
@@ -69,7 +69,7 @@ int tcs_simple_create_and_bind(TcsSocket* socket_ctx, const char* hostname, cons
     return TCS_SUCCESS;
 }
 
-int tcs_simple_create_and_listen(TcsSocket* socket_ctx, const char* hostname, const char* port, uint16_t family)
+int tcs_simple_create_and_listen(TcsSocket* socket_ctx, const char* hostname, const char* port, TcsAddressFamily family)
 {
     if (socket_ctx == NULL || *socket_ctx != TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;

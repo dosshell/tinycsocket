@@ -58,11 +58,6 @@
 
 const TcsSocket TCS_NULLSOCKET = INVALID_SOCKET;
 
-// Family
-const uint16_t TCS_AF_UNSPEC = AF_UNSPEC;
-const uint16_t TCS_AF_INET = AF_INET;
-const uint16_t TCS_AF_INET6 = AF_INET6;
-
 // Type
 const int TCS_SOCK_STREAM = SOCK_STREAM;
 const int TCS_SOCK_DGRAM = SOCK_DGRAM;
@@ -92,6 +87,8 @@ const int TCS_SO_REUSEADDR = SO_REUSEADDR;
 const int TCS_SO_RCVBUF = SO_RCVBUF;
 const int TCS_SO_SNDBUF = SO_SNDBUF;
 
+int g_init_count = 0;
+
 static TcsReturnCode wsaerror2retcode(int wsa_error)
 {
     switch (wsa_error)
@@ -120,30 +117,39 @@ static TcsReturnCode socketstatus2retcode(int status)
     }
 }
 
-int g_init_count = 0;
+static TcsReturnCode family2native(const TcsAddressFamily family, short* native_family)
+{
+    static uint16_t lut[TCS_AF_LENGTH] = {AF_UNSPEC, AF_INET, AF_INET6};
+    if (native_family == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (family >= TCS_AF_LENGTH || family < 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    *native_family = lut[family];
+    return TCS_SUCCESS;
+}
 
 static TcsReturnCode sockaddr2native(const struct TcsAddress* in_addr, PSOCKADDR out_addr, int* out_addrlen)
 {
     if (in_addr == NULL || out_addr == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (in_addr->family == TCS_AF_INET)
+    if (in_addr->family == TCS_AF_IP4)
     {
         PSOCKADDR_IN addr = (PSOCKADDR_IN)out_addr;
         addr->sin_family = (ADDRESS_FAMILY)AF_INET;
-        addr->sin_port = (USHORT)(in_addr->data.af_inet.port);
-        addr->sin_addr.S_un.S_addr = (ULONG)in_addr->data.af_inet.address;
+        addr->sin_port = htons((USHORT)in_addr->data.af_inet.port);
+        addr->sin_addr.S_un.S_addr = htonl((ULONG)in_addr->data.af_inet.address);
 
         if (out_addrlen != NULL)
             *out_addrlen = sizeof(SOCKADDR_IN);
 
         return TCS_SUCCESS;
     }
-    else if (in_addr->family == TCS_AF_INET6)
+    else if (in_addr->family == TCS_AF_IP6)
     {
         return TCS_ERROR_NOT_IMPLEMENTED;
     }
-    else if (in_addr->family == TCS_AF_UNSPEC)
+    else if (in_addr->family == TCS_AF_ANY)
     {
         return TCS_ERROR_NOT_IMPLEMENTED;
     }
@@ -158,15 +164,15 @@ static TcsReturnCode native2sockaddr(const PSOCKADDR in_addr, struct TcsAddress*
     if (in_addr->sa_family == AF_INET)
     {
         PSOCKADDR_IN addr = (PSOCKADDR_IN)in_addr;
-        out_addr->family = TCS_AF_INET;
-        out_addr->data.af_inet.port = (uint16_t)addr->sin_port;
-        out_addr->data.af_inet.address = (uint32_t)addr->sin_addr.S_un.S_addr;
+        out_addr->family = TCS_AF_IP4;
+        out_addr->data.af_inet.port = ntohs((uint16_t)addr->sin_port);
+        out_addr->data.af_inet.address = ntohl((uint32_t)addr->sin_addr.S_un.S_addr);
     }
-    else if (in_addr->sa_family == TCS_AF_INET6)
+    else if (in_addr->sa_family == AF_INET6)
     {
         return TCS_ERROR_NOT_IMPLEMENTED;
     }
-    else if (in_addr->sa_family == TCS_AF_UNSPEC)
+    else if (in_addr->sa_family == AF_UNSPEC)
     {
         return TCS_ERROR_INVALID_ARGUMENT;
     }
@@ -203,12 +209,17 @@ TcsReturnCode tcs_lib_free()
     return TCS_SUCCESS;
 }
 
-TcsReturnCode tcs_create(TcsSocket* socket_ctx, int family, int type, int protocol)
+TcsReturnCode tcs_create(TcsSocket* socket_ctx, TcsAddressFamily family, int type, int protocol)
 {
     if (socket_ctx == NULL || *socket_ctx != TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    TcsSocket new_socket = socket(family, type, protocol);
+    short native_family = AF_UNSPEC;
+    TcsReturnCode sts = family2native(family, &native_family);
+    if (sts != TCS_SUCCESS)
+        return sts;
+
+    TcsSocket new_socket = socket(native_family, type, protocol);
 
     if (new_socket != INVALID_SOCKET)
     {
@@ -458,7 +469,7 @@ TcsReturnCode tcs_close(TcsSocket* socket_ctx)
 
 TcsReturnCode tcs_get_addresses(const char* node,
                                 const char* service,
-                                uint16_t address_family,
+                                TcsAddressFamily address_family,
                                 struct TcsAddress found_addresses[],
                                 size_t found_addresses_length,
                                 size_t* no_of_found_addresses)
@@ -473,7 +484,10 @@ TcsReturnCode tcs_get_addresses(const char* node,
         *no_of_found_addresses = 0;
 
     ADDRINFOA native_hints = {0};
-    native_hints.ai_family = address_family;
+    TcsReturnCode sts = family2native(address_family, (short*)&native_hints.ai_family);
+    if (sts != TCS_SUCCESS)
+        return sts;
+
     if (node == NULL)
         native_hints.ai_flags = AI_PASSIVE;
 
