@@ -4127,6 +4127,7 @@ namespace detail {
 
     ResultBuilder::ResultBuilder(assertType::Enum at, const char* file, int line, const char* expr,
                                  const char* exception_type, const char* exception_string) {
+
         m_test_case        = g_cs->currentTest;
         m_at               = at;
         m_file             = file;

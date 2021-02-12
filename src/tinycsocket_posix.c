@@ -35,15 +35,16 @@
 #ifdef TINYCSOCKET_USE_POSIX_IMPL
 
 #include <errno.h>
-#include <ifaddrs.h>    // getifaddr()
-#include <net/if.h>     // Flags for ifaddrs (?)
-#include <netdb.h>      // Protocols and custom return codes
-#include <netinet/in.h> // IPPROTO_XXP
-#include <string.h>     // strcpy
-#include <sys/ioctl.h>  // Flags for ifaddrs
-#include <sys/socket.h> // pretty much everything
-#include <sys/types.h>  // POSIX.1 compatibility
-#include <unistd.h>     // close()
+#include <ifaddrs.h>     // getifaddr()
+#include <net/if.h>      // Flags for ifaddrs (?)
+#include <netdb.h>       // Protocols and custom return codes
+#include <netinet/in.h>  // IPPROTO_XXP
+#include <netinet/tcp.h> // TCP_NODELAY
+#include <string.h>      // strcpy
+#include <sys/ioctl.h>   // Flags for ifaddrs
+#include <sys/socket.h>  // pretty much everything
+#include <sys/types.h>   // POSIX.1 compatibility
+#include <unistd.h>      // close()
 
 const TcsSocket TCS_NULLSOCKET = -1;
 
@@ -70,11 +71,25 @@ const int TCS_SD_RECEIVE = SHUT_RD;
 const int TCS_SD_SEND = SHUT_WR;
 const int TCS_SD_BOTH = SHUT_RDWR;
 
-// Socket options
+// Option levels
 const int TCS_SOL_SOCKET = SOL_SOCKET;
+const int TCS_SOL_IP = IPPROTO_IP; // Same as SOL_IP but crossplatform (BSD)
+
+// Socket options
+const int TCS_SO_BROADCAST = SO_BROADCAST;
+const int TCS_SO_KEEPALIVE = SO_KEEPALIVE;
+const int TCS_SO_LINGER = SO_LINGER;
 const int TCS_SO_REUSEADDR = SO_REUSEADDR;
 const int TCS_SO_RCVBUF = SO_RCVBUF;
+const int TCS_SO_RCVTIMEO = SO_RCVTIMEO;
 const int TCS_SO_SNDBUF = SO_SNDBUF;
+const int TCS_SO_OOBINLINE = SO_OOBINLINE;
+
+// IP options
+const int TCS_SO_IP_NODELAY = TCP_NODELAY;
+const int TCS_SO_IP_MEMBERSHIP_ADD = IP_ADD_MEMBERSHIP;
+const int TCS_SO_IP_MEMBERSHIP_DROP = IP_DROP_MEMBERSHIP;
+const int TCS_SO_IP_MULTICAST_LOOP = IP_MULTICAST_LOOP;
 
 static TcsReturnCode family2native(const TcsAddressFamily family, sa_family_t* native_family)
 {
@@ -402,6 +417,32 @@ TcsReturnCode tcs_setsockopt(TcsSocket socket_ctx,
         return errno2retcode(errno);
 }
 
+TcsReturnCode tcs_getsockopt(TcsSocket socket_ctx,
+                             int32_t level,
+                             int32_t option_name,
+                             void* option_value,
+                             size_t* option_size)
+{
+    if (socket_ctx == TCS_NULLSOCKET || option_value == NULL || option_size == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    if (getsockopt(socket_ctx, (int)level, (int)option_name, (void*)option_value, (socklen_t*)option_size) == 0)
+    {
+        // Linux sets the buffer size to the doubled beacuse of internal use and returns the full doubled size including internal part
+#ifdef __linux__
+        if (option_name == TCS_SO_RCVBUF || option_name == TCS_SO_SNDBUF)
+        {
+            *(unsigned int*)option_value /= 2;
+        }
+#endif
+        return TCS_SUCCESS;
+    }
+    else
+    {
+        return errno2retcode(errno);
+    }
+}
+
 TcsReturnCode tcs_shutdown(TcsSocket socket_ctx, int how)
 {
     if (socket_ctx == TCS_NULLSOCKET)
@@ -589,4 +630,152 @@ TcsReturnCode tcs_get_interfaces(struct TcsInterface found_interfaces[],
     return TCS_SUCCESS;
 }
 #endif
+
+TcsReturnCode tcs_set_linger(TcsSocket socket_ctx, bool do_linger, int timeout_seconds)
+{
+    if (socket_ctx == TCS_NULLSOCKET)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct linger l = {(u_short)do_linger, (u_short)timeout_seconds};
+    return tcs_setsockopt(socket_ctx, TCS_SOL_SOCKET, TCS_SO_LINGER, &l, sizeof(l));
+}
+
+TcsReturnCode tcs_get_linger(TcsSocket socket_ctx, bool* do_linger, int* timeout_seconds)
+{
+    if (socket_ctx == TCS_NULLSOCKET || (do_linger == NULL && timeout_seconds == NULL))
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct linger l = {0};
+    size_t l_size = sizeof(l);
+    TcsReturnCode sts = tcs_getsockopt(socket_ctx, TCS_SOL_SOCKET, TCS_SO_LINGER, &l, &l_size);
+    if (sts == TCS_SUCCESS)
+    {
+        if (do_linger)
+            *do_linger = l.l_onoff;
+        if (timeout_seconds)
+            *timeout_seconds = l.l_linger;
+    }
+
+    return sts;
+}
+
+TcsReturnCode tcs_set_receive_timeout(TcsSocket socket_ctx, int timeout_ms)
+{
+    if (socket_ctx == TCS_NULLSOCKET)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct timeval tv;
+    tv.tv_sec = timeout_ms / 1000;
+    tv.tv_usec = (timeout_ms % 1000) * 1000;
+
+    return tcs_setsockopt(socket_ctx, TCS_SOL_SOCKET, TCS_SO_RCVTIMEO, &tv, sizeof(tv));
+}
+
+TcsReturnCode tcs_get_receive_timeout(TcsSocket socket_ctx, int* timeout_ms)
+{
+    if (socket_ctx == TCS_NULLSOCKET || timeout_ms == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct timeval tv = {0};
+    size_t tv_size = sizeof(tv);
+    TcsReturnCode sts = tcs_getsockopt(socket_ctx, TCS_SOL_SOCKET, TCS_SO_RCVTIMEO, &tv, &tv_size);
+
+    if (sts == TCS_SUCCESS)
+    {
+        int c = 0;
+        c += (int)tv.tv_sec * 1000;
+        c += (int)tv.tv_usec / 1000;
+        *timeout_ms = c;
+    }
+    return sts;
+}
+
+TcsReturnCode tcs_set_ip_multicast_membership_add(TcsSocket socket_ctx,
+                                                  const struct TcsAddress* local_address,
+                                                  const struct TcsAddress* multicast_address)
+{
+    if (multicast_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    // Override here to remove error
+
+    struct sockaddr_storage address_native_multicast = {0};
+    socklen_t address_native_multicast_size = 0;
+    TcsReturnCode mutlicast_to_native_sts =
+        sockaddr2native(multicast_address, (struct sockaddr*)&address_native_multicast, &address_native_multicast_size);
+    if (mutlicast_to_native_sts != TCS_SUCCESS)
+        return mutlicast_to_native_sts;
+
+    struct sockaddr_storage address_native_local = {0};
+    socklen_t address_native_local_size = 0;
+    if (local_address != NULL)
+    {
+        TcsReturnCode mutlicast_to_local_sts =
+            sockaddr2native(local_address, (struct sockaddr*)&address_native_local, &address_native_local_size);
+        if (mutlicast_to_local_sts)
+            return mutlicast_to_local_sts;
+    }
+
+    if (multicast_address->family == TCS_AF_IP4)
+    {
+        struct sockaddr_in* address_native_multicast_p = (struct sockaddr_in*)&address_native_multicast;
+        struct sockaddr_in* address_native_local_p = (struct sockaddr_in*)&address_native_local;
+
+        struct ip_mreq mreq = {0};
+
+        mreq.imr_interface.s_addr = address_native_local_p->sin_addr.s_addr;
+        mreq.imr_multiaddr.s_addr = address_native_multicast_p->sin_addr.s_addr;
+
+        return tcs_setsockopt(socket_ctx, TCS_SOL_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
+    }
+    else
+    {
+        // TODO(markusl): Add ipv6 support
+        return TCS_ERROR_NOT_IMPLEMENTED;
+    }
+}
+
+TcsReturnCode tcs_set_ip_multicast_membership_drop(TcsSocket socket_ctx,
+                                                   const struct TcsAddress* local_address,
+                                                   const struct TcsAddress* multicast_address)
+{
+    if (multicast_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct sockaddr_storage address_native_multicast = {0};
+    socklen_t address_native_multicast_size = 0;
+    TcsReturnCode mutlicast_to_native_sts =
+        sockaddr2native(multicast_address, (struct sockaddr*)&address_native_multicast, &address_native_multicast_size);
+    if (mutlicast_to_native_sts != TCS_SUCCESS)
+        return mutlicast_to_native_sts;
+
+    struct sockaddr_storage address_native_local = {0};
+    socklen_t address_native_local_size = 0;
+    if (local_address != NULL)
+    {
+        TcsReturnCode mutlicast_to_local_sts =
+            sockaddr2native(local_address, (struct sockaddr*)&address_native_local, &address_native_local_size);
+        if (mutlicast_to_local_sts)
+            return mutlicast_to_local_sts;
+    }
+
+    if (multicast_address->family == TCS_AF_IP4)
+    {
+        struct sockaddr_in* address_native_multicast_p = (struct sockaddr_in*)&address_native_multicast;
+        struct sockaddr_in* address_native_local_p = (struct sockaddr_in*)&address_native_local;
+
+        struct ip_mreq mreq = {0};
+
+        mreq.imr_interface.s_addr = address_native_local_p->sin_addr.s_addr;
+        mreq.imr_multiaddr.s_addr = address_native_multicast_p->sin_addr.s_addr;
+
+        return tcs_setsockopt(socket_ctx, TCS_SOL_IP, IP_DROP_MEMBERSHIP, &mreq, sizeof(mreq));
+    }
+    else
+    {
+        // TODO(markusl): Add ipv6 support
+        return TCS_ERROR_NOT_IMPLEMENTED;
+    }
+}
+
 #endif

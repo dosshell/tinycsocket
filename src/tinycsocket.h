@@ -23,6 +23,7 @@
 #ifndef TINY_C_SOCKETS_H_
 #define TINY_C_SOCKETS_H_
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -109,11 +110,24 @@ extern const int TCS_SD_RECEIVE; /**< To shutdown incoming packets for socket */
 extern const int TCS_SD_SEND;    /**< To shutdown outgoing packets for socket */
 extern const int TCS_SD_BOTH;    /**< To shutdown both incoming and outgoing packets for socket */
 
+// Option levels
+extern const int TCS_SOL_SOCKET; /**< Socket option level for socket options */
+extern const int TCS_SOL_IP;     /**< IP option level for socket options */
+
 // Socket options
-extern const int TCS_SOL_SOCKET;   /**< Socket option level */
-extern const int TCS_SO_REUSEADDR; /**< This is a tricky one! */
+extern const int TCS_SO_BROADCAST;
+extern const int TCS_SO_KEEPALIVE;
+extern const int TCS_SO_LINGER;
+extern const int TCS_SO_REUSEADDR; /**< This is a tricky one for crossplatform independency! */
 extern const int TCS_SO_RCVBUF;    /**< Byte size of receiving buffer */
-extern const int TCS_SO_SNDBUF;    /**< Byte size of receiving buffer */
+extern const int TCS_SO_RCVTIMEO;
+extern const int TCS_SO_SNDBUF; /**< Byte size of receiving buffer */
+extern const int TCS_SO_OOBINLINE;
+// IP options
+extern const int TCS_SO_IP_NODELAY;
+extern const int TCS_SO_IP_MEMBERSHIP_ADD;
+extern const int TCS_SO_IP_MEMBERSHIP_DROP;
+extern const int TCS_SO_IP_MULTICAST_LOOP;
 
 // Return codes
 typedef enum
@@ -138,6 +152,20 @@ inline uint32_t tcs_util_ipv4_args(uint8_t a, uint8_t b, uint8_t c, uint8_t d)
 {
     return (uint32_t)a << 24 | (uint32_t)b << 16 | (uint32_t)c << 8 | d;
 }
+
+/**
+ * @brief Plattform independent parsing
+ *
+ * @return #TCS_SUCCESS if successful, otherwise the error code.
+ */
+TcsReturnCode tcs_util_string_to_address(const char str[], struct TcsAddress* parsed_address);
+
+/**
+ * @brief Plattform independent parsing
+ *
+ * @return #TCS_SUCCESS if successful, otherwise the error code.
+ */
+TcsReturnCode tcs_util_address_to_string(const struct TcsAddress* address, char str[40]);
 
 /**
  * @brief Call this to initialize the library, eg. call this before any other function.
@@ -286,7 +314,7 @@ TcsReturnCode tcs_recvfrom(TcsSocket socket_ctx,
                            size_t* bytes_received);
 
 /**
-* @brief Set parameters on a socket
+* @brief Set parameters on a socket. It is recommended to use tcs_set_xxx instead.
 *
 * @param socket_ctx is your in-out socket context.
 * @param level is the definition level.
@@ -300,6 +328,12 @@ TcsReturnCode tcs_setsockopt(TcsSocket socket_ctx,
                              int32_t option_name,
                              const void* option_value,
                              size_t option_size);
+
+TcsReturnCode tcs_getsockopt(TcsSocket socket_ctx,
+                             int32_t level,
+                             int32_t option_name,
+                             void* option_value,
+                             size_t* option_size);
 
 /**
 * @brief Turn off communication for the socket. Will finish all sends first.
@@ -352,6 +386,42 @@ TcsReturnCode tcs_get_addresses(const char* node,
 TcsReturnCode tcs_get_interfaces(struct TcsInterface found_interfaces[],
                                  size_t found_interfaces_length,
                                  size_t* no_of_found_interfaces);
+
+TcsReturnCode tcs_set_broadcast(TcsSocket socket_ctx, bool do_allow_broadcast);
+TcsReturnCode tcs_get_broadcast(TcsSocket socket_ctx, bool* is_broadcast_allowed);
+
+TcsReturnCode tcs_set_keep_alive(TcsSocket socket_ctx, bool do_keep_alive);
+TcsReturnCode tcs_get_keep_alive(TcsSocket socket_ctx, bool* is_keep_alive_enabled);
+
+TcsReturnCode tcs_set_reuse_address(TcsSocket socket_ctx, bool do_allow_reuse_address);
+TcsReturnCode tcs_get_reuse_address(TcsSocket socket_ctx, bool* is_reuse_address_allowed);
+
+TcsReturnCode tcs_set_send_buffer_size(TcsSocket socket_ctx, size_t send_buffer_size);
+TcsReturnCode tcs_get_send_buffer_size(TcsSocket socket_ctx, size_t* send_buffer_size);
+
+TcsReturnCode tcs_set_receive_buffer_size(TcsSocket socket_ctx, size_t receive_buffer_size);
+TcsReturnCode tcs_get_receive_buffer_size(TcsSocket socket_ctx, size_t* receive_buffer_size);
+
+TcsReturnCode tcs_set_receive_timeout(TcsSocket socket_ctx, int timeout_ms);
+TcsReturnCode tcs_get_receive_timeout(TcsSocket socket_ctx, int* timeout_ms);
+
+TcsReturnCode tcs_set_linger(TcsSocket socket_ctx, bool do_linger, int timeout_seconds);
+TcsReturnCode tcs_get_linger(TcsSocket socket_ctx, bool* do_linger, int* timeout_seconds);
+
+TcsReturnCode tcs_set_ip_no_delay(TcsSocket socket_ctx, bool use_no_delay);
+TcsReturnCode tcs_get_ip_no_delay(TcsSocket socket_ctx, bool* is_no_delay_used);
+
+TcsReturnCode tcs_set_out_of_band_inline(TcsSocket socket_ctx, bool enable_oob);
+TcsReturnCode tcs_get_out_of_band_inline(TcsSocket socket_ctx, bool* is_oob_enabled);
+
+TcsReturnCode tcs_set_ip_multicast_membership_add(TcsSocket socket_ctx,
+                                                  const struct TcsAddress* local_address,
+                                                  const struct TcsAddress* multicast_address);
+
+// Use NULL for local_Address for default (make sense? or should we "#define DEFAULT NULL" ?
+TcsReturnCode tcs_set_ip_multicast_membership_drop(TcsSocket socket_ctx,
+                                                   const struct TcsAddress* local_address,
+                                                   const struct TcsAddress* multicast_address);
 
 /**
  * @brief Connects a socket to a node and a port.
