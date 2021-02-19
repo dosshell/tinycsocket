@@ -81,11 +81,25 @@ const int TCS_SD_RECEIVE = SD_RECEIVE;
 const int TCS_SD_SEND = SD_SEND;
 const int TCS_SD_BOTH = SD_BOTH;
 
-// Socket options
+// Option levels
 const int TCS_SOL_SOCKET = SOL_SOCKET;
+const int TCS_SOL_IP = IPPROTO_IP;
+
+// Socket options
+const int TCS_SO_BROADCAST = SO_BROADCAST;
+const int TCS_SO_KEEPALIVE = SO_KEEPALIVE;
+const int TCS_SO_LINGER = SO_LINGER;
 const int TCS_SO_REUSEADDR = SO_REUSEADDR;
 const int TCS_SO_RCVBUF = SO_RCVBUF;
+const int TCS_SO_RCVTIMEO = SO_RCVTIMEO;
 const int TCS_SO_SNDBUF = SO_SNDBUF;
+const int TCS_SO_OOBINLINE = SO_OOBINLINE;
+
+// IP options
+const int TCS_SO_IP_NODELAY = TCP_NODELAY;
+const int TCS_SO_IP_MEMBERSHIP_ADD = IP_ADD_MEMBERSHIP;
+const int TCS_SO_IP_MEMBERSHIP_DROP = IP_DROP_MEMBERSHIP;
+const int TCS_SO_IP_MULTICAST_LOOP = IP_MULTICAST_LOOP;
 
 int g_init_count = 0;
 
@@ -441,6 +455,19 @@ TcsReturnCode tcs_setsockopt(TcsSocket socket_ctx,
     return socketstatus2retcode(sockopt_status);
 }
 
+TcsReturnCode tcs_getsockopt(TcsSocket socket_ctx,
+                             int32_t level,
+                             int32_t option_name,
+                             void* option_value,
+                             size_t* option_size)
+{
+    if (socket_ctx == TCS_NULLSOCKET || option_value == NULL || option_size == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    int sockopt_status = getsockopt(socket_ctx, (int)level, (int)option_name, (char*)option_value, (int*)option_size);
+    return socketstatus2retcode(sockopt_status);
+}
+
 TcsReturnCode tcs_shutdown(TcsSocket socket_ctx, int how)
 {
     if (socket_ctx == TCS_NULLSOCKET)
@@ -588,5 +615,97 @@ TcsReturnCode tcs_get_interfaces(struct TcsInterface found_interfaces[],
         *no_of_found_interfaces = i;
 
     return TCS_SUCCESS;
+}
+
+TcsReturnCode tcs_set_linger(TcsSocket socket_ctx, bool do_linger, int timeout_seconds)
+{
+    if (socket_ctx == TCS_NULLSOCKET)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct linger l = {0};
+    l.l_onoff = (u_short)do_linger;
+    l.l_linger = (u_short)timeout_seconds;
+    return tcs_setsockopt(socket_ctx, TCS_SOL_SOCKET, TCS_SO_LINGER, &l, sizeof(l));
+}
+
+TcsReturnCode tcs_get_linger(TcsSocket socket_ctx, bool* do_linger, int* timeout_seconds)
+{
+    if (socket_ctx == TCS_NULLSOCKET || (do_linger == NULL && timeout_seconds == NULL))
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct linger l = {0};
+    size_t l_size = sizeof(l);
+    TcsReturnCode sts = tcs_getsockopt(socket_ctx, TCS_SOL_SOCKET, TCS_SO_LINGER, &l, &l_size);
+    if (sts == TCS_SUCCESS)
+    {
+        if (do_linger)
+            *do_linger = l.l_onoff;
+        if (timeout_seconds)
+            *timeout_seconds = l.l_linger;
+    }
+
+    return sts;
+}
+
+TcsReturnCode tcs_set_receive_timeout(TcsSocket socket_ctx, int timeout_ms)
+{
+    if (socket_ctx == TCS_NULLSOCKET)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    return tcs_setsockopt(socket_ctx, TCS_SOL_SOCKET, TCS_SO_RCVTIMEO, &timeout_ms, sizeof(timeout_ms));
+}
+
+TcsReturnCode tcs_get_receive_timeout(TcsSocket socket_ctx, int* timeout_ms)
+{
+    if (socket_ctx == TCS_NULLSOCKET || timeout_ms == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    DWORD t = 0;
+    size_t t_size = sizeof(t);
+    TcsReturnCode sts = tcs_getsockopt(socket_ctx, TCS_SOL_SOCKET, TCS_SO_RCVTIMEO, &t, &t_size);
+
+    if (sts == TCS_SUCCESS)
+    {
+        *timeout_ms = (int)t;
+    }
+    return sts;
+}
+
+TcsReturnCode tcs_set_ip_multicast_membership_add(TcsSocket socket_ctx,
+                                                  const struct TcsAddress* local_address,
+                                                  const struct TcsAddress* multicast_address)
+{
+    if (multicast_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    // TODO(markusl): Add ipv6 support
+    if (multicast_address->family != TCS_AF_IP4)
+        return TCS_ERROR_NOT_IMPLEMENTED;
+
+    struct ip_mreq imr = {0};
+    imr.imr_multiaddr.s_addr = htonl(multicast_address->data.af_inet.address);
+    if (local_address != NULL)
+        imr.imr_interface.s_addr = htonl(local_address->data.af_inet.address);
+
+    return tcs_setsockopt(socket_ctx, TCS_SOL_IP, TCS_SO_IP_MEMBERSHIP_ADD, &imr, sizeof(imr));
+}
+
+TcsReturnCode tcs_set_ip_multicast_membership_drop(TcsSocket socket_ctx,
+                                                   const struct TcsAddress* local_address,
+                                                   const struct TcsAddress* multicast_address)
+{
+    if (multicast_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    // TODO(markusl): Add ipv6 support
+    if (multicast_address->family != TCS_AF_IP4)
+        return TCS_ERROR_NOT_IMPLEMENTED;
+
+    struct ip_mreq imr = {0};
+    imr.imr_multiaddr.s_addr = htonl(multicast_address->data.af_inet.address);
+    if (local_address != NULL)
+        imr.imr_interface.s_addr = htonl(local_address->data.af_inet.address);
+
+    return tcs_setsockopt(socket_ctx, TCS_SOL_IP, TCS_SO_IP_MEMBERSHIP_DROP, &imr, sizeof(imr));
 }
 #endif

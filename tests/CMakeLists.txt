@@ -7,3 +7,4 @@ endif ()
 target_link_libraries(tests LINK_PUBLIC tinycsocket Threads::Threads)
 
 set_target_properties(tests PROPERTIES FOLDER TCS/tests)
+add_definitions(-DDOCTEST_CONFIG_TREAT_CHAR_STAR_AS_STRING)
