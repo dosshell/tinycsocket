@@ -19,8 +19,8 @@ int main(int argc, const char* argv[])
 
     uint8_t recv_buffer[8192] = {0};
     size_t bytes_received = 0;
-    tcs_recv(client_socket, recv_buffer, 8192, 0, &bytes_received);
-    tcs_close(&client_socket);
+    tcs_receive(client_socket, recv_buffer, 8192, 0, &bytes_received);
+    tcs_destroy(&client_socket);
 
     tcs_lib_free();
 }

@@ -66,11 +66,6 @@ const int TCS_MSG_OOB = MSG_OOB;
 // Backlog
 const int TCS_BACKLOG_SOMAXCONN = SOMAXCONN;
 
-// How
-const int TCS_SD_RECEIVE = SHUT_RD;
-const int TCS_SD_SEND = SHUT_WR;
-const int TCS_SD_BOTH = SHUT_RDWR;
-
 // Option levels
 const int TCS_SOL_SOCKET = SOL_SOCKET;
 const int TCS_SOL_IP = IPPROTO_IP; // Same as SOL_IP but crossplatform (BSD)
@@ -294,7 +289,7 @@ TcsReturnCode tcs_send(TcsSocket socket_ctx,
     }
 }
 
-TcsReturnCode tcs_sendto(TcsSocket socket_ctx,
+TcsReturnCode tcs_send_to(TcsSocket socket_ctx,
                          const uint8_t* buffer,
                          size_t buffer_size,
                          uint32_t flags,
@@ -333,11 +328,11 @@ TcsReturnCode tcs_sendto(TcsSocket socket_ctx,
     }
 }
 
-TcsReturnCode tcs_recv(TcsSocket socket_ctx,
-                       uint8_t* buffer,
-                       size_t buffer_size,
-                       uint32_t flags,
-                       size_t* bytes_received)
+TcsReturnCode tcs_receive(TcsSocket socket_ctx,
+                          uint8_t* buffer,
+                          size_t buffer_size,
+                          uint32_t flags,
+                          size_t* bytes_received)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -364,12 +359,12 @@ TcsReturnCode tcs_recv(TcsSocket socket_ctx,
     }
 }
 
-TcsReturnCode tcs_recvfrom(TcsSocket socket_ctx,
-                           uint8_t* buffer,
-                           size_t buffer_size,
-                           uint32_t flags,
-                           struct TcsAddress* source_address,
-                           size_t* bytes_received)
+TcsReturnCode tcs_receive_from(TcsSocket socket_ctx,
+                               uint8_t* buffer,
+                               size_t buffer_size,
+                               uint32_t flags,
+                               struct TcsAddress* source_address,
+                               size_t* bytes_received)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -443,18 +438,21 @@ TcsReturnCode tcs_getsockopt(TcsSocket socket_ctx,
     }
 }
 
-TcsReturnCode tcs_shutdown(TcsSocket socket_ctx, int how)
+TcsReturnCode tcs_shutdown(TcsSocket socket_ctx, TcsSocketDirection direction)
 {
+    const int LUT[] = {SHUT_RD, SHUT_WR, SHUT_RDWR};
+
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
+    const int how = LUT[direction];
     if (shutdown(socket_ctx, how) == 0)
         return TCS_SUCCESS;
     else
         return errno2retcode(errno);
 }
 
-TcsReturnCode tcs_close(TcsSocket* socket_ctx)
+TcsReturnCode tcs_destroy(TcsSocket* socket_ctx)
 {
     if (socket_ctx == NULL || *socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -690,9 +688,9 @@ TcsReturnCode tcs_get_receive_timeout(TcsSocket socket_ctx, int* timeout_ms)
     return sts;
 }
 
-TcsReturnCode tcs_set_ip_multicast_membership_add(TcsSocket socket_ctx,
-                                                  const struct TcsAddress* local_address,
-                                                  const struct TcsAddress* multicast_address)
+TcsReturnCode tcs_set_ip_multicast_add(TcsSocket socket_ctx,
+                                       const struct TcsAddress* local_address,
+                                       const struct TcsAddress* multicast_address)
 {
     if (multicast_address == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -735,9 +733,9 @@ TcsReturnCode tcs_set_ip_multicast_membership_add(TcsSocket socket_ctx,
     }
 }
 
-TcsReturnCode tcs_set_ip_multicast_membership_drop(TcsSocket socket_ctx,
-                                                   const struct TcsAddress* local_address,
-                                                   const struct TcsAddress* multicast_address)
+TcsReturnCode tcs_set_ip_multicast_drop(TcsSocket socket_ctx,
+                                        const struct TcsAddress* local_address,
+                                        const struct TcsAddress* multicast_address)
 {
     if (multicast_address == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;

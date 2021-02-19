@@ -66,7 +66,7 @@ int main(void)
 
     uint8_t recv_buffer[1024];
     size_t bytes_received = 0;
-    if (tcs_recv(client_socket, recv_buffer, sizeof(recv_buffer) - sizeof('\0'), 0, &bytes_received) != TCS_SUCCESS)
+    if (tcs_receive(client_socket, recv_buffer, sizeof(recv_buffer) - sizeof('\0'), 0, &bytes_received) != TCS_SUCCESS)
         return show_error("Could not receive data");
 
     // Makes sure it is a NULL terminated string, this is why we only accept 1023 bytes in receive
@@ -76,7 +76,7 @@ int main(void)
     if (tcs_shutdown(client_socket, TCS_SD_BOTH) != TCS_SUCCESS)
         return show_error("Could not shutdown socket");
 
-    if (tcs_close(&client_socket) != TCS_SUCCESS)
+    if (tcs_destroy(&client_socket) != TCS_SUCCESS)
         return show_error("Could not close the socket");
 
     if (tcs_lib_free() != TCS_SUCCESS)

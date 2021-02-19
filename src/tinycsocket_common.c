@@ -1,5 +1,6 @@
 #include "tinycsocket.h"
 
+// This file should never call OS dependent code. Do not include OS files of OS specific ifdefs
 #include <stdbool.h>
 #include <stdio.h>  //sprintf
 #include <string.h> // memset
@@ -77,6 +78,36 @@ TcsReturnCode tcs_util_address_to_string(const struct TcsAddress* address, char 
     return TCS_SUCCESS;
 }
 
+TcsReturnCode tcs_simple_create(TcsSocket* socket_ctx, TcsSocketType socket_type)
+{
+    if (socket_ctx == NULL || *socket_ctx != TCS_NULLSOCKET)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    TcsAddressFamily family = TCS_AF_ANY;
+    int type = 0;
+    int protocol = 0;
+
+    switch (socket_type)
+    {
+        case TCS_ST_TCP_IP4:
+            family = TCS_AF_IP4;
+            type = TCS_SOCK_STREAM;
+            protocol = TCS_IPPROTO_TCP;
+            break;
+        case TCS_ST_UDP_IP4:
+            family = TCS_AF_IP4;
+            type = TCS_SOCK_DGRAM;
+            protocol = TCS_IPPROTO_UDP;
+            break;
+        case TCS_ST_TCP_IP6:
+        case TCS_ST_UDP_IP6:
+        default:
+            return TCS_ERROR_NOT_IMPLEMENTED;
+            break;
+    }
+    return tcs_create(socket_ctx, family, type, protocol);
+}
+
 TcsReturnCode tcs_simple_create_and_connect(TcsSocket* socket_ctx,
                                             const char* hostname,
                                             const char* port,
@@ -104,7 +135,7 @@ TcsReturnCode tcs_simple_create_and_connect(TcsSocket* socket_ctx,
         }
         else
         {
-            tcs_close(socket_ctx);
+            tcs_destroy(socket_ctx);
         }
     }
 
@@ -127,7 +158,7 @@ int tcs_simple_create_and_bind(TcsSocket* socket_ctx, const char* hostname, cons
 
         if (tcs_bind(*socket_ctx, &found_addresses[i]) != TCS_SUCCESS)
         {
-            tcs_close(socket_ctx);
+            tcs_destroy(socket_ctx);
             continue;
         }
 
@@ -179,7 +210,7 @@ int tcs_simple_recv_all(TcsSocket socket_ctx, uint8_t* buffer, size_t length)
     while (bytes_left > 0)
     {
         size_t bytes_received = 0;
-        int sts = tcs_recv(socket_ctx, buffer + bytes_received, bytes_left, 0, &bytes_received);
+        int sts = tcs_receive(socket_ctx, buffer + bytes_received, bytes_left, 0, &bytes_received);
         if (sts != TCS_SUCCESS)
             return sts;
 

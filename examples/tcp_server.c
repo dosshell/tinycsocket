@@ -55,12 +55,12 @@ int main(void)
     if (tcs_accept(listen_socket, &child_socket, NULL) != TCS_SUCCESS)
         return show_error("Could not accept socket");
 
-    if (tcs_close(&listen_socket) != TCS_SUCCESS)
+    if (tcs_destroy(&listen_socket) != TCS_SUCCESS)
         return show_error("Could not close listen socket");
 
     uint8_t recv_buffer[1024];
     size_t bytes_received = 0;
-    if (tcs_recv(child_socket, recv_buffer, sizeof(recv_buffer) - sizeof('\0'), 0, &bytes_received) != TCS_SUCCESS)
+    if (tcs_receive(child_socket, recv_buffer, sizeof(recv_buffer) - sizeof('\0'), 0, &bytes_received) != TCS_SUCCESS)
         return show_error("Could not receive data from client");
 
     recv_buffer[bytes_received] = '\0';
@@ -73,7 +73,7 @@ int main(void)
     if (tcs_shutdown(child_socket, TCS_SD_BOTH) != TCS_SUCCESS)
         return show_error("Could not shutdown socket");
 
-    if (tcs_close(&child_socket) != TCS_SUCCESS)
+    if (tcs_destroy(&child_socket) != TCS_SUCCESS)
         return show_error("Could not close socket");
 
     if (tcs_lib_free() != TCS_SUCCESS)

@@ -46,19 +46,19 @@ int main(void)
         return show_error("Could not resolve localhost");
 
     char msg[] = "hello world\n";
-    if (tcs_sendto(socket, (const uint8_t*)msg, sizeof(msg), 0, &remote_info, NULL) != TCS_SUCCESS)
+    if (tcs_send_to(socket, (const uint8_t*)msg, sizeof(msg), 0, &remote_info, NULL) != TCS_SUCCESS)
         return show_error("Could not send message");
 
     uint8_t recv_buffer[1024];
     size_t bytes_received = 0;
-    if (tcs_recvfrom(socket, recv_buffer, sizeof(recv_buffer) - sizeof('\0'), 0, NULL, &bytes_received) != TCS_SUCCESS)
+    if (tcs_receive_from(socket, recv_buffer, sizeof(recv_buffer) - sizeof('\0'), 0, NULL, &bytes_received) != TCS_SUCCESS)
         return show_error("Could not receive data");
 
     // Makes sure it is a NULL terminated string, this is why we only accept 1023 bytes in receive
     recv_buffer[bytes_received] = '\0';
     printf("received: %s\n", recv_buffer);
 
-    if (tcs_close(&socket) != TCS_SUCCESS)
+    if (tcs_destroy(&socket) != TCS_SUCCESS)
         return show_error("Could not close socket");
 
     if (tcs_lib_free() != TCS_SUCCESS)

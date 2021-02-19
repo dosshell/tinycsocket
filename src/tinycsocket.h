@@ -95,6 +95,15 @@ extern const int TCS_SOCK_DGRAM;  /**< Use for datagrams types like UDP */
 extern const int TCS_IPPROTO_TCP; /**< Use TCP protocol (use with TCS_SOCK_STREAM for normal cases) */
 extern const int TCS_IPPROTO_UDP; /**< Use UDP protocol (use with TCS_SOCK_DGRAM for normal cases) */
 
+// Simple socket creation
+typedef enum
+{
+    TCS_ST_TCP_IP4,
+    TCS_ST_UDP_IP4,
+    TCS_ST_TCP_IP6,
+    TCS_ST_UDP_IP6,
+} TcsSocketType;
+
 // Flags
 extern const uint32_t TCS_AI_PASSIVE; /**< Use this flag for pure listening sockets */
 
@@ -105,10 +114,13 @@ extern const int TCS_MSG_OOB;
 // Backlog
 extern const int TCS_BACKLOG_SOMAXCONN; /**< Max number of queued sockets when listening */
 
-// How
-extern const int TCS_SD_RECEIVE; /**< To shutdown incoming packets for socket */
-extern const int TCS_SD_SEND;    /**< To shutdown outgoing packets for socket */
-extern const int TCS_SD_BOTH;    /**< To shutdown both incoming and outgoing packets for socket */
+// Socket Direction
+typedef enum
+{
+    TCS_SD_RECEIVE, /**< To shutdown incoming packets for socket */
+    TCS_SD_SEND,    /**< To shutdown outgoing packets for socket */
+    TCS_SD_BOTH,    /**< To shutdown both incoming and outgoing packets for socket */
+} TcsSocketDirection;
 
 // Option levels
 extern const int TCS_SOL_SOCKET; /**< Socket option level for socket options */
@@ -123,6 +135,7 @@ extern const int TCS_SO_RCVBUF;    /**< Byte size of receiving buffer */
 extern const int TCS_SO_RCVTIMEO;
 extern const int TCS_SO_SNDBUF; /**< Byte size of receiving buffer */
 extern const int TCS_SO_OOBINLINE;
+
 // IP options
 extern const int TCS_SO_IP_NODELAY;
 extern const int TCS_SO_IP_MEMBERSHIP_ADD;
@@ -194,7 +207,7 @@ TcsReturnCode tcs_lib_free(void);
  * @param type specifies the type of the socket, for example #TCS_SOCK_STREAM or #TCS_SOCK_DGRAM.
  * @param protocol specifies the protocol, for example #TCS_IPPROTO_TCP or #TCS_IPPROTO_UDP.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
- * @see tcs_close()
+ * @see tcs_destroy()
  * @see tcs_lib_init()
  */
 TcsReturnCode tcs_create(TcsSocket* socket_ctx, TcsAddressFamily family, int type, int protocol);
@@ -248,7 +261,7 @@ TcsReturnCode tcs_accept(TcsSocket socket_ctx, TcsSocket* child_socket_ctx, stru
  * @param flags is currently not in use.
  * @param bytes_sent is how many bytes that was successfully sent.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
- * @see tcs_recv()
+ * @see tcs_receive()
  */
 TcsReturnCode tcs_send(TcsSocket socket_ctx,
                        const uint8_t* buffer,
@@ -266,10 +279,10 @@ TcsReturnCode tcs_send(TcsSocket socket_ctx,
  * @param destination_address is the address to send to.
  * @param bytes_sent is how many bytes that was successfully sent.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
- * @see tcs_recvfrom()
+ * @see tcs_receive_from()
  * @see tcs_getaddrinfo()
  */
-TcsReturnCode tcs_sendto(TcsSocket socket_ctx,
+TcsReturnCode tcs_send_to(TcsSocket socket_ctx,
                          const uint8_t* buffer,
                          size_t buffer_size,
                          uint32_t flags,
@@ -287,11 +300,11 @@ TcsReturnCode tcs_sendto(TcsSocket socket_ctx,
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_send()
 */
-TcsReturnCode tcs_recv(TcsSocket socket_ctx,
-                       uint8_t* buffer,
-                       size_t buffer_size,
-                       uint32_t flags,
-                       size_t* bytes_received);
+TcsReturnCode tcs_receive(TcsSocket socket_ctx,
+                          uint8_t* buffer,
+                          size_t buffer_size,
+                          uint32_t flags,
+                          size_t* bytes_received);
 
 /**
 * @brief Receive data from an address, useful with UDP sockets.
@@ -303,15 +316,15 @@ TcsReturnCode tcs_recv(TcsSocket socket_ctx,
 * @param source_address is the address to receive from.
 * @param bytes_received is how many bytes that was successfully written to your buffer.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
-* @see tcs_sendto()
+* @see tcs_send_to()
 * @see tcs_getaddrinfo()
 */
-TcsReturnCode tcs_recvfrom(TcsSocket socket_ctx,
-                           uint8_t* buffer,
-                           size_t buffer_size,
-                           uint32_t flags,
-                           struct TcsAddress* source_address,
-                           size_t* bytes_received);
+TcsReturnCode tcs_receive_from(TcsSocket socket_ctx,
+                               uint8_t* buffer,
+                               size_t buffer_size,
+                               uint32_t flags,
+                               struct TcsAddress* source_address,
+                               size_t* bytes_received);
 
 /**
 * @brief Set parameters on a socket. It is recommended to use tcs_set_xxx instead.
@@ -336,13 +349,13 @@ TcsReturnCode tcs_getsockopt(TcsSocket socket_ctx,
                              size_t* option_size);
 
 /**
-* @brief Turn off communication for the socket. Will finish all sends first.
+* @brief Turn off communication with 3-way handshaking for the socket. Will finish all sends first.
 *
 * @param socket_ctx is your in-out socket context.
 * @param how defines in which direction you want to turn off the communication.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsReturnCode tcs_shutdown(TcsSocket socket_ctx, int how);
+TcsReturnCode tcs_shutdown(TcsSocket socket_ctx, TcsSocketDirection direction);
 
 /**
 * @brief Closes the socket, call this when you are done with the socket.
@@ -350,7 +363,7 @@ TcsReturnCode tcs_shutdown(TcsSocket socket_ctx, int how);
 * @param socket_ctx is your in-out socket context.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsReturnCode tcs_close(TcsSocket* socket_ctx);
+TcsReturnCode tcs_destroy(TcsSocket* socket_ctx);
 
 /**
 * @brief Get addresses you can connect to given a computer name and a port.
@@ -387,6 +400,15 @@ TcsReturnCode tcs_get_interfaces(struct TcsInterface found_interfaces[],
                                  size_t found_interfaces_length,
                                  size_t* no_of_found_interfaces);
 
+/*
+* @brief Enable the socket to be allowed to use broadcast.
+*
+* Only valid for protocols that support broadcast, for example UDP. Default is false.
+*
+* @param socket_ctx socket to enable/disable permission to send broadcast on.
+* @param do_allow_broadcast set to true to allow, false to forbidd.
+* @return #TCS_SUCCESS if successful, otherwise the error code.
+*/
 TcsReturnCode tcs_set_broadcast(TcsSocket socket_ctx, bool do_allow_broadcast);
 TcsReturnCode tcs_get_broadcast(TcsSocket socket_ctx, bool* is_broadcast_allowed);
 
@@ -414,14 +436,16 @@ TcsReturnCode tcs_get_ip_no_delay(TcsSocket socket_ctx, bool* is_no_delay_used);
 TcsReturnCode tcs_set_out_of_band_inline(TcsSocket socket_ctx, bool enable_oob);
 TcsReturnCode tcs_get_out_of_band_inline(TcsSocket socket_ctx, bool* is_oob_enabled);
 
-TcsReturnCode tcs_set_ip_multicast_membership_add(TcsSocket socket_ctx,
-                                                  const struct TcsAddress* local_address,
-                                                  const struct TcsAddress* multicast_address);
+TcsReturnCode tcs_set_ip_multicast_add(TcsSocket socket_ctx,
+                                       const struct TcsAddress* local_address,
+                                       const struct TcsAddress* multicast_address);
 
 // Use NULL for local_Address for default (make sense? or should we "#define DEFAULT NULL" ?
-TcsReturnCode tcs_set_ip_multicast_membership_drop(TcsSocket socket_ctx,
-                                                   const struct TcsAddress* local_address,
-                                                   const struct TcsAddress* multicast_address);
+TcsReturnCode tcs_set_ip_multicast_drop(TcsSocket socket_ctx,
+                                        const struct TcsAddress* local_address,
+                                        const struct TcsAddress* multicast_address);
+
+TcsReturnCode tcs_simple_create(TcsSocket* socket_ctx, TcsSocketType socket_Type);
 
 /**
  * @brief Connects a socket to a node and a port.
