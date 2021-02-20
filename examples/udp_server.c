@@ -37,7 +37,7 @@ int main(void)
         return show_error("Could not init tinycsocket");
 
     TcsSocket socket = TCS_NULLSOCKET;
-    if (tcs_create(&socket, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) != TCS_SUCCESS)
+    if (tcs_create_ext(&socket, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) != TCS_SUCCESS)
         return show_error("Could not create socket");
 
     struct TcsAddress address[32];
@@ -63,7 +63,8 @@ int main(void)
     struct TcsAddress remote_address = {0};
     uint8_t recv_buffer[1024];
     size_t bytes_received = 0;
-    if (tcs_receive_from(socket, recv_buffer, sizeof(recv_buffer) - sizeof('\0'), 0, &remote_address, &bytes_received) !=
+    if (tcs_receive_from(
+            socket, recv_buffer, sizeof(recv_buffer) - sizeof('\0'), 0, &remote_address, &bytes_received) !=
         TCS_SUCCESS)
         return show_error("Could not receive data");
 

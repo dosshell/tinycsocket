@@ -43,7 +43,7 @@ int main(void)
     if (tcs_get_addresses(NULL, "1212", TCS_AF_IP4, &listen_address, 1, NULL) != TCS_SUCCESS)
         return show_error("Could not resolve listen address");
 
-    if (tcs_create(&listen_socket, listen_address.family, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) != TCS_SUCCESS)
+    if (tcs_create_ext(&listen_socket, listen_address.family, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) != TCS_SUCCESS)
         return show_error("Could not create a listen socket");
 
     if (tcs_bind(listen_socket, &listen_address) != TCS_SUCCESS)

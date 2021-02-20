@@ -78,7 +78,7 @@ TcsReturnCode tcs_util_address_to_string(const struct TcsAddress* address, char 
     return TCS_SUCCESS;
 }
 
-TcsReturnCode tcs_simple_create(TcsSocket* socket_ctx, TcsSocketType socket_type)
+TcsReturnCode tcs_create(TcsSocket* socket_ctx, TcsSocketType socket_type)
 {
     if (socket_ctx == NULL || *socket_ctx != TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -105,13 +105,13 @@ TcsReturnCode tcs_simple_create(TcsSocket* socket_ctx, TcsSocketType socket_type
             return TCS_ERROR_NOT_IMPLEMENTED;
             break;
     }
-    return tcs_create(socket_ctx, family, type, protocol);
+    return tcs_create_ext(socket_ctx, family, type, protocol);
 }
 
-TcsReturnCode tcs_simple_create_and_connect(TcsSocket* socket_ctx,
-                                            const char* hostname,
-                                            const char* port,
-                                            TcsAddressFamily family)
+TcsReturnCode tcs_create_and_connect(TcsSocket* socket_ctx,
+                                     const char* hostname,
+                                     const char* port,
+                                     TcsAddressFamily family)
 {
     if (socket_ctx == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -124,7 +124,7 @@ TcsReturnCode tcs_simple_create_and_connect(TcsSocket* socket_ctx,
 
     for (size_t i = 0; i < no_of_found_addresses; ++i)
     {
-        sts = tcs_create(socket_ctx, found_addresses[i].family, TCS_SOCK_STREAM, 0);
+        sts = tcs_create_ext(socket_ctx, found_addresses[i].family, TCS_SOCK_STREAM, 0);
         if (sts != TCS_SUCCESS)
         {
             continue;
@@ -142,7 +142,7 @@ TcsReturnCode tcs_simple_create_and_connect(TcsSocket* socket_ctx,
     return TCS_ERROR_CONNECTION_REFUSED;
 }
 
-int tcs_simple_create_and_bind(TcsSocket* socket_ctx, const char* hostname, const char* port, TcsAddressFamily family)
+int tcs_create_and_bind(TcsSocket* socket_ctx, const char* hostname, const char* port, TcsAddressFamily family)
 {
     struct TcsAddress found_addresses[32] = {0};
     size_t no_of_found_addresses = 0;
@@ -153,7 +153,7 @@ int tcs_simple_create_and_bind(TcsSocket* socket_ctx, const char* hostname, cons
     bool is_bounded = false;
     for (size_t i = 0; i < no_of_found_addresses; ++i)
     {
-        if (tcs_create(socket_ctx, found_addresses[i].family, TCS_SOCK_DGRAM, 0) != TCS_SUCCESS)
+        if (tcs_create_ext(socket_ctx, found_addresses[i].family, TCS_SOCK_DGRAM, 0) != TCS_SUCCESS)
             continue;
 
         if (tcs_bind(*socket_ctx, &found_addresses[i]) != TCS_SUCCESS)
@@ -174,7 +174,7 @@ int tcs_simple_create_and_bind(TcsSocket* socket_ctx, const char* hostname, cons
     return TCS_SUCCESS;
 }
 
-int tcs_simple_create_and_listen(TcsSocket* socket_ctx, const char* hostname, const char* port, TcsAddressFamily family)
+int tcs_create_and_listen(TcsSocket* socket_ctx, const char* hostname, const char* port, TcsAddressFamily family)
 {
     if (socket_ctx == NULL || *socket_ctx != TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -186,7 +186,7 @@ int tcs_simple_create_and_listen(TcsSocket* socket_ctx, const char* hostname, co
     if (sts != TCS_SUCCESS)
         return sts;
 
-    sts = tcs_create(socket_ctx, found_address.family, TCS_SOCK_STREAM, 0);
+    sts = tcs_create_ext(socket_ctx, found_address.family, TCS_SOCK_STREAM, 0);
     if (sts != TCS_SUCCESS)
         return sts;
 
@@ -201,7 +201,7 @@ int tcs_simple_create_and_listen(TcsSocket* socket_ctx, const char* hostname, co
     return TCS_SUCCESS;
 }
 
-int tcs_simple_recv_all(TcsSocket socket_ctx, uint8_t* buffer, size_t length)
+int tcs_receive_all(TcsSocket socket_ctx, uint8_t* buffer, size_t length)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -219,7 +219,7 @@ int tcs_simple_recv_all(TcsSocket socket_ctx, uint8_t* buffer, size_t length)
     return TCS_SUCCESS;
 }
 
-int tcs_simple_send_all(TcsSocket socket_ctx, uint8_t* buffer, size_t length, uint32_t flags)
+int tcs_send_all(TcsSocket socket_ctx, uint8_t* buffer, size_t length, uint32_t flags)
 {
     size_t left = length;
     size_t sent = 0;
@@ -235,7 +235,7 @@ int tcs_simple_send_all(TcsSocket socket_ctx, uint8_t* buffer, size_t length, ui
     return TCS_SUCCESS;
 }
 
-int tcs_simple_recv_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_length, size_t* bytes_received)
+int tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_length, size_t* bytes_received)
 {
     if (socket_ctx == TCS_NULLSOCKET || buffer == NULL || buffer_length <= 0)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -247,7 +247,7 @@ int tcs_simple_recv_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buff
     const int max_header = 21;
     while (t != ':' && parsed < max_header)
     {
-        sts = tcs_simple_recv_all(socket_ctx, (uint8_t*)&t, 1);
+        sts = tcs_receive_all(socket_ctx, (uint8_t*)&t, 1);
         if (sts != TCS_SUCCESS)
             return sts;
 
@@ -270,11 +270,11 @@ int tcs_simple_recv_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buff
     if (buffer_length < expected_length)
         return TCS_ERROR_MEMORY;
 
-    sts = tcs_simple_recv_all(socket_ctx, buffer, expected_length);
+    sts = tcs_receive_all(socket_ctx, buffer, expected_length);
     if (sts != TCS_SUCCESS)
         return sts;
 
-    sts = tcs_simple_recv_all(socket_ctx, (uint8_t*)&t, 1);
+    sts = tcs_receive_all(socket_ctx, (uint8_t*)&t, 1);
     if (sts != TCS_SUCCESS)
         return sts;
 
@@ -287,7 +287,7 @@ int tcs_simple_recv_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buff
     return TCS_SUCCESS;
 }
 
-int tcs_simple_send_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_length)
+int tcs_send_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_length)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -311,15 +311,15 @@ int tcs_simple_send_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buff
         return TCS_ERROR_INVALID_ARGUMENT;
 
     int sts = 0;
-    sts = tcs_simple_send_all(socket_ctx, (uint8_t*)netstring_header, (size_t)header_length, 0);
+    sts = tcs_send_all(socket_ctx, (uint8_t*)netstring_header, (size_t)header_length, 0);
     if (sts != TCS_SUCCESS)
         return sts;
 
-    sts = tcs_simple_send_all(socket_ctx, buffer, buffer_length, 0);
+    sts = tcs_send_all(socket_ctx, buffer, buffer_length, 0);
     if (sts != TCS_SUCCESS)
         return sts;
 
-    sts = tcs_simple_send_all(socket_ctx, (uint8_t*)",", 1, 0);
+    sts = tcs_send_all(socket_ctx, (uint8_t*)",", 1, 0);
     if (sts != TCS_SUCCESS)
         return sts;
 
@@ -332,7 +332,7 @@ TcsReturnCode tcs_set_broadcast(TcsSocket socket_ctx, bool do_allow_broadcast)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     int b = do_allow_broadcast ? 1 : 0;
-    return tcs_setsockopt(socket_ctx, TCS_SOL_SOCKET, TCS_SO_BROADCAST, &b, sizeof(b));
+    return tcs_set_option(socket_ctx, TCS_SOL_SOCKET, TCS_SO_BROADCAST, &b, sizeof(b));
 }
 
 TcsReturnCode tcs_get_broadcast(TcsSocket socket_ctx, bool* is_broadcast_allowed)
@@ -341,7 +341,7 @@ TcsReturnCode tcs_get_broadcast(TcsSocket socket_ctx, bool* is_broadcast_allowed
         return TCS_ERROR_INVALID_ARGUMENT;
     int b = 0;
     size_t s = sizeof(b);
-    TcsReturnCode sts = tcs_getsockopt(socket_ctx, TCS_SOL_SOCKET, TCS_SO_BROADCAST, &b, &s);
+    TcsReturnCode sts = tcs_get_option(socket_ctx, TCS_SOL_SOCKET, TCS_SO_BROADCAST, &b, &s);
     *is_broadcast_allowed = b;
     return sts;
 }
@@ -352,7 +352,7 @@ TcsReturnCode tcs_set_keep_alive(TcsSocket socket_ctx, bool do_keep_alive)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     int b = do_keep_alive ? 1 : 0;
-    return tcs_setsockopt(socket_ctx, TCS_SOL_SOCKET, TCS_SO_KEEPALIVE, &b, sizeof(b));
+    return tcs_set_option(socket_ctx, TCS_SOL_SOCKET, TCS_SO_KEEPALIVE, &b, sizeof(b));
 }
 
 TcsReturnCode tcs_get_keep_alive(TcsSocket socket_ctx, bool* is_keep_alive_enabled)
@@ -361,7 +361,7 @@ TcsReturnCode tcs_get_keep_alive(TcsSocket socket_ctx, bool* is_keep_alive_enabl
         return TCS_ERROR_INVALID_ARGUMENT;
     int b = 0;
     size_t s = sizeof(b);
-    TcsReturnCode sts = tcs_getsockopt(socket_ctx, TCS_SOL_SOCKET, TCS_SO_KEEPALIVE, &b, &s);
+    TcsReturnCode sts = tcs_get_option(socket_ctx, TCS_SOL_SOCKET, TCS_SO_KEEPALIVE, &b, &s);
     *is_keep_alive_enabled = b;
     return sts;
 }
@@ -372,7 +372,7 @@ TcsReturnCode tcs_set_reuse_address(TcsSocket socket_ctx, bool do_allow_reuse_ad
         return TCS_ERROR_INVALID_ARGUMENT;
 
     int b = do_allow_reuse_address ? 1 : 0;
-    return tcs_setsockopt(socket_ctx, TCS_SOL_SOCKET, TCS_SO_REUSEADDR, &b, sizeof(b));
+    return tcs_set_option(socket_ctx, TCS_SOL_SOCKET, TCS_SO_REUSEADDR, &b, sizeof(b));
 }
 
 TcsReturnCode tcs_get_reuse_address(TcsSocket socket_ctx, bool* is_reuse_address_allowed)
@@ -381,7 +381,7 @@ TcsReturnCode tcs_get_reuse_address(TcsSocket socket_ctx, bool* is_reuse_address
         return TCS_ERROR_INVALID_ARGUMENT;
     int b = 0;
     size_t s = sizeof(b);
-    TcsReturnCode sts = tcs_getsockopt(socket_ctx, TCS_SOL_SOCKET, TCS_SO_REUSEADDR, &b, &s);
+    TcsReturnCode sts = tcs_get_option(socket_ctx, TCS_SOL_SOCKET, TCS_SO_REUSEADDR, &b, &s);
     *is_reuse_address_allowed = b;
     return sts;
 }
@@ -392,7 +392,7 @@ TcsReturnCode tcs_set_send_buffer_size(TcsSocket socket_ctx, size_t send_buffer_
         return TCS_ERROR_INVALID_ARGUMENT;
 
     unsigned int b = (unsigned int)send_buffer_size;
-    return tcs_setsockopt(socket_ctx, TCS_SOL_SOCKET, TCS_SO_SNDBUF, &b, sizeof(b));
+    return tcs_set_option(socket_ctx, TCS_SOL_SOCKET, TCS_SO_SNDBUF, &b, sizeof(b));
 }
 
 TcsReturnCode tcs_get_send_buffer_size(TcsSocket socket_ctx, size_t* send_buffer_size)
@@ -401,7 +401,7 @@ TcsReturnCode tcs_get_send_buffer_size(TcsSocket socket_ctx, size_t* send_buffer
         return TCS_ERROR_INVALID_ARGUMENT;
     unsigned int b = 0;
     size_t s = sizeof(b);
-    TcsReturnCode sts = tcs_getsockopt(socket_ctx, TCS_SOL_SOCKET, TCS_SO_SNDBUF, &b, &s);
+    TcsReturnCode sts = tcs_get_option(socket_ctx, TCS_SOL_SOCKET, TCS_SO_SNDBUF, &b, &s);
     *send_buffer_size = (size_t)b;
     return sts;
 }
@@ -412,7 +412,7 @@ TcsReturnCode tcs_set_receive_buffer_size(TcsSocket socket_ctx, size_t receive_b
         return TCS_ERROR_INVALID_ARGUMENT;
 
     unsigned int b = (unsigned int)receive_buffer_size;
-    return tcs_setsockopt(socket_ctx, TCS_SOL_SOCKET, TCS_SO_RCVBUF, &b, sizeof(b));
+    return tcs_set_option(socket_ctx, TCS_SOL_SOCKET, TCS_SO_RCVBUF, &b, sizeof(b));
 }
 
 TcsReturnCode tcs_get_receive_buffer_size(TcsSocket socket_ctx, size_t* receive_buffer_size)
@@ -421,7 +421,7 @@ TcsReturnCode tcs_get_receive_buffer_size(TcsSocket socket_ctx, size_t* receive_
         return TCS_ERROR_INVALID_ARGUMENT;
     unsigned int b = 0;
     size_t s = sizeof(b);
-    TcsReturnCode sts = tcs_getsockopt(socket_ctx, TCS_SOL_SOCKET, TCS_SO_RCVBUF, &b, &s);
+    TcsReturnCode sts = tcs_get_option(socket_ctx, TCS_SOL_SOCKET, TCS_SO_RCVBUF, &b, &s);
     *receive_buffer_size = (size_t)b;
     return sts;
 }
@@ -432,7 +432,7 @@ TcsReturnCode tcs_set_ip_no_delay(TcsSocket socket_ctx, bool use_no_delay)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     int b = use_no_delay ? 1 : 0;
-    return tcs_setsockopt(socket_ctx, TCS_SOL_IP, TCS_SO_IP_NODELAY, &b, sizeof(b));
+    return tcs_set_option(socket_ctx, TCS_SOL_IP, TCS_SO_IP_NODELAY, &b, sizeof(b));
 }
 
 TcsReturnCode tcs_get_ip_no_delay(TcsSocket socket_ctx, bool* is_no_delay_used)
@@ -441,7 +441,7 @@ TcsReturnCode tcs_get_ip_no_delay(TcsSocket socket_ctx, bool* is_no_delay_used)
         return TCS_ERROR_INVALID_ARGUMENT;
     int b = 0;
     size_t s = sizeof(b);
-    TcsReturnCode sts = tcs_getsockopt(socket_ctx, TCS_SOL_IP, TCS_SO_IP_NODELAY, &b, &s);
+    TcsReturnCode sts = tcs_get_option(socket_ctx, TCS_SOL_IP, TCS_SO_IP_NODELAY, &b, &s);
     *is_no_delay_used = b;
     return sts;
 }
@@ -452,7 +452,7 @@ TcsReturnCode tcs_set_out_of_band_inline(TcsSocket socket_ctx, bool enable_oob)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     int b = enable_oob ? 1 : 0;
-    return tcs_setsockopt(socket_ctx, TCS_SOL_SOCKET, TCS_SO_OOBINLINE, &b, sizeof(b));
+    return tcs_set_option(socket_ctx, TCS_SOL_SOCKET, TCS_SO_OOBINLINE, &b, sizeof(b));
 }
 
 TcsReturnCode tcs_get_out_of_band_inline(TcsSocket socket_ctx, bool* is_oob_enabled)
@@ -461,7 +461,7 @@ TcsReturnCode tcs_get_out_of_band_inline(TcsSocket socket_ctx, bool* is_oob_enab
         return TCS_ERROR_INVALID_ARGUMENT;
     int b = 0;
     size_t s = sizeof(b);
-    TcsReturnCode sts = tcs_getsockopt(socket_ctx, TCS_SOL_SOCKET, TCS_SO_OOBINLINE, &b, &s);
+    TcsReturnCode sts = tcs_get_option(socket_ctx, TCS_SOL_SOCKET, TCS_SO_OOBINLINE, &b, &s);
     *is_oob_enabled = b;
     return sts;
 }

@@ -178,7 +178,7 @@ TcsReturnCode tcs_lib_free()
     return TCS_SUCCESS;
 }
 
-TcsReturnCode tcs_create(TcsSocket* socket_ctx, TcsAddressFamily family, int type, int protocol)
+TcsReturnCode tcs_create_ext(TcsSocket* socket_ctx, TcsAddressFamily family, int type, int protocol)
 {
     if (socket_ctx == NULL || *socket_ctx != TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -290,11 +290,11 @@ TcsReturnCode tcs_send(TcsSocket socket_ctx,
 }
 
 TcsReturnCode tcs_send_to(TcsSocket socket_ctx,
-                         const uint8_t* buffer,
-                         size_t buffer_size,
-                         uint32_t flags,
-                         const struct TcsAddress* destination_address,
-                         size_t* bytes_sent)
+                          const uint8_t* buffer,
+                          size_t buffer_size,
+                          uint32_t flags,
+                          const struct TcsAddress* destination_address,
+                          size_t* bytes_sent)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -397,7 +397,7 @@ TcsReturnCode tcs_receive_from(TcsSocket socket_ctx,
     }
 }
 
-TcsReturnCode tcs_setsockopt(TcsSocket socket_ctx,
+TcsReturnCode tcs_set_option(TcsSocket socket_ctx,
                              int32_t level,
                              int32_t option_name,
                              const void* option_value,
@@ -412,7 +412,7 @@ TcsReturnCode tcs_setsockopt(TcsSocket socket_ctx,
         return errno2retcode(errno);
 }
 
-TcsReturnCode tcs_getsockopt(TcsSocket socket_ctx,
+TcsReturnCode tcs_get_option(TcsSocket socket_ctx,
                              int32_t level,
                              int32_t option_name,
                              void* option_value,
@@ -635,7 +635,7 @@ TcsReturnCode tcs_set_linger(TcsSocket socket_ctx, bool do_linger, int timeout_s
         return TCS_ERROR_INVALID_ARGUMENT;
 
     struct linger l = {(u_short)do_linger, (u_short)timeout_seconds};
-    return tcs_setsockopt(socket_ctx, TCS_SOL_SOCKET, TCS_SO_LINGER, &l, sizeof(l));
+    return tcs_set_option(socket_ctx, TCS_SOL_SOCKET, TCS_SO_LINGER, &l, sizeof(l));
 }
 
 TcsReturnCode tcs_get_linger(TcsSocket socket_ctx, bool* do_linger, int* timeout_seconds)
@@ -645,7 +645,7 @@ TcsReturnCode tcs_get_linger(TcsSocket socket_ctx, bool* do_linger, int* timeout
 
     struct linger l = {0};
     size_t l_size = sizeof(l);
-    TcsReturnCode sts = tcs_getsockopt(socket_ctx, TCS_SOL_SOCKET, TCS_SO_LINGER, &l, &l_size);
+    TcsReturnCode sts = tcs_get_option(socket_ctx, TCS_SOL_SOCKET, TCS_SO_LINGER, &l, &l_size);
     if (sts == TCS_SUCCESS)
     {
         if (do_linger)
@@ -666,7 +666,7 @@ TcsReturnCode tcs_set_receive_timeout(TcsSocket socket_ctx, int timeout_ms)
     tv.tv_sec = timeout_ms / 1000;
     tv.tv_usec = (timeout_ms % 1000) * 1000;
 
-    return tcs_setsockopt(socket_ctx, TCS_SOL_SOCKET, TCS_SO_RCVTIMEO, &tv, sizeof(tv));
+    return tcs_set_option(socket_ctx, TCS_SOL_SOCKET, TCS_SO_RCVTIMEO, &tv, sizeof(tv));
 }
 
 TcsReturnCode tcs_get_receive_timeout(TcsSocket socket_ctx, int* timeout_ms)
@@ -676,7 +676,7 @@ TcsReturnCode tcs_get_receive_timeout(TcsSocket socket_ctx, int* timeout_ms)
 
     struct timeval tv = {0};
     size_t tv_size = sizeof(tv);
-    TcsReturnCode sts = tcs_getsockopt(socket_ctx, TCS_SOL_SOCKET, TCS_SO_RCVTIMEO, &tv, &tv_size);
+    TcsReturnCode sts = tcs_get_option(socket_ctx, TCS_SOL_SOCKET, TCS_SO_RCVTIMEO, &tv, &tv_size);
 
     if (sts == TCS_SUCCESS)
     {
@@ -724,7 +724,7 @@ TcsReturnCode tcs_set_ip_multicast_add(TcsSocket socket_ctx,
         mreq.imr_interface.s_addr = address_native_local_p->sin_addr.s_addr;
         mreq.imr_multiaddr.s_addr = address_native_multicast_p->sin_addr.s_addr;
 
-        return tcs_setsockopt(socket_ctx, TCS_SOL_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
+        return tcs_set_option(socket_ctx, TCS_SOL_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
     }
     else
     {
@@ -767,7 +767,7 @@ TcsReturnCode tcs_set_ip_multicast_drop(TcsSocket socket_ctx,
         mreq.imr_interface.s_addr = address_native_local_p->sin_addr.s_addr;
         mreq.imr_multiaddr.s_addr = address_native_multicast_p->sin_addr.s_addr;
 
-        return tcs_setsockopt(socket_ctx, TCS_SOL_IP, IP_DROP_MEMBERSHIP, &mreq, sizeof(mreq));
+        return tcs_set_option(socket_ctx, TCS_SOL_IP, IP_DROP_MEMBERSHIP, &mreq, sizeof(mreq));
     }
     else
     {

@@ -45,14 +45,14 @@ TEST_CASE("Example from README")
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
 
     TcsSocket client_socket = TCS_NULLSOCKET;
-    CHECK(tcs_simple_create_and_connect(&client_socket, "example.com", "80", TCS_AF_ANY) == TCS_SUCCESS);
+    CHECK(tcs_create_and_connect(&client_socket, "example.com", "80", TCS_AF_ANY) == TCS_SUCCESS);
 
     uint8_t send_buffer[] = "GET / HTTP/1.1\nHost: example.com\n\n";
-    CHECK(tcs_simple_send_all(client_socket, send_buffer, sizeof(send_buffer), 0) == TCS_SUCCESS);
+    CHECK(tcs_send_all(client_socket, send_buffer, sizeof(send_buffer), TCS_NO_FLAGS) == TCS_SUCCESS);
 
     uint8_t recv_buffer[8192] = {0};
     size_t bytes_received = 0;
-    CHECK(tcs_receive(client_socket, recv_buffer, 8192, 0, &bytes_received) == TCS_SUCCESS);
+    CHECK(tcs_receive(client_socket, recv_buffer, 8192, TCS_NO_FLAGS, &bytes_received) == TCS_SUCCESS);
     CHECK(tcs_destroy(&client_socket) == TCS_SUCCESS);
 
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
@@ -64,6 +64,26 @@ TEST_CASE("Init Test")
     CHECK(tcs_lib_free() == TCS_SUCCESS);
 }
 
+TEST_CASE("Create socket")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    TcsSocket socket = TCS_NULLSOCKET;
+
+    // When
+    TcsReturnCode sts = tcs_create(&socket, TCS_ST_UDP_IP4);
+
+    // Then
+    CHECK(sts == TCS_SUCCESS);
+    CHECK(socket != TCS_NULLSOCKET);
+
+    // Clean up
+    CHECK(tcs_destroy(&socket) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
 TEST_CASE("UDP Test")
 {
     // Setup
@@ -72,8 +92,8 @@ TEST_CASE("UDP Test")
     // Gíven
     TcsSocket socket_recv = TCS_NULLSOCKET;
     TcsSocket socket_send = TCS_NULLSOCKET;
-    CHECK(tcs_create(&socket_recv, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
-    CHECK(tcs_create(&socket_send, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
+    CHECK(tcs_create_ext(&socket_recv, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
+    CHECK(tcs_create_ext(&socket_send, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
     CHECK(tcs_set_receive_timeout(socket_recv, 5000) == TCS_SUCCESS);
     CHECK(tcs_set_reuse_address(socket_recv, true) == TCS_SUCCESS);
     TcsAddress found_addresses[32];
@@ -127,8 +147,8 @@ TEST_CASE("Simple TCP Test")
     TcsSocket accept_socket = TCS_NULLSOCKET;
     TcsSocket client_socket = TCS_NULLSOCKET;
 
-    CHECK(tcs_simple_create_and_listen(&listen_socket, "localhost", "1212", TCS_AF_IP4) == TCS_SUCCESS);
-    CHECK(tcs_simple_create_and_connect(&client_socket, "localhost", "1212", TCS_AF_IP4) == TCS_SUCCESS);
+    CHECK(tcs_create_and_listen(&listen_socket, "localhost", "1212", TCS_AF_IP4) == TCS_SUCCESS);
+    CHECK(tcs_create_and_connect(&client_socket, "localhost", "1212", TCS_AF_IP4) == TCS_SUCCESS);
 
     CHECK(tcs_accept(listen_socket, &accept_socket, NULL) == TCS_SUCCESS);
     CHECK(tcs_destroy(&listen_socket) == TCS_SUCCESS);
@@ -136,8 +156,8 @@ TEST_CASE("Simple TCP Test")
     // When
     uint8_t recv_buffer[8] = {0};
     uint8_t* send_buffer = (uint8_t*)"12345678";
-    CHECK(tcs_simple_send_all(client_socket, send_buffer, 8, 0) == TCS_SUCCESS);
-    CHECK(tcs_simple_recv_all(accept_socket, recv_buffer, 8) == TCS_SUCCESS);
+    CHECK(tcs_send_all(client_socket, send_buffer, 8, 0) == TCS_SUCCESS);
+    CHECK(tcs_receive_all(accept_socket, recv_buffer, 8) == TCS_SUCCESS);
 
     // Then
     CHECK(memcmp(recv_buffer, send_buffer, 8) == 0);
@@ -157,8 +177,8 @@ TEST_CASE("Simple TCP Netstring Test")
     TcsSocket listen_socket = TCS_NULLSOCKET;
     TcsSocket accept_socket = TCS_NULLSOCKET;
     TcsSocket client_socket = TCS_NULLSOCKET;
-    CHECK(tcs_simple_create_and_listen(&listen_socket, "localhost", "1212", TCS_AF_IP4) == TCS_SUCCESS);
-    CHECK(tcs_simple_create_and_connect(&client_socket, "localhost", "1212", TCS_AF_IP4) == TCS_SUCCESS);
+    CHECK(tcs_create_and_listen(&listen_socket, "localhost", "1212", TCS_AF_IP4) == TCS_SUCCESS);
+    CHECK(tcs_create_and_connect(&client_socket, "localhost", "1212", TCS_AF_IP4) == TCS_SUCCESS);
 
     CHECK(tcs_accept(listen_socket, &accept_socket, NULL) == TCS_SUCCESS);
     CHECK(tcs_destroy(&listen_socket) == TCS_SUCCESS);
@@ -166,8 +186,8 @@ TEST_CASE("Simple TCP Netstring Test")
     // When
     uint8_t recv_buffer[16] = {0};
     uint8_t* send_buffer = (uint8_t*)"12345678";
-    CHECK(tcs_simple_send_netstring(client_socket, send_buffer, 8) == TCS_SUCCESS);
-    CHECK(tcs_simple_recv_netstring(accept_socket, recv_buffer, 16, NULL) == TCS_SUCCESS);
+    CHECK(tcs_send_netstring(client_socket, send_buffer, 8) == TCS_SUCCESS);
+    CHECK(tcs_receive_netstring(accept_socket, recv_buffer, 16, NULL) == TCS_SUCCESS);
 
     // Then
     CHECK(memcmp(recv_buffer, send_buffer, 8) == 0);
@@ -334,9 +354,9 @@ TEST_CASE("TCS_SO_BROADCAST")
     TcsSocket socket_true = TCS_NULLSOCKET;
     TcsSocket socket_fail = TCS_NULLSOCKET;
     TcsSocket socket_null = TCS_NULLSOCKET;
-    CHECK(tcs_create(&socket_false, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
-    CHECK(tcs_create(&socket_true, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
-    CHECK(tcs_create(&socket_fail, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) == TCS_SUCCESS);
+    CHECK(tcs_create_ext(&socket_false, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
+    CHECK(tcs_create_ext(&socket_true, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
+    CHECK(tcs_create_ext(&socket_fail, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) == TCS_SUCCESS);
 
     // When
     CHECK(tcs_set_broadcast(socket_false, false) == TCS_SUCCESS);
@@ -381,9 +401,9 @@ TEST_CASE("TCS_SO_KEEPALIVE")
     TcsSocket socket_fail = TCS_NULLSOCKET;
     TcsSocket socket_null = TCS_NULLSOCKET;
 
-    CHECK(tcs_create(&socket_false, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) == TCS_SUCCESS);
-    CHECK(tcs_create(&socket_true, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) == TCS_SUCCESS);
-    CHECK(tcs_create(&socket_fail, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
+    CHECK(tcs_create_ext(&socket_false, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) == TCS_SUCCESS);
+    CHECK(tcs_create_ext(&socket_true, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) == TCS_SUCCESS);
+    CHECK(tcs_create_ext(&socket_fail, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
 
     // When
     CHECK(tcs_set_keep_alive(socket_false, false) == TCS_SUCCESS);
@@ -424,9 +444,9 @@ TEST_CASE("TCS_SO_LINGER")
     TcsSocket socket_fail = TCS_NULLSOCKET;
     TcsSocket socket_null = TCS_NULLSOCKET;
 
-    CHECK(tcs_create(&socket_false, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) == TCS_SUCCESS);
-    CHECK(tcs_create(&socket_true, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) == TCS_SUCCESS);
-    CHECK(tcs_create(&socket_fail, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
+    CHECK(tcs_create_ext(&socket_false, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) == TCS_SUCCESS);
+    CHECK(tcs_create_ext(&socket_true, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) == TCS_SUCCESS);
+    CHECK(tcs_create_ext(&socket_fail, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
 
     // When
     CHECK(tcs_set_linger(socket_false, false, 3) == TCS_SUCCESS);
@@ -470,9 +490,9 @@ TEST_CASE("TCS_SO_REUSEADDR")
     TcsSocket socket_fail = TCS_NULLSOCKET;
     TcsSocket socket_null = TCS_NULLSOCKET;
 
-    CHECK(tcs_create(&socket_false, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) == TCS_SUCCESS);
-    CHECK(tcs_create(&socket_true, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) == TCS_SUCCESS);
-    CHECK(tcs_create(&socket_fail, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
+    CHECK(tcs_create_ext(&socket_false, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) == TCS_SUCCESS);
+    CHECK(tcs_create_ext(&socket_true, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) == TCS_SUCCESS);
+    CHECK(tcs_create_ext(&socket_fail, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
 
     // When
     CHECK(tcs_set_reuse_address(socket_false, false) == TCS_SUCCESS);
@@ -509,7 +529,7 @@ TEST_CASE("TCS_SO_RCVBUF")
     TcsSocket socket = TCS_NULLSOCKET;
     TcsSocket socket_null = TCS_NULLSOCKET;
 
-    CHECK(tcs_create(&socket, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
+    CHECK(tcs_create_ext(&socket, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
 
     // When
     CHECK(tcs_set_receive_buffer_size(socket, 8192) == TCS_SUCCESS);
@@ -536,7 +556,7 @@ TEST_CASE("TCS_SO_SNDBUF")
     TcsSocket socket = TCS_NULLSOCKET;
     TcsSocket socket_null = TCS_NULLSOCKET;
 
-    CHECK(tcs_create(&socket, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
+    CHECK(tcs_create_ext(&socket, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
 
     // When
     CHECK(tcs_set_send_buffer_size(socket, 8192) == TCS_SUCCESS);
@@ -562,7 +582,7 @@ TEST_CASE("TCS_SO_RCVTIMEO")
     TcsSocket socket = TCS_NULLSOCKET;
     TcsSocket socket_null = TCS_NULLSOCKET;
 
-    CHECK(tcs_create(&socket, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
+    CHECK(tcs_create_ext(&socket, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
 
     // When
     CHECK(tcs_set_receive_timeout(socket, 920) == TCS_SUCCESS);
@@ -591,9 +611,9 @@ TEST_CASE("TCS_SO_OOBINLINE")
     TcsSocket socket_fail = TCS_NULLSOCKET;
     TcsSocket socket_null = TCS_NULLSOCKET;
 
-    CHECK(tcs_create(&socket_false, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) == TCS_SUCCESS);
-    CHECK(tcs_create(&socket_true, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) == TCS_SUCCESS);
-    CHECK(tcs_create(&socket_fail, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
+    CHECK(tcs_create_ext(&socket_false, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) == TCS_SUCCESS);
+    CHECK(tcs_create_ext(&socket_true, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) == TCS_SUCCESS);
+    CHECK(tcs_create_ext(&socket_fail, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
 
     // When
     CHECK(tcs_set_out_of_band_inline(socket_false, false) == TCS_SUCCESS);
@@ -637,7 +657,7 @@ TEST_CASE("Simple Multicast Add Membership")
     multicast_address.data.af_inet.port = 1901;
 
     TcsSocket socket = TCS_NULLSOCKET;
-    CHECK(tcs_create(&socket, TCS_AF_IP4, TCS_SOCK_DGRAM, 0) == TCS_SUCCESS);
+    CHECK(tcs_create_ext(&socket, TCS_AF_IP4, TCS_SOCK_DGRAM, 0) == TCS_SUCCESS);
     CHECK(tcs_set_reuse_address(socket, true) == TCS_SUCCESS);
     CHECK(tcs_set_receive_timeout(socket, 5000) == TCS_SUCCESS);
 
@@ -649,7 +669,7 @@ TEST_CASE("Simple Multicast Add Membership")
 
     uint8_t c;
     size_t a = sizeof(c);
-    CHECK(tcs_getsockopt(socket, TCS_SOL_IP, TCS_SO_IP_MULTICAST_LOOP, &c, &a) == TCS_SUCCESS);
+    CHECK(tcs_get_option(socket, TCS_SOL_IP, TCS_SO_IP_MULTICAST_LOOP, &c, &a) == TCS_SUCCESS);
 
     CHECK(tcs_send_to(socket, msg, sizeof(msg), 0, &multicast_address, NULL) == TCS_SUCCESS);
 
@@ -672,8 +692,8 @@ TEST_CASE("Multicast Add-Drop-Add Membership")
     // Given
     TcsSocket socket_send = TCS_NULLSOCKET;
     TcsSocket socket_recv = TCS_NULLSOCKET;
-    CHECK(tcs_create(&socket_send, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
-    CHECK(tcs_create(&socket_recv, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
+    CHECK(tcs_create_ext(&socket_send, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
+    CHECK(tcs_create_ext(&socket_recv, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) == TCS_SUCCESS);
     tcs_set_receive_timeout(socket_recv, 1000);
     CHECK(tcs_set_reuse_address(socket_recv, true) == TCS_SUCCESS);
 
@@ -715,25 +735,4 @@ TEST_CASE("Multicast Add-Drop-Add Membership")
     CHECK(tcs_destroy(&socket_recv) == TCS_SUCCESS);
     CHECK(tcs_destroy(&socket_send) == TCS_SUCCESS);
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
-}
-
-TEST_CASE("Simple create socket")
-{
-    // Setup
-    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
-
-    // Given
-    TcsSocket socket = TCS_NULLSOCKET;
-
-    // When
-    TcsReturnCode sts = tcs_simple_create(&socket, TCS_ST_UDP_IP4);
-
-    // Then
-    CHECK(sts == TCS_SUCCESS);
-    CHECK(socket != TCS_NULLSOCKET);
-
-    // Clean up
-    CHECK(tcs_destroy(&socket) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
-
 }

@@ -86,6 +86,7 @@ struct TcsInterface
 };
 
 extern const TcsSocket TCS_NULLSOCKET; /**< An empty socket, you should always define your new sockets to this value */
+static const int TCS_NO_FLAGS = 0;
 
 // Type
 extern const int TCS_SOCK_STREAM; /**< Use for streaming types like TCP */
@@ -199,7 +200,7 @@ TcsReturnCode tcs_lib_free(void);
  *
  * @code
  * TcsSocket my_socket = TCS_NULLSOCKET;
- * tcs_create(&my_socket, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_IPPROTO_TCP);
+ * tcs_create_ext(&my_socket, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_IPPROTO_TCP);
  * @endcode
  *
  * @param socket_ctx is your in-out pointer to the socket context, you must initialize the socket to #TCS_NULLSOCKET before use.
@@ -210,7 +211,7 @@ TcsReturnCode tcs_lib_free(void);
  * @see tcs_destroy()
  * @see tcs_lib_init()
  */
-TcsReturnCode tcs_create(TcsSocket* socket_ctx, TcsAddressFamily family, int type, int protocol);
+TcsReturnCode tcs_create_ext(TcsSocket* socket_ctx, TcsAddressFamily family, int type, int protocol);
 
 /**
  * @brief Binds the socket to a local address.
@@ -283,11 +284,11 @@ TcsReturnCode tcs_send(TcsSocket socket_ctx,
  * @see tcs_getaddrinfo()
  */
 TcsReturnCode tcs_send_to(TcsSocket socket_ctx,
-                         const uint8_t* buffer,
-                         size_t buffer_size,
-                         uint32_t flags,
-                         const struct TcsAddress* destination_address,
-                         size_t* bytes_sent);
+                          const uint8_t* buffer,
+                          size_t buffer_size,
+                          uint32_t flags,
+                          const struct TcsAddress* destination_address,
+                          size_t* bytes_sent);
 
 /**
 * @brief Receive data from a socket to your buffer
@@ -336,13 +337,13 @@ TcsReturnCode tcs_receive_from(TcsSocket socket_ctx,
 * @param option_size is the byte size of the data pointed by @p option_value.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsReturnCode tcs_setsockopt(TcsSocket socket_ctx,
+TcsReturnCode tcs_set_option(TcsSocket socket_ctx,
                              int32_t level,
                              int32_t option_name,
                              const void* option_value,
                              size_t option_size);
 
-TcsReturnCode tcs_getsockopt(TcsSocket socket_ctx,
+TcsReturnCode tcs_get_option(TcsSocket socket_ctx,
                              int32_t level,
                              int32_t option_name,
                              void* option_value,
@@ -445,10 +446,10 @@ TcsReturnCode tcs_set_ip_multicast_drop(TcsSocket socket_ctx,
                                         const struct TcsAddress* local_address,
                                         const struct TcsAddress* multicast_address);
 
-TcsReturnCode tcs_simple_create(TcsSocket* socket_ctx, TcsSocketType socket_Type);
+TcsReturnCode tcs_create(TcsSocket* socket_ctx, TcsSocketType socket_Type);
 
 /**
- * @brief Connects a socket to a node and a port.
+ * @brief Connects a TCP/IP socket to a hostname and a port.
  *
  * @param socket_ctx is your out socket context. Must have been previously created.
  * @param hostname is the name of the host to connect to, for example localhost.
@@ -458,13 +459,13 @@ TcsReturnCode tcs_simple_create(TcsSocket* socket_ctx, TcsSocketType socket_Type
  * @see tcs_simple_listen()
  * @see tcs_simple_bind()
  */
-TcsReturnCode tcs_simple_create_and_connect(TcsSocket* socket_ctx,
-                                            const char* hostname,
-                                            const char* port,
-                                            TcsAddressFamily family);
+TcsReturnCode tcs_create_and_connect(TcsSocket* socket_ctx,
+                                     const char* hostname,
+                                     const char* port,
+                                     TcsAddressFamily family);
 
 /**
-* @brief Creates a DATAGRAM socket and binds it to a node and a port.
+* @brief Creates a UDP/IP socket and binds it to a node and a port.
 *
 * @param socket_ctx is your out socket context. Must be of #TCS_NULLSOCKET value.
 * @param hostname is the name of the host to bind to, for example "192.168.0.1" or "localhost".
@@ -473,13 +474,13 @@ TcsReturnCode tcs_simple_create_and_connect(TcsSocket* socket_ctx,
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_simple_connect()
 */
-TcsReturnCode tcs_simple_create_and_bind(TcsSocket* socket_ctx,
-                                         const char* hostname,
-                                         const char* port,
-                                         TcsAddressFamily family);
+TcsReturnCode tcs_create_and_bind(TcsSocket* socket_ctx,
+                                  const char* hostname,
+                                  const char* port,
+                                  TcsAddressFamily family);
 
 /**
-* @brief Creates a socket and starts to listen to an address with TCP
+* @brief Creates a TCP/IP socket and starts to listen to an address.
 *
 * @param socket_ctx is your out socket context. Must be of #TCS_NULLSOCKET value.
 * @param hostname is the name of the address to listen on, for example "192.168.0.1" or "localhost". Use NULL for all interfaces.
@@ -488,10 +489,10 @@ TcsReturnCode tcs_simple_create_and_bind(TcsSocket* socket_ctx,
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_simple_connect()
 */
-TcsReturnCode tcs_simple_create_and_listen(TcsSocket* socket_ctx,
-                                           const char* hostname,
-                                           const char* port,
-                                           TcsAddressFamily family);
+TcsReturnCode tcs_create_and_listen(TcsSocket* socket_ctx,
+                                    const char* hostname,
+                                    const char* port,
+                                    TcsAddressFamily family);
 
 /**
 * @brief Receive data until the buffer is filled (normal recv can fill the buffer less than the buffer length).
@@ -502,7 +503,7 @@ TcsReturnCode tcs_simple_create_and_listen(TcsSocket* socket_ctx,
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_send_all()
 */
-TcsReturnCode tcs_simple_recv_all(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size);
+TcsReturnCode tcs_receive_all(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size);
 
 /**
 * @brief Sends the full buffer (normal send is allowed to send only a part of the buffer)
@@ -512,14 +513,11 @@ TcsReturnCode tcs_simple_recv_all(TcsSocket socket_ctx, uint8_t* buffer, size_t 
 * @param buffer_size is the total size of your buffer in bytes.
 * @param flags your flags.
 */
-TcsReturnCode tcs_simple_send_all(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, uint32_t flags);
+TcsReturnCode tcs_send_all(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, uint32_t flags);
 
-TcsReturnCode tcs_simple_recv_netstring(TcsSocket socket_ctx,
-                                        uint8_t* buffer,
-                                        size_t buffer_size,
-                                        size_t* bytes_received);
+TcsReturnCode tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, size_t* bytes_received);
 
-TcsReturnCode tcs_simple_send_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size);
+TcsReturnCode tcs_send_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size);
 
 #ifdef __cplusplus
 }

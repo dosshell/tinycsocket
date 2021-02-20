@@ -12,14 +12,14 @@ int main(int argc, const char* argv[])
     tcs_lib_init();
 
     TcsSocket client_socket = TCS_NULLSOCKET;
-    tcs_simple_create_and_connect(&client_socket, "example.com", "80", TCS_AF_ANY);
+    tcs_create_and_connect(&client_socket, "example.com", "80", TCS_AF_ANY);
 
     uint8_t send_buffer[] = "GET / HTTP/1.1\nHost: example.com\n\n";
-    tcs_simple_send_all(client_socket, send_buffer, sizeof(send_buffer), 0);
+    tcs_send_all(client_socket, send_buffer, sizeof(send_buffer), TCS_NO_FLAGS);
 
     uint8_t recv_buffer[8192] = {0};
     size_t bytes_received = 0;
-    tcs_receive(client_socket, recv_buffer, 8192, 0, &bytes_received);
+    tcs_receive(client_socket, recv_buffer, 8192, TCS_NO_FLAGS, &bytes_received);
     tcs_destroy(&client_socket);
 
     tcs_lib_free();
@@ -28,7 +28,7 @@ int main(int argc, const char* argv[])
 
 Tinycsocket is a thin cross-platform socket library written in C99. It focuses
 on a minimal footprint, cross-platform and to also provide simple lowlevel utils
-(for example tcs_simple_create_and_connect(...) which resolves and connects to a
+(for example tcs_create_and_connect(...) which resolves and connects to a
 hostname). The API is similar to BSD sockets with some differences. All functions
 return an error-code. The advantage is that the error handling is simple to
 understand and to handle for all plattforms. The disadvantage is that the functions
