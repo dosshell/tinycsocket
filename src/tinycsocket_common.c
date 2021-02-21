@@ -5,7 +5,14 @@
 #include <stdio.h>  //sprintf
 #include <string.h> // memset
 
-uint32_t tcs_util_ipv4_args(uint8_t a, uint8_t b, uint8_t c, uint8_t d);
+TcsReturnCode tcs_util_ipv4_args(uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint32_t* out_address)
+{
+    if (out_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    *out_address = (uint32_t)a << 24 | (uint32_t)b << 16 | (uint32_t)c << 8 | d;
+    return TCS_SUCCESS;
+}
 
 TcsReturnCode tcs_util_string_to_address(const char str[], struct TcsAddress* parsed_address)
 {
@@ -46,7 +53,10 @@ TcsReturnCode tcs_util_string_to_address(const char str[], struct TcsAddress* pa
             return TCS_ERROR_INVALID_ARGUMENT;
 
         parsed_address->family = TCS_AF_IP4;
-        parsed_address->data.af_inet.address = tcs_util_ipv4_args((uint8_t)b1, (uint8_t)b2, (uint8_t)b3, (uint8_t)b4);
+        if (tcs_util_ipv4_args(
+                (uint8_t)b1, (uint8_t)b2, (uint8_t)b3, (uint8_t)b4, &parsed_address->data.af_inet.address) !=
+            TCS_SUCCESS)
+            return TCS_ERROR_UNKNOWN;
         parsed_address->data.af_inet.port = (uint16_t)p;
     }
     else

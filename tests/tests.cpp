@@ -261,7 +261,6 @@ TEST_CASE("Get loopback address")
     size_t no_of_found_addresses = 0;
     struct TcsInterface interfaces[32];
     bool found_loopback = false;
-    uint32_t LOOPBACK_ADDRESS = tcs_util_ipv4_args(127, 0, 0, 1);
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
 
     // When
@@ -270,7 +269,7 @@ TEST_CASE("Get loopback address")
     for (size_t i = 0; i < no_of_found_addresses; ++i)
     {
         if (interfaces[i].address.family == TCS_AF_IP4 &&
-            interfaces[i].address.data.af_inet.address == LOOPBACK_ADDRESS)
+            interfaces[i].address.data.af_inet.address == TCS_ADDRESS_LOOPBACK_IP4)
         {
             found_loopback = true;
         }
@@ -296,7 +295,7 @@ TEST_CASE("tcs_util_address_to_string with only IPv4")
     TcsAddress addr;
     addr.family = TCS_AF_IP4;
     addr.data.af_inet.port = 0;
-    addr.data.af_inet.address = tcs_util_ipv4_args(127, 0, 0, 1);
+    addr.data.af_inet.address = TCS_ADDRESS_LOOPBACK_IP4;
 
     // When
     char address_str[40];
@@ -312,7 +311,7 @@ TEST_CASE("tcs_util_address_to_string with IPv4 and port")
     TcsAddress addr;
     addr.family = TCS_AF_IP4;
     addr.data.af_inet.port = 1234;
-    addr.data.af_inet.address = tcs_util_ipv4_args(127, 0, 0, 1);
+    addr.data.af_inet.address = TCS_ADDRESS_LOOPBACK_IP4;
 
     // When
     char address_str[40];
@@ -334,7 +333,7 @@ TEST_CASE("tcs_util_string_to_address with only IPv4")
     // Then
     CHECK(address.family == TCS_AF_IP4);
     CHECK(address.data.af_inet.port == 0);
-    CHECK(address.data.af_inet.address == tcs_util_ipv4_args(127, 0, 0, 1));
+    CHECK(address.data.af_inet.address == TCS_ADDRESS_LOOPBACK_IP4);
     CHECK(tcs_util_string_to_address("127.256.0.1", &address) == TCS_ERROR_INVALID_ARGUMENT);
     CHECK(tcs_util_string_to_address("-1.0.0.1", &address) == TCS_ERROR_INVALID_ARGUMENT);
     CHECK(tcs_util_string_to_address("0xFF.01.1.0xFF", &address) == TCS_SUCCESS);
@@ -353,7 +352,7 @@ TEST_CASE("tcs_util_string_to_address with IPv4and port")
     // Then
     CHECK(address.family == TCS_AF_IP4);
     CHECK(address.data.af_inet.port == 1234);
-    CHECK(address.data.af_inet.address == tcs_util_ipv4_args(127, 0, 0, 1));
+    CHECK(address.data.af_inet.address == TCS_ADDRESS_LOOPBACK_IP4);
     CHECK(tcs_util_string_to_address("127.255.0.1:65536", &address) == TCS_ERROR_INVALID_ARGUMENT);
     CHECK(tcs_util_string_to_address("1.0.0.1:-1", &address) == TCS_ERROR_INVALID_ARGUMENT);
     CHECK(tcs_util_string_to_address("0xFF.01.1.0xFF:0xFFFF", &address) == TCS_SUCCESS);
@@ -669,7 +668,7 @@ TEST_CASE("Simple Multicast Add Membership")
     address_any.data.af_inet.port = 1901;
 
     TcsAddress multicast_address = {TCS_AF_IP4, {0, 0}};
-    multicast_address.data.af_inet.address = tcs_util_ipv4_args(239, 255, 255, 251);
+    CHECK(tcs_util_ipv4_args(239, 255, 255, 251, &multicast_address.data.af_inet.address) == TCS_SUCCESS);
     multicast_address.data.af_inet.port = 1901;
 
     TcsSocket socket = TCS_NULLSOCKET;
@@ -717,7 +716,7 @@ TEST_CASE("Multicast Add-Drop-Add Membership")
     address_any.data.af_inet.port = 1901;
 
     TcsAddress multicast_address = {TCS_AF_IP4, {0, 0}};
-    multicast_address.data.af_inet.address = tcs_util_ipv4_args(239, 255, 255, 251);
+    CHECK(tcs_util_ipv4_args(239, 255, 255, 251, &multicast_address.data.af_inet.address) == TCS_SUCCESS);
     multicast_address.data.af_inet.port = 1901;
 
     CHECK(tcs_bind_address(socket_recv, &address_any) == TCS_SUCCESS);

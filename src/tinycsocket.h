@@ -169,14 +169,9 @@ typedef enum
 /**
  * @brief Plattform independent for creating an IPv4 address.
  * 
- * This function will always succeed and does not return TCS_SUCCESS.
- *
- * @return the ipv4 address.
+ * @return #TCS_SUCCESS if successful, otherwise the error code.
  */
-inline uint32_t tcs_util_ipv4_args(uint8_t a, uint8_t b, uint8_t c, uint8_t d)
-{
-    return (uint32_t)a << 24 | (uint32_t)b << 16 | (uint32_t)c << 8 | d;
-}
+TcsReturnCode tcs_util_ipv4_args(uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint32_t* out_address);
 
 /**
  * @brief Plattform independent parsing of a string to an IPv4 or IPv6 address.
