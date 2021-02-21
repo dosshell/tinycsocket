@@ -48,6 +48,12 @@
 
 const TcsSocket TCS_NULLSOCKET = -1;
 
+// Addresses
+const uint32_t TCS_ADDRESS_ANY_IP4 = INADDR_ANY;
+const uint32_t TCS_ADDRESS_LOOPBACK_IP4 = INADDR_LOOPBACK;
+const uint32_t TCS_ADDRESS_BROADCAST_IP4 = INADDR_BROADCAST;
+const uint32_t TCS_ADDRESS_NONE_IP4 = INADDR_NONE;
+
 // Type
 const int TCS_SOCK_STREAM = SOCK_STREAM;
 const int TCS_SOCK_DGRAM = SOCK_DGRAM;
@@ -194,7 +200,7 @@ TcsReturnCode tcs_create_ext(TcsSocket* socket_ctx, TcsAddressFamily family, int
         return errno2retcode(errno);
 }
 
-TcsReturnCode tcs_bind(TcsSocket socket_ctx, const struct TcsAddress* address)
+TcsReturnCode tcs_bind_address(TcsSocket socket_ctx, const struct TcsAddress* address)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -210,7 +216,7 @@ TcsReturnCode tcs_bind(TcsSocket socket_ctx, const struct TcsAddress* address)
         return errno2retcode(errno);
 }
 
-TcsReturnCode tcs_connect(TcsSocket socket_ctx, const struct TcsAddress* address)
+TcsReturnCode tcs_connect_address(TcsSocket socket_ctx, const struct TcsAddress* address)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -228,7 +234,7 @@ TcsReturnCode tcs_connect(TcsSocket socket_ctx, const struct TcsAddress* address
         return errno2retcode(errno);
 }
 
-TcsReturnCode tcs_listen(TcsSocket socket_ctx, int backlog)
+TcsReturnCode tcs_listen_ext(TcsSocket socket_ctx, int backlog)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -468,14 +474,13 @@ TcsReturnCode tcs_destroy(TcsSocket* socket_ctx)
     }
 }
 
-TcsReturnCode tcs_get_addresses(const char* node,
-                                const char* service,
-                                TcsAddressFamily address_family,
-                                struct TcsAddress found_addresses[],
-                                size_t found_addresses_length,
-                                size_t* no_of_found_addresses)
+TcsReturnCode tcs_resolve_hostname(const char* hostname,
+                                   TcsAddressFamily address_family,
+                                   struct TcsAddress found_addresses[],
+                                   size_t found_addresses_length,
+                                   size_t* no_of_found_addresses)
 {
-    if (node == NULL && service == NULL)
+    if (hostname == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     if (found_addresses == NULL && no_of_found_addresses == NULL)
@@ -488,11 +493,9 @@ TcsReturnCode tcs_get_addresses(const char* node,
     TcsReturnCode family_convert_status = family2native(address_family, (sa_family_t*)&native_hints.ai_family);
     if (family_convert_status != TCS_SUCCESS)
         return family_convert_status;
-    if (node == NULL)
-        native_hints.ai_flags = AI_PASSIVE;
 
     struct addrinfo* native_addrinfo_list = NULL;
-    int sts = getaddrinfo(node, service, &native_hints, &native_addrinfo_list);
+    int sts = getaddrinfo(hostname, NULL, &native_hints, &native_addrinfo_list);
     if (sts == EAI_SYSTEM)
         return errno2retcode(errno);
     else if (native_addrinfo_list == NULL)
@@ -530,9 +533,9 @@ TcsReturnCode tcs_get_addresses(const char* node,
 
 // This is not part of posix, we need to be platform specific here
 #if TCS_HAVE_IFADDRS // acquired from CMake
-TcsReturnCode tcs_get_interfaces(struct TcsInterface found_interfaces[],
-                                 size_t found_interfaces_length,
-                                 size_t* no_of_found_interfaces)
+TcsReturnCode tcs_local_interfaces(struct TcsInterface found_interfaces[],
+                                   size_t found_interfaces_length,
+                                   size_t* no_of_found_interfaces)
 {
     if (found_interfaces == NULL && no_of_found_interfaces == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -573,9 +576,9 @@ TcsReturnCode tcs_get_interfaces(struct TcsInterface found_interfaces[],
 // SunOS before 2010, HP and AIX does not support getifaddrs
 // ioctl implementation,
 // https://stackoverflow.com/questions/4139405/how-can-i-get-to-know-the-ip-address-for-interfaces-in-c/4139811#4139811
-TcsReturnCode tcs_get_interfaces(struct TcsInterface found_interfaces[],
-                                 size_t found_interfaces_length,
-                                 size_t* no_of_found_interfaces)
+TcsReturnCode tcs_local_interfaces(struct TcsInterface found_interfaces[],
+                                   size_t found_interfaces_length,
+                                   size_t* no_of_found_interfaces)
 {
     if (found_interfaces == NULL && no_of_found_interfaces == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;

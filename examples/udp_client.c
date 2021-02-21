@@ -37,22 +37,21 @@ int main(void)
         return show_error("Could not init tinycsocket");
 
     TcsSocket socket = TCS_NULLSOCKET;
-    if (tcs_create_ext(&socket, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_IPPROTO_UDP) != TCS_SUCCESS)
+    if (tcs_create(&socket, TCS_ST_UDP_IP4) != TCS_SUCCESS)
         return show_error("Could not create socket");
 
     struct TcsAddress remote_info;
-
-    if (tcs_get_addresses("localhost", "1212", TCS_AF_IP4, &remote_info, 1, NULL) != TCS_SUCCESS)
+    if (tcs_resolve_hostname("localhost", TCS_AF_IP4, &remote_info, 1, NULL) != TCS_SUCCESS)
         return show_error("Could not resolve localhost");
 
     char msg[] = "hello world\n";
-    if (tcs_send_to(socket, (const uint8_t*)msg, sizeof(msg), 0, &remote_info, NULL) != TCS_SUCCESS)
+    if (tcs_send_to(socket, (const uint8_t*)msg, sizeof(msg), TCS_NO_FLAGS, &remote_info, NULL) != TCS_SUCCESS)
         return show_error("Could not send message");
 
     uint8_t recv_buffer[1024];
+    size_t recv_size = sizeof(recv_buffer) - sizeof('\0');
     size_t bytes_received = 0;
-    if (tcs_receive_from(socket, recv_buffer, sizeof(recv_buffer) - sizeof('\0'), 0, NULL, &bytes_received) !=
-        TCS_SUCCESS)
+    if (tcs_receive_from(socket, recv_buffer, recv_size, TCS_NO_FLAGS, NULL, &bytes_received) != TCS_SUCCESS)
         return show_error("Could not receive data");
 
     // Makes sure it is a NULL terminated string, this is why we only accept 1023 bytes in receive

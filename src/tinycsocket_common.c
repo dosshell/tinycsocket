@@ -5,6 +5,8 @@
 #include <stdio.h>  //sprintf
 #include <string.h> // memset
 
+uint32_t tcs_util_ipv4_args(uint8_t a, uint8_t b, uint8_t c, uint8_t d);
+
 TcsReturnCode tcs_util_string_to_address(const char str[], struct TcsAddress* parsed_address)
 {
     if (parsed_address == NULL)
@@ -108,100 +110,54 @@ TcsReturnCode tcs_create(TcsSocket* socket_ctx, TcsSocketType socket_type)
     return tcs_create_ext(socket_ctx, family, type, protocol);
 }
 
-TcsReturnCode tcs_create_and_connect(TcsSocket* socket_ctx,
-                                     const char* hostname,
-                                     const char* port,
-                                     TcsAddressFamily family)
+TcsReturnCode tcs_connect(TcsSocket socket_ctx, const char* hostname, uint16_t port)
 {
-    if (socket_ctx == NULL)
+    if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     struct TcsAddress found_addresses[32] = {0};
     size_t no_of_found_addresses = 0;
-    int sts = tcs_get_addresses(hostname, port, family, found_addresses, 32, &no_of_found_addresses);
+    TcsAddressFamily family = TCS_AF_IP4;
+    int sts = tcs_resolve_hostname(hostname, family, found_addresses, 32, &no_of_found_addresses);
     if (sts != TCS_SUCCESS)
         return sts;
 
     for (size_t i = 0; i < no_of_found_addresses; ++i)
     {
-        sts = tcs_create_ext(socket_ctx, found_addresses[i].family, TCS_SOCK_STREAM, 0);
-        if (sts != TCS_SUCCESS)
-        {
-            continue;
-        }
-        if (tcs_connect(*socket_ctx, &found_addresses[i]) == TCS_SUCCESS)
-        {
+        found_addresses[i].data.af_inet.port = port;
+        if (tcs_connect_address(socket_ctx, &found_addresses[i]) == TCS_SUCCESS)
             return TCS_SUCCESS;
-        }
-        else
-        {
-            tcs_destroy(socket_ctx);
-        }
     }
 
     return TCS_ERROR_CONNECTION_REFUSED;
 }
 
-int tcs_create_and_bind(TcsSocket* socket_ctx, const char* hostname, const char* port, TcsAddressFamily family)
+TcsReturnCode tcs_bind(TcsSocket socket_ctx, uint16_t port)
 {
-    struct TcsAddress found_addresses[32] = {0};
-    size_t no_of_found_addresses = 0;
-    int sts = tcs_get_addresses(hostname, port, family, found_addresses, 32, &no_of_found_addresses);
-    if (sts != TCS_SUCCESS)
-        return sts;
-
-    bool is_bounded = false;
-    for (size_t i = 0; i < no_of_found_addresses; ++i)
-    {
-        if (tcs_create_ext(socket_ctx, found_addresses[i].family, TCS_SOCK_DGRAM, 0) != TCS_SUCCESS)
-            continue;
-
-        if (tcs_bind(*socket_ctx, &found_addresses[i]) != TCS_SUCCESS)
-        {
-            tcs_destroy(socket_ctx);
-            continue;
-        }
-
-        is_bounded = true;
-        break;
-    }
-
-    if (!is_bounded)
-    {
-        return TCS_ERROR_UNKNOWN;
-    }
-
-    return TCS_SUCCESS;
-}
-
-int tcs_create_and_listen(TcsSocket* socket_ctx, const char* hostname, const char* port, TcsAddressFamily family)
-{
-    if (socket_ctx == NULL || *socket_ctx != TCS_NULLSOCKET)
+    if (socket_ctx == TCS_NULLSOCKET || port == 0)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    struct TcsAddress found_address = {0};
+    struct TcsAddress local_address = {0};
+    local_address.family = TCS_AF_IP4;
+    local_address.data.af_inet.address = TCS_ADDRESS_ANY_IP4;
+    local_address.data.af_inet.port = port;
 
-    int sts = 0;
-    sts = tcs_get_addresses(hostname, port, family, &found_address, 1, NULL);
-    if (sts != TCS_SUCCESS)
-        return sts;
-
-    sts = tcs_create_ext(socket_ctx, found_address.family, TCS_SOCK_STREAM, 0);
-    if (sts != TCS_SUCCESS)
-        return sts;
-
-    sts = tcs_bind(*socket_ctx, &found_address);
-    if (sts != TCS_SUCCESS)
-        return sts;
-
-    sts = tcs_listen(*socket_ctx, TCS_BACKLOG_SOMAXCONN);
-    if (sts != TCS_SUCCESS)
-        return sts;
-
-    return TCS_SUCCESS;
+    return tcs_bind_address(socket_ctx, &local_address);
 }
 
-int tcs_receive_all(TcsSocket socket_ctx, uint8_t* buffer, size_t length)
+TcsReturnCode tcs_listen(TcsSocket socket_ctx, uint16_t port)
+{
+    if (socket_ctx == TCS_NULLSOCKET)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    TcsReturnCode sts = tcs_bind(socket_ctx, port);
+    if (sts != TCS_SUCCESS)
+        return sts;
+
+    return tcs_listen_ext(socket_ctx, TCS_BACKLOG_SOMAXCONN);
+}
+
+TcsReturnCode tcs_receive_all(TcsSocket socket_ctx, uint8_t* buffer, size_t length)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -219,7 +175,7 @@ int tcs_receive_all(TcsSocket socket_ctx, uint8_t* buffer, size_t length)
     return TCS_SUCCESS;
 }
 
-int tcs_send_all(TcsSocket socket_ctx, uint8_t* buffer, size_t length, uint32_t flags)
+TcsReturnCode tcs_send_all(TcsSocket socket_ctx, const uint8_t* buffer, size_t length, uint32_t flags)
 {
     size_t left = length;
     size_t sent = 0;
@@ -235,7 +191,7 @@ int tcs_send_all(TcsSocket socket_ctx, uint8_t* buffer, size_t length, uint32_t 
     return TCS_SUCCESS;
 }
 
-int tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_length, size_t* bytes_received)
+TcsReturnCode tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_length, size_t* bytes_received)
 {
     if (socket_ctx == TCS_NULLSOCKET || buffer == NULL || buffer_length <= 0)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -287,7 +243,7 @@ int tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_l
     return TCS_SUCCESS;
 }
 
-int tcs_send_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_length)
+TcsReturnCode tcs_send_netstring(TcsSocket socket_ctx, const uint8_t* buffer, size_t buffer_length)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
