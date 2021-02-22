@@ -90,7 +90,7 @@ TcsReturnCode tcs_util_address_to_string(const struct TcsAddress* address, char 
     return TCS_SUCCESS;
 }
 
-TcsReturnCode tcs_create(TcsSocket* socket_ctx, TcsSocketType socket_type)
+TcsReturnCode tcs_create(TcsSocket* socket_ctx, TcsType socket_type)
 {
     if (socket_ctx == NULL || *socket_ctx != TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -101,18 +101,18 @@ TcsReturnCode tcs_create(TcsSocket* socket_ctx, TcsSocketType socket_type)
 
     switch (socket_type)
     {
-        case TCS_ST_TCP_IP4:
+        case TCS_TYPE_TCP_IP4:
             family = TCS_AF_IP4;
             type = TCS_SOCK_STREAM;
             protocol = TCS_IPPROTO_TCP;
             break;
-        case TCS_ST_UDP_IP4:
+        case TCS_TYPE_UDP_IP4:
             family = TCS_AF_IP4;
             type = TCS_SOCK_DGRAM;
             protocol = TCS_IPPROTO_UDP;
             break;
-        case TCS_ST_TCP_IP6:
-        case TCS_ST_UDP_IP6:
+        case TCS_TYPE_TCP_IP6:
+        case TCS_TYPE_UDP_IP6:
         default:
             return TCS_ERROR_NOT_IMPLEMENTED;
             break;
@@ -155,16 +155,16 @@ TcsReturnCode tcs_bind(TcsSocket socket_ctx, uint16_t port)
     return tcs_bind_address(socket_ctx, &local_address);
 }
 
-TcsReturnCode tcs_listen(TcsSocket socket_ctx, uint16_t port)
+TcsReturnCode tcs_listen_to(TcsSocket socket_ctx, uint16_t local_port)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    TcsReturnCode sts = tcs_bind(socket_ctx, port);
+    TcsReturnCode sts = tcs_bind(socket_ctx, local_port);
     if (sts != TCS_SUCCESS)
         return sts;
 
-    return tcs_listen_ext(socket_ctx, TCS_BACKLOG_SOMAXCONN);
+    return tcs_listen(socket_ctx, TCS_BACKLOG_SOMAXCONN);
 }
 
 TcsReturnCode tcs_receive_all(TcsSocket socket_ctx, uint8_t* buffer, size_t length)

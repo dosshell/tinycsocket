@@ -104,11 +104,11 @@ extern const int TCS_IPPROTO_UDP; /**< Use UDP protocol (use with TCS_SOCK_DGRAM
 // Simple socket creation
 typedef enum
 {
-    TCS_ST_TCP_IP4,
-    TCS_ST_UDP_IP4,
-    TCS_ST_TCP_IP6,
-    TCS_ST_UDP_IP6,
-} TcsSocketType;
+    TCS_TYPE_TCP_IP4,
+    TCS_TYPE_UDP_IP4,
+    TCS_TYPE_TCP_IP6,
+    TCS_TYPE_UDP_IP6,
+} TcsType;
 
 // Flags
 extern const uint32_t TCS_AI_PASSIVE; /**< Use this flag for pure listening sockets */
@@ -167,25 +167,54 @@ typedef enum
 } TcsReturnCode;
 
 /**
- * @brief Plattform independent for creating an IPv4 address.
+ * @brief Plattform independent utility function to compose an IPv4 address from 4 bytes.
  * 
+ * The order of the bytes are: a.b.c.d. Tinycsocket API will always expose host byte order (little endian).
+ * You will _never_ need to think of byte order (except if you are debugging the library OS specific parts of course).
+ *
+ * @code
+ * // Create address 192.168.0.1
+ * uint32_t address = 0;
+ * tcs_util_ipv4_args(192, 168, 0, 1, &address);
+ * @endcode
+ * 
+ * @param a Is the first byte
+ * @param b Is the second byte
+ * @param c Is the third byte
+ * @param d Is the forth byte
+ * @param out_address is your ipv4 address stored as an unsigned 32bit integer. This parameter can not be NULL.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  */
 TcsReturnCode tcs_util_ipv4_args(uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint32_t* out_address);
 
 /**
- * @brief Plattform independent parsing of a string to an IPv4 or IPv6 address.
+ * @brief Plattform independent parsing of a string to an IPv4 address.
  *
+ * If the local_port argument is excluded from the string the assign local_port value out the address will be zero.
+ * Some example of valid formats are "192.168.0.1" or "127.0.0.1:1212".
+ * The address format also supports mixed hex, octal and decimal format. For example "0xC0.0250.0.0x01:0x4bc".
+ * 
+ * @code
+ * TcsSocket socket = TCS_NULLSOCKET;
+ * tcs_create(&socket, TCS_TYPE_TCP_IP4);
+ * struct TcsAddress address;
+ * tcs_util_string_to_address("192.168.0.1:1212", &address);
+ * tcs_connect_address(socket, address);
+ * @endcode
+ * 
+ * @str is a valid pointer to an IPv4 NULL terminated string address, with optional local_port number. Such as "192.168.0.1:1212".
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  */
-TcsReturnCode tcs_util_string_to_address(const char str[], struct TcsAddress* parsed_address);
+TcsReturnCode tcs_util_string_to_address(const char str[], struct TcsAddress* out_address);
 
 /**
- * @brief Plattform independent parsing of an IPv4 or IPv6 address to a string.
+ * @brief Plattform independent parsing of an IPv4 address to a string.
  *
+ * @param address
+ * @param out_str
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  */
-TcsReturnCode tcs_util_address_to_string(const struct TcsAddress* address, char str[40]);
+TcsReturnCode tcs_util_address_to_string(const struct TcsAddress* address, char out_str[40]);
 
 /**
  * @brief Call this to initialize the library, eg. call this before any other function.
@@ -212,16 +241,16 @@ TcsReturnCode tcs_lib_free(void);
  *
  * @code
  * TcsSocket my_socket = TCS_NULLSOCKET;
- * tcs_create(&my_socket, TCS_ST_TCP_IP4);
+ * tcs_create(&my_socket, TCS_TYPE_TCP_IP4);
  * @endcode
  *
  * @param socket_ctx is your in-out pointer to the socket context, you must initialize the socket to #TCS_NULLSOCKET before use.
- * @param socket_type specifies the internet and transport layer, for example #TCS_ST_TCP_IP4 or #TCS_ST_UDP_IP6.
+ * @param socket_type specifies the internet and transport layer, for example #TCS_TYPE_TCP_IP4 or #TCS_TYPE_UDP_IP6.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_destroy()
  * @see tcs_lib_init()
  */
-TcsReturnCode tcs_create(TcsSocket* socket_ctx, TcsSocketType socket_Type);
+TcsReturnCode tcs_create(TcsSocket* socket_ctx, TcsType socket_Type);
 
 /**
  * @brief Creates a new socket with BSD-style options such family, type and protocol.
@@ -241,22 +270,52 @@ TcsReturnCode tcs_create(TcsSocket* socket_ctx, TcsSocketType socket_Type);
  */
 TcsReturnCode tcs_create_ext(TcsSocket* socket_ctx, TcsAddressFamily family, int type, int protocol);
 
-TcsReturnCode tcs_bind(TcsSocket socket_ctx, uint16_t port);
+/**
+ * @brief Binds a socket to local_port on all interfaces.
+ *
+ * This is similar to:
+ * @code
+ * struct TcsAddress local_address = {0};
+ * local_address.family = TCS_AF_IP4;
+ * local_address.data.af_inet.address = TCS_ADDRESS_ANY_IP4;
+ * local_address.data.af_inet.local_port = local_port;
+ * tcs_bind_address(socket_ctx, &local_address);
+ * @endcode
+ * 
+ * @param socket_ctx is your in-out socket context you want bind.
+ * @param local_port is your local portnumber you want to bind to.
+ * @return #TCS_SUCCESS if successful, otherwise the error code.
+ * @see tcs_bind_address()
+ * @see tcs_listen()
+ */
+TcsReturnCode tcs_bind(TcsSocket socket_ctx, uint16_t local_port);
 
 /**
- * @brief Binds the socket to a local address.
+ * @brief Binds a socket to a local address.
  *
- * @param socket_ctx is your in-out socket context.
- * @param address is you address to bind to.
+ * @param socket_ctx is your in-out socket context you want to bind.
+ * @param local_address is your local address you want to bind to.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
- * @see tcs_getaddrinfo()
+ * @see tcs_bind()
+ * @see tcs_get_interfaces()
+ * @see tcs_listen()
  */
 TcsReturnCode tcs_bind_address(TcsSocket socket_ctx, const struct TcsAddress* local_address);
 
+/**
+ * @brief Connect a socket to a remote hostname and port.
+ *
+ * @param socket_ctx is your in-out socket context you want to connect. 
+ * @param local_address is your local address you want to bind to.
+ * @return #TCS_SUCCESS if successful, otherwise the error code.
+ * @see tcs_bind()
+ * @see tcs_get_interfaces()
+ * @see tcs_listen()
+ */
 TcsReturnCode tcs_connect(TcsSocket socket_Ctx, const char* hostname, uint16_t port);
 
 /**
- * @brief Connects to a remote address
+ * @brief Connects a socket to a remote address.
  *
  * @param socket_ctx is your in-out socket context.
  * @param address is the remote address to connect to.
@@ -265,24 +324,52 @@ TcsReturnCode tcs_connect(TcsSocket socket_Ctx, const char* hostname, uint16_t p
  */
 TcsReturnCode tcs_connect_address(TcsSocket socket_ctx, const struct TcsAddress* address);
 
-TcsReturnCode tcs_listen(TcsSocket socket_ctx, uint16_t);
-
 /**
- * @brief Start listen for incoming sockets. Call #tcs_bind() first do bind to a local port.
+ * @brief Let a socket start listening for incoming connections.
+ *
+ * Call #tcs_bind() first to bind to a local address to listening at.
  *
  * @param socket_ctx is your in-out socket context.
  * @param backlog is the maximum number of queued incoming sockets. Use #TCS_BACKLOG_SOMAXCONN to set it to max.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_accept()
  */
-TcsReturnCode tcs_listen_ext(TcsSocket socket_ctx, int backlog);
+TcsReturnCode tcs_listen(TcsSocket socket_ctx, int backlog);
 
 /**
- * @brief Accepts a socket from a listen socket.
+* @brief Bind a socket to a local portnumber and start listening to new connections.
+* 
+* This is similar to:
+* @code
+* tcs_bind(socket_ctx, local_port);
+* tcs_listen(socket_ctx, TCS_BACKLOG_SOMAXCONN);
+* @endcode
+*/
+TcsReturnCode tcs_listen_to(TcsSocket socket_ctx, uint16_t local_port);
+
+/**
+ * @brief Accept a socket from a listening socket.
  *
+ * The accepted socket will get assigned a random local free port.
+ * The listening socket will not be affected by this call.
+ * 
+ * Example usage:
+ * @code
+ * TcsSocket listen_socket = TCS_NULLSOCKET;
+ * tcs_create(&listen_socket, TCS_TYPE_TCP_IP4);
+ * tcs_listen_to(listen_socket, 1212);
+ * while (true)
+ * {
+ *   TcsSocket accept_socket = TCS_NULLSOCKET;
+ *   tcs_accept(listen_socket, &accept_socket, NULL)
+ *   // Do stuff with accept_socket here
+ *   tcs_close(&accept_socket);
+ * }
+ * @endcode
+ * 
  * @param socket_ctx is your listening socket you used when you called #tcs_listen_ext().
- * @param child_socket_ctx is you accepted socket. Must have the in value of #TCS_NULLSOCKET.
- * @param address is an optional pointer to a buffer where the underlaying address can be stored.
+ * @param child_socket_ctx is your accepted socket. Must have the in value of #TCS_NULLSOCKET.
+ * @param address is an optional pointer to a buffer where the remote address of the accepted socket can be stored.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  */
 TcsReturnCode tcs_accept(TcsSocket socket_ctx, TcsSocket* child_socket_ctx, struct TcsAddress* address);

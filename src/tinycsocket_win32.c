@@ -276,7 +276,7 @@ TcsReturnCode tcs_connect_address(TcsSocket socket_ctx, const struct TcsAddress*
     return socketstatus2retcode(connect_status);
 }
 
-TcsReturnCode tcs_listen_ext(TcsSocket socket_ctx, int backlog)
+TcsReturnCode tcs_listen(TcsSocket socket_ctx, int backlog)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;

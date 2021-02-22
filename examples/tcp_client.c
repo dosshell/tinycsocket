@@ -39,7 +39,7 @@ int main(void)
         return show_error("Could not init tinycsocket");
 
     TcsSocket client_socket = TCS_NULLSOCKET;
-    if (tcs_create(&client_socket, TCS_ST_TCP_IP4) != TCS_SUCCESS)
+    if (tcs_create(&client_socket, TCS_TYPE_TCP_IP4) != TCS_SUCCESS)
         return show_error("Could not create a socket");
 
     if (tcs_connect(client_socket, "lcoalhost", 1212) != TCS_SUCCESS)

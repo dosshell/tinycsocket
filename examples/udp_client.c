@@ -37,7 +37,7 @@ int main(void)
         return show_error("Could not init tinycsocket");
 
     TcsSocket socket = TCS_NULLSOCKET;
-    if (tcs_create(&socket, TCS_ST_UDP_IP4) != TCS_SUCCESS)
+    if (tcs_create(&socket, TCS_TYPE_UDP_IP4) != TCS_SUCCESS)
         return show_error("Could not create socket");
 
     struct TcsAddress remote_info;

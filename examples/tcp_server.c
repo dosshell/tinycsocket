@@ -39,10 +39,10 @@ int main(void)
     TcsSocket listen_socket = TCS_NULLSOCKET;
     TcsSocket child_socket = TCS_NULLSOCKET;
 
-    if (tcs_create(&listen_socket, TCS_ST_TCP_IP4) != TCS_SUCCESS)
+    if (tcs_create(&listen_socket, TCS_TYPE_TCP_IP4) != TCS_SUCCESS)
         return show_error("Could not create a listen socket");
 
-    if (tcs_listen(listen_socket, 1212) != TCS_SUCCESS)
+    if (tcs_listen_to(listen_socket, 1212) != TCS_SUCCESS)
         return show_error("Could not listen");
 
     if (tcs_accept(listen_socket, &child_socket, NULL) != TCS_SUCCESS)

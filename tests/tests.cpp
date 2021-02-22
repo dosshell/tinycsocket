@@ -45,7 +45,7 @@ TEST_CASE("Example from README")
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
 
     TcsSocket client_socket = TCS_NULLSOCKET;
-    CHECK(tcs_create(&client_socket, TCS_ST_TCP_IP4) == TCS_SUCCESS);
+    CHECK(tcs_create(&client_socket, TCS_TYPE_TCP_IP4) == TCS_SUCCESS);
     CHECK(tcs_connect(client_socket, "example.com", 80) == TCS_SUCCESS);
 
     uint8_t send_buffer[] = "GET / HTTP/1.1\nHost: example.com\n\n";
@@ -75,7 +75,7 @@ TEST_CASE("Create socket")
     TcsSocket socket = TCS_NULLSOCKET;
 
     // When
-    TcsReturnCode sts = tcs_create(&socket, TCS_ST_UDP_IP4);
+    TcsReturnCode sts = tcs_create(&socket, TCS_TYPE_UDP_IP4);
 
     // Then
     CHECK(sts == TCS_SUCCESS);
@@ -134,7 +134,7 @@ TEST_CASE("Bind UDP")
 
     // Given
     TcsSocket socket = TCS_NULLSOCKET;
-    CHECK(tcs_create(&socket, TCS_ST_UDP_IP4) == TCS_SUCCESS);
+    CHECK(tcs_create(&socket, TCS_TYPE_UDP_IP4) == TCS_SUCCESS);
 
     // When
     TcsReturnCode sts = tcs_bind(socket, 1465);
@@ -156,10 +156,10 @@ TEST_CASE("Simple TCP Test")
     TcsSocket accept_socket = TCS_NULLSOCKET;
     TcsSocket client_socket = TCS_NULLSOCKET;
 
-    CHECK(tcs_create(&listen_socket, TCS_ST_TCP_IP4) == TCS_SUCCESS);
-    CHECK(tcs_create(&client_socket, TCS_ST_TCP_IP4) == TCS_SUCCESS);
+    CHECK(tcs_create(&listen_socket, TCS_TYPE_TCP_IP4) == TCS_SUCCESS);
+    CHECK(tcs_create(&client_socket, TCS_TYPE_TCP_IP4) == TCS_SUCCESS);
 
-    CHECK(tcs_listen(listen_socket, 1212) == TCS_SUCCESS);
+    CHECK(tcs_listen_to(listen_socket, 1212) == TCS_SUCCESS);
     CHECK(tcs_connect(client_socket, "localhost", 1212) == TCS_SUCCESS);
 
     CHECK(tcs_accept(listen_socket, &accept_socket, NULL) == TCS_SUCCESS);
@@ -190,10 +190,10 @@ TEST_CASE("Simple TCP Netstring Test")
     TcsSocket accept_socket = TCS_NULLSOCKET;
     TcsSocket client_socket = TCS_NULLSOCKET;
 
-    CHECK(tcs_create(&listen_socket, TCS_ST_TCP_IP4) == TCS_SUCCESS);
-    CHECK(tcs_create(&client_socket, TCS_ST_TCP_IP4) == TCS_SUCCESS);
+    CHECK(tcs_create(&listen_socket, TCS_TYPE_TCP_IP4) == TCS_SUCCESS);
+    CHECK(tcs_create(&client_socket, TCS_TYPE_TCP_IP4) == TCS_SUCCESS);
 
-    CHECK(tcs_listen(listen_socket, 1212) == TCS_SUCCESS);
+    CHECK(tcs_listen_to(listen_socket, 1212) == TCS_SUCCESS);
     CHECK(tcs_connect(client_socket, "localhost", 1212) == TCS_SUCCESS);
 
     CHECK(tcs_accept(listen_socket, &accept_socket, NULL) == TCS_SUCCESS);
