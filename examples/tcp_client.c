@@ -39,34 +39,20 @@ int main(void)
         return show_error("Could not init tinycsocket");
 
     TcsSocket client_socket = TCS_NULLSOCKET;
-
-    struct TcsAddress address[32];
-    size_t found_addresses;
-    if (tcs_get_addresses("localhost", "1212", TCS_AF_IP4, address, 32, &found_addresses) != TCS_SUCCESS)
-        return show_error("Could not resolve listen address");
-
-    if (tcs_create(&client_socket, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_IPPROTO_TCP) != TCS_SUCCESS)
+    if (tcs_create(&client_socket, TCS_TYPE_TCP_IP4) != TCS_SUCCESS)
         return show_error("Could not create a socket");
 
-    bool is_connected = false;
-    for (size_t i = 0; i < found_addresses; ++i)
-    {
-        if (tcs_connect(client_socket, &address[i]) == TCS_SUCCESS)
-        {
-            is_connected = true;
-            break;
-        }
-    }
-
-    if (!is_connected)
+    if (tcs_connect(client_socket, "lcoalhost", 1212) != TCS_SUCCESS)
         return show_error("Could not connect to server");
 
     char msg[] = "hello world\n";
-    tcs_send(client_socket, (const uint8_t*)msg, sizeof(msg), 0, NULL);
+    if (tcs_send_all(client_socket, (const uint8_t*)msg, sizeof(msg), TCS_NO_FLAGS) != TCS_SUCCESS)
+        return show_error("Could not send message");
 
     uint8_t recv_buffer[1024];
+    size_t recv_size = sizeof(recv_buffer) - sizeof('\0');
     size_t bytes_received = 0;
-    if (tcs_recv(client_socket, recv_buffer, sizeof(recv_buffer) - sizeof('\0'), 0, &bytes_received) != TCS_SUCCESS)
+    if (tcs_receive(client_socket, recv_buffer, recv_size, TCS_NO_FLAGS, &bytes_received) != TCS_SUCCESS)
         return show_error("Could not receive data");
 
     // Makes sure it is a NULL terminated string, this is why we only accept 1023 bytes in receive
@@ -76,7 +62,7 @@ int main(void)
     if (tcs_shutdown(client_socket, TCS_SD_BOTH) != TCS_SUCCESS)
         return show_error("Could not shutdown socket");
 
-    if (tcs_close(&client_socket) != TCS_SUCCESS)
+    if (tcs_destroy(&client_socket) != TCS_SUCCESS)
         return show_error("Could not close the socket");
 
     if (tcs_lib_free() != TCS_SUCCESS)

@@ -30,7 +30,7 @@ option(TCS_WARNINGS_AS_ERRORS "Enable treat warnings as errors" OFF)
 check_symbol_exists(getifaddrs "sys/types.h;ifaddrs.h" TCS_HAVE_IFADDRS)
 
 if (TCS_HAVE_IFADDRS)
-add_definitions("-DTCS_HAVE_IFADDRS")
+  add_definitions("-DTCS_HAVE_IFADDRS")
 endif ()
 
 add_subdirectory(src)
