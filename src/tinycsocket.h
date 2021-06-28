@@ -44,8 +44,13 @@ extern "C" {
 
 // Then we have some platforms specific definitions
 #if defined(TINYCSOCKET_USE_WIN32_IMPL)
+#ifdef _WINSOCKAPI_
+#error winsock.h included instead of WinSock2.h. Define "_WINSOCKAPI_" or include this header file before windows.h to fix the problem
+#endif
+#define _WINSOCKAPI_ // Prevent inclusion of winsock.h in windows.h, use WinSock2.h
 #include <basetsd.h>
 typedef UINT_PTR TcsSocket;
+
 #elif defined(TINYCSOCKET_USE_POSIX_IMPL)
 typedef int TcsSocket;
 #endif
@@ -78,6 +83,16 @@ struct TcsAddress
         } af_inet6;
     } data;
 };
+
+// gcc may trigger bug #53119
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-braces"
+#endif
+static const struct TcsAddress TCS_ADDRESS_NULL = {TCS_AF_ANY, {0, 0}};
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
 extern const uint32_t TCS_ADDRESS_ANY_IP4;
 extern const uint32_t TCS_ADDRESS_LOOPBACK_IP4;
@@ -148,6 +163,9 @@ extern const int TCS_SO_IP_MEMBERSHIP_ADD;
 extern const int TCS_SO_IP_MEMBERSHIP_DROP;
 extern const int TCS_SO_IP_MULTICAST_LOOP;
 
+// Use for timeout to wait until infinity happens
+extern const int TCS_INF;
+
 // Return codes
 typedef enum
 {
@@ -163,8 +181,19 @@ typedef enum
     TCS_ERROR_NOT_IMPLEMENTED = -9,
     TCS_ERROR_NOT_CONNECTED = -10,
     TCS_ERROR_ILL_FORMED_MESSAGE = -11,
-    TCS_ERROR_SOCKET_CLOSED = -13
+    TCS_ERROR_SOCKET_CLOSED = -12,
+    TCS_ERROR_WOULD_BLOCK = -13,
 } TcsReturnCode;
+
+struct TcsPool;
+struct TcsPollEvent
+{
+    TcsSocket socket;
+    void* user_data;
+    bool can_read;
+    bool can_write;
+    TcsReturnCode error;
+};
 
 /**
  * @brief Plattform independent utility function to compose an IPv4 address from 4 bytes.
@@ -448,6 +477,21 @@ TcsReturnCode tcs_receive_from(TcsSocket socket_ctx,
                                struct TcsAddress* source_address,
                                size_t* bytes_received);
 
+TcsReturnCode tcs_pool_create(struct TcsPool** pool);
+TcsReturnCode tcs_pool_destory(struct TcsPool** pool);
+TcsReturnCode tcs_pool_add(struct TcsPool* pool,
+                           TcsSocket socket,
+                           void* user_data,
+                           bool poll_can_read,
+                           bool poll_can_write,
+                           bool poll_error);
+TcsReturnCode tcs_pool_remove(struct TcsPool* pool, TcsSocket socket);
+TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
+                            struct TcsPollEvent* events,
+                            size_t events_count,
+                            size_t* events_populated,
+                            int64_t timeout_in_ms);
+
 /**
 * @brief Set parameters on a socket. It is recommended to use tcs_set_xxx instead.
 *
@@ -473,6 +517,7 @@ TcsReturnCode tcs_get_option(TcsSocket socket_ctx,
 /**
 * @brief Turn off communication with a 3-way handshaking for the socket.
 * 
+* Use this function to cancel blocking calls (@recv, @accept etc) from another thread, or use sigaction.
 * The socket will finish all queued sends first.
 *
 * @param socket_ctx is your in-out socket context.
@@ -565,6 +610,7 @@ TcsReturnCode tcs_set_ip_multicast_drop(TcsSocket socket_ctx,
                                         const struct TcsAddress* local_address,
                                         const struct TcsAddress* multicast_address);
 
+// TODO(markusl): Remove and use flag instead
 /**
 * @brief Receive data until the buffer is filled (normal recv can fill the buffer less than the buffer length).
 *

@@ -26,6 +26,7 @@
 #include <tinycsocket.h>
 #include <cstring>
 #include <iostream>
+#include <thread>
 
 namespace
 {
@@ -214,10 +215,132 @@ TEST_CASE("Simple TCP Netstring Test")
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 
+// TODO(markusl): Broken on Windows (use nonblocking behind the curton?)
+/*
+TEST_CASE("shutdown")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    TcsSocket peer1 = TCS_NULLSOCKET;
+    TcsSocket peer2 = TCS_NULLSOCKET;
+
+    CHECK(tcs_create(&peer1, TCS_TYPE_UDP_IP4) == TCS_SUCCESS);
+    CHECK(tcs_create(&peer2, TCS_TYPE_UDP_IP4) == TCS_SUCCESS);
+
+    CHECK(tcs_bind(peer1, 5678) == TCS_SUCCESS);
+    CHECK(tcs_bind(peer2, 5679) == TCS_SUCCESS);
+
+    std::thread t1([&]() {
+        TcsAddress peer1_addr = {0};
+        tcs_util_string_to_address("localhost:5678", &peer1_addr);
+        peer1_addr.family = TCS_AF_IP4;
+        uint8_t buffer2[1024] = "go!";
+        tcs_send_to(peer2, buffer2, 4, TCS_NO_FLAGS, &peer1_addr, NULL);
+
+        size_t received = 0;
+        tcs_receive(peer2, buffer2, 1024, TCS_NO_FLAGS, &received);
+        tcs_destroy(&peer2);
+    });
+
+    uint8_t buffer1[1024];
+    tcs_receive(peer1, buffer1, 1024, TCS_NO_FLAGS, NULL);
+    tcs_shutdown(peer2, TCS_SD_RECEIVE);
+    tcs_destroy(&peer1);
+
+    t1.join();
+
+    // CLean up
+    tcs_lib_free();
+}
+*/
+
+TEST_CASE("tcs_pool_poll simple write")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    TcsSocket socket = TCS_NULLSOCKET;
+
+    CHECK(tcs_create(&socket, TCS_TYPE_UDP_IP4) == TCS_SUCCESS);
+
+    CHECK(tcs_bind(socket, 5678) == TCS_SUCCESS);
+    int user_data = 1337;
+    struct TcsPool* pool = NULL;
+    CHECK(tcs_pool_create(&pool) == TCS_SUCCESS);
+    CHECK(tcs_pool_add(pool, socket, (void*)&user_data, false, true, false) == TCS_SUCCESS);
+
+    // When
+    size_t populated = 0;
+    TcsPollEvent ev = {0};
+    CHECK(tcs_pool_poll(pool, &ev, 1, &populated, 5000) == TCS_SUCCESS);
+    CHECK(tcs_pool_destory(&pool) == TCS_SUCCESS);
+
+    // Then
+    CHECK(populated == 1);
+    CHECK(ev.can_read == false);
+    CHECK(ev.can_write == true);
+    CHECK(ev.error == TCS_SUCCESS);
+    CHECK(ev.user_data == &user_data);
+    CHECK(*(int*)(ev.user_data) == user_data);
+
+    // CLean up
+    CHECK(tcs_destroy(&socket) == TCS_SUCCESS);
+    tcs_lib_free();
+}
+
+TEST_CASE("tcs_pool_poll simple read")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    TcsSocket socket = TCS_NULLSOCKET;
+
+    CHECK(tcs_create(&socket, TCS_TYPE_UDP_IP4) == TCS_SUCCESS);
+
+    CHECK(tcs_bind(socket, 5679) == TCS_SUCCESS);
+    int user_data = 1337;
+    struct TcsPool* pool = NULL;
+    CHECK(tcs_pool_create(&pool) == TCS_SUCCESS);
+    CHECK(tcs_pool_add(pool, socket, (void*)&user_data, true, false, false) == TCS_SUCCESS);
+
+    // When
+    size_t populated = 0;
+    TcsPollEvent ev = {0};
+    CHECK(tcs_pool_poll(pool, &ev, 1, &populated, 5000) == TCS_ERROR_TIMED_OUT);
+
+    // Then
+    CHECK(populated == 0);
+
+    // When
+    TcsAddress receiver = TCS_ADDRESS_NULL;
+    CHECK(tcs_util_string_to_address("127.0.0.1:5679", &receiver) == TCS_SUCCESS);
+    CHECK(tcs_send_to(socket, (const uint8_t*)"hej", 4, TCS_NO_FLAGS, &receiver, NULL) == TCS_SUCCESS);
+    CHECK(tcs_pool_poll(pool, &ev, 1, &populated, 5000) == TCS_SUCCESS);
+    CHECK(tcs_pool_destory(&pool) == TCS_SUCCESS);
+
+    // Then
+    CHECK(populated == 1);
+    CHECK(ev.can_read == true);
+    CHECK(ev.can_write == false);
+    CHECK(ev.error == TCS_SUCCESS);
+    CHECK(ev.user_data == &user_data);
+    CHECK(*(int*)(ev.user_data) == user_data);
+
+    // CLean up
+    CHECK(tcs_destroy(&socket) == TCS_SUCCESS);
+    tcs_lib_free();
+}
+
 TEST_CASE("Address information count")
 {
-    // Given
+    // Setup
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
     size_t no_of_found_addresses = 0;
 
     // When
