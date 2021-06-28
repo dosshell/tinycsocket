@@ -40,6 +40,8 @@
 #include <netdb.h>       // Protocols and custom return codes
 #include <netinet/in.h>  // IPPROTO_XXP
 #include <netinet/tcp.h> // TCP_NODELAY
+#include <poll.h>        // poll()
+#include <stdlib.h>      // malloc()/free()
 #include <string.h>      // strcpy
 #include <sys/ioctl.h>   // Flags for ifaddrs
 #include <sys/socket.h>  // pretty much everything
@@ -47,6 +49,7 @@
 #include <unistd.h>      // close()
 
 const TcsSocket TCS_NULLSOCKET = -1;
+const int TCS_INF = -1;
 
 // Addresses
 const uint32_t TCS_ADDRESS_ANY_IP4 = INADDR_ANY;
@@ -403,6 +406,257 @@ TcsReturnCode tcs_receive_from(TcsSocket socket_ctx,
     }
 }
 
+struct __tcs_fd_poll_vector
+{
+    size_t capacity;
+    size_t count;
+    struct pollfd* data;
+    void** user_data;
+};
+
+struct TcsPool
+{
+    union __backend
+    {
+        struct __poll
+        {
+            struct __tcs_fd_poll_vector vector;
+        } poll;
+    } backend;
+};
+
+static const size_t TCS_POOL_CAPACITY_STEP = 1024;
+
+TcsReturnCode tcs_pool_create(struct TcsPool** pool)
+{
+    if (pool == NULL || *pool != NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    *pool = malloc(sizeof(struct TcsPool));
+    if (*pool == NULL)
+        return TCS_ERROR_MEMORY;
+    memset(*pool, 0, sizeof(struct TcsPool));
+
+    (*pool)->backend.poll.vector.data = malloc(TCS_POOL_CAPACITY_STEP * sizeof(struct pollfd));
+    if ((*pool)->backend.poll.vector.data == NULL)
+    {
+        tcs_pool_destory(pool);
+        return TCS_ERROR_MEMORY;
+    }
+    memset((*pool)->backend.poll.vector.data, 0, TCS_POOL_CAPACITY_STEP * sizeof(struct pollfd));
+
+    (*pool)->backend.poll.vector.user_data = malloc(TCS_POOL_CAPACITY_STEP * sizeof(void*));
+    if ((*pool)->backend.poll.vector.user_data == NULL)
+    {
+        tcs_pool_destory(pool);
+        return TCS_ERROR_MEMORY;
+    }
+
+    (*pool)->backend.poll.vector.capacity = TCS_POOL_CAPACITY_STEP;
+
+    return TCS_SUCCESS;
+}
+
+TcsReturnCode tcs_pool_destory(struct TcsPool** pool)
+{
+    if (pool == NULL || *pool == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    free((*pool)->backend.poll.vector.data);
+    free((*pool)->backend.poll.vector.user_data);
+    free(*pool);
+    *pool = NULL;
+
+    return TCS_SUCCESS;
+}
+
+TcsReturnCode tcs_pool_add(struct TcsPool* pool,
+                           TcsSocket socket,
+                           void* user_data,
+                           bool poll_can_read,
+                           bool poll_can_write,
+                           bool poll_error)
+{
+    if (pool == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (socket == TCS_NULLSOCKET)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    struct __tcs_fd_poll_vector* vec = &pool->backend.poll.vector;
+
+    // Should not happen, something is corrupted
+    if (vec->data == NULL)
+        return TCS_ERROR_UNKNOWN;
+
+    if (vec->count >= vec->capacity)
+    {
+        void* new_data = realloc(vec->data, vec->capacity + TCS_POOL_CAPACITY_STEP);
+        if (new_data == NULL)
+        {
+            return TCS_ERROR_MEMORY;
+        }
+        void* new_user_data = realloc(vec->user_data, vec->capacity + TCS_POOL_CAPACITY_STEP);
+        if (new_user_data == NULL)
+        {
+            free(new_data);
+            return TCS_ERROR_MEMORY;
+        }
+
+        vec->data = new_data;
+        vec->user_data = new_user_data;
+        vec->capacity += TCS_POOL_CAPACITY_STEP;
+    }
+
+    // todo(markusl): Add more events that is input and output events
+    short ev = 0;
+    if (poll_can_read)
+        ev |= POLLIN;
+    if (poll_can_write)
+        ev |= POLLOUT;
+    if (poll_error)
+        ev |= POLLERR;
+
+    vec->data[vec->count].fd = socket;
+    vec->data[vec->count].revents = 0;
+    vec->data[vec->count].events = ev;
+    vec->user_data[vec->count] = user_data;
+    vec->count++;
+
+    return TCS_SUCCESS;
+}
+
+static TcsReturnCode __tcs_pool_remove_index(struct TcsPool* pool, size_t index)
+{
+#ifndef NDEBUG
+    if (pool == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+#endif
+    struct __tcs_fd_poll_vector* vec = &pool->backend.poll.vector;
+
+    if (index >= vec->count)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    vec->count--;
+    vec->data[index] = vec->data[vec->count];
+    vec->user_data[index] = vec->user_data[vec->count];
+
+    bool is_minimum = vec->capacity == TCS_POOL_CAPACITY_STEP;
+    bool should_shrink = vec->capacity >= vec->count + 2 * TCS_POOL_CAPACITY_STEP; // hysteresis
+    if (!is_minimum && should_shrink)
+    {
+        // free only one step (two steps can be minimum because of hysteresis)
+        void* new_data = realloc(vec->data, vec->capacity - TCS_POOL_CAPACITY_STEP);
+        if (new_data == NULL)
+            return TCS_ERROR_MEMORY; // Should not happen since we are shrinking
+
+        void* new_user_data = realloc(vec->user_data, vec->capacity - TCS_POOL_CAPACITY_STEP);
+        if (new_user_data == NULL)
+        {
+            free(new_data);
+            return TCS_ERROR_MEMORY;
+        }
+
+        vec->capacity -= TCS_POOL_CAPACITY_STEP;
+        vec->data = new_data;
+        vec->user_data = new_user_data;
+    }
+
+    return TCS_SUCCESS;
+}
+
+TcsReturnCode tcs_pool_remove(struct TcsPool* pool, TcsSocket socket)
+{
+    if (pool == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (socket == TCS_NULLSOCKET)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct __tcs_fd_poll_vector* vec = &pool->backend.poll.vector;
+
+    // Should not happen, something is corrupted
+    if (vec->data == NULL)
+        return TCS_ERROR_UNKNOWN;
+
+    bool found = false;
+    for (size_t i = 0; i < vec->count; ++i)
+    {
+        if (socket == vec->data[i].fd)
+        {
+            TcsReturnCode sts = __tcs_pool_remove_index(pool, i);
+            if (sts != TCS_SUCCESS)
+                return sts;
+            found = true;
+            break;
+        }
+    }
+    if (!found)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    return TCS_SUCCESS;
+}
+
+TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
+                            struct TcsPollEvent* events,
+                            size_t events_count,
+                            size_t* events_populated,
+                            int64_t timeout_in_ms)
+{
+    if (pool == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    // We do not support more more elements or time than signed int32 supports.
+    // todo(markusl): Add support for int64 timeout
+    if (events_count > 0x7FFFFFFF || timeout_in_ms > 0x7FFFFFFF)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct __tcs_fd_poll_vector* vec = &pool->backend.poll.vector;
+
+    int ret = poll(vec->data, vec->count, (int)timeout_in_ms);
+    if (ret == 0)
+    {
+        return TCS_ERROR_TIMED_OUT;
+    }
+    else if (ret < 0)
+    {
+        return errno2retcode(errno);
+    }
+    else if ((size_t)ret > vec->count)
+    {
+        return TCS_ERROR_UNKNOWN; // Corruption?
+    }
+
+    int fill_max = ret > (int)events_count ? (int)events_count : ret; // min(ret, events_count)
+    int filled = 0;
+    size_t n = 0;
+    while (filled < fill_max)
+    {
+#ifndef NDEBUG
+        if (n >= vec->count)
+            return TCS_ERROR_UNKNOWN;
+#endif
+        if (vec->data[n].revents != 0)
+        {
+            events[filled].socket = vec->data[n].fd;
+            events[filled].user_data = vec->user_data[n];
+            events[filled].can_read = vec->data[n].revents & POLLIN;
+            events[filled].can_write = vec->data[n].revents & POLLOUT;
+            events[filled].error = vec->data[n].revents & POLLERR;
+            filled++;
+            TcsReturnCode sts = __tcs_pool_remove_index(pool, n);
+            if (sts != TCS_SUCCESS)
+                return sts;
+            // n will now be contain a new element after remove index, therefor do not increase n
+        }
+        else
+        {
+            n++;
+        }
+    }
+    if (events_populated != NULL)
+        *events_populated = (size_t)filled; // guaranteed > 0
+
+    return TCS_SUCCESS;
+}
+
 TcsReturnCode tcs_set_option(TcsSocket socket_ctx,
                              int32_t level,
                              int32_t option_name,
@@ -429,7 +683,7 @@ TcsReturnCode tcs_get_option(TcsSocket socket_ctx,
 
     if (getsockopt(socket_ctx, (int)level, (int)option_name, (void*)option_value, (socklen_t*)option_size) == 0)
     {
-        // Linux sets the buffer size to the doubled beacuse of internal use and returns the full doubled size including internal part
+        // Linux sets the buffer size to the doubled because of internal use and returns the full doubled size including internal part
 #ifdef __linux__
         if (option_name == TCS_SO_RCVBUF || option_name == TCS_SO_SNDBUF)
         {
