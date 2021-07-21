@@ -45,9 +45,11 @@ extern "C" {
 // Then we have some platforms specific definitions
 #if defined(TINYCSOCKET_USE_WIN32_IMPL)
 #ifdef _WINSOCKAPI_
-#error winsock.h included instead of WinSock2.h. Define "_WINSOCKAPI_" or include this header file before windows.h to fix the problem
+#error winsock.h included instead of winsock2.h. Define "_WINSOCKAPI_" or include this header file before windows.h to fix the problem
 #endif
-#define _WINSOCKAPI_ // Prevent inclusion of winsock.h in windows.h, use WinSock2.h
+#ifndef __MINGW32__  // MinGW will generate a warning by it self.
+#define _WINSOCKAPI_ // Prevent inclusion of winsock.h in windows.h, use winsock2.h
+#endif
 #include <basetsd.h>
 typedef UINT_PTR TcsSocket;
 
@@ -194,6 +196,7 @@ struct TcsPollEvent
     bool can_write;
     TcsReturnCode error;
 };
+static const struct TcsPollEvent TCS_NULLEVENT = {0, 0, false, false, TCS_SUCCESS};
 
 /**
  * @brief Plattform independent utility function to compose an IPv4 address from 4 bytes.

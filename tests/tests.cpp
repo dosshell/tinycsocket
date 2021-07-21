@@ -274,7 +274,7 @@ TEST_CASE("tcs_pool_poll simple write")
 
     // When
     size_t populated = 0;
-    TcsPollEvent ev = {0};
+    TcsPollEvent ev = TCS_NULLEVENT;
     CHECK(tcs_pool_poll(pool, &ev, 1, &populated, 5000) == TCS_SUCCESS);
     CHECK(tcs_pool_destory(&pool) == TCS_SUCCESS);
 
@@ -309,7 +309,7 @@ TEST_CASE("tcs_pool_poll simple read")
 
     // When
     size_t populated = 0;
-    TcsPollEvent ev = {0};
+    TcsPollEvent ev = TCS_NULLEVENT;
     CHECK(tcs_pool_poll(pool, &ev, 1, &populated, 5000) == TCS_ERROR_TIMED_OUT);
 
     // Then
