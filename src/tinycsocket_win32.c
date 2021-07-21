@@ -24,7 +24,7 @@
 
 #ifdef TINYCSOCKET_USE_WIN32_IMPL
 
-#if !defined(NTDDI_VERSION) && !defined(WINVER) && !defined(NTDDI_VERSION)
+#if !defined(NTDDI_VERSION) && !defined(_WIN32_WINNT) && !defined(WINVER)
 
 #ifdef _WIN64
 #define NTDDI_VERSION 0x05020000
@@ -39,10 +39,12 @@
 #endif
 
 #define WIN32_LEAN_AND_MEAN
+// before windows.h
+#include <winsock2.h> // sockets
+
 #include <windows.h>
 
 // after windows.h
-#include <winsock2.h> // sockets
 #include <ws2tcpip.h> // getaddrinfo
 
 // after winsock2
@@ -96,9 +98,6 @@ struct TcsPool
     struct tcs_fd_set_vector efds; // Error
     struct tcs_usr_data_vector user_data;
 };
-
-typedef int(WSAAPI* WSAPoll_type)(struct tcs_pollfd* fdArray, ULONG fds, INT timeout);
-static WSAPoll_type ptr_WSAPoll;
 
 static const size_t TCS_POOL_CAPACITY_STEP = 1024;
 
@@ -183,7 +182,7 @@ static TcsReturnCode socketstatus2retcode(int status)
 
 static TcsReturnCode family2native(const TcsAddressFamily family, short* native_family)
 {
-    static uint16_t lut[TCS_AF_LENGTH] = {AF_UNSPEC, AF_INET, AF_INET6};
+    static short lut[TCS_AF_LENGTH] = {AF_UNSPEC, AF_INET, AF_INET6};
     if (native_family == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
     if (family >= TCS_AF_LENGTH || family < 0)
@@ -256,11 +255,6 @@ TcsReturnCode tcs_lib_init()
         int wsa_startup_status_code = WSAStartup(MAKEWORD(2, 2), &wsa_data);
         if (wsa_startup_status_code != 0)
             return TCS_ERROR_KERNEL;
-
-        // Dispatch best OS functions to call
-        HMODULE lib = GetModuleHandle(TEXT("Ws2_32.dll"));
-        if (lib != NULL)
-            ptr_WSAPoll = (WSAPoll_type)GetProcAddress(lib, "WSAPoll");
     }
     ++g_init_count;
     return TCS_SUCCESS;
@@ -272,7 +266,6 @@ TcsReturnCode tcs_lib_free()
     if (g_init_count <= 0)
     {
         WSACleanup();
-        ptr_WSAPoll = NULL;
     }
     return TCS_SUCCESS;
 }
@@ -377,7 +370,7 @@ TcsReturnCode tcs_send(TcsSocket socket_ctx,
     if (send_status != SOCKET_ERROR)
     {
         if (bytes_sent != NULL)
-            *bytes_sent = send_status;
+            *bytes_sent = (size_t)send_status;
         return TCS_SUCCESS;
     }
     else
@@ -411,7 +404,7 @@ TcsReturnCode tcs_send_to(TcsSocket socket_ctx,
     if (sendto_status != SOCKET_ERROR)
     {
         if (bytes_sent != NULL)
-            *bytes_sent = sendto_status;
+            *bytes_sent = (size_t)sendto_status;
         return TCS_SUCCESS;
     }
     else
@@ -441,7 +434,7 @@ TcsReturnCode tcs_receive(TcsSocket socket_ctx,
     else if (recv_status != SOCKET_ERROR)
     {
         if (bytes_received != NULL)
-            *bytes_received = recv_status;
+            *bytes_received = (size_t)recv_status;
         return TCS_SUCCESS;
     }
     else
@@ -476,7 +469,7 @@ TcsReturnCode tcs_receive_from(TcsSocket socket_ctx,
     else if (recvfrom_status != SOCKET_ERROR)
     {
         if (bytes_received != NULL)
-            *bytes_received = recvfrom_status;
+            *bytes_received = (size_t)recvfrom_status;
 
         if (source_address != NULL)
         {
@@ -585,7 +578,7 @@ TcsReturnCode tcs_pool_create(struct TcsPool** pool)
     if ((*pool)->user_data.key == NULL || (*pool)->user_data.value == NULL)
         sts_usrdata = TCS_ERROR_MEMORY;
 
-    if (sts_rfds != TCS_SUCCESS || sts_wfds != TCS_SUCCESS || sts_efds != TCS_SUCCESS)
+    if (sts_usrdata != TCS_SUCCESS || sts_rfds != TCS_SUCCESS || sts_wfds != TCS_SUCCESS || sts_efds != TCS_SUCCESS)
     {
         tcs_pool_destory(pool);
         return TCS_ERROR_MEMORY;
@@ -729,7 +722,7 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
     if (timeout_in_ms != TCS_INF)
     {
         t.tv_sec = (long)(timeout_in_ms / 1000);
-        t.tv_usec = (timeout_in_ms % 1000) * 1000;
+        t.tv_usec = (long)(timeout_in_ms % 1000) * 1000;
         t_ptr = &t;
     }
     int no = select(IGNORE, (fd_set*)rfds_cpy, (fd_set*)wfds_cpy, (fd_set*)efds_cpy, t_ptr);
@@ -1015,13 +1008,13 @@ TcsReturnCode tcs_local_interfaces(struct TcsInterface found_interfaces[],
     }
 
     size_t i = 0;
-    for (PIP_ADAPTER_ADDRESSES_XP iter = adapters;
+    for (PIP_ADAPTER_ADDRESSES iter = adapters;
          iter != NULL && (found_interfaces == NULL || i < found_interfaces_length);
          iter = iter->Next)
     {
         if (iter->OperStatus != IfOperStatusUp)
             continue;
-        for (PIP_ADAPTER_UNICAST_ADDRESS_XP address_iter = iter->FirstUnicastAddress; address_iter != NULL;
+        for (PIP_ADAPTER_UNICAST_ADDRESS address_iter = iter->FirstUnicastAddress; address_iter != NULL;
              address_iter = address_iter->Next)
         {
             struct TcsAddress t;
