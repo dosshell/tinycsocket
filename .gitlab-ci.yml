@@ -12,6 +12,7 @@ stages:
   - test
   - deploy
 
+  # LINTING
 
 code format:
   <<: *only-default
@@ -38,6 +39,8 @@ static linting:
     - mkdir build && cd build
     - cmake -G "Ninja" ../ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON
     - clang-tidy ../src/*.c ../examples/*.c
+
+# BUILD
 
 win-1809 msvc v19.26 x86 and x86_64:
   <<: *only-default
@@ -94,6 +97,42 @@ linux gcc v9.3 i386:
   artifacts:
     paths:
       - ./build/tests_linux_gcc_i386
+
+linux mingw-w64 x86_64:
+  <<: *only-default
+  image: amd64/alpine:3.12
+  stage: build
+  needs: []
+  tags:
+    - docker
+  script:
+    - apk add cmake mingw-w64-gcc ninja
+    - mkdir build && cd build
+    - cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain-mingw-x86_64.cmake" -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
+    - cmake --build .
+    - mv ./tests/tests.exe ./tests_mingw_x86_64.exe
+  artifacts:
+    paths:
+      - ./build/tests_mingw_x86_64.exe
+
+linux mingw-w64 i686:
+  <<: *only-default
+  image: i386/alpine:3.12
+  stage: build
+  needs: []
+  tags:
+    - docker
+  script:
+    - apk add cmake mingw-w64-gcc ninja
+    - mkdir build && cd build
+    - cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain-mingw-i686.cmake" -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
+    - cmake --build .
+    - mv ./tests/tests.exe ./tests_mingw_i686.exe
+  artifacts:
+    paths:
+      - ./build/tests_mingw_i686.exe
+
+# TEST
 
 win-1809 test x86 and x86_64:
   <<: *only-default
@@ -157,6 +196,8 @@ linux test i386:
   artifacts:
     reports:
       junit: report_linux_gcc_i386.xml
+
+# DEPLOY
 
 sphinx:
   <<: *only-default

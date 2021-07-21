@@ -1,4 +1,8 @@
 cmake_minimum_required (VERSION 3.1)
+
+# CMake fix for crosscompile (MinGW)
+set(CMAKE_TRY_COMPILE_TARGET_TYPE "STATIC_LIBRARY")
+
 project(tinycsocket VERSION 0.1)
 
 include(CheckSymbolExists)
