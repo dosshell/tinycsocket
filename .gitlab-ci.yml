@@ -42,7 +42,7 @@ static linting:
 
 # BUILD
 
-win-1809 msvc v19.26 x86 and x86_64:
+win-1809 msvc v19.26:
   <<: *only-default
   tags:
     - shared-windows
@@ -55,16 +55,16 @@ win-1809 msvc v19.26 x86 and x86_64:
     - 'mkdir build'
     - 'mv build32/tests/Debug/tests.exe ./build/tests_msvc_debug_x86.exe'
     - 'mv build32/tests/Release/tests.exe ./build/tests_msvc_release_x86.exe'
-    - 'mv build64/tests/Debug/tests.exe ./build/tests_msvc_debug_x64.exe'
-    - 'mv build64/tests/Release/tests.exe ./build/tests_msvc_release_x64.exe'
+    - 'mv build64/tests/Debug/tests.exe ./build/tests_msvc_debug_x86-64.exe'
+    - 'mv build64/tests/Release/tests.exe ./build/tests_msvc_release_x86-64.exe'
   artifacts:
     paths:
       - ./build/tests_msvc_debug_x86.exe
       - ./build/tests_msvc_release_x86.exe
-      - ./build/tests_msvc_debug_x64.exe
-      - ./build/tests_msvc_release_x64.exe
+      - ./build/tests_msvc_debug_x86-64.exe
+      - ./build/tests_msvc_release_x86-64.exe
 
-linux gcc v9.3 x86_64:
+linux gcc v9.3 x86-64:
   <<: *only-default
   tags:
     - docker
@@ -74,14 +74,14 @@ linux gcc v9.3 x86_64:
   script:
     - apk add cmake g++ ninja
     - mkdir build && cd build
-    - cmake -G "Ninja" ../ -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
+    - cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
     - cmake --build .
-    - mv ./tests/tests ./tests_linux_gcc_amd64
+    - mv ./tests/tests ./tests_linux_gcc_x86-64
   artifacts:
     paths:
-      - ./build/tests_linux_gcc_amd64
+      - ./build/tests_linux_gcc_x86-64
 
-linux gcc v9.3 i386:
+linux gcc v9.3 x86:
   <<: *only-default
   image: i386/alpine:3.12
   stage: build
@@ -91,14 +91,14 @@ linux gcc v9.3 i386:
   script:
     - apk add cmake g++ ninja
     - mkdir build && cd build
-    - cmake -G "Ninja" ../ -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
+    - cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
     - cmake --build .
-    - mv ./tests/tests ./tests_linux_gcc_i386
+    - mv ./tests/tests ./tests_linux_gcc_x86
   artifacts:
     paths:
-      - ./build/tests_linux_gcc_i386
+      - ./build/tests_linux_gcc_x86
 
-linux mingw-w64 x86_64:
+linux mingw-w64 x86-64 winxp:
   <<: *only-default
   image: amd64/alpine:3.12
   stage: build
@@ -108,14 +108,14 @@ linux mingw-w64 x86_64:
   script:
     - apk add cmake mingw-w64-gcc ninja
     - mkdir build && cd build
-    - cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain-mingw-x86_64.cmake" -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
+    - cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86-64_winxp.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
     - cmake --build .
-    - mv ./tests/tests.exe ./tests_mingw_x86_64.exe
+    - mv ./tests/tests.exe ./tests_mingw_x86-64_winxp.exe
   artifacts:
     paths:
-      - ./build/tests_mingw_x86_64.exe
+      - ./build/tests_mingw_x86-64_winxp.exe
 
-linux mingw-w64 i686:
+linux mingw-w64 x86 winxp:
   <<: *only-default
   image: i386/alpine:3.12
   stage: build
@@ -125,77 +125,123 @@ linux mingw-w64 i686:
   script:
     - apk add cmake mingw-w64-gcc ninja
     - mkdir build && cd build
-    - cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain-mingw-i686.cmake" -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
+    - cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86_winxp.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
     - cmake --build .
-    - mv ./tests/tests.exe ./tests_mingw_i686.exe
+    - mv ./tests/tests.exe ./tests_mingw_x86_winxp.exe
   artifacts:
     paths:
-      - ./build/tests_mingw_i686.exe
+      - ./build/tests_mingw_x86_winxp.exe
 
+linux mingw-w64 x86-64 winblue:
+  <<: *only-default
+  image: amd64/alpine:3.12
+  stage: build
+  needs: []
+  tags:
+    - docker
+  script:
+    - apk add cmake mingw-w64-gcc ninja
+    - mkdir build && cd build
+    - cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86-64_winblue.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
+    - cmake --build .
+    - mv ./tests/tests.exe ./tests_mingw_x86-64_winblue.exe
+  artifacts:
+    paths:
+      - ./build/tests_mingw_x86-64_winblue.exe
+
+linux mingw-w64 x86 winblue:
+  <<: *only-default
+  image: i386/alpine:3.12
+  stage: build
+  needs: []
+  tags:
+    - docker
+  script:
+    - apk add cmake mingw-w64-gcc ninja
+    - mkdir build && cd build
+    - cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86_winblue.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
+    - cmake --build .
+    - mv ./tests/tests.exe ./tests_mingw_x86_winblue.exe
+  artifacts:
+    paths:
+      - ./build/tests_mingw_x86_winblue.exe
 # TEST
 
-win-1809 test x86 and x86_64:
+win-1809 tests:
   <<: *only-default
   tags:
     - shared-windows
     - windows
     - windows-1809
   stage: test
-  needs: ["win-1809 msvc v19.26 x86 and x86_64"]
+  needs:
+    - "win-1809 msvc v19.26"
+    - "linux mingw-w64 x86-64 winxp"
+    - "linux mingw-w64 x86 winxp"
+    - "linux mingw-w64 x86-64 winblue"
+    - "linux mingw-w64 x86 winblue"
   script:
-    - ./build/tests_msvc_debug_x86.exe -s -d --reporters=junit --out=./report_win-1809_msvc_debug_x86.xml
-    - ./build/tests_msvc_release_x86.exe -s -d --reporters=junit --out=./report_win-1809_msvc_release_x86.xml
-    - ./build/tests_msvc_debug_x64.exe -s -d --reporters=junit --out=./report_win-1809_msvc_debug_x64.xml
-    - ./build/tests_msvc_release_x64.exe -s -d --reporters=junit --out=./report_win-1809_msvc_release_x64.xml
+    - ./build/tests_msvc_debug_x86.exe --reporters=junit --out=./report_win-1809_msvc_debug_x86.xml
+    - ./build/tests_msvc_release_x86.exe --reporters=junit --out=./report_win-1809_msvc_release_x86.xml
+    - ./build/tests_msvc_debug_x86-64.exe --reporters=junit --out=./report_win-1809_msvc_debug_x86-64.xml
+    - ./build/tests_msvc_release_x86-64.exe --reporters=junit --out=./report_win-1809_msvc_release_x86-64.xml
+    - ./build/tests_mingw_x86_winxp.exe --reporters=junit --out=./report_mingw_x86_winxp.xml
+    - ./build/tests_mingw_x86-64_winxp.exe --reporters=junit --out=./report_mingw_x86-64_winxp.xml
+    - ./build/tests_mingw_x86_winblue.exe --reporters=junit --out=./report_mingw_x86_winblue.xml
+    - ./build/tests_mingw_x86-64_winblue.exe --reporters=junit --out=./report_mingw_x86-64_winblue.xml
   artifacts:
     reports:
       junit:
         - report_win-1809_msvc_debug_x86.xml
         - report_win-1809_msvc_release_x86.xml
-        - report_win-1809_msvc_debug_x64.xml
-        - report_win-1809_msvc_release_x64.xml
+        - report_win-1809_msvc_debug_x86-64.xml
+        - report_win-1809_msvc_release_x86-64.xml
+        - report_mingw_x86_winxp.xml
+        - report_mingw_x86-64_winxp.xml
+        - report_mingw_x86_winblue.xml
+        - report_mingw_x86-64_winblue.xml
 
-win-xp test x86:
+winxp tests x86:
   <<: *only-default
   tags:
     - andromeda
     - windows-xp
   stage: test
-  needs: ["win-1809 msvc v19.26 x86 and x86_64"]
+  needs: ["win-1809 msvc v19.26"]
   script:
-    - ./build/tests_msvc_release_x86 -s -d --reporters=junit --out=./report_win-xp_msvc_x86.xml
+    - ./build/tests_msvc_release_x86 --reporters=junit --out=./report_winxp_msvc_x86.xml
   artifacts:
     reports:
-      junit: report_win-xp_msvc_x86.xml
+      junit: report_winxp_msvc_x86.xml
   allow_failure: true
 
-linux test x86_64:
+linux test x86-64:
   <<: *only-default
   tags:
     - docker
   image: amd64/alpine:3.12
   stage: test
-  needs: ["linux gcc v9.3 x86_64"]
+  needs: ["linux gcc v9.3 x86-64"]
   script:
     - apk add libstdc++
-    - ./build/tests_linux_gcc_amd64 -s -d --reporters=junit --out=./report_linux_gcc_amd64.xml
+    - ./build/tests_linux_gcc_x86-64 --reporters=junit --out=./report_linux_gcc_x86.xml
   artifacts:
     reports:
-      junit: report_linux_gcc_amd64.xml
+      junit: report_linux_gcc_x86-64.xml
 
-linux test i386:
+linux test x86:
   <<: *only-default
   tags:
     - docker
   image: i386/alpine:3.12
   stage: test
-  needs: ["linux gcc v9.3 i386"]
+  needs: ["linux gcc v9.3 x86"]
   script:
     - apk add libstdc++
-    - ./build/tests_linux_gcc_i386 -s -d --reporters=junit --out=./report_linux_gcc_i386.xml
+    - ./build/tests_linux_gcc_x86 --reporters=junit --out=./report_linux_gcc_x86.xml
   artifacts:
     reports:
-      junit: report_linux_gcc_i386.xml
+      junit: report_linux_gcc_x86.xml
 
 # DEPLOY
 
