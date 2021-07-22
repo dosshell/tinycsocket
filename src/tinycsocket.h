@@ -131,8 +131,12 @@ typedef enum
 extern const uint32_t TCS_AI_PASSIVE; /**< Use this flag for pure listening sockets */
 
 // Recv flags
-extern const int TCS_MSG_PEEK;
-extern const int TCS_MSG_OOB;
+extern const uint32_t TCS_MSG_PEEK;
+extern const uint32_t TCS_MSG_OOB;
+extern const uint32_t TCS_MSG_WAITALL;
+
+// Send flags
+extern const uint32_t TCS_MSG_SENDALL;
 
 // Backlog
 extern const int TCS_BACKLOG_SOMAXCONN; /**< Max number of queued sockets when listening */
@@ -612,28 +616,6 @@ TcsReturnCode tcs_set_ip_multicast_add(TcsSocket socket_ctx,
 TcsReturnCode tcs_set_ip_multicast_drop(TcsSocket socket_ctx,
                                         const struct TcsAddress* local_address,
                                         const struct TcsAddress* multicast_address);
-
-// TODO(markusl): Remove and use flag instead
-/**
-* @brief Receive data until the buffer is filled (normal recv can fill the buffer less than the buffer length).
-*
-* @param socket_ctx is your in-out socket context.
-* @param buffer is a pointer to your buffer where you want to store the incoming data to.
-* @param buffer_size is the byte size of your buffer, it will fill the complete buffer.
-* @return #TCS_SUCCESS if successful, otherwise the error code.
-* @see tcs_send_all()
-*/
-TcsReturnCode tcs_receive_all(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size);
-
-/**
-* @brief Sends the full buffer (normal send is allowed to send only a part of the buffer)
-*
-* @param socket_ctx is your in-out socket context.
-* @param buffer is a pointer to your data you want to send.
-* @param buffer_size is the total size of your buffer in bytes.
-* @param flags your flags.
-*/
-TcsReturnCode tcs_send_all(TcsSocket socket_ctx, const uint8_t* buffer, size_t buffer_size, uint32_t flags);
 
 TcsReturnCode tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, size_t* bytes_received);
 

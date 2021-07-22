@@ -61,7 +61,7 @@ int main(void)
     printf("received: %s\n", recv_buffer);
 
     char msg[] = "I here you loud and clear\n";
-    if (tcs_send_all(child_socket, (const uint8_t*)msg, sizeof(msg), TCS_NO_FLAGS) != TCS_SUCCESS)
+    if (tcs_send(child_socket, (const uint8_t*)msg, sizeof(msg), TCS_MSG_SENDALL, NULL) != TCS_SUCCESS)
         return show_error("Could not send reply message");
 
     if (tcs_shutdown(child_socket, TCS_SD_BOTH) != TCS_SUCCESS)

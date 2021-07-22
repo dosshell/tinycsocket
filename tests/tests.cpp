@@ -50,7 +50,7 @@ TEST_CASE("Example from README")
     CHECK(tcs_connect(client_socket, "example.com", 80) == TCS_SUCCESS);
 
     uint8_t send_buffer[] = "GET / HTTP/1.1\nHost: example.com\n\n";
-    CHECK(tcs_send_all(client_socket, send_buffer, sizeof(send_buffer), TCS_NO_FLAGS) == TCS_SUCCESS);
+    CHECK(tcs_send(client_socket, send_buffer, sizeof(send_buffer), TCS_MSG_SENDALL, NULL) == TCS_SUCCESS);
 
     uint8_t recv_buffer[8192] = {0};
     size_t bytes_received = 0;
@@ -169,8 +169,8 @@ TEST_CASE("Simple TCP Test")
     // When
     uint8_t recv_buffer[8] = {0};
     uint8_t* send_buffer = (uint8_t*)"12345678";
-    CHECK(tcs_send_all(client_socket, send_buffer, 8, 0) == TCS_SUCCESS);
-    CHECK(tcs_receive_all(accept_socket, recv_buffer, 8) == TCS_SUCCESS);
+    CHECK(tcs_send(client_socket, send_buffer, 8, TCS_MSG_SENDALL, NULL) == TCS_SUCCESS);
+    CHECK(tcs_receive(accept_socket, recv_buffer, 8, TCS_MSG_WAITALL, NULL) == TCS_SUCCESS);
 
     // Then
     CHECK(memcmp(recv_buffer, send_buffer, 8) == 0);

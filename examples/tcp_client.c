@@ -46,7 +46,7 @@ int main(void)
         return show_error("Could not connect to server");
 
     char msg[] = "hello world\n";
-    if (tcs_send_all(client_socket, (const uint8_t*)msg, sizeof(msg), TCS_NO_FLAGS) != TCS_SUCCESS)
+    if (tcs_send(client_socket, (const uint8_t*)msg, sizeof(msg), TCS_MSG_SENDALL, NULL) != TCS_SUCCESS)
         return show_error("Could not send message");
 
     uint8_t recv_buffer[1024];

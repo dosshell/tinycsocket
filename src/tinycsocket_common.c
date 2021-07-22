@@ -167,40 +167,6 @@ TcsReturnCode tcs_listen_to(TcsSocket socket_ctx, uint16_t local_port)
     return tcs_listen(socket_ctx, TCS_BACKLOG_SOMAXCONN);
 }
 
-TcsReturnCode tcs_receive_all(TcsSocket socket_ctx, uint8_t* buffer, size_t length)
-{
-    if (socket_ctx == TCS_NULLSOCKET)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    size_t bytes_left = length;
-    while (bytes_left > 0)
-    {
-        size_t bytes_received = 0;
-        int sts = tcs_receive(socket_ctx, buffer + bytes_received, bytes_left, 0, &bytes_received);
-        if (sts != TCS_SUCCESS)
-            return sts;
-
-        bytes_left -= bytes_received;
-    }
-    return TCS_SUCCESS;
-}
-
-TcsReturnCode tcs_send_all(TcsSocket socket_ctx, const uint8_t* buffer, size_t length, uint32_t flags)
-{
-    size_t left = length;
-    size_t sent = 0;
-
-    while (left > 0)
-    {
-        int sts = tcs_send(socket_ctx, buffer, length, flags, &sent);
-        if (sts != TCS_SUCCESS)
-            return sts;
-
-        left -= sent;
-    }
-    return TCS_SUCCESS;
-}
-
 TcsReturnCode tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_length, size_t* bytes_received)
 {
     if (socket_ctx == TCS_NULLSOCKET || buffer == NULL || buffer_length <= 0)
@@ -213,7 +179,7 @@ TcsReturnCode tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_
     const int max_header = 21;
     while (t != ':' && parsed < max_header)
     {
-        sts = tcs_receive_all(socket_ctx, (uint8_t*)&t, 1);
+        sts = tcs_receive(socket_ctx, (uint8_t*)&t, 1, TCS_MSG_WAITALL, NULL);
         if (sts != TCS_SUCCESS)
             return sts;
 
@@ -236,11 +202,11 @@ TcsReturnCode tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_
     if (buffer_length < expected_length)
         return TCS_ERROR_MEMORY;
 
-    sts = tcs_receive_all(socket_ctx, buffer, expected_length);
+    sts = tcs_receive(socket_ctx, buffer, expected_length, TCS_MSG_WAITALL, NULL);
     if (sts != TCS_SUCCESS)
         return sts;
 
-    sts = tcs_receive_all(socket_ctx, (uint8_t*)&t, 1);
+    sts = tcs_receive(socket_ctx, (uint8_t*)&t, 1, TCS_MSG_WAITALL, NULL);
     if (sts != TCS_SUCCESS)
         return sts;
 
@@ -277,15 +243,15 @@ TcsReturnCode tcs_send_netstring(TcsSocket socket_ctx, const uint8_t* buffer, si
         return TCS_ERROR_INVALID_ARGUMENT;
 
     int sts = 0;
-    sts = tcs_send_all(socket_ctx, (uint8_t*)netstring_header, (size_t)header_length, 0);
+    sts = tcs_send(socket_ctx, (uint8_t*)netstring_header, (size_t)header_length, TCS_MSG_SENDALL, NULL);
     if (sts != TCS_SUCCESS)
         return sts;
 
-    sts = tcs_send_all(socket_ctx, buffer, buffer_length, 0);
+    sts = tcs_send(socket_ctx, buffer, buffer_length, TCS_MSG_SENDALL, NULL);
     if (sts != TCS_SUCCESS)
         return sts;
 
-    sts = tcs_send_all(socket_ctx, (uint8_t*)",", 1, 0);
+    sts = tcs_send(socket_ctx, (uint8_t*)",", 1, TCS_MSG_SENDALL, NULL);
     if (sts != TCS_SUCCESS)
         return sts;
 

@@ -16,7 +16,7 @@ int main(int argc, const char* argv[])
     tcs_connect(client_socket, "example.com", 80);
 
     uint8_t send_buffer[] = "GET / HTTP/1.1\nHost: example.com\n\n";
-    tcs_send_all(client_socket, send_buffer, sizeof(send_buffer), TCS_NO_FLAGS);
+    tcs_send(client_socket, send_buffer, sizeof(send_buffer), TCS_MSG_SENDALL, NULL);
 
     uint8_t recv_buffer[8192] = {0};
     size_t bytes_received = 0;
@@ -33,12 +33,12 @@ on a minimal footprint, cross-platform and to be intuitive to use.
 
 The API is a superset of the BSD sockets API with some differences. All
 functions return an error-code. The advantage is that the error handling is
-simple to understand and to handle for all plattforms. The disadvantage is that
+simple to understand and to handle for all platforms. The disadvantage is that
 the functions can not be easily integrated in expressions.
 
 See the example folder for information of how to use tinycsocket.
 
-Currently support plattforms:
+Currently support platforms:
 - Windows NT 5.0 SP1 or newer (Windows 2000 SP1 and newer Windows versions)
 - POSIX.1-2001 compliant systems (Linux, FreeBSD, Solaris and etc)
 
@@ -62,7 +62,7 @@ target_link_libraries(your_target PRIVATE tinycsocket)
 You can read more about how to use submodules here: https://git-scm.com/book/en/v2/Git-Tools-Submodules
 
 ### I just want the lib files and link by my self
-You can also build this project to get a lib directory and an include directoy.
+You can also build this project to get a lib directory and an include directory.
 Generate a build-system out of tinycsocket with cmake and build the install
 target. Don't forget that if you are targeting Windows you also need to link to
 wsock32.lib and ws2_32.lib.
