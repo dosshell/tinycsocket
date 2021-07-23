@@ -25,7 +25,6 @@
 #ifdef TINYCSOCKET_USE_WIN32_IMPL
 
 #if !defined(NTDDI_VERSION) && !defined(_WIN32_WINNT) && !defined(WINVER)
-
 #ifdef _WIN64
 #define NTDDI_VERSION 0x05020000
 #define _WIN32_WINNT 0x0502
@@ -35,24 +34,21 @@
 #define _WIN32_WINNT 0x0501
 #define WINVER 0x0501
 #endif
-
 #endif
-
 #define WIN32_LEAN_AND_MEAN
+
+#include "tinydatastructures.h"
+
 // before windows.h
 #include <winsock2.h> // sockets
 
 #include <windows.h>
 
 // after windows.h
+#include <iphlpapi.h> // GetAdaptersAddresses
 #include <ws2tcpip.h> // getaddrinfo
 
-// after winsock2
-#include <iphlpapi.h> // GetAdaptersAddresses
-
 #include <stdlib.h> // Malloc for GetAdaptersAddresses
-
-#include "tinydatastructures.h"
 
 #if defined(_MSC_VER) || defined(__clang__)
 #pragma comment(lib, "wsock32.lib")
@@ -111,8 +107,12 @@ const int TCS_IPPROTO_UDP = IPPROTO_UDP;
 const uint32_t TCS_AI_PASSIVE = AI_PASSIVE;
 
 // Recv flags
-const int TCS_MSG_PEEK = MSG_PEEK;
-const int TCS_MSG_OOB = MSG_OOB;
+const uint32_t TCS_MSG_PEEK = MSG_PEEK;
+const uint32_t TCS_MSG_OOB = MSG_OOB;
+const uint32_t TCS_MSG_WAITALL = 0x8; // Binary compatible when it does not exist
+
+// Send flags
+const uint32_t TCS_MSG_SENDALL = 0x80000000;
 
 // Backlog
 const int TCS_BACKLOG_SOMAXCONN = SOMAXCONN;
@@ -355,19 +355,38 @@ TcsReturnCode tcs_send(TcsSocket socket_ctx,
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    int send_status = send(socket_ctx, (const char*)buffer, (int)buffer_size, (int)flags);
-    if (send_status != SOCKET_ERROR)
+    // Send all
+    if (flags & TCS_MSG_SENDALL)
     {
-        if (bytes_sent != NULL)
-            *bytes_sent = (size_t)send_status;
+        uint32_t new_flags = flags & ~TCS_MSG_SENDALL; // For recursive call
+        size_t left = buffer_size;
+        size_t sent = 0;
+
+        while (left > 0)
+        {
+            int sts = tcs_send(socket_ctx, buffer, buffer_size, new_flags, &sent);
+            if (sts != TCS_SUCCESS)
+                return sts;
+            left -= sent;
+        }
         return TCS_SUCCESS;
     }
-    else
+    else // Send
     {
-        if (bytes_sent != NULL)
-            *bytes_sent = 0;
+        int send_status = send(socket_ctx, (const char*)buffer, (int)buffer_size, (int)flags);
+        if (send_status != SOCKET_ERROR)
+        {
+            if (bytes_sent != NULL)
+                *bytes_sent = (size_t)send_status;
+            return TCS_SUCCESS;
+        }
+        else
+        {
+            if (bytes_sent != NULL)
+                *bytes_sent = 0;
 
-        return socketstatus2retcode(send_status);
+            return socketstatus2retcode(send_status);
+        }
     }
 }
 
@@ -413,6 +432,27 @@ TcsReturnCode tcs_receive(TcsSocket socket_ctx,
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
+
+#if WINVER <= 0x501
+    if (flags & TCS_MSG_WAITALL)
+    {
+        uint32_t new_flags = flags & ~TCS_MSG_WAITALL; // Unmask for recursive call
+        size_t received_so_far = 0;
+        while (received_so_far < buffer_size)
+        {
+            size_t received_now = 0;
+            uint8_t* cursor = buffer + received_so_far;
+            size_t left = buffer_size - received_so_far;
+            int sts = tcs_receive(socket_ctx, cursor, left, new_flags, &received_now);
+            if (sts != TCS_SUCCESS)
+                return sts;
+            received_so_far += received_now;
+        }
+        if (bytes_received != NULL)
+            *bytes_received = 0;
+        return TCS_SUCCESS;
+    }
+#endif
 
     int recv_status = recv(socket_ctx, (char*)buffer, (int)buffer_size, (int)flags);
 

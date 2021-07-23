@@ -69,8 +69,12 @@ const int TCS_IPPROTO_UDP = IPPROTO_UDP;
 const uint32_t TCS_AI_PASSIVE = AI_PASSIVE;
 
 // Recv flags
-const int TCS_MSG_PEEK = MSG_PEEK;
-const int TCS_MSG_OOB = MSG_OOB;
+const uint32_t TCS_MSG_PEEK = MSG_PEEK;
+const uint32_t TCS_MSG_OOB = MSG_OOB;
+const uint32_t TCS_MSG_WAITALL = MSG_WAITALL;
+
+// Send flags
+const uint32_t TCS_MSG_SENDALL = 0x80000000;
 
 // Backlog
 const int TCS_BACKLOG_SOMAXCONN = SOMAXCONN;
@@ -283,18 +287,37 @@ TcsReturnCode tcs_send(TcsSocket socket_ctx,
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    ssize_t send_status = send(socket_ctx, (const char*)buffer, buffer_size, (int)flags);
-    if (send_status >= 0)
+    // Send all
+    if (flags & TCS_MSG_SENDALL)
     {
-        if (bytes_sent != NULL)
-            *bytes_sent = (size_t)send_status;
+        uint32_t new_flags = flags & ~TCS_MSG_SENDALL; // For recursive call
+        size_t left = buffer_size;
+        size_t sent = 0;
+
+        while (left > 0)
+        {
+            int sts = tcs_send(socket_ctx, buffer, buffer_size, new_flags, &sent);
+            if (sts != TCS_SUCCESS)
+                return sts;
+            left -= sent;
+        }
         return TCS_SUCCESS;
     }
-    else
+    else // Send
     {
-        if (bytes_sent != NULL)
-            *bytes_sent = 0;
-        return errno2retcode(errno);
+        ssize_t send_status = send(socket_ctx, (const char*)buffer, buffer_size, (int)flags);
+        if (send_status >= 0)
+        {
+            if (bytes_sent != NULL)
+                *bytes_sent = (size_t)send_status;
+            return TCS_SUCCESS;
+        }
+        else
+        {
+            if (bytes_sent != NULL)
+                *bytes_sent = 0;
+            return errno2retcode(errno);
+        }
     }
 }
 
