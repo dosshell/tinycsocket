@@ -23,5 +23,10 @@ if (TCS_WARNINGS_AS_ERRORS)
     endif ()
 endif ()
 
+if (TCS_GENERATE_COVERAGE)
+  target_compile_options(tinycsocket PRIVATE --coverage)
+  target_link_libraries(tinycsocket PRIVATE --coverage)
+endif ()
+
 install(TARGETS tinycsocket DESTINATION lib)
 install(FILES tinycsocket.h DESTINATION include)
