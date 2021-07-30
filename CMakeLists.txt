@@ -30,6 +30,7 @@ endif ()
 option(TCS_ENABLE_TESTS "Enable tests" OFF)
 option(TCS_ENABLE_EXAMPLES "Enable examples" OFF)
 option(TCS_WARNINGS_AS_ERRORS "Enable treat warnings as errors" OFF)
+option(TCS_GENERATE_COVERAGE "Enable for test coverage generation" OFF)
 
 check_symbol_exists(getifaddrs "sys/types.h;ifaddrs.h" TCS_HAVE_IFADDRS)
 
