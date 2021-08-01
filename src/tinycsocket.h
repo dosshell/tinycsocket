@@ -27,6 +27,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define TCS_VERSION_TXT "v0.3-dev"
+
 // First we have some code to recognize which system we are compiling against
 #if defined(WIN32) || defined(__MINGW32__)
 #define TINYCSOCKET_USE_WIN32_IMPL
