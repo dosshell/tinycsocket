@@ -1,6 +1,11 @@
 #include "tinycsocket.h"
 
 // This file should never call OS dependent code. Do not include OS files of OS specific ifdefs
+
+#ifdef DO_WRAP
+#include "wrap.h"
+#endif
+
 #include <stdbool.h>
 #include <stdio.h>  //sprintf
 #include <string.h> // memset

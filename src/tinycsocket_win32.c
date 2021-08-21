@@ -19,10 +19,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
 #include "tinycsocket.h"
 
 #ifdef TINYCSOCKET_USE_WIN32_IMPL
+
+#ifdef DO_WRAP
+#include "wrap.h"
+#endif
 
 #if !defined(NTDDI_VERSION) && !defined(_WIN32_WINNT) && !defined(WINVER)
 #ifdef _WIN64
@@ -988,6 +991,10 @@ TcsReturnCode tcs_local_interfaces(struct TcsInterface found_interfaces[],
         {
             free(adapters);
             adapters = NULL;
+        }
+        else
+        {
+            break;
         }
     }
     if (adapter_sts != NO_ERROR)
