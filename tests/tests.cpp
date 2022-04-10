@@ -295,7 +295,7 @@ TEST_CASE("shutdown")
 
     t1.join();
 
-    // CLean up
+    // Clean up
     tcs_lib_free();
 }
 #endif
@@ -400,7 +400,7 @@ TEST_CASE("tcs_pool_poll simple read")
     CHECK(ev.user_data == &user_data);
     CHECK(*(int*)(ev.user_data) == user_data);
 
-    // CLean up
+    // Clean up
     CHECK(tcs_destroy(&socket) == TCS_SUCCESS);
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
