@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#define DOCTEST_CONFIG_IMPLEMENT
 #include "doctest.h"
 
 #ifdef DO_WRAP
@@ -46,6 +46,34 @@ std::ostream& operator<<(std::ostream& o, const TcsAddress& address)
 }
 } // namespace
 
+int main(int argc, char** argv)
+{
+#ifdef _MSC_VER
+    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+#endif
+
+    doctest::Context context;
+
+    context.applyCommandLine(argc, argv);
+
+    int res = context.run(); // run
+
+    if (context.shouldExit()) // important - query flags (and --exit) rely on the user doing this
+        return res;           // propagate the result of the tests
+
+    return res; // the result from doctest is propagated here as well
+}
+
+TEST_CASE("Check mock")
+{
+    int pre_alloc = MOCK_ALLOC_COUNTER;
+    int pre_free = MOCK_FREE_COUNTER;
+    void* a = malloc(8);
+    free(a);
+    CHECK(MOCK_ALLOC_COUNTER > pre_alloc);
+    CHECK(MOCK_FREE_COUNTER > pre_free);
+}
+
 TEST_CASE("Example from README")
 {
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
@@ -68,8 +96,16 @@ TEST_CASE("Example from README")
 
 TEST_CASE("Init Test")
 {
+    // Given
+    int pre_mem_diff = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
+
+    // When
     CHECK(tcs_lib_init() == TCS_SUCCESS);
     CHECK(tcs_lib_free() == TCS_SUCCESS);
+    int post_mem_diff = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
+
+    // Then
+    CHECK(post_mem_diff == pre_mem_diff);
 }
 
 TEST_CASE("Create socket")
@@ -79,13 +115,16 @@ TEST_CASE("Create socket")
 
     // Given
     TcsSocket socket = TCS_NULLSOCKET;
+    int pre_mem_diff = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
 
     // When
     TcsReturnCode sts = tcs_create(&socket, TCS_TYPE_UDP_IP4);
+    int post_mem_diff = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
 
     // Then
     CHECK(sts == TCS_SUCCESS);
     CHECK(socket != TCS_NULLSOCKET);
+    CHECK(post_mem_diff == pre_mem_diff);
 
     // Clean up
     CHECK(tcs_destroy(&socket) == TCS_SUCCESS);
@@ -261,12 +300,34 @@ TEST_CASE("shutdown")
 }
 #endif
 
+TEST_CASE("tcs_pool simple memory check")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    int pre_mem_diff = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
+
+    // When
+    struct TcsPool* pool = NULL;
+    CHECK(tcs_pool_create(&pool) == TCS_SUCCESS);
+    CHECK(tcs_pool_destory(&pool) == TCS_SUCCESS);
+    int post_mem_diff = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
+
+    // Then
+    CHECK(pre_mem_diff == post_mem_diff);
+
+    // Clean up
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
 TEST_CASE("tcs_pool_poll simple write")
 {
     // Setup
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
 
     // Given
+    int pre_mem_diff = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
     TcsSocket socket = TCS_NULLSOCKET;
 
     CHECK(tcs_create(&socket, TCS_TYPE_UDP_IP4) == TCS_SUCCESS);
@@ -282,6 +343,7 @@ TEST_CASE("tcs_pool_poll simple write")
     TcsPollEvent ev = TCS_NULLEVENT;
     CHECK(tcs_pool_poll(pool, &ev, 1, &populated, 5000) == TCS_SUCCESS);
     CHECK(tcs_pool_destory(&pool) == TCS_SUCCESS);
+    int post_mem_diff = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
 
     // Then
     CHECK(populated == 1);
@@ -290,8 +352,9 @@ TEST_CASE("tcs_pool_poll simple write")
     CHECK(ev.error == TCS_SUCCESS);
     CHECK(ev.user_data == &user_data);
     CHECK(*(int*)(ev.user_data) == user_data);
+    CHECK(pre_mem_diff == post_mem_diff);
 
-    // CLean up
+    // Clean up
     CHECK(tcs_destroy(&socket) == TCS_SUCCESS);
     tcs_lib_free();
 }
@@ -305,7 +368,7 @@ TEST_CASE("tcs_pool_poll simple read")
     TcsSocket socket = TCS_NULLSOCKET;
 
     CHECK(tcs_create(&socket, TCS_TYPE_UDP_IP4) == TCS_SUCCESS);
-
+    int allocation_diff_before = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
     CHECK(tcs_bind(socket, 5679) == TCS_SUCCESS);
     int user_data = 1337;
     struct TcsPool* pool = NULL;
@@ -326,8 +389,10 @@ TEST_CASE("tcs_pool_poll simple read")
     CHECK(tcs_send_to(socket, (const uint8_t*)"hej", 4, TCS_NO_FLAGS, &receiver, NULL) == TCS_SUCCESS);
     CHECK(tcs_pool_poll(pool, &ev, 1, &populated, 10) == TCS_SUCCESS);
     CHECK(tcs_pool_destory(&pool) == TCS_SUCCESS);
+    int allocation_diff_after = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
 
     // Then
+    CHECK(allocation_diff_before == allocation_diff_after);
     CHECK(populated == 1);
     CHECK(ev.can_read == true);
     CHECK(ev.can_write == false);
@@ -337,7 +402,7 @@ TEST_CASE("tcs_pool_poll simple read")
 
     // CLean up
     CHECK(tcs_destroy(&socket) == TCS_SUCCESS);
-    tcs_lib_free();
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 
 TEST_CASE("Address information count")
@@ -362,6 +427,7 @@ TEST_CASE("Get number of local addresses")
 {
     // Setup
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+    int pre_mem_diff = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
 
     // Given
     size_t peek_no_of_found_addresses = 0;
@@ -371,10 +437,12 @@ TEST_CASE("Get number of local addresses")
     // When
     CHECK(tcs_local_interfaces(NULL, 0, &peek_no_of_found_addresses) == TCS_SUCCESS);
     CHECK(tcs_local_interfaces(interfaces, 128, &no_of_found_addresses) == TCS_SUCCESS);
+    int post_mem_diff = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
 
     // Then
     CHECK(no_of_found_addresses > 0);
     CHECK(peek_no_of_found_addresses == no_of_found_addresses); // Fails if computer has more than 128 addresses
+    CHECK(post_mem_diff == pre_mem_diff);
 
     // Clean up
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
@@ -389,7 +457,7 @@ TEST_CASE("Get loopback address")
     size_t no_of_found_addresses = 0;
     struct TcsInterface interfaces[32];
     bool found_loopback = false;
-    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+    int pre_mem_diff = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
 
     // When
     CHECK(tcs_local_interfaces(interfaces, 32, &no_of_found_addresses) == TCS_SUCCESS);
@@ -408,10 +476,12 @@ TEST_CASE("Get loopback address")
     {
         std::cout << interfaces[i].name << " => " << interfaces[i].address << std::endl;
     }
+    int post_mem_diff = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
 
     // Then
     CHECK(no_of_found_addresses > 0);
     CHECK(found_loopback);
+    CHECK(post_mem_diff == pre_mem_diff);
 
     // Clean up
     REQUIRE(tcs_lib_free() == TCS_SUCCESS); // We are in C++, we should use defer
