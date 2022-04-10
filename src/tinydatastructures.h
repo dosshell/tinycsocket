@@ -57,8 +57,11 @@ static int ulist_create_copy(void* from_data,
 
 static int ulist_destroy(void** data)
 {
-    free(*data);
-    *data = NULL;
+    if (*data != NULL)
+    {
+        free(*data);
+        *data = NULL;
+    }
     return 0;
 }
 
