@@ -310,7 +310,7 @@ TEST_CASE("tcs_pool_poll simple read")
     // When
     size_t populated = 0;
     TcsPollEvent ev = TCS_NULLEVENT;
-    CHECK(tcs_pool_poll(pool, &ev, 1, &populated, 5000) == TCS_ERROR_TIMED_OUT);
+    CHECK(tcs_pool_poll(pool, &ev, 1, &populated, 0) == TCS_ERROR_TIMED_OUT);
 
     // Then
     CHECK(populated == 0);
@@ -319,7 +319,7 @@ TEST_CASE("tcs_pool_poll simple read")
     TcsAddress receiver = TCS_ADDRESS_NULL;
     CHECK(tcs_util_string_to_address("127.0.0.1:5679", &receiver) == TCS_SUCCESS);
     CHECK(tcs_send_to(socket, (const uint8_t*)"hej", 4, TCS_NO_FLAGS, &receiver, NULL) == TCS_SUCCESS);
-    CHECK(tcs_pool_poll(pool, &ev, 1, &populated, 5000) == TCS_SUCCESS);
+    CHECK(tcs_pool_poll(pool, &ev, 1, &populated, 10) == TCS_SUCCESS);
     CHECK(tcs_pool_destory(&pool) == TCS_SUCCESS);
 
     // Then
