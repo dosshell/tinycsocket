@@ -6,7 +6,6 @@ add_library(tinycsocket STATIC
             "tinycsocket_posix.c")
 
 add_library(tinycsockets ALIAS tinycsocket)
-
 target_include_directories(tinycsocket PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 set_target_properties(tinycsocket PROPERTIES FOLDER TCS)
