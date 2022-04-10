@@ -23,6 +23,11 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 
+#ifdef DO_WRAP
+#include "dbg_wrap.h"
+#endif
+#include "mock.h"
+
 #include <tinycsocket.h>
 #include <cstring>
 #include <iostream>

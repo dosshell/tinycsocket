@@ -34,6 +34,10 @@
 
 #ifdef TINYCSOCKET_USE_POSIX_IMPL
 
+#ifdef DO_WRAP
+#include "dbg_wrap.h"
+#endif
+
 #include <errno.h>
 #include <ifaddrs.h>     // getifaddr()
 #include <net/if.h>      // Flags for ifaddrs (?)

@@ -23,6 +23,10 @@
 
 #ifdef TINYCSOCKET_USE_WIN32_IMPL
 
+#ifdef DO_WRAP
+#include "dbg_wrap.h"
+#endif
+
 #if !defined(NTDDI_VERSION) && !defined(_WIN32_WINNT) && !defined(WINVER)
 #ifdef _WIN64
 #define NTDDI_VERSION 0x05020000
