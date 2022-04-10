@@ -233,7 +233,7 @@ TEST_CASE("shutdown")
     CHECK(tcs_bind(peer2, 5679) == TCS_SUCCESS);
 
     std::thread t1([&]() {
-        TcsAddress peer1_addr = {0};
+        TcsAddress peer1_addr = TCS_ADDRESS_NULL;
         tcs_util_string_to_address("localhost:5678", &peer1_addr);
         peer1_addr.family = TCS_AF_IP4;
         uint8_t buffer2[1024] = "go!";
