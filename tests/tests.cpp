@@ -216,7 +216,7 @@ TEST_CASE("Simple TCP Netstring Test")
 }
 
 // TODO(markusl): Broken on Windows (use nonblocking behind the curton?)
-/*
+#ifdef CROSS_ISSUE
 TEST_CASE("shutdown")
 {
     // Setup
@@ -254,7 +254,7 @@ TEST_CASE("shutdown")
     // CLean up
     tcs_lib_free();
 }
-*/
+#endif
 
 TEST_CASE("tcs_pool_poll simple write")
 {
