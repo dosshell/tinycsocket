@@ -989,6 +989,10 @@ TcsReturnCode tcs_local_interfaces(struct TcsInterface found_interfaces[],
             free(adapters);
             adapters = NULL;
         }
+        else
+        {
+            break;
+        }
     }
     if (adapter_sts != NO_ERROR)
     {
