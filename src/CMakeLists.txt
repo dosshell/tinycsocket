@@ -6,7 +6,6 @@ add_library(tinycsocket STATIC
             "tinycsocket_posix.c")
 
 add_library(tinycsockets ALIAS tinycsocket)
-
 target_include_directories(tinycsocket PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 set_target_properties(tinycsocket PROPERTIES FOLDER TCS)
@@ -23,10 +22,25 @@ if (TCS_WARNINGS_AS_ERRORS)
     endif ()
 endif ()
 
-if (TCS_GENERATE_COVERAGE)
-  target_compile_options(tinycsocket PRIVATE --coverage)
-  target_link_libraries(tinycsocket PRIVATE --coverage)
-endif ()
-
 install(TARGETS tinycsocket DESTINATION lib)
 install(FILES tinycsocket.h DESTINATION include)
+
+if (TCS_ENABLE_TESTS)
+    add_library(tinycsocket_wrapped STATIC
+                "tinycsocket.h"
+                "tinydatastructures.h"
+                "tinycsocket_common.c"
+                "tinycsocket_win32.c"
+                "tinycsocket_posix.c"
+                "dbg_wrap.h")
+    target_include_directories(tinycsocket_wrapped PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    if (WIN32)
+	    target_link_libraries(tinycsocket_wrapped PRIVATE wsock32 ws2_32 iphlpapi)
+    endif ()
+    target_compile_options(tinycsocket_wrapped PUBLIC "-DDO_WRAP")
+endif ()
+
+if (TCS_GENERATE_COVERAGE)
+  target_compile_options(tinycsocket_wrapped PRIVATE --coverage)
+  target_link_libraries(tinycsocket_wrapped PRIVATE --coverage)
+endif ()

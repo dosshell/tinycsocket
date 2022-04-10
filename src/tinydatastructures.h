@@ -13,39 +13,39 @@
 // Tiny code pollution
 // Easy to debug
 
-static int ulist_create(void** data, size_t init_capacity, size_t* capacity, size_t element_size);
-static int ulist_reserve(void** data, size_t requested_capacity, size_t* capacity, size_t element_size);
-static int ulist_create_copy(void* from_data,
-                             size_t from_count,
-                             void** to_data,
-                             size_t* to_count,
-                             size_t* to_capacity,
-                             size_t element_size);
-static int ulist_destroy(void** data);
-static size_t ulist_best_capacity_fit(size_t n);
-static int ulist_reserve(void** data, size_t requested_capacity, size_t* capacity, size_t element_size);
-static int ulist_resize(void** data, size_t new_size, size_t* capacity, size_t* count, size_t element_size);
-static int ulist_add(void** data,
-                     void* add_data,
-                     size_t add_count,
-                     size_t* count,
-                     size_t* capacity,
-                     size_t element_size);
-static int ulist_remove(void* data, size_t index, size_t remove_count, size_t* count, size_t element_size);
-static int ulist_relax(void** data, size_t count, size_t* capacity);
-static int ulist_pop(void* data, size_t* count, void* out_element, size_t element_size);
+static inline int ulist_create(void** data, size_t init_capacity, size_t* capacity, size_t element_size);
+static inline int ulist_reserve(void** data, size_t requested_capacity, size_t* capacity, size_t element_size);
+static inline int ulist_create_copy(void* from_data,
+                                    size_t from_count,
+                                    void** to_data,
+                                    size_t* to_count,
+                                    size_t* to_capacity,
+                                    size_t element_size);
+static inline int ulist_destroy(void** data);
+static inline size_t ulist_best_capacity_fit(size_t n);
+static inline int ulist_reserve(void** data, size_t requested_capacity, size_t* capacity, size_t element_size);
+static inline int ulist_resize(void** data, size_t new_size, size_t* capacity, size_t* count, size_t element_size);
+static inline int ulist_add(void** data,
+                            void* add_data,
+                            size_t add_count,
+                            size_t* count,
+                            size_t* capacity,
+                            size_t element_size);
+static inline int ulist_remove(void* data, size_t index, size_t remove_count, size_t* count, size_t element_size);
+static inline int ulist_relax(void** data, size_t count, size_t* capacity);
+static inline int ulist_pop(void* data, size_t* count, void* out_element, size_t element_size);
 
-static int ulist_create(void** data, size_t init_capacity, size_t* capacity, size_t element_size)
+static inline int ulist_create(void** data, size_t init_capacity, size_t* capacity, size_t element_size)
 {
     return ulist_reserve(data, init_capacity, capacity, element_size);
 }
 
-static int ulist_create_copy(void* from_data,
-                             size_t from_count,
-                             void** to_data,
-                             size_t* to_count,
-                             size_t* to_capacity,
-                             size_t element_size)
+static inline int ulist_create_copy(void* from_data,
+                                    size_t from_count,
+                                    void** to_data,
+                                    size_t* to_count,
+                                    size_t* to_capacity,
+                                    size_t element_size)
 {
     int sts = ulist_create(to_data, from_count, to_capacity, element_size);
     if (sts != 0)
@@ -55,14 +55,17 @@ static int ulist_create_copy(void* from_data,
     return 0;
 }
 
-static int ulist_destroy(void** data)
+static inline int ulist_destroy(void** data)
 {
-    free(*data);
-    *data = NULL;
+    if (*data != NULL)
+    {
+        free(*data);
+        *data = NULL;
+    }
     return 0;
 }
 
-static size_t ulist_best_capacity_fit(size_t n)
+static inline size_t ulist_best_capacity_fit(size_t n)
 {
     size_t best_fit = 8;
     size_t size_list[] = {
@@ -85,7 +88,7 @@ static size_t ulist_best_capacity_fit(size_t n)
     return best_fit;
 }
 
-static int ulist_reserve(void** data, size_t requested_capacity, size_t* capacity, size_t element_size)
+static inline int ulist_reserve(void** data, size_t requested_capacity, size_t* capacity, size_t element_size)
 {
     if (requested_capacity <= *capacity)
         return 0;
@@ -101,7 +104,7 @@ static int ulist_reserve(void** data, size_t requested_capacity, size_t* capacit
     return 0;
 }
 
-static int ulist_resize(void** data, size_t new_size, size_t* capacity, size_t* count, size_t element_size)
+static inline int ulist_resize(void** data, size_t new_size, size_t* capacity, size_t* count, size_t element_size)
 {
     ulist_reserve(data, new_size, capacity, element_size);
     if (new_size < *count)
@@ -110,12 +113,12 @@ static int ulist_resize(void** data, size_t new_size, size_t* capacity, size_t* 
     return 0;
 }
 
-static int ulist_add(void** data,
-                     void* add_data,
-                     size_t add_count,
-                     size_t* count,
-                     size_t* capacity,
-                     size_t element_size)
+static inline int ulist_add(void** data,
+                            void* add_data,
+                            size_t add_count,
+                            size_t* count,
+                            size_t* capacity,
+                            size_t element_size)
 {
     ulist_reserve(data, add_count * element_size, capacity, element_size);
     memcpy((uint8_t*)*data + *count * element_size, add_data, add_count * element_size);
@@ -123,7 +126,7 @@ static int ulist_add(void** data,
     return 0;
 }
 
-static int ulist_remove(void* data, size_t index, size_t remove_count, size_t* count, size_t element_size)
+static inline int ulist_remove(void* data, size_t index, size_t remove_count, size_t* count, size_t element_size)
 {
     if (index + remove_count > *count)
         return -1;
@@ -134,7 +137,7 @@ static int ulist_remove(void* data, size_t index, size_t remove_count, size_t* c
     return 0;
 }
 
-static int ulist_relax(void** data, size_t count, size_t* capacity)
+static inline int ulist_relax(void** data, size_t count, size_t* capacity)
 {
     size_t suggested_capacity = ulist_best_capacity_fit(count);
     if (suggested_capacity < *capacity)
@@ -148,7 +151,7 @@ static int ulist_relax(void** data, size_t count, size_t* capacity)
     return 0;
 }
 
-static int ulist_pop(void* data, size_t* count, void* out_element, size_t element_size)
+static inline int ulist_pop(void* data, size_t* count, void* out_element, size_t element_size)
 {
     if (*count < 1)
         return -1;

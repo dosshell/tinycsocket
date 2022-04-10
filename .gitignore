@@ -4,4 +4,6 @@ docs/_*
 /build/
 /build_coverage/
 /coverage_report/
+/out/
 cobertura.xml
+CmakeSettings.json

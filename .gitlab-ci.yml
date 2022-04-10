@@ -199,14 +199,14 @@ win-1809 tests:
     - "linux mingw-w64 x86-64 winblue"
     - "linux mingw-w64 x86 winblue"
   script:
-    - ./build/tests_msvc_debug_x86.exe --reporters=junit --out=./report_win-1809_msvc_debug_x86.xml
-    - ./build/tests_msvc_release_x86.exe --reporters=junit --out=./report_win-1809_msvc_release_x86.xml
-    - ./build/tests_msvc_debug_x86-64.exe --reporters=junit --out=./report_win-1809_msvc_debug_x86-64.xml
-    - ./build/tests_msvc_release_x86-64.exe --reporters=junit --out=./report_win-1809_msvc_release_x86-64.xml
-    - ./build/tests_mingw_x86_winxp.exe --reporters=junit --out=./report_mingw_x86_winxp.xml
-    - ./build/tests_mingw_x86-64_winxp.exe --reporters=junit --out=./report_mingw_x86-64_winxp.xml
-    - ./build/tests_mingw_x86_winblue.exe --reporters=junit --out=./report_mingw_x86_winblue.xml
-    - ./build/tests_mingw_x86-64_winblue.exe --reporters=junit --out=./report_mingw_x86-64_winblue.xml
+    - ./build/tests_msvc_debug_x86.exe --reporters=junit,conosle --out=./report_win-1809_msvc_debug_x86.xml
+    - ./build/tests_msvc_release_x86.exe --reporters=junit,conosle --out=./report_win-1809_msvc_release_x86.xml
+    - ./build/tests_msvc_debug_x86-64.exe --reporters=junit,conosle --out=./report_win-1809_msvc_debug_x86-64.xml
+    - ./build/tests_msvc_release_x86-64.exe --reporters=junit,conosle --out=./report_win-1809_msvc_release_x86-64.xml
+    - ./build/tests_mingw_x86_winxp.exe --reporters=junit,conosle --out=./report_mingw_x86_winxp.xml
+    - ./build/tests_mingw_x86-64_winxp.exe --reporters=junit,conosle --out=./report_mingw_x86-64_winxp.xml
+    - ./build/tests_mingw_x86_winblue.exe --reporters=junit,conosle --out=./report_mingw_x86_winblue.xml
+    - ./build/tests_mingw_x86-64_winblue.exe --reporters=junit,conosle --out=./report_mingw_x86-64_winblue.xml
   artifacts:
     reports:
       junit:
@@ -227,7 +227,7 @@ winxp tests x86:
   stage: test
   needs: ["win-1809 msvc v19.26"]
   script:
-    - ./build/tests_msvc_release_x86 --reporters=junit --out=./report_winxp_msvc_x86.xml
+    - ./build/tests_msvc_release_x86 --reporters=junit,conosle --out=./report_winxp_msvc_x86.xml
   artifacts:
     reports:
       junit: report_winxp_msvc_x86.xml
@@ -242,7 +242,7 @@ linux test x86-64:
   needs: ["linux gcc v9.3 x86-64"]
   script:
     - apk add libstdc++
-    - ./build/tests_linux_gcc_x86-64 --reporters=junit --out=./report_linux_gcc_x86.xml
+    - ./build/tests_linux_gcc_x86-64 --reporters=junit,conosle --out=./report_linux_gcc_x86.xml
   artifacts:
     reports:
       junit: report_linux_gcc_x86-64.xml
@@ -256,7 +256,7 @@ linux test x86:
   needs: ["linux gcc v9.3 x86"]
   script:
     - apk add libstdc++
-    - ./build/tests_linux_gcc_x86 --reporters=junit --out=./report_linux_gcc_x86.xml
+    - ./build/tests_linux_gcc_x86 --reporters=junit,conosle --out=./report_linux_gcc_x86.xml
   artifacts:
     reports:
       junit: report_linux_gcc_x86.xml

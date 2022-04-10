@@ -42,6 +42,7 @@ add_subdirectory(src)
 if (TCS_ENABLE_TESTS)
   add_subdirectory(tests)
 endif ()
+
 if (TCS_ENABLE_EXAMPLES)
   add_subdirectory(examples)
 endif ()
