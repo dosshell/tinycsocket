@@ -53,9 +53,11 @@ posix coverage:
     - apk add cmake g++ ninja gcovr
     - ./ci/coverage.sh
   artifacts:
+    expire_in: 7 days
     reports:
-      cobertura:
-        - ./cobertura.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: ./cobertura.xml
 
 # BUILDS
 
