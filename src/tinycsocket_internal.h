@@ -752,6 +752,28 @@ TcsReturnCode tcs_set_ip_multicast_drop(TcsSocket socket_ctx,
                                         const struct TcsAddress* local_address,
                                         const struct TcsAddress* multicast_address);
 
+/**
+* @brief Read up to and including a special character.
+*
+* This function ensures that the socket buffer will keep its data after the delimiter.
+* It is recommended for performance to read everything and split it yourself.
+*
+* @param socket_ctx is your in-out socket context.
+
+* @param socket_ctx is your in-out socket context.
+* @param buffer is a pointer to your buffer where you want to store the incoming data to.
+* @param buffer_size is the byte size of your buffer, for preventing overflows.
+* @param bytes_received is how many bytes that was successfully written to your buffer.
+* @param delimiter is your byte value where you want to stop reading. (including delimiter)
+* @return #TCS_SUCCESS if successful, otherwise the error code.
+* @see tcs_receive_netstring()
+*/
+TcsReturnCode tcs_receive_line(TcsSocket socket_ctx,
+                               uint8_t* buffer,
+                               size_t buffer_size,
+                               size_t* bytes_received,
+                               uint8_t delimter);
+
 TcsReturnCode tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, size_t* bytes_received);
 
 TcsReturnCode tcs_send_netstring(TcsSocket socket_ctx, const uint8_t* buffer, size_t buffer_size);

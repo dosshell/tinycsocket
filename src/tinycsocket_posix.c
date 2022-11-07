@@ -120,6 +120,8 @@ static TcsReturnCode errno2retcode(int error_code)
     {
         case ECONNREFUSED:
             return TCS_ERROR_CONNECTION_REFUSED;
+        case EAGAIN:
+            return TCS_ERROR_TIMED_OUT;
         default:
             return TCS_ERROR_UNKNOWN;
     }

@@ -225,6 +225,60 @@ TEST_CASE("Simple TCP Test")
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 
+TEST_CASE("tcs_receive_line")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    TcsSocket listen_socket = TCS_NULLSOCKET;
+    TcsSocket server_socket = TCS_NULLSOCKET;
+    TcsSocket client_socket = TCS_NULLSOCKET;
+
+    CHECK(tcs_create(&listen_socket, TCS_TYPE_TCP_IP4) == TCS_SUCCESS);
+    CHECK(tcs_create(&client_socket, TCS_TYPE_TCP_IP4) == TCS_SUCCESS);
+
+    CHECK(tcs_listen_to(listen_socket, 1212) == TCS_SUCCESS);
+    CHECK(tcs_connect(client_socket, "localhost", 1212) == TCS_SUCCESS);
+
+    CHECK(tcs_accept(listen_socket, &server_socket, NULL) == TCS_SUCCESS);
+    CHECK(tcs_destroy(&listen_socket) == TCS_SUCCESS);
+
+    // When
+    uint8_t msg[] = "hello:world";
+    uint8_t part1[32] = {0};
+    uint8_t part2[6] = {0};
+    uint8_t part3[32] = {0};
+    size_t part1_length = 0;
+    size_t part2_length = 0;
+    size_t part3_length = 0;
+
+    CHECK(tcs_send(client_socket, msg, sizeof(msg), TCS_MSG_WAITALL, NULL) == TCS_SUCCESS);
+    CHECK(tcs_receive_line(server_socket, part1, sizeof(part1), &part1_length, ':') == TCS_SUCCESS);
+    CHECK(tcs_receive_line(server_socket, part2, sizeof(part2), &part2_length, '\0') == TCS_SUCCESS);
+
+    CHECK(tcs_set_receive_timeout(server_socket, 10) == TCS_SUCCESS);
+    CHECK(tcs_receive_line(server_socket, part3, sizeof(part3), &part3_length, '\0') == TCS_ERROR_TIMED_OUT);
+
+    CHECK(tcs_send(client_socket, msg, sizeof(msg) - 3, TCS_MSG_WAITALL, NULL) == TCS_SUCCESS);
+    CHECK(tcs_receive_line(server_socket, part3, sizeof(part3), &part3_length, '\0') == TCS_ERROR_TIMED_OUT);
+    CHECK(tcs_send(client_socket, msg + sizeof(msg) - 3, 3, TCS_MSG_WAITALL, NULL) == TCS_SUCCESS);
+    CHECK(tcs_receive_line(server_socket, part3 + part3_length, sizeof(part3), &part3_length, '\0') == TCS_SUCCESS);
+
+    // Then
+    CHECK(part1_length == 6);
+    CHECK(part2_length == 6);
+    CHECK(part3_length == 3);
+    CHECK(memcmp(part1, msg, 6) == 0);
+    CHECK(memcmp(part2, msg + 6, 6) == 0);
+    CHECK(memcmp(part3, msg, sizeof(msg)) == 0);
+
+    // Clean up
+    CHECK(tcs_destroy(&client_socket) == TCS_SUCCESS);
+    CHECK(tcs_destroy(&server_socket) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
 TEST_CASE("Simple TCP Netstring Test")
 {
     // Setup

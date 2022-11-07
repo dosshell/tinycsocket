@@ -196,6 +196,100 @@ TcsReturnCode tcs_listen_to(TcsSocket socket_ctx, uint16_t local_port)
     return tcs_listen(socket_ctx, TCS_BACKLOG_SOMAXCONN);
 }
 
+TcsReturnCode tcs_receive_line(TcsSocket socket_ctx,
+                               uint8_t* buffer,
+                               size_t buffer_length,
+                               size_t* bytes_received,
+                               uint8_t delimter)
+{
+    if (socket_ctx == TCS_NULLSOCKET || buffer == NULL || buffer_length <= 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    /*
+    *                    data in kernel buffer
+    *   |12345yyyyyyyyyyyyyyyyyyyyyyyy..............|
+    *
+    *       buffer_length ----------------------------------.
+    *       searched ----------------------.                |
+    *                                      |                |
+    *       bytes_peeked ------------------.                |
+    *       bytes_read ---------------.    |                |
+    *                                 v    v                v
+    *       data in arg buffer
+    *   |xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx12345................|
+    */
+    size_t bytes_read = 0;
+    size_t bytes_peeked = 0;
+    size_t bytes_searched = 0;
+    while (bytes_read < buffer_length)
+    {
+        TcsReturnCode sts = TCS_SUCCESS;
+        size_t bytes_free_in_buffer = buffer_length - bytes_read;
+        size_t current_peeked;
+        sts = tcs_receive(socket_ctx, buffer + bytes_read, bytes_free_in_buffer, TCS_MSG_PEEK, &current_peeked);
+        if (sts != TCS_SUCCESS)
+        {
+            if (bytes_received != NULL)
+                *bytes_received = bytes_read;
+            return sts;
+        }
+        bytes_peeked += current_peeked;
+
+        if (current_peeked == 0)
+        {
+            // Make sure we block so we do not fast loop previous PEEK.
+            // Can not assume that peek with waitall is not crossplatform, needs to read
+            size_t current_read;
+            sts = tcs_receive(socket_ctx, buffer + bytes_read, 1, TCS_MSG_WAITALL, &current_read);
+            bytes_read += current_read;
+            bytes_peeked += current_read;
+
+            if (sts != TCS_SUCCESS)
+            {
+                if (bytes_received != NULL)
+                    *bytes_received = bytes_read;
+                return sts;
+            }
+        }
+
+        bool found_delimiter = false;
+
+        while (bytes_searched < bytes_peeked)
+        {
+            if (buffer[bytes_searched++] == delimter)
+            {
+                found_delimiter = true;
+                break;
+            }
+        }
+
+        // byte_searched == bytes_peeked if no delimiter was found
+        // after this block, bytes_read will also has the same value as they have
+        if (bytes_searched > bytes_read)
+        {
+            size_t bytes;
+            size_t bytes_to_read_to_catch_up = bytes_searched - bytes_read;
+            sts = tcs_receive(socket_ctx, buffer + bytes_read, bytes_to_read_to_catch_up, TCS_MSG_WAITALL, &bytes);
+            bytes_read += bytes;
+            if (sts != TCS_SUCCESS)
+            {
+                if (bytes_received != NULL)
+                    *bytes_received = bytes_read;
+                return sts;
+            }
+        }
+        if (found_delimiter)
+        {
+            if (bytes_received != NULL)
+                *bytes_received = bytes_read;
+            return sts;
+        }
+    }
+    if (bytes_received != NULL)
+        *bytes_received = bytes_read;
+    return TCS_ERROR_MEMORY;
+}
+
 TcsReturnCode tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_length, size_t* bytes_received)
 {
     if (socket_ctx == TCS_NULLSOCKET || buffer == NULL || buffer_length <= 0)
