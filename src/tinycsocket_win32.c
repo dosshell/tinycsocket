@@ -157,6 +157,8 @@ static TcsReturnCode wsaerror2retcode(int wsa_error)
             return TCS_ERROR_NOT_INITED;
         case WSAEWOULDBLOCK:
             return TCS_ERROR_WOULD_BLOCK;
+        case WSAETIMEDOUT:
+            return TCS_ERROR_TIMED_OUT;
         default:
             return TCS_ERROR_UNKNOWN;
     }
