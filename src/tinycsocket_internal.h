@@ -205,7 +205,7 @@ struct TcsPollEvent
 static const struct TcsPollEvent TCS_NULLEVENT = {0, 0, false, false, TCS_SUCCESS};
 
 /**
- * @brief Plattform independent utility function to compose an IPv4 address from 4 bytes.
+ * @brief Platform independent utility function to compose an IPv4 address from 4 bytes.
  * 
  * The order of the bytes are: a.b.c.d. Tinycsocket API will always expose host byte order (little endian).
  * You will _never_ need to think of byte order (except if you are debugging the library OS specific parts of course).
@@ -226,7 +226,7 @@ static const struct TcsPollEvent TCS_NULLEVENT = {0, 0, false, false, TCS_SUCCES
 TcsReturnCode tcs_util_ipv4_args(uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint32_t* out_address);
 
 /**
- * @brief Plattform independent parsing of a string to an IPv4 address.
+ * @brief Platform independent parsing of a string to an IPv4 address.
  *
  * If the local_port argument is excluded from the string the assign local_port value out the address will be zero.
  * Some example of valid formats are "192.168.0.1" or "127.0.0.1:1212".
@@ -246,7 +246,7 @@ TcsReturnCode tcs_util_ipv4_args(uint8_t a, uint8_t b, uint8_t c, uint8_t d, uin
 TcsReturnCode tcs_util_string_to_address(const char str[], struct TcsAddress* out_address);
 
 /**
- * @brief Plattform independent parsing of an IPv4 address to a string.
+ * @brief Platform independent parsing of an IPv4 address to a string.
  *
  * @param address
  * @param out_str
@@ -486,15 +486,103 @@ TcsReturnCode tcs_receive_from(TcsSocket socket_ctx,
                                struct TcsAddress* source_address,
                                size_t* bytes_received);
 
+/**
+* @brief Create a context used for waiting on several sockets.
+*
+* #TcsPool can be used to monitor several sockets for events (reading, writing or error).
+* Use tcs_pool_poll() to get a list of sockets ready to interact with.
+*
+* @code
+* tcs_lib_init();
+* TCS_SOCKET socket1 = TCS_NULLSOCKET;
+* TCS_SOCKET socket2 = TCS_NULLSOCKET;
+* tcs_create(&socket1, TCS_TYPE_UDP_IP4);
+* tcs_create(&socket2, TCS_TYPE_UDP_IP4);
+* tcs_bind(socket, 1000)
+* tcs_bind(socket, 1001)
+*
+* struct TcsPool* pool = NULL;
+* tcs_pool_create(&pool);
+* tcs_pool_add(pool, socket1, NULL, true, false, false); // Only wait for incoming data
+* tcs_pool_add(pool, socket2, NULL, true, false, false);
+*
+* size_t populated = 0;
+* TcsPollEvent ev[2] = {TCS_NULLEVENT, TCS_NULLEVENT};
+* tcs_pool_poll(pool, ev, 2, &populated, 1000);  // Will wait 1000 ms for data on port 1000 or 1001
+* for (int i = 0; i < populated; ++i)
+* {
+*     if (ev[i].can_read)
+*     {
+*         uint8_t recv_buffer[8192] = {0};
+*         size_t bytes_received = 0;
+*         tcs_receive(ev[i].socket, recv_buffer, 8191, TCS_NO_FLAGS, &bytes_received);
+*         recv_buffer[bytes_received] = '\n';
+*         printf(recv_buffer);
+*     }
+* }
+* tcs_pool_destory(&pool);
+* tcs_destroy(&socket1);
+* tcs_destroy(&socket2);
+* tcs_lib_free();
+* @endcode
+*
+* @param[out] pool is your out pool context pointer. Initiate a #TcsPool pointer to NULL and use the address of this pointer.
+* @return #TCS_SUCCESS if successful, otherwise the error code.
+* @see tcs_pool_destory()
+*/
 TcsReturnCode tcs_pool_create(struct TcsPool** pool);
+
+/**
+* @brief Frees all resources bound to the pool.
+*
+* Will set @p pool to NULL when successfully.
+*
+* @param[in, out] pool is your in-out pool context pointer created with tcs_pool_create()
+* @return #TCS_SUCCESS if successful, otherwise the error code.
+* @see tcs_pool_create()
+*/
 TcsReturnCode tcs_pool_destory(struct TcsPool** pool);
+
+/**
+* @brief Add a socket to the pool.
+*
+* @param[in] pool is your in-out pool context pointer created with tcs_pool_create()
+* @param socket_ctx will be added to the pool. Note that you can still use it outside of the pool.
+* @param[in] user_data is a pointer of your choice that is associated with the socket. Use NULL if not used.
+* @param poll_can_read true if you want to poll @p socket_ctx for to be able to read.
+* @param poll_can_write true if you want to poll @p socket_ctx for to be able to write.
+* @param poll_error true if you want to poll if any error has happened to @p socket_ctx.
+* @return #TCS_SUCCESS if successful, otherwise the error code.
+* @see tcs_pool_remove()
+*/
 TcsReturnCode tcs_pool_add(struct TcsPool* pool,
-                           TcsSocket socket,
+                           TcsSocket socket_ctx,
                            void* user_data,
                            bool poll_can_read,
                            bool poll_can_write,
                            bool poll_error);
-TcsReturnCode tcs_pool_remove(struct TcsPool* pool, TcsSocket socket);
+
+/**
+* @brief Remove a socket from the pool.
+*
+* @param[in] pool is a context pointer created with tcs_pool_create()
+* @param socket_ctx will be removed from the pool.
+* @return #TCS_SUCCESS if successful, otherwise the error code.
+* @see tcs_pool_remove()
+*/
+TcsReturnCode tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx);
+
+/**
+* @brief Remove a socket from the pool.
+*
+* @param[in] pool is your in-out pool context pointer created with @p tcs_pool_create().
+* @param[in, out] events is an array with in-out events. Assign each element to #TCS_NULLEVENT.
+* @param events_count number of in elements in your events array. Does not make sense to have more events than number of sockets int the pool. If to short, all events may not be returned.
+* @param[out] events_populated will contain the number of events the parameter ev has been populated with by the call.
+* @param timeout_in_ms is the maximum wait time for any event. If any event happens before this time, the call will return immediately.
+* @return #TCS_SUCCESS if successful, otherwise the error code.
+* @see tcs_pool_remove()
+*/
 TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
                             struct TcsPollEvent* events,
                             size_t events_count,
@@ -517,6 +605,22 @@ TcsReturnCode tcs_set_option(TcsSocket socket_ctx,
                              const void* option_value,
                              size_t option_size);
 
+/**
+* @brief Get parameters on a socket. It is recommended to use tcs_get_xxx instead.
+*
+* @code
+* uint8_t c;
+* size_t a = sizeof(c);
+* tcs_get_option(socket, TCS_SOL_IP, TCS_SO_IP_MULTICAST_LOOP, &c, &a);
+* @endcode
+*
+* @param socket_ctx is your in-out socket context.
+* @param level is the definition level.
+* @param option_name is the option name.
+* @param option_value is a pointer to the option value.
+* @param option_size is a pointer the byte size of the data pointed by @p option_value.
+* @return #TCS_SUCCESS if successful, otherwise the error code.
+*/
 TcsReturnCode tcs_get_option(TcsSocket socket_ctx,
                              int32_t level,
                              int32_t option_name,
@@ -580,7 +684,7 @@ TcsReturnCode tcs_local_interfaces(struct TcsInterface found_interfaces[],
 * Only valid for protocols that support broadcast, for example UDP. Default is false.
 *
 * @param socket_ctx socket to enable/disable permission to send broadcast on.
-* @param do_allow_broadcast set to true to allow, false to forbidd.
+* @param do_allow_broadcast set to true to allow, false to forbid.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
 TcsReturnCode tcs_set_broadcast(TcsSocket socket_ctx, bool do_allow_broadcast);

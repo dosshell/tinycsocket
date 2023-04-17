@@ -582,7 +582,7 @@ TcsReturnCode tcs_pool_destory(struct TcsPool** pool)
 }
 
 TcsReturnCode tcs_pool_add(struct TcsPool* pool,
-                           TcsSocket socket,
+                           TcsSocket socket_ctx,
                            void* user_data,
                            bool poll_can_read,
                            bool poll_can_write,
@@ -612,13 +612,13 @@ TcsReturnCode tcs_pool_add(struct TcsPool* pool,
         pool->user_data.value = new_value;
         pool->user_data.capacity_bytes = new_capacity;
     }
-    pool->user_data.key[pool->user_data.count] = socket;
+    pool->user_data.key[pool->user_data.count] = socket_ctx;
     pool->user_data.value[pool->user_data.count] = user_data;
     pool->user_data.count++;
 
     if (poll_can_read)
     {
-        int sts = ulist_soc_add_one(&pool->read_sockets, socket);
+        int sts = ulist_soc_add_one(&pool->read_sockets, socket_ctx);
         if (sts != 0)
         {
             return TCS_ERROR_MEMORY;
@@ -626,7 +626,7 @@ TcsReturnCode tcs_pool_add(struct TcsPool* pool,
     }
     if (poll_can_write)
     {
-        int sts = ulist_soc_add_one(&pool->write_sockets, socket);
+        int sts = ulist_soc_add_one(&pool->write_sockets, socket_ctx);
         if (sts != 0)
         {
             ulist_soc_pop(&pool->read_sockets, NULL);
@@ -635,7 +635,7 @@ TcsReturnCode tcs_pool_add(struct TcsPool* pool,
     }
     if (poll_error)
     {
-        int sts = ulist_soc_add_one(&pool->error_sockets, socket);
+        int sts = ulist_soc_add_one(&pool->error_sockets, socket_ctx);
         if (sts != 0)
         {
             ulist_soc_pop(&pool->read_sockets, NULL);
@@ -646,11 +646,11 @@ TcsReturnCode tcs_pool_add(struct TcsPool* pool,
     return TCS_SUCCESS;
 }
 
-TcsReturnCode tcs_pool_remove(struct TcsPool* pool, TcsSocket socket)
+TcsReturnCode tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
 {
     for (size_t i = 0; i < pool->read_sockets.count; ++i)
     {
-        if (pool->read_sockets.data[i] == socket)
+        if (pool->read_sockets.data[i] == socket_ctx)
         {
             ulist_soc_remove_one(&pool->read_sockets, i);
             break;
@@ -658,7 +658,7 @@ TcsReturnCode tcs_pool_remove(struct TcsPool* pool, TcsSocket socket)
     }
     for (size_t i = 0; i < pool->write_sockets.count; ++i)
     {
-        if (pool->write_sockets.data[i] == socket)
+        if (pool->write_sockets.data[i] == socket_ctx)
         {
             ulist_soc_remove_one(&pool->write_sockets, i);
             break;
@@ -666,7 +666,7 @@ TcsReturnCode tcs_pool_remove(struct TcsPool* pool, TcsSocket socket)
     }
     for (size_t i = 0; i < pool->error_sockets.count; ++i)
     {
-        if (pool->error_sockets.data[i] == socket)
+        if (pool->error_sockets.data[i] == socket_ctx)
         {
             ulist_soc_remove_one(&pool->error_sockets, i);
             break;
@@ -674,7 +674,7 @@ TcsReturnCode tcs_pool_remove(struct TcsPool* pool, TcsSocket socket)
     }
     for (size_t i = 0; i < pool->user_data.count; ++i)
     {
-        if (pool->user_data.key[i] == socket)
+        if (pool->user_data.key[i] == socket_ctx)
         {
             pool->user_data.count--;
             pool->user_data.key[i] = pool->user_data.key[pool->user_data.count];
