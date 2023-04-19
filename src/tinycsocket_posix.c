@@ -29,9 +29,9 @@
 #ifndef _DEFAULT_SOURCE
 #define _DEFAULT_SOURCE
 #endif
-
-#include "tinycsocket.h"
-
+#ifndef TINYCSOCKET_INTERNAL_H_
+#include "tinycsocket_internal.h"
+#endif
 #ifdef TINYCSOCKET_USE_POSIX_IMPL
 
 #ifdef DO_WRAP

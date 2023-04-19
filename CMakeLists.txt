@@ -27,10 +27,10 @@ elseif (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
   add_definitions(-D_POSIX_C_SOURCE=200112L -D_DEFAULT_SOURCE -D_ISOC99_SOURCE)
 endif ()
 
-option(TCS_ENABLE_TESTS "Enable tests" OFF)
-option(TCS_ENABLE_EXAMPLES "Enable examples" OFF)
+option(TCS_ENABLE_TESTS "Enable tests" ON)
+option(TCS_ENABLE_EXAMPLES "Enable examples" ON)
 option(TCS_WARNINGS_AS_ERRORS "Enable treat warnings as errors" OFF)
-option(TCS_GENERATE_COVERAGE "Enable for test coverage generation" OFF)
+option(TCS_GENERATE_COVERAGE "Enable for test coverage generation" ON)
 
 check_symbol_exists(getifaddrs "sys/types.h;ifaddrs.h" TCS_HAVE_IFADDRS)
 
@@ -38,18 +38,27 @@ if (TCS_HAVE_IFADDRS)
   add_definitions("-DTCS_HAVE_IFADDRS")
 endif ()
 
+SET(TINYCSOCKET_SRC
+    "src/tinycsocket_internal.h"
+    "src/tinydatastructures.h"
+    "src/tinycsocket_common.c"
+    "src/tinycsocket_win32.c"
+    "src/tinycsocket_posix.c")
+
+# Header generation
+add_custom_command(OUTPUT include/tinycsocket.h COMMAND m4 ${CMAKE_CURRENT_SOURCE_DIR}/src/tinycsocket.h.m4 > ${CMAKE_CURRENT_SOURCE_DIR}/include/tinycsocket.h
+                   DEPENDS ${TINYCSOCKET_SRC}
+)
+
+add_library(tinycsocket_header INTERFACE)
+target_include_directories(tinycsocket_header INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
 # Tinycsocket static library
-add_library(tinycsocket STATIC
-            "include/tinycsocket.h"
-            "src/tinydatastructures.h"
-            "src/tinycsocket_common.c"
-            "src/tinycsocket_win32.c"
-            "src/tinycsocket_posix.c")
+add_library(tinycsocket STATIC ${TINYCSOCKET_SRC})
 
 add_library(tinycsockets ALIAS tinycsocket)
-target_include_directories(tinycsocket PUBLIC include)
-target_include_directories(tinycsocket PRIVATE src)
-
+target_include_directories(tinycsocket PUBLIC include PRIVATE src)
+target_link_libraries(tinycsocket INTERFACE tinycsocket_header)
 set_target_properties(tinycsocket PROPERTIES FOLDER tinycsocket)
 
 if (WIN32)
@@ -64,15 +73,13 @@ if (TCS_WARNINGS_AS_ERRORS)
     endif ()
 endif ()
 
+# Extra targets for development
 if (TCS_ENABLE_TESTS)
     add_library(tinycsocket_wrapped STATIC
-                "include/tinycsocket.h"
-                "src/tinydatastructures.h"
-                "src/tinycsocket_common.c"
-                "src/tinycsocket_win32.c"
-                "src/tinycsocket_posix.c"
+                ${TINYCSOCKET_SRC}
                 "src/dbg_wrap.h")
     target_include_directories(tinycsocket_wrapped PUBLIC include src)
+    target_link_libraries(tinycsocket_wrapped INTERFACE tinycsocket_header)
     if (WIN32)
 	    target_link_libraries(tinycsocket_wrapped PRIVATE wsock32 ws2_32 iphlpapi)
     endif ()
@@ -93,4 +100,4 @@ if (TCS_ENABLE_EXAMPLES)
 endif ()
 
 install(TARGETS tinycsocket DESTINATION lib)
-install(FILES include/tinycsocket.h DESTINATION include)
+install(FILES include/tinycsocket.h include/tinycsocket.h DESTINATION include)

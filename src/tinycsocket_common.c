@@ -19,7 +19,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include "tinycsocket.h"
+#ifndef TINYCSOCKET_INTERNAL_H_
+#include "tinycsocket_internal.h"
+#endif
 
 // This file should never call OS dependent code. Do not include OS files of OS specific ifdefs
 

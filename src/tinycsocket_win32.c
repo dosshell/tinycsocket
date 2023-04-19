@@ -19,8 +19,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include "tinycsocket.h"
-
+#ifndef TINYCSOCKET_INTERNAL_H_
+#include "tinycsocket_internal.h"
+#endif
 #ifdef TINYCSOCKET_USE_WIN32_IMPL
 
 #ifdef DO_WRAP
@@ -39,9 +40,10 @@
 #endif
 #endif
 #define WIN32_LEAN_AND_MEAN
-
+// Header only should not need other files
+#ifndef TINYDATASTRUCTURES_H_
 #include "tinydatastructures.h"
-
+#endif
 // before windows.h
 #include <winsock2.h> // sockets
 

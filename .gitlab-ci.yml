@@ -40,6 +40,17 @@ static linting:
     - cmake -G "Ninja" ../ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON
     - clang-tidy ../src/*.c ../examples/*.c
 
+header updated:
+  <<: *only-default
+  tags:
+    - docker
+  image: amd64/alpine:3.12
+  stage: linting
+  needs: []
+  script:
+    - apk add m4
+    - ./tools/is_header_up_to_date.sh
+
 # COVERAGE
 
 posix coverage:

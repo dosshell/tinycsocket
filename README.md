@@ -1,10 +1,14 @@
 Tinycsocket
 ============
-Crossplatform C socket library.
+Crossplatform header-only C socket library.
 
 Online documentation: https://tinycsocket.readthedocs.io/
 
+Download: [latest](https://gitlab.com/dosshell/tinycsocket/-/raw/master/include/tinycsocket.h)
+
 ```cpp
+// Put the following define in exactly one of your c/cpp files before including.
+#define TINYCSOCKET_IMPLEMENTATION
 #include "tinycsocket.h"
 
 int main(int argc, const char* argv[])
@@ -28,8 +32,12 @@ int main(int argc, const char* argv[])
 }
 ```
 
-Tinycsocket is a thin cross-platform socket library written in C99. It focuses
-on a minimal footprint, cross-platform and to be intuitive to use.
+Tinycsocket is a thin cross-platform header-only socket library written in C99. [^1]
+
+It focuses on a minimal footprint, fast compilations and to be intuitive to use.
+
+[^1]: Do not worry about C99 to much. It is compatible with C++, 10+ years old MSVC etc.
+If it does not compile or generate warnings in your compiler, please open an issue.
 
 The API is a superset of the BSD sockets API with some differences. All
 functions return an error-code. The advantage is that the error handling is
@@ -44,6 +52,26 @@ Currently support platforms:
 
 Installation instructions
 ------------
+The library supports both header-only and the cmake build system. When using cmake
+build system you do not need to define the implementation definition.
+
+### Use the header only
+This is how I use it most of the times. Download the latest header from the include directory in this repository.
+You find a link in the top of this readme.
+
+You need to define `TINYCSOCKET_IMPLEMENTATION` in exactly one translation unit (c/cpp file) before
+including the header file. You can put this in a separate translation unit to improve the already quick recompilation time.
+
+In one translation unit:
+```
+#define TINYCSOCKET_IMPLEMENTATION
+#include "tinycsocket.h"
+```
+
+In the others:
+```
+#include "tinycsocket.h"
+```
 
 ### I want to use CMake and submodules
 If you are using a cmake project, it is recommended to include tinycsocket to

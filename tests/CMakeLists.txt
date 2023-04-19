@@ -17,3 +17,19 @@ target_link_libraries(tests PRIVATE tinycsocket_wrapped)
 
 set_target_properties(tests PROPERTIES FOLDER TCS/tests)
 add_definitions(-DDOCTEST_CONFIG_TREAT_CHAR_STAR_AS_STRING)
+
+# Header only
+# Tests
+add_executable(test_header_inline "header_only/a.c" "header_only/b.c")
+target_link_libraries(test_header_inline PRIVATE tinycsocket)
+# target_include_directories(test_header_inline PRIVATE ../include)
+
+if (NOT MSVC)
+  target_compile_options(test_header_inline PUBLIC -std=c99)
+endif ()
+
+if (MINGW)
+  target_link_libraries(test_header_inline PRIVATE -std=c99 -fPIC -static -static-libgcc -static-libstdc++)
+endif ()
+
+set_target_properties(test_header_inline PROPERTIES FOLDER TCS/tests/header_only)
