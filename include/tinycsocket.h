@@ -20,8 +20,8 @@
  * SOFTWARE.
  */
 
-#ifndef TINY_C_SOCKETS_H_
-#define TINY_C_SOCKETS_H_
+#ifndef TINYCSOCKET_H_
+#define TINYCSOCKET_H_
 
 #include <stdbool.h>
 #include <stddef.h>

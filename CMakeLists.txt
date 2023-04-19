@@ -38,7 +38,52 @@ if (TCS_HAVE_IFADDRS)
   add_definitions("-DTCS_HAVE_IFADDRS")
 endif ()
 
-add_subdirectory(src)
+# Tinycsocket static library
+add_library(tinycsocket STATIC
+            "include/tinycsocket.h"
+            "src/tinydatastructures.h"
+            "src/tinycsocket_common.c"
+            "src/tinycsocket_win32.c"
+            "src/tinycsocket_posix.c")
+
+add_library(tinycsockets ALIAS tinycsocket)
+target_include_directories(tinycsocket PUBLIC include)
+target_include_directories(tinycsocket PRIVATE src)
+
+set_target_properties(tinycsocket PROPERTIES FOLDER tinycsocket)
+
+if (WIN32)
+	target_link_libraries(tinycsocket PRIVATE wsock32 ws2_32 iphlpapi)
+endif ()
+
+if (TCS_WARNINGS_AS_ERRORS)
+    if (MSVC)
+        target_compile_options(tinycsocket PRIVATE /W4 /WX)
+    else ()
+        target_compile_options(tinycsocket PRIVATE -Wall -Wextra -pedantic -Werror)
+    endif ()
+endif ()
+
+if (TCS_ENABLE_TESTS)
+    add_library(tinycsocket_wrapped STATIC
+                "include/tinycsocket.h"
+                "src/tinydatastructures.h"
+                "src/tinycsocket_common.c"
+                "src/tinycsocket_win32.c"
+                "src/tinycsocket_posix.c"
+                "src/dbg_wrap.h")
+    target_include_directories(tinycsocket_wrapped PUBLIC include src)
+    if (WIN32)
+	    target_link_libraries(tinycsocket_wrapped PRIVATE wsock32 ws2_32 iphlpapi)
+    endif ()
+    target_compile_options(tinycsocket_wrapped PUBLIC "-DDO_WRAP")
+endif ()
+
+if (TCS_GENERATE_COVERAGE)
+  target_compile_options(tinycsocket_wrapped PRIVATE --coverage)
+  target_link_libraries(tinycsocket_wrapped PRIVATE --coverage)
+endif ()
+
 if (TCS_ENABLE_TESTS)
   add_subdirectory(tests)
 endif ()
@@ -46,3 +91,6 @@ endif ()
 if (TCS_ENABLE_EXAMPLES)
   add_subdirectory(examples)
 endif ()
+
+install(TARGETS tinycsocket DESTINATION lib)
+install(FILES include/tinycsocket.h DESTINATION include)

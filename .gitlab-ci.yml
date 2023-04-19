@@ -24,7 +24,7 @@ code format:
   script:
     - apk add clang python3
     - clang-format --version
-    - python3 ./ci/run-clang-format.py -j 1 -r --exclude tests/doctest.h src tests examples
+    - python3 ./tools/run-clang-format.py -j 1 -r --exclude tests/doctest.h src tests examples
 
 static linting:
   <<: *only-default
@@ -51,7 +51,7 @@ posix coverage:
   needs: []
   script:
     - apk add cmake g++ ninja gcovr
-    - ./ci/coverage.sh
+    - ./tools/coverage.sh
   artifacts:
     expire_in: 7 days
     reports:
@@ -70,7 +70,7 @@ win-1809 msvc v19.26:
   stage: build
   needs: []
   script:
-    - '& ./ci/build_msvc.bat'
+    - '& ./tools/build_msvc.bat'
     - 'mkdir build'
     - 'mv build32/tests/Debug/tests.exe ./build/tests_msvc_debug_x86.exe'
     - 'mv build32/tests/Release/tests.exe ./build/tests_msvc_release_x86.exe'
