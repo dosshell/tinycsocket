@@ -1,5 +1,5 @@
-#ifndef WRAP_H_
-#define WRAP_H_
+#ifndef TCS_WRAP_H_
+#define TCS_WRAP_H_
 
 #ifdef malloc
 #error You need to include this file before <corecrt_malloc.h> and not include <crtdbg.h>.
