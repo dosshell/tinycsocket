@@ -20,7 +20,8 @@
  * SOFTWARE.
  */
 
-// Test linking in another translation unit
+// Test all tests with header only (instead of CMake target linking)
+// Note that this test will also test C++ compatibility
 
 #define TINYCSOCKET_IMPLEMENTATION
-#include "tinycsocket.h"
+#include "../tests.cpp"
