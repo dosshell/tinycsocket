@@ -1,4 +1,5 @@
 #ifndef TINYDATASTRUCTURES_H_
+#define TINYDATASTRUCTURES_H_
 
 #include <stdint.h>
 #include <stdlib.h>

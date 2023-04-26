@@ -20,6 +20,7 @@
  * SOFTWARE.
  */
 
+#define TINYCSOCKET_IMPLEMENTATION
 #include <tinycsocket.h>
 
 #include <stdbool.h>

@@ -19,7 +19,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include "tinycsocket.h"
+#ifndef TINYCSOCKET_INTERNAL_H_
+#include "tinycsocket_internal.h"
+#endif
 
 // This file should never call OS dependent code. Do not include OS files of OS specific ifdefs
 
@@ -151,10 +153,11 @@ TcsReturnCode tcs_connect(TcsSocket socket_ctx, const char* hostname, uint16_t p
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    struct TcsAddress found_addresses[32] = {0};
+    struct TcsAddress found_addresses[32];
+    memset(found_addresses, 0, sizeof found_addresses);
     size_t no_of_found_addresses = 0;
     TcsAddressFamily family = TCS_AF_IP4;
-    int sts = tcs_resolve_hostname(hostname, family, found_addresses, 32, &no_of_found_addresses);
+    TcsReturnCode sts = tcs_resolve_hostname(hostname, family, found_addresses, 32, &no_of_found_addresses);
     if (sts != TCS_SUCCESS)
         return sts;
 
@@ -173,7 +176,7 @@ TcsReturnCode tcs_bind(TcsSocket socket_ctx, uint16_t port)
     if (socket_ctx == TCS_NULLSOCKET || port == 0)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    struct TcsAddress local_address = {0};
+    struct TcsAddress local_address = TCS_ADDRESS_NULL;
     local_address.family = TCS_AF_IP4;
     local_address.data.af_inet.address = TCS_ADDRESS_ANY_IP4;
     local_address.data.af_inet.port = port;
@@ -200,7 +203,7 @@ TcsReturnCode tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_
 
     size_t expected_length = 0;
     int parsed = 0;
-    int sts = 0;
+    TcsReturnCode sts = TCS_SUCCESS;
     char t = '\0';
     const int max_header = 21;
     while (t != ':' && parsed < max_header)
@@ -260,7 +263,8 @@ TcsReturnCode tcs_send_netstring(TcsSocket socket_ctx, const uint8_t* buffer, si
 #endif
 
     int header_length = 0;
-    char netstring_header[21] = {0};
+    char netstring_header[21];
+    memset(netstring_header, 0, sizeof netstring_header);
 
     // %zu is not supported by all compilers, therefor we cast it to llu
     header_length = snprintf(netstring_header, 21, "%llu:", (unsigned long long)buffer_length);
@@ -268,7 +272,7 @@ TcsReturnCode tcs_send_netstring(TcsSocket socket_ctx, const uint8_t* buffer, si
     if (header_length < 0)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    int sts = 0;
+    TcsReturnCode sts = TCS_SUCCESS;
     sts = tcs_send(socket_ctx, (uint8_t*)netstring_header, (size_t)header_length, TCS_MSG_SENDALL, NULL);
     if (sts != TCS_SUCCESS)
         return sts;

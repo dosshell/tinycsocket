@@ -1,5 +1,6 @@
 choco feature enable -n allowGlobalConfirmation
 choco install cmake
+choco install gnuwin32-m4 --version=1.4.14
 call RefreshEnv.cmd
 set PATH=%PATH%;C:\Program Files\CMake\bin\
 mkdir build32

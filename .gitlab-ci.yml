@@ -40,6 +40,17 @@ static linting:
     - cmake -G "Ninja" ../ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON
     - clang-tidy ../src/*.c ../examples/*.c
 
+header updated:
+  <<: *only-default
+  tags:
+    - docker
+  image: amd64/alpine:3.12
+  stage: linting
+  needs: []
+  script:
+    - apk add m4
+    - ./tools/is_header_up_to_date.sh
+
 # COVERAGE
 
 posix coverage:
@@ -50,7 +61,7 @@ posix coverage:
   stage: linting
   needs: []
   script:
-    - apk add cmake g++ ninja gcovr
+    - apk add cmake g++ ninja m4 gcovr
     - ./tools/coverage.sh
   artifacts:
     expire_in: 7 days
@@ -76,12 +87,20 @@ win-1809 msvc v19.26:
     - 'mv build32/tests/Release/tests.exe ./build/tests_msvc_release_x86.exe'
     - 'mv build64/tests/Debug/tests.exe ./build/tests_msvc_debug_x86-64.exe'
     - 'mv build64/tests/Release/tests.exe ./build/tests_msvc_release_x86-64.exe'
+    - 'mv build32/tests/Debug/tests_header_only.exe ./build/tests_header_only_msvc_debug_x86.exe'
+    - 'mv build32/tests/Release/tests_header_only.exe ./build/tests_header_only_msvc_release_x86.exe'
+    - 'mv build64/tests/Debug/tests_header_only.exe ./build/tests_header_only_msvc_debug_x86-64.exe'
+    - 'mv build64/tests/Release/tests_header_only.exe ./build/tests_header_only_msvc_release_x86-64.exe'
   artifacts:
     paths:
       - ./build/tests_msvc_debug_x86.exe
       - ./build/tests_msvc_release_x86.exe
       - ./build/tests_msvc_debug_x86-64.exe
       - ./build/tests_msvc_release_x86-64.exe
+      - ./build/tests_header_only_msvc_debug_x86.exe
+      - ./build/tests_header_only_msvc_release_x86.exe
+      - ./build/tests_header_only_msvc_debug_x86-64.exe
+      - ./build/tests_header_only_msvc_release_x86-64.exe
 
 linux gcc v9.3 x86-64:
   <<: *only-default
@@ -91,14 +110,16 @@ linux gcc v9.3 x86-64:
   stage: build
   needs: []
   script:
-    - apk add cmake g++ ninja
+    - apk add cmake g++ ninja m4
     - mkdir build && cd build
     - cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
     - cmake --build .
     - mv ./tests/tests ./tests_linux_gcc_x86-64
+    - mv ./tests/tests_header_only ./tests_header_only_linux_gcc_x86-64
   artifacts:
     paths:
       - ./build/tests_linux_gcc_x86-64
+      - ./build/tests_header_only_linux_gcc_x86-64
 
 linux gcc v9.3 x86:
   <<: *only-default
@@ -108,14 +129,16 @@ linux gcc v9.3 x86:
   tags:
     - docker
   script:
-    - apk add cmake g++ ninja
+    - apk add cmake g++ ninja m4
     - mkdir build && cd build
     - cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
     - cmake --build .
     - mv ./tests/tests ./tests_linux_gcc_x86
+    - mv ./tests/tests_header_only ./tests_header_only_linux_gcc_x86
   artifacts:
     paths:
       - ./build/tests_linux_gcc_x86
+      - ./build/tests_header_only_linux_gcc_x86
 
 linux mingw-w64 x86-64 winxp:
   <<: *only-default
@@ -125,14 +148,16 @@ linux mingw-w64 x86-64 winxp:
   tags:
     - docker
   script:
-    - apk add cmake mingw-w64-gcc ninja
+    - apk add cmake mingw-w64-gcc ninja m4
     - mkdir build && cd build
     - cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86-64_winxp.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
     - cmake --build .
     - mv ./tests/tests.exe ./tests_mingw_x86-64_winxp.exe
+    - mv ./tests/tests_header_only.exe ./tests_header_only_mingw_x86-64_winxp.exe
   artifacts:
     paths:
       - ./build/tests_mingw_x86-64_winxp.exe
+      - ./build/tests_header_only_mingw_x86-64_winxp.exe
 
 linux mingw-w64 x86 winxp:
   <<: *only-default
@@ -142,14 +167,16 @@ linux mingw-w64 x86 winxp:
   tags:
     - docker
   script:
-    - apk add cmake mingw-w64-gcc ninja
+    - apk add cmake mingw-w64-gcc ninja m4
     - mkdir build && cd build
     - cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86_winxp.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
     - cmake --build .
     - mv ./tests/tests.exe ./tests_mingw_x86_winxp.exe
+    - mv ./tests/tests_header_only.exe ./tests_header_only_mingw_x86_winxp.exe
   artifacts:
     paths:
       - ./build/tests_mingw_x86_winxp.exe
+      - ./build/tests_header_only_mingw_x86_winxp.exe
 
 linux mingw-w64 x86-64 winblue:
   <<: *only-default
@@ -159,14 +186,16 @@ linux mingw-w64 x86-64 winblue:
   tags:
     - docker
   script:
-    - apk add cmake mingw-w64-gcc ninja
+    - apk add cmake mingw-w64-gcc ninja m4
     - mkdir build && cd build
     - cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86-64_winblue.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
     - cmake --build .
     - mv ./tests/tests.exe ./tests_mingw_x86-64_winblue.exe
+    - mv ./tests/tests_header_only.exe ./tests_header_only_mingw_x86-64_winblue.exe
   artifacts:
     paths:
       - ./build/tests_mingw_x86-64_winblue.exe
+      - ./build/tests_header_only_mingw_x86-64_winblue.exe
 
 linux mingw-w64 x86 winblue:
   <<: *only-default
@@ -176,14 +205,16 @@ linux mingw-w64 x86 winblue:
   tags:
     - docker
   script:
-    - apk add cmake mingw-w64-gcc ninja
+    - apk add cmake mingw-w64-gcc ninja m4
     - mkdir build && cd build
     - cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86_winblue.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
     - cmake --build .
     - mv ./tests/tests.exe ./tests_mingw_x86_winblue.exe
+    - mv ./tests/tests_header_only.exe ./tests_header_only_mingw_x86_winblue.exe
   artifacts:
     paths:
       - ./build/tests_mingw_x86_winblue.exe
+      - ./build/tests_header_only_mingw_x86_winblue.exe
 
 # TESTS
 
@@ -209,6 +240,14 @@ win-1809 tests:
     - ./build/tests_mingw_x86-64_winxp.exe --reporters=junit,conosle --out=./report_mingw_x86-64_winxp.xml
     - ./build/tests_mingw_x86_winblue.exe --reporters=junit,conosle --out=./report_mingw_x86_winblue.xml
     - ./build/tests_mingw_x86-64_winblue.exe --reporters=junit,conosle --out=./report_mingw_x86-64_winblue.xml
+    - ./build/tests_header_only_msvc_debug_x86.exe --reporters=junit,conosle --out=./report_header_only_win-1809_msvc_debug_x86.xml
+    - ./build/tests_header_only_msvc_release_x86.exe --reporters=junit,conosle --out=./report_header_only_win-1809_msvc_release_x86.xml
+    - ./build/tests_header_only_msvc_debug_x86-64.exe --reporters=junit,conosle --out=./report_header_only_win-1809_msvc_debug_x86-64.xml
+    - ./build/tests_header_only_msvc_release_x86-64.exe --reporters=junit,conosle --out=./report_header_only_win-1809_msvc_release_x86-64.xml
+    - ./build/tests_header_only_mingw_x86_winxp.exe --reporters=junit,conosle --out=./report_header_only_mingw_x86_winxp.xml
+    - ./build/tests_header_only_mingw_x86-64_winxp.exe --reporters=junit,conosle --out=./report_header_only_mingw_x86-64_winxp.xml
+    - ./build/tests_header_only_mingw_x86_winblue.exe --reporters=junit,conosle --out=./report_header_only_mingw_x86_winblue.xml
+    - ./build/tests_header_only_mingw_x86-64_winblue.exe --reporters=junit,conosle --out=./report_header_only_mingw_x86-64_winblue.xml
   artifacts:
     reports:
       junit:
@@ -220,6 +259,14 @@ win-1809 tests:
         - report_mingw_x86-64_winxp.xml
         - report_mingw_x86_winblue.xml
         - report_mingw_x86-64_winblue.xml
+        - report_header_only_win-1809_msvc_debug_x86.xml
+        - report_header_only_win-1809_msvc_release_x86.xml
+        - report_header_only_win-1809_msvc_debug_x86-64.xml
+        - report_header_only_win-1809_msvc_release_x86-64.xml
+        - report_header_only_mingw_x86_winxp.xml
+        - report_header_only_mingw_x86-64_winxp.xml
+        - report_header_only_mingw_x86_winblue.xml
+        - report_header_only_mingw_x86-64_winblue.xml
 
 winxp tests x86:
   <<: *only-default
@@ -230,9 +277,12 @@ winxp tests x86:
   needs: ["win-1809 msvc v19.26"]
   script:
     - ./build/tests_msvc_release_x86 --reporters=junit,conosle --out=./report_winxp_msvc_x86.xml
+    - ./build/tests_header_only_msvc_release_x86 --reporters=junit,conosle --out=./report_header_only_winxp_msvc_x86.xml
   artifacts:
     reports:
-      junit: report_winxp_msvc_x86.xml
+      junit:
+        - report_winxp_msvc_x86.xml
+        - report_header_only_winxp_msvc_x86.xml
   allow_failure: true
 
 linux test x86-64:
@@ -245,9 +295,12 @@ linux test x86-64:
   script:
     - apk add libstdc++
     - ./build/tests_linux_gcc_x86-64 --reporters=junit,conosle --out=./report_linux_gcc_x86.xml
+    - ./build/tests_header_only_linux_gcc_x86-64 --reporters=junit,conosle --out=./report_header_only_linux_gcc_x86.xml
   artifacts:
     reports:
-      junit: report_linux_gcc_x86-64.xml
+      junit:
+        - report_linux_gcc_x86-64.xml
+        - report_header_only_linux_gcc_x86-64.xml
 
 linux test x86:
   <<: *only-default
@@ -259,9 +312,12 @@ linux test x86:
   script:
     - apk add libstdc++
     - ./build/tests_linux_gcc_x86 --reporters=junit,conosle --out=./report_linux_gcc_x86.xml
+    - ./build/tests_header_only_linux_gcc_x86 --reporters=junit,conosle --out=./report_header_only_linux_gcc_x86.xml
   artifacts:
     reports:
-      junit: report_linux_gcc_x86.xml
+      junit:
+        - report_linux_gcc_x86.xml
+        - report_header_only_linux_gcc_x86.xml
 
 # DEPLOY
 

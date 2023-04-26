@@ -19,8 +19,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include "tinycsocket.h"
-
+#ifndef TINYCSOCKET_INTERNAL_H_
+#include "tinycsocket_internal.h"
+#endif
 #ifdef TINYCSOCKET_USE_WIN32_IMPL
 
 #ifdef DO_WRAP
@@ -39,9 +40,10 @@
 #endif
 #endif
 #define WIN32_LEAN_AND_MEAN
-
+// Header only should not need other files
+#ifndef TINYDATASTRUCTURES_H_
 #include "tinydatastructures.h"
-
+#endif
 // before windows.h
 #include <winsock2.h> // sockets
 
@@ -52,11 +54,16 @@
 #include <ws2tcpip.h> // getaddrinfo
 
 #include <stdlib.h> // Malloc for GetAdaptersAddresses
+#include <string.h> // memset
 
 #if defined(_MSC_VER) || defined(__clang__)
 #pragma comment(lib, "wsock32.lib")
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "Iphlpapi.lib")
+#endif
+
+#ifdef __cplusplus
+using std::min;
 #endif
 
 // Forwards declaration due to winver dispatch
@@ -291,7 +298,8 @@ TcsReturnCode tcs_bind_address(TcsSocket socket_ctx, const struct TcsAddress* ad
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    SOCKADDR_STORAGE native_sockaddr = {0};
+    SOCKADDR_STORAGE native_sockaddr;
+    memset(&native_sockaddr, 0, sizeof native_sockaddr);
     int addrlen = 0;
     TcsReturnCode convert_addr_status = sockaddr2native(address, (PSOCKADDR)&native_sockaddr, &addrlen);
     if (convert_addr_status != TCS_SUCCESS)
@@ -305,7 +313,8 @@ TcsReturnCode tcs_connect_address(TcsSocket socket_ctx, const struct TcsAddress*
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    SOCKADDR_STORAGE native_sockaddr = {0};
+    SOCKADDR_STORAGE native_sockaddr;
+    memset(&native_sockaddr, 0, sizeof native_sockaddr);
     int addrlen = 0;
     TcsReturnCode convert_addr_status = sockaddr2native(address, (PSOCKADDR)&native_sockaddr, &addrlen);
     if (convert_addr_status != TCS_SUCCESS)
@@ -328,7 +337,8 @@ TcsReturnCode tcs_accept(TcsSocket socket_ctx, TcsSocket* child_socket_ctx, stru
     if (socket_ctx == TCS_NULLSOCKET || child_socket_ctx == NULL || *child_socket_ctx != TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    SOCKADDR_STORAGE native_sockaddr = {0};
+    SOCKADDR_STORAGE native_sockaddr;
+    memset(&native_sockaddr, 0, sizeof native_sockaddr);
     int addr_len = sizeof(native_sockaddr);
     *child_socket_ctx = accept(socket_ctx, (PSOCKADDR)&native_sockaddr, &addr_len);
     if (*child_socket_ctx != INVALID_SOCKET)
@@ -367,7 +377,7 @@ TcsReturnCode tcs_send(TcsSocket socket_ctx,
 
         while (left > 0)
         {
-            int sts = tcs_send(socket_ctx, buffer, buffer_size, new_flags, &sent);
+            TcsReturnCode sts = tcs_send(socket_ctx, buffer, buffer_size, new_flags, &sent);
             if (sts != TCS_SUCCESS)
                 return sts;
             left -= sent;
@@ -403,7 +413,8 @@ TcsReturnCode tcs_send_to(TcsSocket socket_ctx,
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    SOCKADDR_STORAGE native_sockaddr = {0};
+    SOCKADDR_STORAGE native_sockaddr;
+    memset(&native_sockaddr, 0, sizeof native_sockaddr);
     int addrlen = 0;
     TcsReturnCode convert_addr_status = sockaddr2native(destination_address, (PSOCKADDR)&native_sockaddr, &addrlen);
     if (convert_addr_status != TCS_SUCCESS)
@@ -446,7 +457,7 @@ TcsReturnCode tcs_receive(TcsSocket socket_ctx,
             size_t received_now = 0;
             uint8_t* cursor = buffer + received_so_far;
             size_t left = buffer_size - received_so_far;
-            int sts = tcs_receive(socket_ctx, cursor, left, new_flags, &received_now);
+            TcsReturnCode sts = tcs_receive(socket_ctx, cursor, left, new_flags, &received_now);
             if (sts != TCS_SUCCESS)
                 return sts;
             received_so_far += received_now;
@@ -488,7 +499,8 @@ TcsReturnCode tcs_receive_from(TcsSocket socket_ctx,
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    SOCKADDR_STORAGE native_sockaddr = {0};
+    SOCKADDR_STORAGE native_sockaddr;
+    memset(&native_sockaddr, 0, sizeof native_sockaddr);
     int addrlen = sizeof(native_sockaddr);
 
     int recvfrom_status =
@@ -525,7 +537,7 @@ TcsReturnCode tcs_pool_create(struct TcsPool** pool)
     if (pool == NULL || *pool != NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    *pool = malloc(sizeof(struct TcsPool));
+    *pool = (struct TcsPool*)malloc(sizeof(struct TcsPool));
     if (*pool == NULL)
         return TCS_ERROR_MEMORY;
     memset(*pool, 0, sizeof(struct TcsPool)); // Just to be safe
@@ -534,8 +546,8 @@ TcsReturnCode tcs_pool_create(struct TcsPool** pool)
     int sts_error_array = ulist_soc_create(&(*pool)->error_sockets, 64);
 
     // TODO(markusl): Create a common vector structure
-    (*pool)->user_data.key = malloc(sizeof(SOCKET) * TCS_POOL_CAPACITY_STEP);
-    (*pool)->user_data.value = malloc(sizeof(void*) * TCS_POOL_CAPACITY_STEP);
+    (*pool)->user_data.key = (SOCKET*)malloc(sizeof(SOCKET) * TCS_POOL_CAPACITY_STEP);
+    (*pool)->user_data.value = (void**)malloc(sizeof(void*) * TCS_POOL_CAPACITY_STEP);
     (*pool)->user_data.count = 0;
     (*pool)->user_data.capacity_bytes = TCS_POOL_CAPACITY_STEP;
     TcsReturnCode sts_usrdata = TCS_SUCCESS;
@@ -584,15 +596,15 @@ TcsReturnCode tcs_pool_add(struct TcsPool* pool,
     if (pool->user_data.count == pool->user_data.capacity_bytes)
     {
         size_t new_capacity = pool->user_data.capacity_bytes + TCS_POOL_CAPACITY_STEP;
-        SOCKET* new_key = realloc(pool->user_data.key, sizeof(SOCKET) * new_capacity);
+        SOCKET* new_key = (SOCKET*)realloc(pool->user_data.key, sizeof(SOCKET) * new_capacity);
         if (new_key == NULL)
             return TCS_ERROR_MEMORY;
         pool->user_data.key = new_key;
 
-        void** new_value = realloc(pool->user_data.value, sizeof(SOCKET) * new_capacity);
+        void** new_value = (void**)realloc(pool->user_data.value, sizeof(void*) * new_capacity);
         if (new_value == NULL)
         {
-            new_key = realloc(pool->user_data.key, sizeof(SOCKET) * pool->user_data.capacity_bytes);
+            new_key = (SOCKET*)realloc(pool->user_data.key, sizeof(SOCKET) * pool->user_data.capacity_bytes);
             if (new_key != NULL)
                 pool->user_data.key = new_key;
             return TCS_ERROR_MEMORY;
@@ -690,9 +702,9 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
     // We need this hack to be able to use dynamic memory for select
     const size_t data_offset = offsetof(struct tcs_fd_set, fd_array);
 
-    struct tcs_fd_set* rfds_cpy = malloc(data_offset + sizeof(SOCKET) * pool->read_sockets.count);
-    struct tcs_fd_set* wfds_cpy = malloc(data_offset + sizeof(SOCKET) * pool->write_sockets.count);
-    struct tcs_fd_set* efds_cpy = malloc(data_offset + sizeof(SOCKET) * pool->error_sockets.count);
+    struct tcs_fd_set* rfds_cpy = (struct tcs_fd_set*)malloc(data_offset + sizeof(SOCKET) * pool->read_sockets.count);
+    struct tcs_fd_set* wfds_cpy = (struct tcs_fd_set*)malloc(data_offset + sizeof(SOCKET) * pool->write_sockets.count);
+    struct tcs_fd_set* efds_cpy = (struct tcs_fd_set*)malloc(data_offset + sizeof(SOCKET) * pool->error_sockets.count);
     if (rfds_cpy == NULL || wfds_cpy == NULL || efds_cpy == NULL)
     {
         free(rfds_cpy);
@@ -711,7 +723,7 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
 
     // Run select
     struct timeval* t_ptr = NULL;
-    struct timeval t = {0};
+    struct timeval t = {0, 0};
     if (timeout_in_ms != TCS_INF)
     {
         t.tv_sec = (long)(timeout_in_ms / 1000);
@@ -813,16 +825,16 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
         if (!is_minimum && should_shrink)
         {
             size_t new_capacity = pool->user_data.capacity_bytes - 2 * TCS_POOL_CAPACITY_STEP;
-            TcsSocket* new_key = realloc(pool->user_data.key, new_capacity);
+            TcsSocket* new_key = (TcsSocket*)realloc(pool->user_data.key, new_capacity);
             if (new_key == NULL)
                 return TCS_ERROR_MEMORY; // Should not happen since we are shrinking
 
             pool->user_data.key = new_key;
 
-            void** new_value = realloc(pool->user_data.value, new_capacity);
+            void** new_value = (void**)realloc(pool->user_data.value, new_capacity);
             if (new_value == NULL)
             {
-                new_key = realloc(pool->user_data.key, pool->user_data.capacity_bytes);
+                new_key = (TcsSocket*)realloc(pool->user_data.key, pool->user_data.capacity_bytes);
                 if (new_key != NULL) // Should not happen since we are shrinking
                     pool->user_data.key = new_key;
                 return TCS_ERROR_MEMORY;
@@ -926,7 +938,8 @@ TcsReturnCode tcs_resolve_hostname(const char* hostname,
     if (no_of_found_addresses != NULL)
         *no_of_found_addresses = 0;
 
-    ADDRINFOA native_hints = {0};
+    ADDRINFOA native_hints;
+    memset(&native_hints, 0, sizeof native_hints);
     TcsReturnCode sts = family2native(address_family, (short*)&native_hints.ai_family);
     if (sts != TCS_SUCCESS)
         return sts;
@@ -985,7 +998,7 @@ TcsReturnCode tcs_local_interfaces(struct TcsInterface found_interfaces[],
     ULONG adapter_sts = ERROR_NO_DATA;
     for (int i = 0; i < MAX_TRIES; ++i)
     {
-        adapters = malloc(adapeters_buffer_size);
+        adapters = (PIP_ADAPTER_ADDRESSES)malloc(adapeters_buffer_size);
         adapter_sts = GetAdaptersAddresses(AF_UNSPEC, 0, NULL, adapters, &adapeters_buffer_size);
         if (adapter_sts == ERROR_BUFFER_OVERFLOW)
         {
@@ -1039,9 +1052,7 @@ TcsReturnCode tcs_set_linger(TcsSocket socket_ctx, bool do_linger, int timeout_s
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    struct linger l = {0};
-    l.l_onoff = (u_short)do_linger;
-    l.l_linger = (u_short)timeout_seconds;
+    struct linger l = {(u_short)do_linger, (u_short)timeout_seconds};
     return tcs_set_option(socket_ctx, TCS_SOL_SOCKET, TCS_SO_LINGER, &l, sizeof(l));
 }
 
@@ -1050,7 +1061,7 @@ TcsReturnCode tcs_get_linger(TcsSocket socket_ctx, bool* do_linger, int* timeout
     if (socket_ctx == TCS_NULLSOCKET || (do_linger == NULL && timeout_seconds == NULL))
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    struct linger l = {0};
+    struct linger l = {0, 0};
     size_t l_size = sizeof(l);
     TcsReturnCode sts = tcs_get_option(socket_ctx, TCS_SOL_SOCKET, TCS_SO_LINGER, &l, &l_size);
     if (sts == TCS_SUCCESS)
@@ -1099,7 +1110,8 @@ TcsReturnCode tcs_set_ip_multicast_add(TcsSocket socket_ctx,
     if (multicast_address->family != TCS_AF_IP4)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
-    struct ip_mreq imr = {0};
+    struct ip_mreq imr;
+    memset(&imr, 0, sizeof imr);
     imr.imr_multiaddr.s_addr = htonl(multicast_address->data.af_inet.address);
     if (local_address != NULL)
         imr.imr_interface.s_addr = htonl(local_address->data.af_inet.address);
@@ -1118,7 +1130,8 @@ TcsReturnCode tcs_set_ip_multicast_drop(TcsSocket socket_ctx,
     if (multicast_address->family != TCS_AF_IP4)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
-    struct ip_mreq imr = {0};
+    struct ip_mreq imr;
+    memset(&imr, 0, sizeof imr);
     imr.imr_multiaddr.s_addr = htonl(multicast_address->data.af_inet.address);
     if (local_address != NULL)
         imr.imr_interface.s_addr = htonl(local_address->data.af_inet.address);
