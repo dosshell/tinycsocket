@@ -229,7 +229,8 @@ winxp tests x86:
   stage: test
   needs: ["win-1809 msvc v19.26"]
   script:
-    - ./build/tests_msvc_release_x86 --reporters=junit,conosle --out=./report_winxp_msvc_x86.xml
+    - ls
+    - ./build/tests_msvc_release_x86.exe --reporters=junit,conosle --out=./report_winxp_msvc_x86.xml
   artifacts:
     reports:
       junit: report_winxp_msvc_x86.xml
