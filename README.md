@@ -1,10 +1,10 @@
-Tinycsocket
-============
+# Tinycsocket
+
 Crossplatform header-only low-level socket C library.
 
-Online documentation: https://tinycsocket.readthedocs.io/
-
-Download: [latest](https://gitlab.com/dosshell/tinycsocket/-/raw/master/include/tinycsocket.h)
+Repository: https://gitlab.com/dosshell/tinycsocket/ 
+Online documentation: https://tinycsocket.readthedocs.io/ 
+Download: [latest](https://gitlab.com/dosshell/tinycsocket/-/raw/master/include/tinycsocket.h) 
 
 ```cpp
 // Put the following define in exactly one of your c/cpp files before including.
@@ -25,6 +25,7 @@ int main(int argc, const char* argv[])
     uint8_t recv_buffer[8192] = {0};
     size_t bytes_received = 0;
     tcs_receive(client_socket, recv_buffer, 8192, TCS_NO_FLAGS, &bytes_received);
+
     tcs_shutdown(client_socket, TCS_SD_BOTH);
     tcs_destroy(&client_socket);
 
@@ -57,14 +58,15 @@ Currently support platforms:
 
 Note that MacOS is currently not tested or officially supported (but it "should" work (TM)).
 
-Installation instructions
-------------
+# Installation instructions
+
 The library supports both header-only and the cmake build system. When using cmake
 build system you do not need to define the implementation definition.
 
-### Use the header only
+## Use the header only
 This is how I use it most of the times. Download the latest header from the include directory in this repository.
-You find a link in the top of this readme.
+
+Download [latest](https://gitlab.com/dosshell/tinycsocket/-/raw/master/include/tinycsocket.h)
 
 You need to define `TINYCSOCKET_IMPLEMENTATION` in exactly one translation unit (c/cpp file) before
 including the header file. You can put this in a separate translation unit to not pollute your namespace with OS socket symbols.
@@ -80,7 +82,7 @@ In the others:
 #include "tinycsocket.h"
 ```
 
-### I want to use CMake and submodules
+## I want to use CMake and submodules
 If you are using a cmake project, you can add tinycsocket to your build system.
 Add this repo as a submodule and add tinycsocket to your CMakeLists.txt.
 
@@ -95,7 +97,7 @@ target_link_libraries(your_target PRIVATE tinycsocket)
 
 You can read more about how to use submodules here: https://git-scm.com/book/en/v2/Git-Tools-Submodules
 
-### I just want the lib files and link by my self
+## I just want the lib files and link by my self
 You can also build this project to get a lib directory and an include directory.
 Generate a build-system out of tinycsocket with cmake and build the install
 target. Don't forget that if you are targeting Windows you also need to link to
@@ -114,7 +116,10 @@ cmake --build . --target INSTALL --config Release
 You can now remove the build directory and the tinycsocket directory if you
 like.
 
-Tested platforms in CI
+# Tested platforms in CI
+
+These platforms are always tested for every commit.
+
 ------------
 | OS                       | Compiler                    | Comments     |
 |--------------------------|-----------------------------|--------------|

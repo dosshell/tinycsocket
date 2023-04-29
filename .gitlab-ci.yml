@@ -325,11 +325,12 @@ sphinx:
   <<: *only-default
   tags:
     - docker
-  image: alpine:3.12
+  image: ubuntu:22.04
   stage: deploy
   needs: []
   script:
-    - apk add python3 cmd:pip3 make doxygen
-    - pip3 install sphinx
+    - apt update
+    - apt install -y python3-pip make doxygen pandoc
+    - pip3 install -r docs/requirements.txt
     - cd docs
     - make html
