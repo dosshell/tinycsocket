@@ -2,8 +2,10 @@
 
 Crossplatform header-only low-level socket C library.
 
-Repository: https://gitlab.com/dosshell/tinycsocket/ 
-Online documentation: https://tinycsocket.readthedocs.io/ 
+Repository: https://gitlab.com/dosshell/tinycsocket/
+
+Online documentation: https://tinycsocket.readthedocs.io/
+
 Download: [latest](https://gitlab.com/dosshell/tinycsocket/-/raw/master/include/tinycsocket.h) 
 
 ```cpp
