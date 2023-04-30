@@ -330,7 +330,7 @@ sphinx:
   needs: []
   script:
     - apt update
-    - apt install -y python3-pip make doxygen pandoc
+    - apt install -y python3-pip make doxygen
     - pip3 install -r docs/requirements.txt
     - cd docs
     - make html

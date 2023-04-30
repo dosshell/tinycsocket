@@ -1,2 +1,2 @@
 sphinx==6.2.1
-
+pypandoc-binary==1.11

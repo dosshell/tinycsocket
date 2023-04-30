@@ -1,4 +1,4 @@
-.. include:: _build/README.rst
+.. include:: _mybuild/README.rst
 
 Reference
 =========
