@@ -128,6 +128,7 @@ def get_constant_descriptions(doxygen_folder: Path):
 
         for v in vars:
             definition = v.find("./definition").text
+            definition = definition.replace("const ", "")
             description_node = v.find("./detaileddescription/para")
             description = description_node.text if description_node is not None else ""
             m.append(SymbolData(definition, description))

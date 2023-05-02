@@ -30,8 +30,15 @@ html_static_path = ["static"]
 html_sidebars = {"**": ["localtoc.html", "searchbox.html"]}
 html_use_index = False
 
+html_css_files = ["custom.css"]
+
 # Run generators
 os.makedirs("_mybuild", exist_ok=True)
-pypandoc.convert_file("../README.md", "rst", outputfile="_mybuild/README.rst")
+pypandoc.convert_file(
+    "../README.md",
+    "rst",
+    outputfile="_mybuild/README.rst",
+    extra_args=["--wrap=none", "--columns=1024"],
+)
 call("doxygen")
 reference_generator.generate_references()
