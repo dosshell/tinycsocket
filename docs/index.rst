@@ -1,12 +1,7 @@
 .. include:: _mybuild/README.rst
 
-Reference
-=========
-
-This section contains reference help for every function and constant. The reference is also avaiable as comments in the header file.
-
-Summary of All Functions
-------------------------
+Function Reference Index
+========================
 
 List of all available functions in TinyCSocket:
 
@@ -16,8 +11,8 @@ List of all available functions in TinyCSocket:
     :header-rows: 1
 
 
-Summary of All Constants
-------------------------
+Constant Reference Index
+========================
 
 List of all available constants in TinyCSocket:
 
@@ -28,8 +23,8 @@ List of all available constants in TinyCSocket:
 
 
 Reference Details
------------------
+=================
 
-This section contains details of all functions.
+This section contains details of all functions. Note that this is also available in source code as doxygen comments.
 
 .. include:: _mybuild/function_references.rst
