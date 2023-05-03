@@ -27,7 +27,27 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define TCS_VERSION_TXT "v0.3-dev"
+static const char* const TCS_VERSION_TXT = "v0.3-dev";
+static const char* const TCS_LICENSE_TXT =
+    "Copyright 2018 Markus Lindelöw"
+    "\n"
+    "Permission is hereby granted, free of charge, to any person obtaining a copy"
+    "of this software and associated documentation files(the \"Software\"), to deal"
+    "in the Software without restriction, including without limitation the rights"
+    "to use, copy, modify, merge, publish, distribute, sublicense, and / or sell"
+    "copies of the Software, and to permit persons to whom the Software is"
+    "furnished to do so, subject to the following conditions:"
+    "\n"
+    "The above copyright notice and this permission notice shall be included in all"
+    "copies or substantial portions of the Software."
+    "\n"
+    "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR"
+    "IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,"
+    "FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE"
+    "AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER"
+    "LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,"
+    "OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE"
+    "SOFTWARE.";
 
 // First we have some code to recognize which system we are compiling against
 #if defined(WIN32) || defined(__MINGW32__)
@@ -59,7 +79,9 @@ typedef UINT_PTR TcsSocket;
 typedef int TcsSocket;
 #endif
 
-// Address Family
+/**
+ * @brief Address Family
+ */
 typedef enum
 {
     TCS_AF_ANY, /**< Layer 3 agnostic */
@@ -68,6 +90,9 @@ typedef enum
     TCS_AF_LENGTH
 } TcsAddressFamily;
 
+/**
+ * @brief Network Address
+ */
 struct TcsAddress
 {
     TcsAddressFamily family;
@@ -103,6 +128,9 @@ extern const uint32_t TCS_ADDRESS_LOOPBACK_IP4;
 extern const uint32_t TCS_ADDRESS_BROADCAST_IP4;
 extern const uint32_t TCS_ADDRESS_NONE_IP4;
 
+/**
+ * @brief Network Interface Information
+ */
 struct TcsInterface
 {
     struct TcsAddress address;
@@ -240,7 +268,8 @@ TcsReturnCode tcs_util_ipv4_args(uint8_t a, uint8_t b, uint8_t c, uint8_t d, uin
  * tcs_connect_address(socket, address);
  * @endcode
  * 
- * @str is a valid pointer to an IPv4 NULL terminated string address, with optional local_port number. Such as "192.168.0.1:1212".
+ * @param str is a valid pointer to an IPv4 NULL terminated string address, with optional local_port number. Such as "192.168.0.1:1212".
+ * @param out_address out pointer to save address.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  */
 TcsReturnCode tcs_util_string_to_address(const char str[], struct TcsAddress* out_address);
@@ -288,7 +317,7 @@ TcsReturnCode tcs_lib_free(void);
  * @see tcs_destroy()
  * @see tcs_lib_init()
  */
-TcsReturnCode tcs_create(TcsSocket* socket_ctx, TcsType socket_Type);
+TcsReturnCode tcs_create(TcsSocket* socket_ctx, TcsType socket_type);
 
 /**
  * @brief Creates a new socket with BSD-style options such family, type and protocol.
@@ -344,13 +373,14 @@ TcsReturnCode tcs_bind_address(TcsSocket socket_ctx, const struct TcsAddress* lo
  * @brief Connect a socket to a remote hostname and port.
  *
  * @param socket_ctx is your in-out socket context you want to connect. 
- * @param local_address is your local address you want to bind to.
+ * @param hostname name of host or ip
+ * @param port to connect to
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_bind()
  * @see tcs_get_interfaces()
  * @see tcs_listen()
  */
-TcsReturnCode tcs_connect(TcsSocket socket_Ctx, const char* hostname, uint16_t port);
+TcsReturnCode tcs_connect(TcsSocket socket_ctx, const char* hostname, uint16_t port);
 
 /**
  * @brief Connects a socket to a remote address.
@@ -405,7 +435,7 @@ TcsReturnCode tcs_listen_to(TcsSocket socket_ctx, uint16_t local_port);
  * }
  * @endcode
  * 
- * @param socket_ctx is your listening socket you used when you called #tcs_listen_ext().
+ * @param socket_ctx is your listening socket you used when you called #tcs_listen_to().
  * @param child_socket_ctx is your accepted socket. Must have the in value of #TCS_NULLSOCKET.
  * @param address is an optional pointer to a buffer where the remote address of the accepted socket can be stored.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
@@ -489,7 +519,7 @@ TcsReturnCode tcs_receive_from(TcsSocket socket_ctx,
 /**
 * @brief Create a context used for waiting on several sockets.
 *
-* #TcsPool can be used to monitor several sockets for events (reading, writing or error).
+* TcsPool can be used to monitor several sockets for events (reading, writing or error).
 * Use tcs_pool_poll() to get a list of sockets ready to interact with.
 *
 * @code
@@ -526,7 +556,7 @@ TcsReturnCode tcs_receive_from(TcsSocket socket_ctx,
 * tcs_lib_free();
 * @endcode
 *
-* @param[out] pool is your out pool context pointer. Initiate a #TcsPool pointer to NULL and use the address of this pointer.
+* @param[out] pool is your out pool context pointer. Initiate a TcsPool pointer to NULL and use the address of this pointer.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_pool_destory()
 */
@@ -630,11 +660,11 @@ TcsReturnCode tcs_get_option(TcsSocket socket_ctx,
 /**
 * @brief Turn off communication with a 3-way handshaking for the socket.
 * 
-* Use this function to cancel blocking calls (@recv, @accept etc) from another thread, or use sigaction.
+* Use this function to cancel blocking calls (recv, accept etc) from another thread, or use sigaction.
 * The socket will finish all queued sends first.
 *
 * @param socket_ctx is your in-out socket context.
-* @param how defines in which direction you want to turn off the communication.
+* @param direction defines in which direction you want to turn off the communication.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
 TcsReturnCode tcs_shutdown(TcsSocket socket_ctx, TcsSocketDirection direction);
@@ -650,11 +680,11 @@ TcsReturnCode tcs_destroy(TcsSocket* socket_ctx);
 /**
 * @brief Get addresses you can connect to given a computer name.
 *
-* @param node is your computer identifier: hostname, IPv4 or IPv6 address.
-* @param address_family filters which address family you want, for example if you only are interested in IPv6. Use TCS_AF_UNSPEC to not filter.
+* @param hostname null terminated string
+* @param address_family filters which address family you want, for example if you only are interested in IPv6. Use #TCS_AF_ANY to not filter.
 * @param found_addresses is a pointer to your array which will be populated with found addresses.
-* @param found_addresses_max_length is number of elements your @found_addresses array can store.
-* @param no_of_found_addresses will output the number of addresses that was populated in @found_addresses.
+* @param found_addresses_max_length is number of elements your @p found_addresses array can store.
+* @param no_of_found_addresses will output the number of addresses that was populated in found_addresses.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
 TcsReturnCode tcs_resolve_hostname(const char* hostname,
@@ -666,12 +696,11 @@ TcsReturnCode tcs_resolve_hostname(const char* hostname,
 /**
 * @brief Get local addresses of your computer.
 *
-* Use NULL for @res to get the total number of addresses found.
+* Use NULL for @p found_interfaces and 0 for @p found_interfaces_length to get the total number of addresses found.
 *
-* @param address_family filters which address family you want, for example if you only are interested in IPv6. Use TCS_AF_UNSPEC to not filter.
 * @param found_interfaces is a pointer to your array which will be populated with found interfaces.
-* @param found_interfaces_length is number of elements your @found_interfaces array can store.
-* @param no_of_found_interfaces will output the number of addresses that was populated in @found_interfaces.
+* @param found_interfaces_length is number of elements your @p found_interfaces array can store.
+* @param no_of_found_interfaces will output the number of addresses that was populated in found_interfaces.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
 TcsReturnCode tcs_local_interfaces(struct TcsInterface found_interfaces[],

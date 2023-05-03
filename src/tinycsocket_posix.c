@@ -611,7 +611,7 @@ TcsReturnCode tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
     bool found = false;
     for (size_t i = 0; i < vec->count; ++i)
     {
-        if (socket == vec->data[i].fd)
+        if (socket_ctx == vec->data[i].fd)
         {
             TcsReturnCode sts = __tcs_pool_remove_index(pool, i);
             if (sts != TCS_SUCCESS)

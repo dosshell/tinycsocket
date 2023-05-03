@@ -40,5 +40,7 @@ pypandoc.convert_file(
     outputfile="_mybuild/README.rst",
     extra_args=["--wrap=none", "--columns=1024"],
 )
-call("doxygen")
+ret = call("doxygen")
 reference_generator.generate_references()
+if ret != 0:
+    sys.exit(ret)
