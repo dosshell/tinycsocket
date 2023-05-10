@@ -503,7 +503,7 @@ TcsReturnCode tcs_pool_destory(struct TcsPool** pool)
 }
 
 TcsReturnCode tcs_pool_add(struct TcsPool* pool,
-                           TcsSocket socket,
+                           TcsSocket socket_ctx,
                            void* user_data,
                            bool poll_can_read,
                            bool poll_can_write,
@@ -511,7 +511,7 @@ TcsReturnCode tcs_pool_add(struct TcsPool* pool,
 {
     if (pool == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
-    if (socket == TCS_NULLSOCKET)
+    if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
     struct __tcs_fd_poll_vector* vec = &pool->backend.poll.vector;
 
@@ -547,7 +547,7 @@ TcsReturnCode tcs_pool_add(struct TcsPool* pool,
     if (poll_error)
         ev |= POLLERR;
 
-    vec->data[vec->count].fd = socket;
+    vec->data[vec->count].fd = socket_ctx;
     vec->data[vec->count].revents = 0;
     vec->data[vec->count].events = ev;
     vec->user_data[vec->count] = user_data;
@@ -595,11 +595,11 @@ static TcsReturnCode __tcs_pool_remove_index(struct TcsPool* pool, size_t index)
     return TCS_SUCCESS;
 }
 
-TcsReturnCode tcs_pool_remove(struct TcsPool* pool, TcsSocket socket)
+TcsReturnCode tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
 {
     if (pool == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
-    if (socket == TCS_NULLSOCKET)
+    if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     struct __tcs_fd_poll_vector* vec = &pool->backend.poll.vector;
@@ -611,7 +611,7 @@ TcsReturnCode tcs_pool_remove(struct TcsPool* pool, TcsSocket socket)
     bool found = false;
     for (size_t i = 0; i < vec->count; ++i)
     {
-        if (socket == vec->data[i].fd)
+        if (socket_ctx == vec->data[i].fd)
         {
             TcsReturnCode sts = __tcs_pool_remove_index(pool, i);
             if (sts != TCS_SUCCESS)
