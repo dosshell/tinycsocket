@@ -72,12 +72,10 @@ posix coverage:
 
 # BUILDS
 
-win-1809 msvc v19.26:
+windows-any msvc v19.40:
   <<: *only-default
   tags:
-    - shared-windows
-    - windows
-    - windows-1809
+    - saas-windows-medium-amd64
   stage: build
   needs: []
   script:
@@ -218,32 +216,30 @@ linux mingw-w64 x86 winblue:
 
 # TESTS
 
-win-1809 tests:
+windows-any tests:
   <<: *only-default
   tags:
-    - shared-windows
-    - windows
-    - windows-1809
+    - saas-windows-medium-amd64
   stage: test
   needs:
-    - "win-1809 msvc v19.26"
+    - "windows-any msvc v19.40"
     - "linux mingw-w64 x86-64 winxp"
     - "linux mingw-w64 x86 winxp"
     - "linux mingw-w64 x86-64 winblue"
     - "linux mingw-w64 x86 winblue"
   script:
-    - ./build/tests_msvc_debug_x86.exe --reporters=junit,conosle --out=./report_win-1809_msvc_debug_x86.xml
-    - ./build/tests_msvc_release_x86.exe --reporters=junit,conosle --out=./report_win-1809_msvc_release_x86.xml
-    - ./build/tests_msvc_debug_x86-64.exe --reporters=junit,conosle --out=./report_win-1809_msvc_debug_x86-64.xml
-    - ./build/tests_msvc_release_x86-64.exe --reporters=junit,conosle --out=./report_win-1809_msvc_release_x86-64.xml
+    - ./build/tests_msvc_debug_x86.exe --reporters=junit,conosle --out=./report_windows-any_msvc_debug_x86.xml
+    - ./build/tests_msvc_release_x86.exe --reporters=junit,conosle --out=./report_windows-any_msvc_release_x86.xml
+    - ./build/tests_msvc_debug_x86-64.exe --reporters=junit,conosle --out=./report_windows-any_msvc_debug_x86-64.xml
+    - ./build/tests_msvc_release_x86-64.exe --reporters=junit,conosle --out=./report_windows-any_msvc_release_x86-64.xml
     - ./build/tests_mingw_x86_winxp.exe --reporters=junit,conosle --out=./report_mingw_x86_winxp.xml
     - ./build/tests_mingw_x86-64_winxp.exe --reporters=junit,conosle --out=./report_mingw_x86-64_winxp.xml
     - ./build/tests_mingw_x86_winblue.exe --reporters=junit,conosle --out=./report_mingw_x86_winblue.xml
     - ./build/tests_mingw_x86-64_winblue.exe --reporters=junit,conosle --out=./report_mingw_x86-64_winblue.xml
-    - ./build/tests_header_only_msvc_debug_x86.exe --reporters=junit,conosle --out=./report_header_only_win-1809_msvc_debug_x86.xml
-    - ./build/tests_header_only_msvc_release_x86.exe --reporters=junit,conosle --out=./report_header_only_win-1809_msvc_release_x86.xml
-    - ./build/tests_header_only_msvc_debug_x86-64.exe --reporters=junit,conosle --out=./report_header_only_win-1809_msvc_debug_x86-64.xml
-    - ./build/tests_header_only_msvc_release_x86-64.exe --reporters=junit,conosle --out=./report_header_only_win-1809_msvc_release_x86-64.xml
+    - ./build/tests_header_only_msvc_debug_x86.exe --reporters=junit,conosle --out=./report_header_only_windows-any_msvc_debug_x86.xml
+    - ./build/tests_header_only_msvc_release_x86.exe --reporters=junit,conosle --out=./report_header_only_windows-any_msvc_release_x86.xml
+    - ./build/tests_header_only_msvc_debug_x86-64.exe --reporters=junit,conosle --out=./report_header_only_windows-any_msvc_debug_x86-64.xml
+    - ./build/tests_header_only_msvc_release_x86-64.exe --reporters=junit,conosle --out=./report_header_only_windows-any_msvc_release_x86-64.xml
     - ./build/tests_header_only_mingw_x86_winxp.exe --reporters=junit,conosle --out=./report_header_only_mingw_x86_winxp.xml
     - ./build/tests_header_only_mingw_x86-64_winxp.exe --reporters=junit,conosle --out=./report_header_only_mingw_x86-64_winxp.xml
     - ./build/tests_header_only_mingw_x86_winblue.exe --reporters=junit,conosle --out=./report_header_only_mingw_x86_winblue.xml
@@ -251,39 +247,38 @@ win-1809 tests:
   artifacts:
     reports:
       junit:
-        - report_win-1809_msvc_debug_x86.xml
-        - report_win-1809_msvc_release_x86.xml
-        - report_win-1809_msvc_debug_x86-64.xml
-        - report_win-1809_msvc_release_x86-64.xml
+        - report_windows-any_msvc_debug_x86.xml
+        - report_windows-any_msvc_release_x86.xml
+        - report_windows-any_msvc_debug_x86-64.xml
+        - report_windows-any_msvc_release_x86-64.xml
         - report_mingw_x86_winxp.xml
         - report_mingw_x86-64_winxp.xml
         - report_mingw_x86_winblue.xml
         - report_mingw_x86-64_winblue.xml
-        - report_header_only_win-1809_msvc_debug_x86.xml
-        - report_header_only_win-1809_msvc_release_x86.xml
-        - report_header_only_win-1809_msvc_debug_x86-64.xml
-        - report_header_only_win-1809_msvc_release_x86-64.xml
+        - report_header_only_windows-any_msvc_debug_x86.xml
+        - report_header_only_windows-any_msvc_release_x86.xml
+        - report_header_only_windows-any_msvc_debug_x86-64.xml
+        - report_header_only_windows-any_msvc_release_x86-64.xml
         - report_header_only_mingw_x86_winxp.xml
         - report_header_only_mingw_x86-64_winxp.xml
         - report_header_only_mingw_x86_winblue.xml
         - report_header_only_mingw_x86-64_winblue.xml
 
-winxp tests x86:
-  <<: *only-default
-  tags:
-    - andromeda
-    - windows-xp
-  stage: test
-  needs: ["win-1809 msvc v19.26"]
-  script:
-    - ./build/tests_msvc_release_x86 --reporters=junit,conosle --out=./report_winxp_msvc_x86.xml
-    - ./build/tests_header_only_msvc_release_x86 --reporters=junit,conosle --out=./report_header_only_winxp_msvc_x86.xml
-  artifacts:
-    reports:
-      junit:
-        - report_winxp_msvc_x86.xml
-        - report_header_only_winxp_msvc_x86.xml
-  allow_failure: true
+#winxp tests x86:
+#  <<: *only-default
+#  tags:
+#    - win-xp
+#  stage: test
+#  needs: ["windows-any msvc v19.40"]
+#  script:
+#    - ./build/tests_msvc_release_x86 --reporters=junit,conosle --out=./report_winxp_msvc_x86.xml
+#    - ./build/tests_header_only_msvc_release_x86 --reporters=junit,conosle --out=./report_header_only_winxp_msvc_x86.xml
+#  artifacts:
+#    reports:
+#      junit:
+#        - report_winxp_msvc_x86.xml
+#        - report_header_only_winxp_msvc_x86.xml
+#  allow_failure: true
 
 linux test x86-64:
   <<: *only-default
