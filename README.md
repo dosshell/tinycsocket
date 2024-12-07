@@ -125,15 +125,15 @@ These platforms are always tested for every commit.
 ------------
 | OS                       | Compiler                    | Comments     |
 |--------------------------|-----------------------------|--------------|
-| Windows 10 (1809)        | MSVC v19.26                 | WINVER=0x502 |
-| Windows 10 (1809)        | x86_64-w64-mingw32-gcc v9.3 | WINVER=0x502 |
-| Windows 10 (1809)        | x86_64-w64-mingw32-g++ v9.3 | WINVER=0x502 |
-| Windows 10 (1809)        | i686-w64-mingw32-gcc v9.3   | WINVER=0x501 |
-| Windows 10 (1809)        | i686-w64-mingw32-g++ v9.3   | WINVER=0x501 |
-| Windows 10 (1809)        | x86_64-w64-mingw32-gcc v9.3 | WINVER=0x603 |
-| Windows 10 (1809)        | x86_64-w64-mingw32-g++ v9.3 | WINVER=0x603 |
-| Windows 10 (1809)        | i686-w64-mingw32-gcc v9.3   | WINVER=0x603 |
-| Windows 10 (1809)        | i686-w64-mingw32-g++ v9.3   | WINVER=0x603 |
+| Windows 2022             | MSVC v19.40                 | WINVER=0x502 |
+| Windows 2022             | x86_64-w64-mingw32-gcc v9.3 | WINVER=0x502 |
+| Windows 2022             | x86_64-w64-mingw32-g++ v9.3 | WINVER=0x502 |
+| Windows 2022             | i686-w64-mingw32-gcc v9.3   | WINVER=0x501 |
+| Windows 2022             | i686-w64-mingw32-g++ v9.3   | WINVER=0x501 |
+| Windows 2022             | x86_64-w64-mingw32-gcc v9.3 | WINVER=0x603 |
+| Windows 2022             | x86_64-w64-mingw32-g++ v9.3 | WINVER=0x603 |
+| Windows 2022             | i686-w64-mingw32-gcc v9.3   | WINVER=0x603 |
+| Windows 2022             | i686-w64-mingw32-g++ v9.3   | WINVER=0x603 |
 | Linux Alpine 3.12 x86-64 | gcc v9.3                    |              |
 | Linux Alpine 3.12 x86-64 | g++ v9.3                    |              |
 | Linux Alpine 3.12 x86    | gcc v9.3                    |              |
