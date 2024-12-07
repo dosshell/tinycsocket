@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.10)
+cmake_minimum_required(VERSION 3.10)
 
 # CMake fix for crosscompile (MinGW-w64)
 set(CMAKE_TRY_COMPILE_TARGET_TYPE "STATIC_LIBRARY")

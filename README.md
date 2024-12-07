@@ -66,7 +66,7 @@ The library supports both header-only and the cmake build system. When using cma
 build system you do not need to define the implementation definition.
 
 ## Use the header only
-This is how I use it most of the times. Download the latest header from the include directory in this repository.
+Download the latest header from the include directory in this repository.
 
 Download [latest](https://gitlab.com/dosshell/tinycsocket/-/raw/master/include/tinycsocket.h)
 
@@ -74,30 +74,38 @@ You need to define `TINYCSOCKET_IMPLEMENTATION` in exactly one translation unit 
 including the header file. You can put this in a separate translation unit to not pollute your namespace with OS socket symbols.
 
 In exactly one translation unit:
-```
+```cpp
 #define TINYCSOCKET_IMPLEMENTATION
 #include "tinycsocket.h"
 ```
 
 In the others:
-```
+```cpp
 #include "tinycsocket.h"
 ```
 
-## I want to use CMake and submodules
-If you are using a cmake project, you can add tinycsocket to your build system.
-Add this repo as a submodule and add tinycsocket to your CMakeLists.txt.
+## I want to use CMake
+If you are using cmake version 3.11 or newer, you can easily add tinycsocket to your build system.
+This is how I use it most of the times.
 
-```sh
-git submodule add https://gitlab.com/dosshell/tinycsocket.git
-```
-
+Here is an example of a CMakeLists.txt file that let you link to tinycsocket:
 ```cmake
-add_subdirectory(tinycsocket)
-target_link_libraries(your_target PRIVATE tinycsocket)
-```
+include(FetchContent)
+FetchContent_Declare(tinycsocket
+    GIT_REPOSITORY https://gitlab.com/dosshell/tinycsocket.git
+    GIT_TAG v0.3  # Use the latest version tag, or master if you want the break your build system in the future
+)
+FetchContent_GetProperties(tinycsocket)
+if(NOT tinycsocket_POPULATED)
+    FetchContent_Populate(tinycsocket)
+    add_subdirectory(${tinycsocket_SOURCE_DIR} ${tinycsocket_BINARY_DIR} EXCLUDE_FROM_ALL)
+endif()
 
-You can read more about how to use submodules here: https://git-scm.com/book/en/v2/Git-Tools-Submodules
+# You can now link to tinycsocket from your target
+add_executable(my-cmake-project main.cpp)
+target_link_libraries(my-cmake-project PRIVATE tinycsocket)
+```
+And that's it. You can now include tinycsocket.h in your target and start using it.
 
 ## I just want the lib files and link by my self
 You can also build this project to get a lib directory and an include directory.
