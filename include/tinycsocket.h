@@ -407,18 +407,32 @@ TcsReturnCode tcs_connect_address(TcsSocket socket_ctx, const struct TcsAddress*
  * @param backlog is the maximum number of queued incoming sockets. Use #TCS_BACKLOG_SOMAXCONN to set it to max.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_accept()
+ * @see tcs_listen_to()
  */
 TcsReturnCode tcs_listen(TcsSocket socket_ctx, int backlog);
 
 /**
-* @brief Bind a socket to a local portnumber and start listening to new connections.
-* 
-* This is similar to:
-* @code
-* tcs_bind(socket_ctx, local_port);
-* tcs_listen(socket_ctx, TCS_BACKLOG_SOMAXCONN);
-* @endcode
-*/
+ * @brief Bind a socket to a local portnumber and start listening to new connections.
+ * 
+ * Example usage:
+ * @code
+ * TcsSocket listen_socket = TCS_NULLSOCKET;
+ * tcs_create(&listen_socket, TCS_TYPE_TCP_IP4);
+ * tcs_listen_to(listen_socket, 1212);
+ * @endcode
+ *
+ * listen_to() is similar to:
+ * @code
+ * tcs_set_reuse_address(socket_ctx, true);
+ * tcs_bind(socket_ctx, local_port);
+ * tcs_listen(socket_ctx, TCS_BACKLOG_SOMAXCONN);
+ * @endcode
+ * Reuse address is not guaranteed to work on all platforms. No error will be returned if it fails.
+ *
+ * @return #TCS_SUCCESS if successful, otherwise the error code.
+ * @see tcs_listen()
+ * @see tcs_accept()
+ */
 TcsReturnCode tcs_listen_to(TcsSocket socket_ctx, uint16_t local_port);
 
 /**
@@ -434,16 +448,17 @@ TcsReturnCode tcs_listen_to(TcsSocket socket_ctx, uint16_t local_port);
  * tcs_listen_to(listen_socket, 1212);
  * while (true)
  * {
- *   TcsSocket accept_socket = TCS_NULLSOCKET;
- *   tcs_accept(listen_socket, &accept_socket, NULL)
- *   // Do stuff with accept_socket here
- *   tcs_close(&accept_socket);
+ *   TcsSocket client_socket = TCS_NULLSOCKET;
+ *   tcs_accept(listen_socket, &client_socket, NULL)
+ *   // Do stuff with client_socket here
+ *   tcs_close(&client_socket);
  * }
  * @endcode
  * 
  * @param socket_ctx is your listening socket you used when you called #tcs_listen_to().
  * @param child_socket_ctx is your accepted socket. Must have the in value of #TCS_NULLSOCKET.
  * @param address is an optional pointer to a buffer where the remote address of the accepted socket can be stored.
+ *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  */
 TcsReturnCode tcs_accept(TcsSocket socket_ctx, TcsSocket* child_socket_ctx, struct TcsAddress* address);
@@ -3413,6 +3428,8 @@ TcsReturnCode tcs_listen_to(TcsSocket socket_ctx, uint16_t local_port)
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
+
+    tcs_set_reuse_address(socket_ctx, true); // OK to fail
 
     TcsReturnCode sts = tcs_bind(socket_ctx, local_port);
     if (sts != TCS_SUCCESS)
