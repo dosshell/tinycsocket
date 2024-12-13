@@ -225,7 +225,7 @@ TEST_CASE("Simple TCP Test")
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 
-TEST_CASE("tcs_receive_line")
+TEST_CASE("Simple 2 msg tcs_receive_line")
 {
     // Setup
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
@@ -244,7 +244,6 @@ TEST_CASE("tcs_receive_line")
     CHECK(tcs_accept(listen_socket, &server_socket, NULL) == TCS_SUCCESS);
     CHECK(tcs_destroy(&listen_socket) == TCS_SUCCESS);
 
-    // When
     uint8_t msg[] = "hello:world";
     uint8_t part1[32] = {0};
     uint8_t part2[6] = {0};
@@ -253,6 +252,7 @@ TEST_CASE("tcs_receive_line")
     size_t part2_length = 0;
     size_t part3_length = 0;
 
+    // When
     CHECK(tcs_send(client_socket, msg, sizeof(msg), TCS_MSG_SENDALL, NULL) == TCS_SUCCESS);
     CHECK(tcs_receive_line(server_socket, part1, sizeof(part1), &part1_length, ':') == TCS_SUCCESS);
     CHECK(tcs_receive_line(server_socket, part2, sizeof(part2), &part2_length, '\0') == TCS_SUCCESS);
@@ -272,6 +272,48 @@ TEST_CASE("tcs_receive_line")
     CHECK(memcmp(part1, msg, 6) == 0);
     CHECK(memcmp(part2, msg + 6, 6) == 0);
     CHECK(memcmp(part3, msg, sizeof(msg)) == 0);
+
+    // Clean up
+    CHECK(tcs_destroy(&client_socket) == TCS_SUCCESS);
+    CHECK(tcs_destroy(&server_socket) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
+TEST_CASE("Partial msg tcs_receive_line")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    TcsSocket listen_socket = TCS_NULLSOCKET;
+    TcsSocket server_socket = TCS_NULLSOCKET;
+    TcsSocket client_socket = TCS_NULLSOCKET;
+
+    CHECK(tcs_create(&listen_socket, TCS_TYPE_TCP_IP4) == TCS_SUCCESS);
+    CHECK(tcs_create(&client_socket, TCS_TYPE_TCP_IP4) == TCS_SUCCESS);
+
+    CHECK(tcs_listen_to(listen_socket, 1212) == TCS_SUCCESS);
+    CHECK(tcs_connect(client_socket, "localhost", 1212) == TCS_SUCCESS);
+
+    CHECK(tcs_accept(listen_socket, &server_socket, NULL) == TCS_SUCCESS);
+    CHECK(tcs_destroy(&listen_socket) == TCS_SUCCESS);
+
+    uint8_t msg[] = "hello world\n";
+    uint8_t part1[10] = {0};
+    uint8_t part2[10] = {0};
+    size_t part1_length = 0;
+    size_t part2_length = 0;
+
+    // When
+    CHECK(tcs_send(client_socket, msg, sizeof(msg), TCS_MSG_SENDALL, NULL) == TCS_SUCCESS);
+    CHECK(tcs_receive_line(server_socket, part1, sizeof(part1), &part1_length, '\n') == TCS_AGAIN);
+    CHECK(tcs_receive_line(server_socket, part2, sizeof(part2), &part2_length, '\n') == TCS_SUCCESS);
+
+    // Then
+    CHECK(part1_length == 10);
+    CHECK(part2_length == 2);
+    CHECK(memcmp(part1, msg, 10) == 0);
+    CHECK(memcmp(part2, msg + 10, 2) == 0);
 
     // Clean up
     CHECK(tcs_destroy(&client_socket) == TCS_SUCCESS);
