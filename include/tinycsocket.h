@@ -774,13 +774,11 @@ TcsReturnCode tcs_set_ip_multicast_drop(TcsSocket socket_ctx,
                                         const struct TcsAddress* multicast_address);
 
 /**
-* @brief Read up to and including a special character.
+* @brief Read up to and including a delimiter.
 *
 * This function ensures that the socket buffer will keep its data after the delimiter.
 * For performance it is recommended to read everything and split it yourself.
 *
-* @param socket_ctx is your in-out socket context.
-
 * @param socket_ctx is your in-out socket context.
 * @param buffer is a pointer to your buffer where you want to store the incoming data to.
 * @param buffer_size is the byte size of your buffer, for preventing overflows.
@@ -2580,11 +2578,15 @@ TcsReturnCode tcs_receive(TcsSocket socket_ctx,
             size_t left = buffer_size - received_so_far;
             TcsReturnCode sts = tcs_receive(socket_ctx, cursor, left, new_flags, &received_now);
             if (sts != TCS_SUCCESS)
+            {
+                if (bytes_received != NULL)
+                    *bytes_received = received_so_far;
                 return sts;
+            }
             received_so_far += received_now;
         }
         if (bytes_received != NULL)
-            *bytes_received = 0;
+            *bytes_received = received_so_far;
         return TCS_SUCCESS;
     }
 #endif
@@ -2593,6 +2595,8 @@ TcsReturnCode tcs_receive(TcsSocket socket_ctx,
 
     if (recv_status == 0)
     {
+        if (bytes_received != NULL)
+            *bytes_received = 0;
         return TCS_ERROR_SOCKET_CLOSED;
     }
     else if (recv_status != SOCKET_ERROR)
@@ -3493,7 +3497,7 @@ TcsReturnCode tcs_receive_line(TcsSocket socket_ctx,
     {
         TcsReturnCode sts = TCS_SUCCESS;
         size_t bytes_free_in_buffer = buffer_length - bytes_read;
-        size_t current_peeked;
+        size_t current_peeked = 0;
         sts = tcs_receive(socket_ctx, buffer + bytes_read, bytes_free_in_buffer, TCS_MSG_PEEK, &current_peeked);
         if (sts != TCS_SUCCESS)
         {
@@ -3507,7 +3511,7 @@ TcsReturnCode tcs_receive_line(TcsSocket socket_ctx,
         {
             // Make sure we block so we do not fast loop previous PEEK.
             // Can not assume that peek with waitall is not crossplatform, needs to read
-            size_t current_read;
+            size_t current_read = 0;
             sts = tcs_receive(socket_ctx, buffer + bytes_read, 1, TCS_MSG_WAITALL, &current_read);
             bytes_read += current_read;
             bytes_peeked += current_read;
@@ -3535,7 +3539,7 @@ TcsReturnCode tcs_receive_line(TcsSocket socket_ctx,
         // after this block, bytes_read will also has the same value as they have
         if (bytes_searched > bytes_read)
         {
-            size_t bytes;
+            size_t bytes = 0;
             size_t bytes_to_read_to_catch_up = bytes_searched - bytes_read;
             sts = tcs_receive(socket_ctx, buffer + bytes_read, bytes_to_read_to_catch_up, TCS_MSG_WAITALL, &bytes);
             bytes_read += bytes;

@@ -461,11 +461,15 @@ TcsReturnCode tcs_receive(TcsSocket socket_ctx,
             size_t left = buffer_size - received_so_far;
             TcsReturnCode sts = tcs_receive(socket_ctx, cursor, left, new_flags, &received_now);
             if (sts != TCS_SUCCESS)
+            {
+                if (bytes_received != NULL)
+                    *bytes_received = received_so_far;
                 return sts;
+            }
             received_so_far += received_now;
         }
         if (bytes_received != NULL)
-            *bytes_received = 0;
+            *bytes_received = received_so_far;
         return TCS_SUCCESS;
     }
 #endif
@@ -474,6 +478,8 @@ TcsReturnCode tcs_receive(TcsSocket socket_ctx,
 
     if (recv_status == 0)
     {
+        if (bytes_received != NULL)
+            *bytes_received = 0;
         return TCS_ERROR_SOCKET_CLOSED;
     }
     else if (recv_status != SOCKET_ERROR)

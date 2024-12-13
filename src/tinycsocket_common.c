@@ -227,7 +227,7 @@ TcsReturnCode tcs_receive_line(TcsSocket socket_ctx,
     {
         TcsReturnCode sts = TCS_SUCCESS;
         size_t bytes_free_in_buffer = buffer_length - bytes_read;
-        size_t current_peeked;
+        size_t current_peeked = 0;
         sts = tcs_receive(socket_ctx, buffer + bytes_read, bytes_free_in_buffer, TCS_MSG_PEEK, &current_peeked);
         if (sts != TCS_SUCCESS)
         {
@@ -241,7 +241,7 @@ TcsReturnCode tcs_receive_line(TcsSocket socket_ctx,
         {
             // Make sure we block so we do not fast loop previous PEEK.
             // Can not assume that peek with waitall is not crossplatform, needs to read
-            size_t current_read;
+            size_t current_read = 0;
             sts = tcs_receive(socket_ctx, buffer + bytes_read, 1, TCS_MSG_WAITALL, &current_read);
             bytes_read += current_read;
             bytes_peeked += current_read;
@@ -269,7 +269,7 @@ TcsReturnCode tcs_receive_line(TcsSocket socket_ctx,
         // after this block, bytes_read will also has the same value as they have
         if (bytes_searched > bytes_read)
         {
-            size_t bytes;
+            size_t bytes = 0;
             size_t bytes_to_read_to_catch_up = bytes_searched - bytes_read;
             sts = tcs_receive(socket_ctx, buffer + bytes_read, bytes_to_read_to_catch_up, TCS_MSG_WAITALL, &bytes);
             bytes_read += bytes;
