@@ -202,7 +202,7 @@ TcsReturnCode tcs_receive_line(TcsSocket socket_ctx,
                                uint8_t* buffer,
                                size_t buffer_length,
                                size_t* bytes_received,
-                               uint8_t delimter)
+                               uint8_t delimiter)
 {
     if (socket_ctx == TCS_NULLSOCKET || buffer == NULL || buffer_length <= 0)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -258,7 +258,7 @@ TcsReturnCode tcs_receive_line(TcsSocket socket_ctx,
 
         while (bytes_searched < bytes_peeked)
         {
-            if (buffer[bytes_searched++] == delimter)
+            if (buffer[bytes_searched++] == delimiter)
             {
                 found_delimiter = true;
                 break;
@@ -289,7 +289,7 @@ TcsReturnCode tcs_receive_line(TcsSocket socket_ctx,
     }
     if (bytes_received != NULL)
         *bytes_received = bytes_read;
-    return TCS_ERROR_MEMORY;
+    return TCS_AGAIN;
 }
 
 TcsReturnCode tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_length, size_t* bytes_received)

@@ -211,6 +211,7 @@ extern const int TCS_INF;
 // Return codes
 typedef enum
 {
+    TCS_AGAIN = 1,
     TCS_SUCCESS = 0,
     TCS_ERROR_UNKNOWN = -1,
     TCS_ERROR_MEMORY = -2,
@@ -778,13 +779,16 @@ TcsReturnCode tcs_set_ip_multicast_drop(TcsSocket socket_ctx,
 *
 * This function ensures that the socket buffer will keep its data after the delimiter.
 * For performance it is recommended to read everything and split it yourself.
+* The call will block until the delimiter is received or the supplied buffer is filled.
+* The timeout time will not be per call but between each packet received. Longer call time than timeout is possible.
 *
 * @param socket_ctx is your in-out socket context.
 * @param buffer is a pointer to your buffer where you want to store the incoming data to.
 * @param buffer_size is the byte size of your buffer, for preventing overflows.
 * @param bytes_received is how many bytes that was successfully written to your buffer.
 * @param delimiter is your byte value where you want to stop reading. (including delimiter)
-* @return #TCS_SUCCESS if successful, otherwise the error code.
+* @return #TCS_AGAIN if no delimiter was found and the supplied buffer was filled.
+* @return #TCS_SUCCESS if the delimiter was found. Otherwise the error code.
 * @see tcs_receive_netstring()
 */
 TcsReturnCode tcs_receive_line(TcsSocket socket_ctx,
@@ -3472,7 +3476,7 @@ TcsReturnCode tcs_receive_line(TcsSocket socket_ctx,
                                uint8_t* buffer,
                                size_t buffer_length,
                                size_t* bytes_received,
-                               uint8_t delimter)
+                               uint8_t delimiter)
 {
     if (socket_ctx == TCS_NULLSOCKET || buffer == NULL || buffer_length <= 0)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -3528,7 +3532,7 @@ TcsReturnCode tcs_receive_line(TcsSocket socket_ctx,
 
         while (bytes_searched < bytes_peeked)
         {
-            if (buffer[bytes_searched++] == delimter)
+            if (buffer[bytes_searched++] == delimiter)
             {
                 found_delimiter = true;
                 break;
@@ -3559,7 +3563,7 @@ TcsReturnCode tcs_receive_line(TcsSocket socket_ctx,
     }
     if (bytes_received != NULL)
         *bytes_received = bytes_read;
-    return TCS_ERROR_MEMORY;
+    return TCS_AGAIN;
 }
 
 TcsReturnCode tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_length, size_t* bytes_received)

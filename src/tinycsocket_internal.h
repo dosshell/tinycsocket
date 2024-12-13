@@ -205,6 +205,7 @@ extern const int TCS_INF;
 // Return codes
 typedef enum
 {
+    TCS_AGAIN = 1,
     TCS_SUCCESS = 0,
     TCS_ERROR_UNKNOWN = -1,
     TCS_ERROR_MEMORY = -2,
@@ -772,13 +773,16 @@ TcsReturnCode tcs_set_ip_multicast_drop(TcsSocket socket_ctx,
 *
 * This function ensures that the socket buffer will keep its data after the delimiter.
 * For performance it is recommended to read everything and split it yourself.
+* The call will block until the delimiter is received or the supplied buffer is filled.
+* The timeout time will not be per call but between each packet received. Longer call time than timeout is possible.
 *
 * @param socket_ctx is your in-out socket context.
 * @param buffer is a pointer to your buffer where you want to store the incoming data to.
 * @param buffer_size is the byte size of your buffer, for preventing overflows.
 * @param bytes_received is how many bytes that was successfully written to your buffer.
 * @param delimiter is your byte value where you want to stop reading. (including delimiter)
-* @return #TCS_SUCCESS if successful, otherwise the error code.
+* @return #TCS_AGAIN if no delimiter was found and the supplied buffer was filled.
+* @return #TCS_SUCCESS if the delimiter was found. Otherwise the error code.
 * @see tcs_receive_netstring()
 */
 TcsReturnCode tcs_receive_line(TcsSocket socket_ctx,

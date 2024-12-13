@@ -1,4 +1,6 @@
 # Tests
+include(CTest)
+
 add_executable(tests "tests.cpp" "mock.cpp" "mock.h")
 target_compile_options(tests PUBLIC "-DDO_WRAP")
 target_link_libraries(tests PRIVATE tinycsocket_wrapped)
@@ -49,3 +51,7 @@ target_link_libraries(tests_header_only PRIVATE tinycsocket_header)
 target_include_directories(tests_header_only PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 set_target_properties(tests_header_only PROPERTIES FOLDER TCS/tests)
 add_definitions(-DDOCTEST_CONFIG_TREAT_CHAR_STAR_AS_STRING)
+
+add_test(NAME tests COMMAND tests)
+add_test(NAME tests_header_only COMMAND tests_header_only)
+add_test(NAME test_translation_units COMMAND test_translation_units)
