@@ -91,15 +91,12 @@ This is how I use it most of the times.
 Here is an example of a CMakeLists.txt file that let you link to tinycsocket:
 ```cmake
 include(FetchContent)
-FetchContent_Declare(tinycsocket
+FetchContent_Declare(
+    tinycsocket
     GIT_REPOSITORY https://gitlab.com/dosshell/tinycsocket.git
     GIT_TAG v0.3  # Use the latest version tag, or master if you want the break your build system in the future
 )
-FetchContent_GetProperties(tinycsocket)
-if(NOT tinycsocket_POPULATED)
-    FetchContent_Populate(tinycsocket)
-    add_subdirectory(${tinycsocket_SOURCE_DIR} ${tinycsocket_BINARY_DIR} EXCLUDE_FROM_ALL)
-endif()
+FetchContent_MakeAvailable(tinycsocket)
 
 # You can now link to tinycsocket from your target
 add_executable(my-cmake-project main.cpp)
