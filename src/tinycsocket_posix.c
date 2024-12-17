@@ -310,6 +310,8 @@ TcsReturnCode tcs_send(TcsSocket socket_ctx,
                 return sts;
             left -= sent;
         }
+        if (bytes_sent != NULL)
+            *bytes_sent = buffer_size;
         return TCS_SUCCESS;
     }
     else // Send
