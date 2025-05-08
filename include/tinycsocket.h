@@ -1143,6 +1143,10 @@ const int TCS_SO_IP_MEMBERSHIP_ADD = IP_ADD_MEMBERSHIP;
 const int TCS_SO_IP_MEMBERSHIP_DROP = IP_DROP_MEMBERSHIP;
 const int TCS_SO_IP_MULTICAST_LOOP = IP_MULTICAST_LOOP;
 
+// Default flags
+const int TCS_DEFAULT_SEND_FLAGS = MSG_NOSIGNAL;
+const int TCS_DEFAULT_RECV_FLAGS = 0;
+
 static TcsReturnCode family2native(const TcsAddressFamily family, sa_family_t* native_family)
 {
     static uint16_t lut[TCS_AF_LENGTH] = {AF_UNSPEC, AF_INET, AF_INET6};
@@ -1356,7 +1360,7 @@ TcsReturnCode tcs_send(TcsSocket socket_ctx,
     }
     else // Send
     {
-        ssize_t send_status = send(socket_ctx, (const char*)buffer, buffer_size, (int)flags);
+        ssize_t send_status = send(socket_ctx, (const char*)buffer, buffer_size, (int)flags | TCS_DEFAULT_SEND_FLAGS);
         if (send_status >= 0)
         {
             if (bytes_sent != NULL)
@@ -1421,7 +1425,7 @@ TcsReturnCode tcs_receive(TcsSocket socket_ctx,
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    ssize_t recv_status = recv(socket_ctx, (char*)buffer, buffer_size, (int)flags);
+    ssize_t recv_status = recv(socket_ctx, (char*)buffer, buffer_size, (int)flags | TCS_DEFAULT_RECV_FLAGS);
 
     if (recv_status > 0)
     {
