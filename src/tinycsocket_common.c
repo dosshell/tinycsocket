@@ -189,8 +189,6 @@ TcsReturnCode tcs_listen_to(TcsSocket socket_ctx, uint16_t local_port)
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    tcs_set_reuse_address(socket_ctx, true); // OK to fail
-
     TcsReturnCode sts = tcs_bind(socket_ctx, local_port);
     if (sts != TCS_SUCCESS)
         return sts;
