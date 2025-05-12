@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright 2018 Markus Lindelöw
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -321,6 +321,49 @@ TEST_CASE("Partial msg tcs_receive_line")
     // Clean up
     CHECK(tcs_destroy(&client_socket) == TCS_SUCCESS);
     CHECK(tcs_destroy(&server_socket) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
+TEST_CASE("sendv")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    TcsSocket listen_socket = TCS_NULLSOCKET;
+    TcsSocket accept_socket = TCS_NULLSOCKET;
+    TcsSocket client_socket = TCS_NULLSOCKET;
+
+    CHECK(tcs_create(&listen_socket, TCS_TYPE_TCP_IP4) == TCS_SUCCESS);
+    CHECK(tcs_create(&client_socket, TCS_TYPE_TCP_IP4) == TCS_SUCCESS);
+
+    CHECK(tcs_set_reuse_address(listen_socket, true) == TCS_SUCCESS);
+    CHECK(tcs_listen_to(listen_socket, 1212) == TCS_SUCCESS);
+    CHECK(tcs_connect(client_socket, "localhost", 1212) == TCS_SUCCESS);
+
+    CHECK(tcs_accept(listen_socket, &accept_socket, NULL) == TCS_SUCCESS);
+    CHECK(tcs_destroy(&listen_socket) == TCS_SUCCESS);
+
+    // When
+    TcsBuffer send_buffers[3];
+    send_buffers[0].buffer = (uint8_t*)"12345678";
+    send_buffers[0].length = 8;
+    send_buffers[1].buffer = (uint8_t*)"ABCDEFGH";
+    send_buffers[1].length = 8;
+    send_buffers[2].buffer = (uint8_t*)"abcdefgh";
+    send_buffers[2].length = 8;
+    CHECK(tcs_sendv(client_socket, send_buffers, 3, TCS_NO_FLAGS, NULL) == TCS_SUCCESS);
+
+    uint8_t recv_buffer[24] = {0};
+    CHECK(tcs_receive(accept_socket, recv_buffer, 24, TCS_NO_FLAGS, NULL) == TCS_SUCCESS);
+
+    // Then
+    for (int i = 0; i < 3; ++i)
+        CHECK(memcmp(send_buffers[i].buffer, recv_buffer + i * 8, 8) == 0);
+
+    // Clean up
+    CHECK(tcs_destroy(&client_socket) == TCS_SUCCESS);
+    CHECK(tcs_destroy(&accept_socket) == TCS_SUCCESS);
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 

@@ -453,6 +453,33 @@ TcsReturnCode tcs_send_to(TcsSocket socket_ctx,
     }
 }
 
+TcsReturnCode tcs_sendv(TcsSocket socket_ctx,
+                        const struct TcsBuffer* buffers,
+                        size_t buffer_count,
+                        uint32_t flags,
+                        size_t* bytes_sent)
+{
+    if (socket_ctx == TCS_NULLSOCKET || buffers == NULL || buffer_count == 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    if (flags & TCS_MSG_SENDALL)
+        return TCS_ERROR_NOT_IMPLEMENTED;
+
+    //TODO: Fix UB
+    WSABUF* wsa_buffers = (WSABUF*)buffers;
+
+    DWORD sent = 0;
+    int wsasend_status = WSASend(socket_ctx, wsa_buffers, (DWORD)buffer_count, &sent, (DWORD)flags, NULL, NULL);
+
+    if (bytes_sent != NULL)
+        *bytes_sent = (size_t)sent;
+
+    if (wsasend_status != SOCKET_ERROR)
+        return TCS_SUCCESS;
+    else
+        return socketstatus2retcode(wsasend_status);
+}
+
 TcsReturnCode tcs_receive(TcsSocket socket_ctx,
                           uint8_t* buffer,
                           size_t buffer_size,
