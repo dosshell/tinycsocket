@@ -40,6 +40,7 @@
 
 #include <errno.h>
 #include <ifaddrs.h>     // getifaddr()
+#include <limits.h>      // IOV_MAX
 #include <net/if.h>      // Flags for ifaddrs (?)
 #include <netdb.h>       // Protocols and custom return codes
 #include <netinet/in.h>  // IPPROTO_XXP
@@ -126,6 +127,10 @@ static TcsReturnCode errno2retcode(int error_code)
             return TCS_ERROR_CONNECTION_REFUSED;
         case EAGAIN:
             return TCS_ERROR_TIMED_OUT;
+        case EINVAL:
+            return TCS_ERROR_INVALID_ARGUMENT;
+        case ENOMEM:
+            return TCS_ERROR_MEMORY;
         default:
             return TCS_ERROR_UNKNOWN;
     }
@@ -140,6 +145,7 @@ static TcsReturnCode sockaddr2native(const struct TcsAddress* in_addr,
 
     if (in_addr->family == TCS_AF_IP4)
     {
+        // TODO: Fix UB aliasing
         struct sockaddr_in* addr = (struct sockaddr_in*)out_addr;
         addr->sin_family = (sa_family_t)AF_INET;
         addr->sin_port = (in_port_t)htons(in_addr->data.af_inet.port);
@@ -168,6 +174,7 @@ static TcsReturnCode native2sockaddr(const struct sockaddr* in_addr, struct TcsA
 
     if (in_addr->sa_family == AF_INET)
     {
+        // False positive alignment warning, the creator of the sockaddr is responsible for the alignment.
         struct sockaddr_in* addr = (struct sockaddr_in*)in_addr;
         out_addr->family = TCS_AF_IP4;
         out_addr->data.af_inet.port = ntohs((uint16_t)addr->sin_port);
@@ -300,27 +307,35 @@ TcsReturnCode tcs_send(TcsSocket socket_ctx,
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
+    if (bytes_sent != NULL)
+        *bytes_sent = 0;
+
+    if (buffer == NULL || buffer_size == 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
     // Send all
     if (flags & TCS_MSG_SENDALL)
     {
         uint32_t new_flags = flags & ~TCS_MSG_SENDALL; // For recursive call
         size_t left = buffer_size;
-        size_t sent = 0;
+        const uint8_t* iterator = buffer;
 
         while (left > 0)
         {
-            TcsReturnCode sts = tcs_send(socket_ctx, buffer, buffer_size, new_flags, &sent);
+            size_t sent = 0;
+            TcsReturnCode sts = tcs_send(socket_ctx, iterator, left, new_flags, &sent);
+            if (bytes_sent != NULL)
+                *bytes_sent += sent;
             if (sts != TCS_SUCCESS)
                 return sts;
             left -= sent;
+            iterator += sent;
         }
-        if (bytes_sent != NULL)
-            *bytes_sent = buffer_size;
         return TCS_SUCCESS;
     }
     else // Send
     {
-        ssize_t send_status = send(socket_ctx, (const char*)buffer, buffer_size, (int)flags | TCS_DEFAULT_SEND_FLAGS);
+        ssize_t send_status = send(socket_ctx, (const char*)buffer, buffer_size, TCS_DEFAULT_SEND_FLAGS | (int)flags);
         if (send_status >= 0)
         {
             if (bytes_sent != NULL)
@@ -346,6 +361,9 @@ TcsReturnCode tcs_send_to(TcsSocket socket_ctx,
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
+    if (flags & TCS_MSG_SENDALL)
+        return TCS_ERROR_NOT_IMPLEMENTED;
+
     struct sockaddr_storage native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
     socklen_t address_length = 0;
@@ -357,7 +375,7 @@ TcsReturnCode tcs_send_to(TcsSocket socket_ctx,
     ssize_t sendto_status = sendto(socket_ctx,
                                    (const char*)buffer,
                                    buffer_size,
-                                   (int)flags,
+                                   TCS_DEFAULT_SEND_FLAGS | (int)flags,
                                    (const struct sockaddr*)&native_sockaddr,
                                    (socklen_t)address_length);
 
@@ -376,6 +394,67 @@ TcsReturnCode tcs_send_to(TcsSocket socket_ctx,
     }
 }
 
+TcsReturnCode tcs_sendv(TcsSocket socket_ctx,
+                        const struct TcsBuffer* buffers,
+                        size_t buffer_count,
+                        uint32_t flags,
+                        size_t* bytes_sent)
+{
+    if (socket_ctx == TCS_NULLSOCKET || buffers == NULL || buffer_count == 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    if (flags & TCS_MSG_SENDALL)
+        return TCS_ERROR_NOT_IMPLEMENTED;
+
+    // We are going to use undefined behavior here, since we are going to use the struct iovec as a TcsBuffer.
+    // We check that the size and offset is the same and hope for the best.
+    // Some plattforms (Glibc) do not follow posix. We have mixed size_t and int types for msg_iovlen.
+    // We cast it to a narrower unsigned type to avoid warnings for later assignment.
+    // If you read this and doesn't like it, you can use probably use the compiler extension typeof() instead
+    // to cast it to correct type without warnigns. We can not, since we want to support more compilers.
+
+    if (sizeof(struct TcsBuffer) != sizeof(struct iovec))
+        return TCS_ERROR_NOT_IMPLEMENTED;
+
+    if (offsetof(struct TcsBuffer, length) != offsetof(struct iovec, iov_len))
+        return TCS_ERROR_NOT_IMPLEMENTED;
+
+#if USHRT_MAX < INT_MAX
+    if (buffer_count > USHRT_MAX)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    unsigned short narrow_casted_iovlen = (unsigned short)buffer_count;
+#else
+    if (buffer_count > UCHAR_MAX)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    unsigned char narrow_casted_iovlen = (unsigned char)buffer_count;
+#endif
+
+    struct msghdr msg;
+    msg.msg_name = NULL;
+    msg.msg_namelen = 0;
+    msg.msg_iov = (struct iovec*)buffers; // UB: aliasing optimization here.
+    msg.msg_iovlen = narrow_casted_iovlen;
+    msg.msg_control = NULL;
+    msg.msg_controllen = 0;
+    msg.msg_flags = 0;
+
+    ssize_t ret = 0;
+    ret = sendmsg(socket_ctx, &msg, TCS_DEFAULT_SEND_FLAGS | (int)flags);
+
+    if (ret >= 0)
+    {
+        if (bytes_sent != NULL)
+            *bytes_sent = (size_t)ret;
+        return TCS_SUCCESS;
+    }
+    else
+    {
+        if (bytes_sent != NULL)
+            *bytes_sent = 0;
+        return errno2retcode(errno);
+    }
+}
+
 TcsReturnCode tcs_receive(TcsSocket socket_ctx,
                           uint8_t* buffer,
                           size_t buffer_size,
@@ -385,7 +464,7 @@ TcsReturnCode tcs_receive(TcsSocket socket_ctx,
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    ssize_t recv_status = recv(socket_ctx, (char*)buffer, buffer_size, (int)flags | TCS_DEFAULT_RECV_FLAGS);
+    ssize_t recv_status = recv(socket_ctx, (char*)buffer, buffer_size, TCS_DEFAULT_RECV_FLAGS | (int)flags);
 
     if (recv_status > 0)
     {
@@ -421,8 +500,12 @@ TcsReturnCode tcs_receive_from(TcsSocket socket_ctx,
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
     socklen_t addrlen = sizeof native_sockaddr;
 
-    ssize_t recvfrom_status = recvfrom(
-        socket_ctx, (char*)buffer, buffer_size, (int)flags, (struct sockaddr*)&native_sockaddr, (socklen_t*)&addrlen);
+    ssize_t recvfrom_status = recvfrom(socket_ctx,
+                                       (char*)buffer,
+                                       buffer_size,
+                                       TCS_DEFAULT_RECV_FLAGS | (int)flags,
+                                       (struct sockaddr*)&native_sockaddr,
+                                       (socklen_t*)&addrlen);
 
     if (recvfrom_status > 0)
     {
@@ -827,6 +910,7 @@ TcsReturnCode tcs_resolve_hostname(const char* hostname,
 }
 
 // This is not part of posix, we need to be platform specific here
+// TODO: This is probably not compatible with include only
 #if TCS_HAVE_IFADDRS // acquired from CMake
 TcsReturnCode tcs_local_interfaces(struct TcsInterface found_interfaces[],
                                    size_t found_interfaces_length,

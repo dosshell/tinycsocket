@@ -74,7 +74,6 @@ extern "C" {
 #endif
 #include <basetsd.h>
 typedef UINT_PTR TcsSocket;
-
 #elif defined(TINYCSOCKET_USE_POSIX_IMPL)
 typedef int TcsSocket;
 #endif
@@ -135,6 +134,23 @@ struct TcsInterface
 {
     struct TcsAddress address;
     char name[32];
+};
+
+/**
+ * @brief Used when sending/receiving an array of buffers.
+ *
+ * Useful if you want to send two or more data arrays at once, for example a header and a body.
+ * Make an array of TcsBuffer and use tcs_sendv() to send them all at once.
+*/
+struct TcsBuffer
+{
+#if defined(TINYCSOCKET_USE_WIN32_IMPL)
+    unsigned long length;
+    uint8_t* buffer;
+#elif defined(TINYCSOCKET_USE_POSIX_IMPL)
+    uint8_t* buffer;
+    size_t length;
+#endif
 };
 
 extern const TcsSocket TCS_NULLSOCKET; /**< An empty socket, you should always define your new sockets to this value */
@@ -494,6 +510,22 @@ TcsReturnCode tcs_send_to(TcsSocket socket_ctx,
                           uint32_t flags,
                           const struct TcsAddress* destination_address,
                           size_t* bytes_sent);
+
+/**
+* @brief Sends several data buffers on a socket as one message.
+*
+* @param socket_ctx is your in-out socket context.
+* @param buffers is a pointer to your array of buffers you want to send.
+* @param buffer_count is the number of buffers in your array.
+* @param flags is currently not in use.
+* @param bytes_sent is how many bytes in total that was successfully sent.
+* @return #TCS_SUCCESS if successful, otherwise the error code.
+*/
+TcsReturnCode tcs_sendv(TcsSocket socket_ctx,
+                        const struct TcsBuffer* buffers,
+                        size_t buffer_count,
+                        uint32_t flags,
+                        size_t* bytes_sent);
 
 /**
 * @brief Receive data from a socket to your buffer
