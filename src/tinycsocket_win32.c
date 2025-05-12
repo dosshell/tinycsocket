@@ -370,22 +370,30 @@ TcsReturnCode tcs_send(TcsSocket socket_ctx,
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
+    if (bytes_sent != NULL)
+        *bytes_sent = 0;
+
+    if (buffer == NULL || buffer_size == 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
     // Send all
     if (flags & TCS_MSG_SENDALL)
     {
         uint32_t new_flags = flags & ~TCS_MSG_SENDALL; // For recursive call
         size_t left = buffer_size;
-        size_t sent = 0;
+        const uint8_t* iterator = buffer;
 
         while (left > 0)
         {
-            TcsReturnCode sts = tcs_send(socket_ctx, buffer, buffer_size, new_flags, &sent);
+            size_t sent = 0;
+            TcsReturnCode sts = tcs_send(socket_ctx, iterator, left, new_flags, &sent);
+            if (bytes_sent != NULL)
+                *bytes_sent += sent;
             if (sts != TCS_SUCCESS)
                 return sts;
             left -= sent;
+            iterator += sent;
         }
-        if (bytes_sent != NULL)
-            *bytes_sent = buffer_size;
         return TCS_SUCCESS;
     }
     else // Send
@@ -416,6 +424,9 @@ TcsReturnCode tcs_send_to(TcsSocket socket_ctx,
 {
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
+
+    if (flags & TCS_MSG_SENDALL)
+        return TCS_ERROR_NOT_IMPLEMENTED;
 
     SOCKADDR_STORAGE native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
