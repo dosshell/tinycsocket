@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2018 Markus Lindelöw
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -204,6 +204,7 @@ TEST_CASE("Simple TCP Test")
     CHECK(tcs_create(&listen_socket, TCS_TYPE_TCP_IP4) == TCS_SUCCESS);
     CHECK(tcs_create(&client_socket, TCS_TYPE_TCP_IP4) == TCS_SUCCESS);
 
+    CHECK(tcs_set_reuse_address(listen_socket, true) == TCS_SUCCESS);
     CHECK(tcs_listen_to(listen_socket, 1212) == TCS_SUCCESS);
     CHECK(tcs_connect(client_socket, "localhost", 1212) == TCS_SUCCESS);
 
@@ -238,6 +239,7 @@ TEST_CASE("Simple 2 msg tcs_receive_line")
     CHECK(tcs_create(&listen_socket, TCS_TYPE_TCP_IP4) == TCS_SUCCESS);
     CHECK(tcs_create(&client_socket, TCS_TYPE_TCP_IP4) == TCS_SUCCESS);
 
+    CHECK(tcs_set_reuse_address(listen_socket, true) == TCS_SUCCESS);
     CHECK(tcs_listen_to(listen_socket, 1212) == TCS_SUCCESS);
     CHECK(tcs_connect(client_socket, "localhost", 1212) == TCS_SUCCESS);
 
@@ -292,6 +294,7 @@ TEST_CASE("Partial msg tcs_receive_line")
     CHECK(tcs_create(&listen_socket, TCS_TYPE_TCP_IP4) == TCS_SUCCESS);
     CHECK(tcs_create(&client_socket, TCS_TYPE_TCP_IP4) == TCS_SUCCESS);
 
+    CHECK(tcs_set_reuse_address(listen_socket, true) == TCS_SUCCESS);
     CHECK(tcs_listen_to(listen_socket, 1212) == TCS_SUCCESS);
     CHECK(tcs_connect(client_socket, "localhost", 1212) == TCS_SUCCESS);
 
@@ -334,6 +337,7 @@ TEST_CASE("Simple TCP Netstring Test")
     CHECK(tcs_create(&listen_socket, TCS_TYPE_TCP_IP4) == TCS_SUCCESS);
     CHECK(tcs_create(&client_socket, TCS_TYPE_TCP_IP4) == TCS_SUCCESS);
 
+    CHECK(tcs_set_reuse_address(listen_socket, true) == TCS_SUCCESS);
     CHECK(tcs_listen_to(listen_socket, 1212) == TCS_SUCCESS);
     CHECK(tcs_connect(client_socket, "localhost", 1212) == TCS_SUCCESS);
 
