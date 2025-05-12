@@ -136,31 +136,32 @@ static TcsReturnCode errno2retcode(int error_code)
     }
 }
 
-static TcsReturnCode sockaddr2native(const struct TcsAddress* in_addr,
-                                     struct sockaddr* out_addr,
-                                     socklen_t* out_addrlen)
+static TcsReturnCode sockaddr2native(const struct TcsAddress* tcs_address,
+                                     struct sockaddr_storage* out_address,
+                                     socklen_t* out_address_size)
 {
-    if (in_addr == NULL || out_addr == NULL)
+    if (tcs_address == NULL || out_address == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (in_addr->family == TCS_AF_IP4)
+    memset(out_address, 0, sizeof(struct sockaddr_storage));
+    if (out_address_size != NULL)
+        *out_address_size = 0;
+
+    if (tcs_address->family == TCS_AF_IP4)
     {
-        // TODO: Fix UB aliasing
-        struct sockaddr_in* addr = (struct sockaddr_in*)out_addr;
+        struct sockaddr_in* addr = (struct sockaddr_in*)out_address;
         addr->sin_family = (sa_family_t)AF_INET;
-        addr->sin_port = (in_port_t)htons(in_addr->data.af_inet.port);
-        addr->sin_addr.s_addr = (in_addr_t)htonl(in_addr->data.af_inet.address);
-
-        if (out_addrlen != NULL)
-            *out_addrlen = sizeof(struct sockaddr_in);
-
+        addr->sin_port = (in_port_t)htons(tcs_address->data.af_inet.port);
+        addr->sin_addr.s_addr = (in_addr_t)htonl(tcs_address->data.af_inet.address);
+        if (out_address_size != NULL)
+            *out_address_size = sizeof(struct sockaddr_in);
         return TCS_SUCCESS;
     }
-    else if (in_addr->family == TCS_AF_IP6)
+    else if (tcs_address->family == TCS_AF_IP6)
     {
         return TCS_ERROR_NOT_IMPLEMENTED;
     }
-    else if (in_addr->family == TCS_AF_ANY)
+    else if (tcs_address->family == TCS_AF_ANY)
     {
         return TCS_ERROR_NOT_IMPLEMENTED;
     }
@@ -174,8 +175,8 @@ static TcsReturnCode native2sockaddr(const struct sockaddr* in_addr, struct TcsA
 
     if (in_addr->sa_family == AF_INET)
     {
-        // False positive alignment warning, the creator of the sockaddr is responsible for the alignment.
-        struct sockaddr_in* addr = (struct sockaddr_in*)in_addr;
+        // (const void*) Supresses false positive alignment warning, the creator of the sockaddr is responsible for the alignment.
+        struct sockaddr_in* addr = (struct sockaddr_in*)(const void*)in_addr;
         out_addr->family = TCS_AF_IP4;
         out_addr->data.af_inet.port = ntohs((uint16_t)addr->sin_port);
         out_addr->data.af_inet.address = ntohl((uint32_t)addr->sin_addr.s_addr);
@@ -196,13 +197,13 @@ static TcsReturnCode native2sockaddr(const struct sockaddr* in_addr, struct TcsA
     return TCS_SUCCESS;
 }
 
-TcsReturnCode tcs_lib_init()
+TcsReturnCode tcs_lib_init(void)
 {
     // Not needed for posix
     return TCS_SUCCESS;
 }
 
-TcsReturnCode tcs_lib_free()
+TcsReturnCode tcs_lib_free(void)
 {
     // Not needed for posix
     return TCS_SUCCESS;
@@ -231,11 +232,12 @@ TcsReturnCode tcs_bind_address(TcsSocket socket_ctx, const struct TcsAddress* ad
 
     struct sockaddr_storage native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
-    socklen_t addrlen = 0;
-    TcsReturnCode convert_address_status = sockaddr2native(address, (struct sockaddr*)&native_sockaddr, &addrlen);
+    socklen_t sockaddr_size = 0;
+    TcsReturnCode convert_address_status = sockaddr2native(address, &native_sockaddr, &sockaddr_size);
     if (convert_address_status != TCS_SUCCESS)
         return convert_address_status;
-    if (bind(socket_ctx, (struct sockaddr*)&native_sockaddr, addrlen) != -1)
+
+    if (bind(socket_ctx, (struct sockaddr*)&native_sockaddr, sockaddr_size) != -1)
         return TCS_SUCCESS;
     else
         return errno2retcode(errno);
@@ -248,13 +250,12 @@ TcsReturnCode tcs_connect_address(TcsSocket socket_ctx, const struct TcsAddress*
 
     struct sockaddr_storage native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
-    socklen_t address_length = 0;
-    TcsReturnCode convert_address_status =
-        sockaddr2native(address, (struct sockaddr*)&native_sockaddr, &address_length);
+    socklen_t sockaddr_size = 0;
+    TcsReturnCode convert_address_status = sockaddr2native(address, &native_sockaddr, &sockaddr_size);
     if (convert_address_status != TCS_SUCCESS)
         return convert_address_status;
 
-    if (connect(socket_ctx, (const struct sockaddr*)&native_sockaddr, address_length) == 0)
+    if (connect(socket_ctx, (const struct sockaddr*)&native_sockaddr, sockaddr_size) == 0)
         return TCS_SUCCESS;
     else
         return errno2retcode(errno);
@@ -278,9 +279,9 @@ TcsReturnCode tcs_accept(TcsSocket socket_ctx, TcsSocket* child_socket_ctx, stru
 
     struct sockaddr_storage native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
-    socklen_t address_length = sizeof native_sockaddr;
+    socklen_t sockaddr_size = sizeof native_sockaddr;
 
-    *child_socket_ctx = accept(socket_ctx, (struct sockaddr*)&native_sockaddr, &address_length);
+    *child_socket_ctx = accept(socket_ctx, (struct sockaddr*)&native_sockaddr, &sockaddr_size);
     if (*child_socket_ctx != -1)
     {
         if (address != NULL)
@@ -366,9 +367,8 @@ TcsReturnCode tcs_send_to(TcsSocket socket_ctx,
 
     struct sockaddr_storage native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
-    socklen_t address_length = 0;
-    TcsReturnCode convert_addr_status =
-        sockaddr2native(destination_address, (struct sockaddr*)&native_sockaddr, &address_length);
+    socklen_t sockaddr_size = 0;
+    TcsReturnCode convert_addr_status = sockaddr2native(destination_address, &native_sockaddr, &sockaddr_size);
     if (convert_addr_status != TCS_SUCCESS)
         return convert_addr_status;
 
@@ -377,7 +377,7 @@ TcsReturnCode tcs_send_to(TcsSocket socket_ctx,
                                    buffer_size,
                                    TCS_DEFAULT_SEND_FLAGS | (int)flags,
                                    (const struct sockaddr*)&native_sockaddr,
-                                   (socklen_t)address_length);
+                                   (socklen_t)sockaddr_size);
 
     if (sendto_status >= 0)
     {
@@ -406,8 +406,10 @@ TcsReturnCode tcs_sendv(TcsSocket socket_ctx,
     if (flags & TCS_MSG_SENDALL)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
-    // We are going to use undefined behavior here, since we are going to use the struct iovec as a TcsBuffer.
+    // We are going to use undefined behavior optimization here, since we are going to use the struct iovec as a TcsBuffer.
     // We check that the size and offset is the same and hope for the best.
+    // This is not a problem since we are using the same struct, but it is undefined behavior according to the standard.
+
     // Some plattforms (Glibc) do not follow posix. We have mixed size_t and int types for msg_iovlen.
     // We cast it to a narrower unsigned type to avoid warnings for later assignment.
     // If you read this and doesn't like it, you can use probably use the compiler extension typeof() instead
@@ -1083,7 +1085,7 @@ TcsReturnCode tcs_set_ip_multicast_add(TcsSocket socket_ctx,
     memset(&address_native_multicast, 0, sizeof address_native_multicast);
     socklen_t address_native_multicast_size = 0;
     TcsReturnCode mutlicast_to_native_sts =
-        sockaddr2native(multicast_address, (struct sockaddr*)&address_native_multicast, &address_native_multicast_size);
+        sockaddr2native(multicast_address, &address_native_multicast, &address_native_multicast_size);
     if (mutlicast_to_native_sts != TCS_SUCCESS)
         return mutlicast_to_native_sts;
 
@@ -1093,7 +1095,7 @@ TcsReturnCode tcs_set_ip_multicast_add(TcsSocket socket_ctx,
     if (local_address != NULL)
     {
         TcsReturnCode mutlicast_to_local_sts =
-            sockaddr2native(local_address, (struct sockaddr*)&address_native_local, &address_native_local_size);
+            sockaddr2native(local_address, &address_native_local, &address_native_local_size);
         if (mutlicast_to_local_sts)
             return mutlicast_to_local_sts;
     }
@@ -1129,7 +1131,7 @@ TcsReturnCode tcs_set_ip_multicast_drop(TcsSocket socket_ctx,
     memset(&address_native_multicast, 0, sizeof address_native_multicast);
     socklen_t address_native_multicast_size = 0;
     TcsReturnCode mutlicast_to_native_sts =
-        sockaddr2native(multicast_address, (struct sockaddr*)&address_native_multicast, &address_native_multicast_size);
+        sockaddr2native(multicast_address, &address_native_multicast, &address_native_multicast_size);
     if (mutlicast_to_native_sts != TCS_SUCCESS)
         return mutlicast_to_native_sts;
 
@@ -1139,7 +1141,7 @@ TcsReturnCode tcs_set_ip_multicast_drop(TcsSocket socket_ctx,
     if (local_address != NULL)
     {
         TcsReturnCode mutlicast_to_local_sts =
-            sockaddr2native(local_address, (struct sockaddr*)&address_native_local, &address_native_local_size);
+            sockaddr2native(local_address, &address_native_local, &address_native_local_size);
         if (mutlicast_to_local_sts)
             return mutlicast_to_local_sts;
     }
