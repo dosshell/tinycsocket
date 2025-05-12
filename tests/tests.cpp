@@ -28,7 +28,9 @@
 #endif
 #include "mock.h"
 
-#include <tinycsocket.h>
+#include "tinycsocket.h"
+#include "tinydatastructures.h"
+
 #include <cstring>
 #include <iostream>
 #include <thread>
@@ -545,6 +547,71 @@ TEST_CASE("tcs_pool_poll simple read")
 
     // Clean up
     CHECK(tcs_destroy(&socket) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
+TEST_CASE("tcs_pool_poll partial")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    struct TcsPool* pool = NULL;
+    CHECK(tcs_pool_create(&pool) == TCS_SUCCESS);
+
+    const int SOCKET_COUNT = 3;
+    TcsSocket socket[SOCKET_COUNT];
+    int user_data[SOCKET_COUNT];
+
+    for (int i = 0; i < SOCKET_COUNT; ++i)
+    {
+        socket[i] = TCS_NULLSOCKET;
+        CHECK(tcs_create(&socket[i], TCS_TYPE_UDP_IP4) == TCS_SUCCESS);
+        CHECK(tcs_bind(socket[i], (uint16_t)(5000 + i)) == TCS_SUCCESS);
+        user_data[i] = 5000 + i;
+        CHECK(tcs_pool_add(pool, socket[i], (void*)&user_data[i], true, false, true) == TCS_SUCCESS);
+    }
+
+    // When
+    size_t populated = 0;
+    TcsPollEvent ev = TCS_NULLEVENT;
+    CHECK(tcs_pool_poll(pool, &ev, 1, &populated, 0) == TCS_ERROR_TIMED_OUT);
+
+    // Then
+    CHECK(populated == 0);
+
+    // When
+    TcsAddress destinaion_address = TCS_ADDRESS_NULL;
+    CHECK(tcs_util_string_to_address("127.0.0.1:5001", &destinaion_address) == TCS_SUCCESS);
+    CHECK(tcs_send_to(socket[0], (const uint8_t*)"hej", 4, TCS_NO_FLAGS, &destinaion_address, NULL) == TCS_SUCCESS);
+    CHECK(tcs_pool_poll(pool, &ev, 1, &populated, 10) == TCS_SUCCESS);
+    CHECK(populated == 1);
+    CHECK(*(int*)ev.user_data == 5001);
+    CHECK(ev.can_read == true);
+
+    // Then
+
+    // Check that the event and socket is still there in the pool, even after poll
+    CHECK(tcs_pool_poll(pool, &ev, 1, &populated, 10) == TCS_SUCCESS);
+    CHECK(populated == 1);
+    CHECK(*(int*)ev.user_data == 5001);
+    CHECK(ev.can_read == true);
+
+    uint8_t receive_buffer[1024];
+    size_t received_bytes = 0;
+    CHECK(tcs_receive(socket[1], receive_buffer, 1024, TCS_NO_FLAGS, &received_bytes) == TCS_SUCCESS);
+
+    // Check that the event is removed after received data
+    CHECK(tcs_pool_poll(pool, &ev, 1, &populated, 10) == TCS_ERROR_TIMED_OUT);
+
+    CHECK(populated == 0);
+
+    // Clean up
+    CHECK(tcs_pool_destory(&pool) == TCS_SUCCESS);
+    for (int i = 0; i < SOCKET_COUNT; ++i)
+    {
+        CHECK(tcs_destroy(&socket[i]) == TCS_SUCCESS);
+    }
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 
@@ -1091,4 +1158,60 @@ TEST_CASE("Multicast Add-Drop-Add Membership")
     CHECK(tcs_destroy(&socket_recv) == TCS_SUCCESS);
     CHECK(tcs_destroy(&socket_send) == TCS_SUCCESS);
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
+#ifndef ULIST_int
+#define ULIST_int
+TDS_ULIST_IMPL(int, int)
+#endif
+
+TEST_CASE("Ulist_remove")
+{
+    UList_int list;
+    CHECK(ulist_int_create(&list, 64) == 0);
+    for (int i = 0; i < 128; ++i)
+    {
+        CHECK(ulist_int_add_one(&list, i) == 0);
+    }
+
+    ulist_int_remove(&list, 1, 3);
+    CHECK(list.data[0] == 0);
+    CHECK(list.data[1] == 125);
+    CHECK(list.data[2] == 126);
+    CHECK(list.data[3] == 127);
+    CHECK(list.data[4] == 4);
+    CHECK(list.count == 125);
+}
+
+TEST_CASE("Ulist_remove_one")
+{
+    UList_int list;
+    CHECK(ulist_int_create(&list, 64) == 0);
+    for (int i = 0; i < 128; ++i)
+    {
+        CHECK(ulist_int_add_one(&list, i) == 0);
+    }
+
+    ulist_int_remove_one(&list, 1);
+    CHECK(list.data[0] == 0);
+    CHECK(list.data[1] == 127);
+    CHECK(list.data[2] == 2);
+    CHECK(list.count == 127);
+}
+
+TEST_CASE("Ulist_pop_last")
+{
+    UList_int list;
+    CHECK(ulist_int_create(&list, 64) == 0);
+    for (int i = 0; i < 128; ++i)
+    {
+        CHECK(ulist_int_add_one(&list, i) == 0);
+    }
+
+    int popped_value = 0;
+    ulist_int_pop_last(&list, &popped_value);
+    CHECK(popped_value == 127);
+    CHECK(list.count == 127);
+    CHECK(list.data[0] == 0);
+    CHECK(list.data[126] == 126);
 }
