@@ -248,7 +248,7 @@ static TcsReturnCode native2sockaddr(const PSOCKADDR in_addr, struct TcsAddress*
     return TCS_SUCCESS;
 }
 
-TcsReturnCode tcs_lib_init()
+TcsReturnCode tcs_lib_init(void)
 {
     if (g_init_count <= 0)
     {
@@ -261,7 +261,7 @@ TcsReturnCode tcs_lib_init()
     return TCS_SUCCESS;
 }
 
-TcsReturnCode tcs_lib_free()
+TcsReturnCode tcs_lib_free(void)
 {
     g_init_count--;
     if (g_init_count <= 0)
