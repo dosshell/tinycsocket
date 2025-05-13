@@ -5,15 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Goals:
-// Threadsafe
-// Secure, no data leaks
-// Tiny compile times
-// Tiny generated file size (light on instruction cache)
-// Optimized for "is there one, there might be many"
-// Tiny code pollution
-// Easy to debug
-
 static inline int ulist_create(void** data, size_t init_capacity, size_t* capacity, size_t element_size);
 static inline int ulist_reserve(void** data, size_t requested_capacity, size_t* capacity, size_t element_size);
 static inline int ulist_create_copy(void* from_data,
@@ -34,7 +25,7 @@ static inline int ulist_add(void** data,
                             size_t element_size);
 static inline int ulist_remove(void* data, size_t index, size_t remove_count, size_t* count, size_t element_size);
 static inline int ulist_relax(void** data, size_t count, size_t* capacity);
-static inline int ulist_pop(void* data, size_t* count, void* out_element, size_t element_size);
+static inline int ulist_pop_last(void* data, size_t* count, void* out_element, size_t element_size);
 
 static inline int ulist_create(void** data, size_t init_capacity, size_t* capacity, size_t element_size)
 {
@@ -122,7 +113,7 @@ static inline int ulist_add(void** data,
                             size_t element_size)
 {
     ulist_reserve(data, add_count * element_size, capacity, element_size);
-    memcpy((uint8_t*)*data + *count * element_size, add_data, add_count * element_size);
+    memcpy((uint8_t*)*data + (*count) * element_size, add_data, add_count * element_size);
     *count += add_count;
     return 0;
 }
@@ -132,7 +123,7 @@ static inline int ulist_remove(void* data, size_t index, size_t remove_count, si
     if (index + remove_count > *count)
         return -1;
     void* dst = (uint8_t*)data + index * element_size;
-    void* src = (uint8_t*)data + (*count - 1) * element_size * remove_count;
+    void* src = (uint8_t*)data + (*count * element_size) - element_size * remove_count;
     memmove(dst, src, element_size * remove_count);
     *count -= remove_count;
     return 0;
@@ -152,14 +143,14 @@ static inline int ulist_relax(void** data, size_t count, size_t* capacity)
     return 0;
 }
 
-static inline int ulist_pop(void* data, size_t* count, void* out_element, size_t element_size)
+static inline int ulist_pop_last(void* data, size_t* count, void* out_element, size_t element_size)
 {
-    if (*count < 1)
+    if (*count == 0)
         return -1;
+    --(*count);
     if (out_element != NULL)
-        memmove(out_element, (uint8_t*)data + *count * element_size, element_size); // allow to pop to another element
-    memset((uint8_t*)data + *count * element_size, 0, element_size);
-    (*count)--;
+        memmove(out_element, (uint8_t*)data + (*count) * element_size, element_size);
+    memset((uint8_t*)data + (*count) * element_size, 0, element_size);
     return 0;
 }
 
@@ -206,15 +197,15 @@ static inline int ulist_pop(void* data, size_t* count, void* out_element, size_t
     }                                                                                                       \
     static inline int ulist_##NAME##_remove_one(UList_##NAME* ulist, size_t index)                          \
     {                                                                                                       \
-        return ulist_remove(&ulist->data, index, 1, &ulist->count, sizeof(TYPE));                           \
+        return ulist_remove((void*)ulist->data, index, 1, &ulist->count, sizeof(TYPE));                     \
     }                                                                                                       \
     static inline int ulist_##NAME##_remove(UList_##NAME* ulist, size_t index, size_t remove_count)         \
     {                                                                                                       \
-        return ulist_remove(&ulist->data, index, remove_count, &ulist->count, sizeof(TYPE));                \
+        return ulist_remove((void*)ulist->data, index, remove_count, &ulist->count, sizeof(TYPE));          \
     }                                                                                                       \
-    static inline int ulist_##NAME##_pop(UList_##NAME* ulist, TYPE* popped_element)                         \
+    static inline int ulist_##NAME##_pop_last(UList_##NAME* ulist, TYPE* popped_element)                    \
     {                                                                                                       \
-        return ulist_pop(&ulist->data, &ulist->count, popped_element, sizeof(TYPE));                        \
+        return ulist_pop_last((void*)ulist->data, &ulist->count, popped_element, sizeof(TYPE));             \
     }                                                                                                       \
     static inline int ulist_##NAME##_relax(UList_##NAME* ulist)                                             \
     {                                                                                                       \

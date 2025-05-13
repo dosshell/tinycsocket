@@ -850,15 +850,6 @@ TcsReturnCode tcs_send_netstring(TcsSocket socket_ctx, const uint8_t* buffer, si
 #include <stdlib.h>
 #include <string.h>
 
-// Goals:
-// Threadsafe
-// Secure, no data leaks
-// Tiny compile times
-// Tiny generated file size (light on instruction cache)
-// Optimized for "is there one, there might be many"
-// Tiny code pollution
-// Easy to debug
-
 static inline int ulist_create(void** data, size_t init_capacity, size_t* capacity, size_t element_size);
 static inline int ulist_reserve(void** data, size_t requested_capacity, size_t* capacity, size_t element_size);
 static inline int ulist_create_copy(void* from_data,
@@ -879,7 +870,7 @@ static inline int ulist_add(void** data,
                             size_t element_size);
 static inline int ulist_remove(void* data, size_t index, size_t remove_count, size_t* count, size_t element_size);
 static inline int ulist_relax(void** data, size_t count, size_t* capacity);
-static inline int ulist_pop(void* data, size_t* count, void* out_element, size_t element_size);
+static inline int ulist_pop_last(void* data, size_t* count, void* out_element, size_t element_size);
 
 static inline int ulist_create(void** data, size_t init_capacity, size_t* capacity, size_t element_size)
 {
@@ -967,7 +958,7 @@ static inline int ulist_add(void** data,
                             size_t element_size)
 {
     ulist_reserve(data, add_count * element_size, capacity, element_size);
-    memcpy((uint8_t*)*data + *count * element_size, add_data, add_count * element_size);
+    memcpy((uint8_t*)*data + (*count) * element_size, add_data, add_count * element_size);
     *count += add_count;
     return 0;
 }
@@ -977,7 +968,7 @@ static inline int ulist_remove(void* data, size_t index, size_t remove_count, si
     if (index + remove_count > *count)
         return -1;
     void* dst = (uint8_t*)data + index * element_size;
-    void* src = (uint8_t*)data + (*count - 1) * element_size * remove_count;
+    void* src = (uint8_t*)data + (*count * element_size) - element_size * remove_count;
     memmove(dst, src, element_size * remove_count);
     *count -= remove_count;
     return 0;
@@ -997,14 +988,14 @@ static inline int ulist_relax(void** data, size_t count, size_t* capacity)
     return 0;
 }
 
-static inline int ulist_pop(void* data, size_t* count, void* out_element, size_t element_size)
+static inline int ulist_pop_last(void* data, size_t* count, void* out_element, size_t element_size)
 {
-    if (*count < 1)
+    if (*count == 0)
         return -1;
+    --(*count);
     if (out_element != NULL)
-        memmove(out_element, (uint8_t*)data + *count * element_size, element_size); // allow to pop to another element
-    memset((uint8_t*)data + *count * element_size, 0, element_size);
-    (*count)--;
+        memmove(out_element, (uint8_t*)data + (*count) * element_size, element_size);
+    memset((uint8_t*)data + (*count) * element_size, 0, element_size);
     return 0;
 }
 
@@ -1051,15 +1042,15 @@ static inline int ulist_pop(void* data, size_t* count, void* out_element, size_t
     }                                                                                                       \
     static inline int ulist_##NAME##_remove_one(UList_##NAME* ulist, size_t index)                          \
     {                                                                                                       \
-        return ulist_remove(&ulist->data, index, 1, &ulist->count, sizeof(TYPE));                           \
+        return ulist_remove((void*)ulist->data, index, 1, &ulist->count, sizeof(TYPE));                     \
     }                                                                                                       \
     static inline int ulist_##NAME##_remove(UList_##NAME* ulist, size_t index, size_t remove_count)         \
     {                                                                                                       \
-        return ulist_remove(&ulist->data, index, remove_count, &ulist->count, sizeof(TYPE));                \
+        return ulist_remove((void*)ulist->data, index, remove_count, &ulist->count, sizeof(TYPE));          \
     }                                                                                                       \
-    static inline int ulist_##NAME##_pop(UList_##NAME* ulist, TYPE* popped_element)                         \
+    static inline int ulist_##NAME##_pop_last(UList_##NAME* ulist, TYPE* popped_element)                    \
     {                                                                                                       \
-        return ulist_pop(&ulist->data, &ulist->count, popped_element, sizeof(TYPE));                        \
+        return ulist_pop_last((void*)ulist->data, &ulist->count, popped_element, sizeof(TYPE));             \
     }                                                                                                       \
     static inline int ulist_##NAME##_relax(UList_##NAME* ulist)                                             \
     {                                                                                                       \
@@ -1799,6 +1790,8 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
 {
     if (pool == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
+    if (events_populated == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     // We do not support more more elements or time than signed int32 supports.
     // todo(markusl): Add support for int64 timeout
@@ -1807,50 +1800,39 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
 
     struct __tcs_fd_poll_vector* vec = &pool->backend.poll.vector;
 
-    int ret = poll(vec->data, vec->count, (int)timeout_in_ms);
-    if (ret == 0)
-    {
-        return TCS_ERROR_TIMED_OUT;
-    }
-    else if (ret < 0)
+    int poll_ret = poll(vec->data, vec->count, (int)timeout_in_ms);
+    *events_populated = 0;
+    if (poll_ret < 0)
     {
         return errno2retcode(errno);
     }
-    else if ((size_t)ret > vec->count)
+    if ((size_t)poll_ret > vec->count)
     {
-        return TCS_ERROR_UNKNOWN; // Corruption?
+        return TCS_ERROR_UNKNOWN; // Corruption
     }
 
-    int fill_max = ret > (int)events_count ? (int)events_count : ret; // min(ret, events_count)
+    int fill_max = poll_ret > (int)events_count ? (int)events_count : poll_ret; // min(ret, events_count)
     int filled = 0;
-    size_t n = 0;
-    while (filled < fill_max)
+    for (size_t i = 0; filled < fill_max; ++i)
     {
-#ifndef NDEBUG
-        if (n >= vec->count)
+        if (i >= vec->count)
             return TCS_ERROR_UNKNOWN;
-#endif
-        if (vec->data[n].revents != 0)
+
+        if (vec->data[i].revents != 0)
         {
-            events[filled].socket = vec->data[n].fd;
-            events[filled].user_data = vec->user_data[n];
-            events[filled].can_read = vec->data[n].revents & POLLIN;
-            events[filled].can_write = vec->data[n].revents & POLLOUT;
-            events[filled].error = (TcsReturnCode)(vec->data[n].revents & POLLERR);
-            filled++;
-            TcsReturnCode sts = __tcs_pool_remove_index(pool, n);
-            if (sts != TCS_SUCCESS)
-                return sts;
-            // n will now be contain a new element after remove index, therefor do not increase n
-        }
-        else
-        {
-            n++;
+            events[filled].socket = vec->data[i].fd;
+            events[filled].user_data = vec->user_data[i];
+            events[filled].can_read = vec->data[i].revents & POLLIN;
+            events[filled].can_write = vec->data[i].revents & POLLOUT;
+            events[filled].error = (TcsReturnCode)(vec->data[i].revents & POLLERR);
+            vec->data[i].revents = 0;
+            ++filled;
         }
     }
-    if (events_populated != NULL)
-        *events_populated = (size_t)filled; // guaranteed > 0
+    *events_populated = (size_t)filled;
 
+    if (poll_ret == 0)
+        return TCS_ERROR_TIMED_OUT;
     return TCS_SUCCESS;
 }
 
@@ -2314,9 +2296,17 @@ using std::min;
 // Forwards declaration due to winver dispatch
 // We will dispatch at lib_init() which OS functions to call depending on OS support
 
+#ifndef ULIST_SOC
+#define ULIST_SOC
 TDS_ULIST_IMPL(SOCKET, soc)
+#endif
 
-// Needs to be compatible with fd_set, hopefully this works
+#ifndef ULIST_PVOID
+#define ULIST_PVOID
+TDS_ULIST_IMPL(void*, pvoid)
+#endif
+
+// Needs to be compatible with fd_set, hopefully this works. Only used when FD_SETSIZE is to small.
 struct tcs_fd_set
 {
     u_int fd_count;
@@ -2325,10 +2315,8 @@ struct tcs_fd_set
 
 struct tcs_usr_data_vector
 {
-    SOCKET* key;
-    void** value;
-    size_t capacity_bytes;
-    size_t count;
+    UList_soc keys;
+    UList_pvoid values;
 };
 
 struct TcsPool
@@ -2338,8 +2326,6 @@ struct TcsPool
     UList_soc error_sockets;
     struct tcs_usr_data_vector user_data;
 };
-
-static const size_t TCS_POOL_CAPACITY_STEP = 1024;
 
 const TcsSocket TCS_NULLSOCKET = INVALID_SOCKET;
 const int TCS_INF = -1;
@@ -2837,18 +2823,11 @@ TcsReturnCode tcs_pool_create(struct TcsPool** pool)
     int sts_read_array = ulist_soc_create(&(*pool)->read_sockets, 64);
     int sts_write_array = ulist_soc_create(&(*pool)->write_sockets, 64);
     int sts_error_array = ulist_soc_create(&(*pool)->error_sockets, 64);
+    int sts_user_data_key = ulist_soc_create(&(*pool)->user_data.keys, 64);
+    int sts_user_data_value = ulist_pvoid_create(&(*pool)->user_data.values, 64);
 
-    // TODO(markusl): Create a common vector structure
-    (*pool)->user_data.key = (SOCKET*)malloc(sizeof(SOCKET) * TCS_POOL_CAPACITY_STEP);
-    (*pool)->user_data.value = (void**)malloc(sizeof(void*) * TCS_POOL_CAPACITY_STEP);
-    (*pool)->user_data.count = 0;
-    (*pool)->user_data.capacity_bytes = TCS_POOL_CAPACITY_STEP;
-    TcsReturnCode sts_usrdata = TCS_SUCCESS;
-    if ((*pool)->user_data.key == NULL || (*pool)->user_data.value == NULL)
-        sts_usrdata = TCS_ERROR_MEMORY;
-
-    if (sts_usrdata != TCS_SUCCESS || sts_read_array != 0 || sts_write_array != TCS_SUCCESS ||
-        sts_error_array != TCS_SUCCESS)
+    if (sts_read_array != 0 || sts_write_array != 0 || sts_error_array != 0 || sts_user_data_key != 0 ||
+        sts_user_data_value != 0)
     {
         tcs_pool_destory(pool);
         return TCS_ERROR_MEMORY;
@@ -2865,9 +2844,9 @@ TcsReturnCode tcs_pool_destory(struct TcsPool** pool)
     ulist_soc_destroy(&(*pool)->read_sockets);
     ulist_soc_destroy(&(*pool)->write_sockets);
     ulist_soc_destroy(&(*pool)->error_sockets);
+    ulist_soc_destroy(&(*pool)->user_data.keys);
+    ulist_pvoid_destroy(&(*pool)->user_data.values);
 
-    free((*pool)->user_data.key);
-    free((*pool)->user_data.value);
     free(*pool);
     *pool = NULL;
 
@@ -2886,28 +2865,8 @@ TcsReturnCode tcs_pool_add(struct TcsPool* pool,
     if (!poll_can_read && !poll_can_write && !poll_error)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (pool->user_data.count == pool->user_data.capacity_bytes)
-    {
-        size_t new_capacity = pool->user_data.capacity_bytes + TCS_POOL_CAPACITY_STEP;
-        SOCKET* new_key = (SOCKET*)realloc(pool->user_data.key, sizeof(SOCKET) * new_capacity);
-        if (new_key == NULL)
-            return TCS_ERROR_MEMORY;
-        pool->user_data.key = new_key;
-
-        void** new_value = (void**)realloc(pool->user_data.value, sizeof(void*) * new_capacity);
-        if (new_value == NULL)
-        {
-            new_key = (SOCKET*)realloc(pool->user_data.key, sizeof(SOCKET) * pool->user_data.capacity_bytes);
-            if (new_key != NULL)
-                pool->user_data.key = new_key;
-            return TCS_ERROR_MEMORY;
-        }
-        pool->user_data.value = new_value;
-        pool->user_data.capacity_bytes = new_capacity;
-    }
-    pool->user_data.key[pool->user_data.count] = socket_ctx;
-    pool->user_data.value[pool->user_data.count] = user_data;
-    pool->user_data.count++;
+    ulist_soc_add_one(&pool->user_data.keys, socket_ctx);
+    ulist_pvoid_add_one(&pool->user_data.values, user_data);
 
     if (poll_can_read)
     {
@@ -2922,7 +2881,7 @@ TcsReturnCode tcs_pool_add(struct TcsPool* pool,
         int sts = ulist_soc_add_one(&pool->write_sockets, socket_ctx);
         if (sts != 0)
         {
-            ulist_soc_pop(&pool->read_sockets, NULL);
+            ulist_soc_pop_last(&pool->read_sockets, NULL);
             return TCS_ERROR_MEMORY;
         }
     }
@@ -2931,8 +2890,8 @@ TcsReturnCode tcs_pool_add(struct TcsPool* pool,
         int sts = ulist_soc_add_one(&pool->error_sockets, socket_ctx);
         if (sts != 0)
         {
-            ulist_soc_pop(&pool->read_sockets, NULL);
-            ulist_soc_pop(&pool->write_sockets, NULL);
+            ulist_soc_pop_last(&pool->read_sockets, NULL);
+            ulist_soc_pop_last(&pool->write_sockets, NULL);
             return TCS_ERROR_MEMORY;
         }
     }
@@ -2965,13 +2924,12 @@ TcsReturnCode tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
             break;
         }
     }
-    for (size_t i = 0; i < pool->user_data.count; ++i)
+    for (size_t i = 0; i < pool->user_data.keys.count; ++i)
     {
-        if (pool->user_data.key[i] == socket_ctx)
+        if (pool->user_data.keys.data[i] == socket_ctx)
         {
-            pool->user_data.count--;
-            pool->user_data.key[i] = pool->user_data.key[pool->user_data.count];
-            pool->user_data.value[i] = pool->user_data.value[pool->user_data.count];
+            ulist_soc_remove_one(&pool->user_data.keys, i);
+            ulist_pvoid_remove_one(&pool->user_data.values, i);
         }
     }
 
@@ -2988,21 +2946,71 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
         return TCS_ERROR_INVALID_ARGUMENT;
     if (timeout_in_ms != TCS_INF && (timeout_in_ms > 0xffffffff || timeout_in_ms < 0))
         return TCS_ERROR_INVALID_ARGUMENT;
+    if (events == NULL || events_populated == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
-    // Copy fds
-    //
-    // Allocate so that we can access fd_array out of nominel bounds
+    // Todo: add more modern implementation. Maybe dispatch att init?
+    // SELECT IMPLEMENTATION
+
+    // Copy fds, use auto storage if possible, otherwise use dynamic memory
+
+    // Allocate so that we can access fd_array out of nominal bounds
     // We need this hack to be able to use dynamic memory for select
     const size_t data_offset = offsetof(struct tcs_fd_set, fd_array);
 
-    struct tcs_fd_set* rfds_cpy = (struct tcs_fd_set*)malloc(data_offset + sizeof(SOCKET) * pool->read_sockets.count);
-    struct tcs_fd_set* wfds_cpy = (struct tcs_fd_set*)malloc(data_offset + sizeof(SOCKET) * pool->write_sockets.count);
-    struct tcs_fd_set* efds_cpy = (struct tcs_fd_set*)malloc(data_offset + sizeof(SOCKET) * pool->error_sockets.count);
+    struct fd_set rfds_stack;
+    struct fd_set wfds_stack;
+    struct fd_set efds_stack;
+
+    struct tcs_fd_set* rfds_heap = NULL;
+    struct tcs_fd_set* wfds_heap = NULL;
+    struct tcs_fd_set* efds_heap = NULL;
+
+    struct tcs_fd_set* rfds_cpy = NULL;
+    struct tcs_fd_set* wfds_cpy = NULL;
+    struct tcs_fd_set* efds_cpy = NULL;
+
+    if (pool->read_sockets.count <= FD_SETSIZE)
+    {
+        FD_ZERO(&rfds_stack);
+        rfds_cpy = (struct tcs_fd_set*)&rfds_stack;
+    }
+    else
+    {
+        rfds_heap = (struct tcs_fd_set*)malloc(data_offset + sizeof(SOCKET) * pool->read_sockets.count);
+        rfds_cpy = rfds_heap;
+    }
+
+    if (pool->write_sockets.count >= FD_SETSIZE)
+    {
+        FD_ZERO(&wfds_stack);
+        wfds_cpy = (struct tcs_fd_set*)&wfds_stack;
+    }
+    else
+    {
+        wfds_heap = (struct tcs_fd_set*)malloc(data_offset + sizeof(SOCKET) * pool->write_sockets.count);
+        wfds_cpy = wfds_heap;
+    }
+
+    if (pool->error_sockets.count <= FD_SETSIZE)
+    {
+        FD_ZERO(&efds_stack);
+        efds_cpy = (struct tcs_fd_set*)&efds_stack;
+    }
+    else
+    {
+        wfds_heap = (struct tcs_fd_set*)malloc(data_offset + sizeof(SOCKET) * pool->error_sockets.count);
+        wfds_cpy = wfds_heap;
+    }
+
     if (rfds_cpy == NULL || wfds_cpy == NULL || efds_cpy == NULL)
     {
-        free(rfds_cpy);
-        free(wfds_cpy);
-        free(efds_cpy);
+        if (rfds_heap != NULL)
+            free(rfds_heap);
+        if (wfds_heap != NULL)
+            free(wfds_heap);
+        if (efds_heap != NULL)
+            free(efds_heap);
 
         return TCS_ERROR_MEMORY;
     }
@@ -3013,6 +3021,9 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
     memcpy(rfds_cpy->fd_array, pool->read_sockets.data, sizeof(SOCKET) * pool->read_sockets.count);
     memcpy(wfds_cpy->fd_array, pool->write_sockets.data, sizeof(SOCKET) * pool->write_sockets.count);
     memcpy(efds_cpy->fd_array, pool->error_sockets.data, sizeof(SOCKET) * pool->error_sockets.count);
+
+    memset(events, 0, sizeof(struct TcsPollEvent) * events_capacity);
+    *events_populated = 0;
 
     // Run select
     struct timeval* t_ptr = NULL;
@@ -3029,19 +3040,15 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
 
     if (no > 0)
     {
-        memset(events, 0, sizeof(struct TcsPollEvent) * min((size_t)no, events_capacity));
         for (u_int n = 0; n < rfds_cpy->fd_count && events_added < events_capacity; ++n)
         {
             events[events_added].socket = rfds_cpy->fd_array[n];
             events[events_added].can_read = true;
-            for (size_t i = 0; i < pool->user_data.count; ++i)
+            for (size_t i = 0; i < pool->user_data.keys.count; ++i)
             {
-                if (events[events_added].socket == pool->user_data.key[i])
+                if (events[events_added].socket == pool->user_data.keys.data[i])
                 {
-                    events[events_added].user_data = pool->user_data.value[i];
-                    pool->user_data.key[pool->user_data.count] = pool->user_data.key[i];
-                    pool->user_data.value[pool->user_data.count] = pool->user_data.value[i];
-                    pool->user_data.count--;
+                    events[events_added].user_data = pool->user_data.values.data[i];
                     break;
                 }
             }
@@ -3065,14 +3072,11 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
             {
                 events[new_n].socket = wfds_cpy->fd_array[n];
 
-                for (size_t i = 0; i < pool->user_data.count; ++i)
+                for (size_t i = 0; i < pool->user_data.keys.count; ++i)
                 {
-                    if (events[new_n].socket == pool->user_data.key[i])
+                    if (events[new_n].socket == pool->user_data.keys.data[i])
                     {
-                        events[new_n].user_data = pool->user_data.value[i];
-                        pool->user_data.key[pool->user_data.count] = pool->user_data.key[i];
-                        pool->user_data.value[pool->user_data.count] = pool->user_data.value[i];
-                        pool->user_data.count--;
+                        events[new_n].user_data = pool->user_data.values.data[i];
                         break;
                     }
                 }
@@ -3092,19 +3096,16 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
                 }
             }
             // Check for new events
-            events[new_n].error = TCS_ERROR_NOT_IMPLEMENTED; //TODO(markusl): This does not feel right
+            events[new_n].error = TCS_ERROR_NOT_IMPLEMENTED; //TODO(markusl): Make this a proper error
             if (events_added == new_n)
             {
                 events[new_n].socket = efds_cpy->fd_array[n];
 
-                for (size_t i = 0; i < pool->user_data.count; ++i)
+                for (size_t i = 0; i < pool->user_data.keys.count; ++i)
                 {
-                    if (events[new_n].socket == pool->user_data.key[i])
+                    if (events[new_n].socket == pool->user_data.keys.data[i])
                     {
-                        events[new_n].user_data = pool->user_data.value[i];
-                        pool->user_data.key[pool->user_data.count] = pool->user_data.key[i];
-                        pool->user_data.value[pool->user_data.count] = pool->user_data.value[i];
-                        pool->user_data.count--;
+                        events[new_n].user_data = pool->user_data.values.data[i];
                         break;
                     }
                 }
@@ -3112,40 +3113,17 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
                 events_added++;
             }
         }
-        bool is_minimum = pool->user_data.capacity_bytes == TCS_POOL_CAPACITY_STEP;
-        bool should_shrink =
-            pool->user_data.capacity_bytes >= pool->user_data.count + 2 * TCS_POOL_CAPACITY_STEP; // hysteresis
-        if (!is_minimum && should_shrink)
-        {
-            size_t new_capacity = pool->user_data.capacity_bytes - 2 * TCS_POOL_CAPACITY_STEP;
-            TcsSocket* new_key = (TcsSocket*)realloc(pool->user_data.key, new_capacity);
-            if (new_key == NULL)
-                return TCS_ERROR_MEMORY; // Should not happen since we are shrinking
-
-            pool->user_data.key = new_key;
-
-            void** new_value = (void**)realloc(pool->user_data.value, new_capacity);
-            if (new_value == NULL)
-            {
-                new_key = (TcsSocket*)realloc(pool->user_data.key, pool->user_data.capacity_bytes);
-                if (new_key != NULL) // Should not happen since we are shrinking
-                    pool->user_data.key = new_key;
-                return TCS_ERROR_MEMORY;
-            }
-
-            pool->user_data.capacity_bytes = new_capacity;
-            pool->user_data.value = new_value;
-            pool->user_data.key = new_key;
-        }
     }
 
-    if (events_populated != NULL)
-        *events_populated = events_added;
+    *events_populated = events_added;
 
     // Clean up
-    free(rfds_cpy);
-    free(wfds_cpy);
-    free(efds_cpy);
+    if (rfds_heap != NULL)
+        free(rfds_heap);
+    if (wfds_heap != NULL)
+        free(wfds_heap);
+    if (efds_heap != NULL)
+        free(efds_heap);
 
     if (no == 0)
     {

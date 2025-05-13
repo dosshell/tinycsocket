@@ -727,6 +727,8 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
 {
     if (pool == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
+    if (events_populated == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     // We do not support more more elements or time than signed int32 supports.
     // todo(markusl): Add support for int64 timeout
@@ -735,50 +737,39 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
 
     struct __tcs_fd_poll_vector* vec = &pool->backend.poll.vector;
 
-    int ret = poll(vec->data, vec->count, (int)timeout_in_ms);
-    if (ret == 0)
-    {
-        return TCS_ERROR_TIMED_OUT;
-    }
-    else if (ret < 0)
+    int poll_ret = poll(vec->data, vec->count, (int)timeout_in_ms);
+    *events_populated = 0;
+    if (poll_ret < 0)
     {
         return errno2retcode(errno);
     }
-    else if ((size_t)ret > vec->count)
+    if ((size_t)poll_ret > vec->count)
     {
-        return TCS_ERROR_UNKNOWN; // Corruption?
+        return TCS_ERROR_UNKNOWN; // Corruption
     }
 
-    int fill_max = ret > (int)events_count ? (int)events_count : ret; // min(ret, events_count)
+    int fill_max = poll_ret > (int)events_count ? (int)events_count : poll_ret; // min(ret, events_count)
     int filled = 0;
-    size_t n = 0;
-    while (filled < fill_max)
+    for (size_t i = 0; filled < fill_max; ++i)
     {
-#ifndef NDEBUG
-        if (n >= vec->count)
+        if (i >= vec->count)
             return TCS_ERROR_UNKNOWN;
-#endif
-        if (vec->data[n].revents != 0)
+
+        if (vec->data[i].revents != 0)
         {
-            events[filled].socket = vec->data[n].fd;
-            events[filled].user_data = vec->user_data[n];
-            events[filled].can_read = vec->data[n].revents & POLLIN;
-            events[filled].can_write = vec->data[n].revents & POLLOUT;
-            events[filled].error = (TcsReturnCode)(vec->data[n].revents & POLLERR);
-            filled++;
-            TcsReturnCode sts = __tcs_pool_remove_index(pool, n);
-            if (sts != TCS_SUCCESS)
-                return sts;
-            // n will now be contain a new element after remove index, therefor do not increase n
-        }
-        else
-        {
-            n++;
+            events[filled].socket = vec->data[i].fd;
+            events[filled].user_data = vec->user_data[i];
+            events[filled].can_read = vec->data[i].revents & POLLIN;
+            events[filled].can_write = vec->data[i].revents & POLLOUT;
+            events[filled].error = (TcsReturnCode)(vec->data[i].revents & POLLERR);
+            vec->data[i].revents = 0;
+            ++filled;
         }
     }
-    if (events_populated != NULL)
-        *events_populated = (size_t)filled; // guaranteed > 0
+    *events_populated = (size_t)filled;
 
+    if (poll_ret == 0)
+        return TCS_ERROR_TIMED_OUT;
     return TCS_SUCCESS;
 }
 
