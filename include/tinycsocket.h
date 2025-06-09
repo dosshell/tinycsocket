@@ -846,216 +846,344 @@ TcsReturnCode tcs_send_netstring(TcsSocket socket_ctx, const uint8_t* buffer, si
 #ifndef TINYDATASTRUCTURES_H_
 #define TINYDATASTRUCTURES_H_
 
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
-static inline int ulist_create(void** data, size_t init_capacity, size_t* capacity, size_t element_size);
-static inline int ulist_reserve(void** data, size_t requested_capacity, size_t* capacity, size_t element_size);
-static inline int ulist_create_copy(void* from_data,
-                                    size_t from_count,
-                                    void** to_data,
-                                    size_t* to_count,
-                                    size_t* to_capacity,
-                                    size_t element_size);
-static inline int ulist_destroy(void** data);
-static inline size_t ulist_best_capacity_fit(size_t n);
-static inline int ulist_reserve(void** data, size_t requested_capacity, size_t* capacity, size_t element_size);
-static inline int ulist_resize(void** data, size_t new_size, size_t* capacity, size_t* count, size_t element_size);
-static inline int ulist_add(void** data,
-                            void* add_data,
-                            size_t add_count,
-                            size_t* count,
-                            size_t* capacity,
-                            size_t element_size);
-static inline int ulist_remove(void* data, size_t index, size_t remove_count, size_t* count, size_t element_size);
-static inline int ulist_relax(void** data, size_t count, size_t* capacity);
-static inline int ulist_pop_last(void* data, size_t* count, void* out_element, size_t element_size);
+static inline int tds_ulist_create(void** data, size_t* count, size_t* capacity, size_t element_size);
+static inline int tds_ulist_destroy(void** data, size_t* count, size_t* capacity);
+static inline int tds_ulist_reserve(void** data, size_t* capacity, size_t element_size, size_t requested_capacity);
+static inline int tds_ulist_add(void** data,
+                                size_t* count,
+                                size_t* capacity,
+                                size_t element_size,
+                                void* add_data,
+                                size_t add_count);
+static inline int tds_ulist_remove(void** data,
+                                   size_t* count,
+                                   size_t* capacity,
+                                   size_t element_size,
+                                   size_t remove_from,
+                                   size_t remove_count);
 
-static inline int ulist_create(void** data, size_t init_capacity, size_t* capacity, size_t element_size)
+static inline int tds_ulist_create(void** data, size_t* count, size_t* capacity, size_t element_size)
 {
-    return ulist_reserve(data, init_capacity, capacity, element_size);
+    *data = NULL;
+    *count = 0;
+    *capacity = 0;
+    if (element_size == 0)
+        return -1;
+    return tds_ulist_reserve(data, capacity, element_size, 1);
 }
 
-static inline int ulist_create_copy(void* from_data,
-                                    size_t from_count,
-                                    void** to_data,
-                                    size_t* to_count,
-                                    size_t* to_capacity,
-                                    size_t element_size)
-{
-    int sts = ulist_create(to_data, from_count, to_capacity, element_size);
-    if (sts != 0)
-        return sts;
-    memcpy(from_data, *to_data, from_count * element_size);
-    *to_count = from_count;
-    return 0;
-}
-
-static inline int ulist_destroy(void** data)
+static inline int tds_ulist_destroy(void** data, size_t* count, size_t* capacity)
 {
     if (*data != NULL)
     {
         free(*data);
         *data = NULL;
     }
+    *count = 0;
+    *capacity = 0;
     return 0;
 }
 
-static inline size_t ulist_best_capacity_fit(size_t n)
+// TODO: move to reserve
+static inline size_t tds_ulist_best_capacity_fit(size_t old_capacity, size_t new_capacity)
 {
-    size_t best_fit = 8;
-    size_t size_list[] = {
-        8, 32, 128, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576};
-    if (n >= size_list[14])
-    {
-        best_fit = ((n + size_list[14] - 1) / size_list[14]) * size_list[14];
-    }
-    else
-    {
-        for (size_t i = 0; i < 15; ++i)
-        {
-            if (n <= size_list[i])
-            {
-                best_fit = size_list[i];
-                break;
-            }
-        }
-    }
-    return best_fit;
+    const size_t MINIMUM_CAPACITY = 8;
+
+    size_t c = MINIMUM_CAPACITY;
+    while (c < new_capacity)
+        c *= 2;
+
+    // Hysteresis
+    if (c * 2 == old_capacity)
+        return old_capacity;
+
+    return c;
 }
 
-static inline int ulist_reserve(void** data, size_t requested_capacity, size_t* capacity, size_t element_size)
+static inline int tds_ulist_reserve(void** data, size_t* capacity, size_t element_size, size_t requested_capacity)
 {
-    if (requested_capacity <= *capacity)
+    size_t new_capacity = tds_ulist_best_capacity_fit(*capacity, requested_capacity);
+    if (new_capacity == *capacity)
         return 0;
 
-    size_t new_capacity = ulist_best_capacity_fit(requested_capacity);
+// UB protection for C23 and implemention defined protection before C23 (Should never happen)
+#ifndef NDEBUG
+    if (new_capacity == 0)
+        return -1;
+#endif
 
     void* new_data = realloc(*data, new_capacity * element_size);
     if (new_data == NULL)
         return -1;
-    memset((uint8_t*)new_data + *capacity * element_size, 0, (new_capacity - *capacity) * element_size);
+
+    if (new_capacity > *capacity)
+    {
+        memset((char*)new_data + *capacity * element_size, 0, (new_capacity - *capacity) * element_size);
+    }
     *data = new_data;
     *capacity = new_capacity;
     return 0;
 }
 
-static inline int ulist_resize(void** data, size_t new_size, size_t* capacity, size_t* count, size_t element_size)
+static inline int tds_ulist_add(void** data,
+                                size_t* count,
+                                size_t* capacity,
+                                size_t element_size,
+                                void* add_data,
+                                size_t add_count)
 {
-    ulist_reserve(data, new_size, capacity, element_size);
-    if (new_size < *count)
-        memset((uint8_t*)*data + new_size * element_size, 0, *count - new_size);
-    *count = new_size;
-    return 0;
-}
+    if (*count + add_count > *capacity)
+    {
+        int reserve_sts = tds_ulist_reserve(data, capacity, element_size, *count + add_count);
+        if (reserve_sts != 0)
+            return reserve_sts;
+    }
 
-static inline int ulist_add(void** data,
-                            void* add_data,
-                            size_t add_count,
-                            size_t* count,
-                            size_t* capacity,
-                            size_t element_size)
-{
-    ulist_reserve(data, add_count * element_size, capacity, element_size);
-    memcpy((uint8_t*)*data + (*count) * element_size, add_data, add_count * element_size);
+    memcpy((char*)*data + (*count * element_size), add_data, add_count * element_size);
     *count += add_count;
     return 0;
 }
 
-static inline int ulist_remove(void* data, size_t index, size_t remove_count, size_t* count, size_t element_size)
+static inline int tds_ulist_remove(void** data,
+                                   size_t* count,
+                                   size_t* capacity,
+                                   size_t element_size,
+                                   size_t remove_from,
+                                   size_t remove_count)
 {
-    if (index + remove_count > *count)
+    if (remove_from >= *count || remove_count == 0 || remove_from + remove_count > *count)
         return -1;
-    void* dst = (uint8_t*)data + index * element_size;
-    void* src = (uint8_t*)data + (*count * element_size) - element_size * remove_count;
+
+    void* dst = (char*)(*data) + (remove_from * element_size);
+    void* src = (char*)(*data) + (*count - remove_count) * element_size;
     memmove(dst, src, element_size * remove_count);
     *count -= remove_count;
-    return 0;
-}
 
-static inline int ulist_relax(void** data, size_t count, size_t* capacity)
-{
-    size_t suggested_capacity = ulist_best_capacity_fit(count);
-    if (suggested_capacity < *capacity)
+    if (*count < *capacity / 2)
     {
-        void* new_data = realloc(*data, suggested_capacity);
-        if (new_data == NULL)
-            return -1;
-        *data = new_data;
-        *capacity = suggested_capacity;
+        int reserve_sts = tds_ulist_reserve(data, capacity, element_size, *count);
+        if (reserve_sts != 0)
+            return reserve_sts;
     }
+
     return 0;
 }
 
-static inline int ulist_pop_last(void* data, size_t* count, void* out_element, size_t element_size)
+#define TDS_ULIST_IMPL(TYPE, NAME)                                                                                     \
+    struct TdsUList_##NAME                                                                                             \
+    {                                                                                                                  \
+        TYPE* data;                                                                                                    \
+        size_t count;                                                                                                  \
+        size_t capacity;                                                                                               \
+    };                                                                                                                 \
+                                                                                                                       \
+    static inline int tds_ulist_##NAME##_create(struct TdsUList_##NAME* ulist)                                         \
+    {                                                                                                                  \
+        return tds_ulist_create((void**)&ulist->data, &ulist->count, &ulist->capacity, sizeof(TYPE));                  \
+    }                                                                                                                  \
+    static inline int tds_ulist_##NAME##_destroy(struct TdsUList_##NAME* ulist)                                        \
+    {                                                                                                                  \
+        int sts = tds_ulist_destroy((void**)&ulist->data, &ulist->count, &ulist->capacity);                            \
+        memset(ulist, 0, sizeof(*ulist));                                                                              \
+        return sts;                                                                                                    \
+    }                                                                                                                  \
+    static inline int tds_ulist_##NAME##_add(struct TdsUList_##NAME* ulist, TYPE* data, size_t count)                  \
+    {                                                                                                                  \
+        return tds_ulist_add((void**)&ulist->data, &ulist->count, &ulist->capacity, sizeof(TYPE), (void*)data, count); \
+    }                                                                                                                  \
+    static inline int tds_ulist_##NAME##_remove(                                                                       \
+        struct TdsUList_##NAME* ulist, size_t remove_from, size_t remove_count)                                        \
+    {                                                                                                                  \
+        return tds_ulist_remove(                                                                                       \
+            (void**)&ulist->data, &ulist->count, &ulist->capacity, sizeof(TYPE), remove_from, remove_count);           \
+    }                                                                                                                  \
+    static inline int tds_ulist_##NAME##_reserve(struct TdsUList_##NAME* ulist, size_t new_capacity)                   \
+    {                                                                                                                  \
+        return tds_ulist_reserve((void**)&ulist->data, &ulist->capacity, sizeof(TYPE), new_capacity);                  \
+    }
+
+// Tiny Data Structures Map Implementation
+
+static inline int tds_map_create(void** keys,
+                                 void** values,
+                                 size_t* count,
+                                 size_t* capacity,
+                                 size_t key_element_size,
+                                 size_t value_element_size)
 {
-    if (*count == 0)
+    size_t key_capacity = 0;
+    size_t key_count = 0;
+
+    size_t value_capacity = 0;
+    size_t value_count = 0;
+
+    int key_sts = tds_ulist_create(keys, &key_count, &key_capacity, key_element_size);
+    int value_sts = tds_ulist_create(values, &value_count, &value_capacity, value_element_size);
+
+    if (key_sts != 0 || value_sts != 0)
+    {
+        tds_ulist_destroy(keys, &value_count, &value_capacity);
+        tds_ulist_destroy(values, &key_count, &key_capacity);
+        if (key_sts != 0)
+            return key_sts;
+        if (value_sts != 0)
+            return value_sts;
+    }
+    if (key_capacity != value_capacity)
+    {
+        tds_ulist_destroy(keys, &value_count, &value_capacity);
+        tds_ulist_destroy(values, &key_count, &key_capacity);
         return -1;
-    --(*count);
-    if (out_element != NULL)
-        memmove(out_element, (uint8_t*)data + (*count) * element_size, element_size);
-    memset((uint8_t*)data + (*count) * element_size, 0, element_size);
+    }
+    *capacity = key_capacity;
+    *count = key_count;
+
     return 0;
 }
 
-#define TDS_ULIST_IMPL(TYPE, NAME)                                                                          \
-                                                                                                            \
-    typedef struct                                                                                          \
-    {                                                                                                       \
-        TYPE* data;                                                                                         \
-        size_t count;                                                                                       \
-        size_t capacity;                                                                                    \
-    } UList_##NAME;                                                                                         \
-                                                                                                            \
-    static inline int ulist_##NAME##_create(UList_##NAME* ulist, size_t init_count)                         \
-    {                                                                                                       \
-        memset(ulist, 0, sizeof(*ulist));                                                                   \
-        return ulist_create((void**)&ulist->data, init_count, &ulist->capacity, sizeof(TYPE));              \
-    }                                                                                                       \
-    static inline int ulist_##NAME##_create_copy(UList_##NAME* from, UList_##NAME* to)                      \
-    {                                                                                                       \
-        return ulist_create_copy(                                                                           \
-            &from->data, from->count, (void**)&to->data, &to->count, &to->capacity, sizeof(TYPE));          \
-    }                                                                                                       \
-    static inline int ulist_##NAME##_destroy(UList_##NAME* ulist)                                           \
-    {                                                                                                       \
-        ulist_destroy((void**)&ulist->data);                                                                \
-        memset(ulist, 0, sizeof(*ulist));                                                                   \
-        return 0;                                                                                           \
-    }                                                                                                       \
-    static inline int ulist_##NAME##_reserve(UList_##NAME* ulist, size_t new_capacity)                      \
-    {                                                                                                       \
-        return ulist_reserve((void**)&ulist->data, new_capacity, &ulist->capacity, sizeof(TYPE));           \
-    }                                                                                                       \
-    static inline int ulist_##NAME##_resize(UList_##NAME* ulist, size_t new_size)                           \
-    {                                                                                                       \
-        return ulist_resize((void**)&ulist->data, new_size, &ulist->capacity, &ulist->count, sizeof(TYPE)); \
-    }                                                                                                       \
-    static inline int ulist_##NAME##_add_one(UList_##NAME* ulist, TYPE data)                                \
-    {                                                                                                       \
-        return ulist_add((void**)&ulist->data, &data, 1, &ulist->count, &ulist->capacity, sizeof(TYPE));    \
-    }                                                                                                       \
-    static inline int ulist_##NAME##_add(UList_##NAME* ulist, TYPE* data, size_t count)                     \
-    {                                                                                                       \
-        return ulist_add((void**)&ulist->data, data, count, &ulist->count, &ulist->capacity, sizeof(TYPE)); \
-    }                                                                                                       \
-    static inline int ulist_##NAME##_remove_one(UList_##NAME* ulist, size_t index)                          \
-    {                                                                                                       \
-        return ulist_remove((void*)ulist->data, index, 1, &ulist->count, sizeof(TYPE));                     \
-    }                                                                                                       \
-    static inline int ulist_##NAME##_remove(UList_##NAME* ulist, size_t index, size_t remove_count)         \
-    {                                                                                                       \
-        return ulist_remove((void*)ulist->data, index, remove_count, &ulist->count, sizeof(TYPE));          \
-    }                                                                                                       \
-    static inline int ulist_##NAME##_pop_last(UList_##NAME* ulist, TYPE* popped_element)                    \
-    {                                                                                                       \
-        return ulist_pop_last((void*)ulist->data, &ulist->count, popped_element, sizeof(TYPE));             \
-    }                                                                                                       \
-    static inline int ulist_##NAME##_relax(UList_##NAME* ulist)                                             \
-    {                                                                                                       \
-        return ulist_relax((void**)&ulist->data, ulist->count, &ulist->capacity);                           \
+static inline int tds_map_destroy(void** keys, void** values, size_t* count, size_t* capacity)
+{
+    size_t key_capacity = 0;
+    size_t key_count = 0;
+
+    size_t value_capacity = 0;
+    size_t value_count = 0;
+
+    int key_sts = tds_ulist_destroy(keys, &key_count, &key_capacity);
+    int value_sts = tds_ulist_destroy(values, &value_count, &value_capacity);
+    *count = 0;
+    *capacity = 0;
+    if (key_sts != 0)
+        return key_sts;
+    if (value_sts != 0)
+        return value_sts;
+    return 0;
+}
+
+static inline int tds_map_add(void** keys,
+                              void** values,
+                              size_t* count,
+                              size_t* capacity,
+                              size_t key_element_size,
+                              size_t value_element_size,
+                              void* key_add,
+                              void* value_add)
+{
+    size_t value_count = *count;
+    size_t key_count = *count;
+    size_t key_capacity = *capacity;
+    size_t value_capacity = *capacity;
+    int key_sts = tds_ulist_add(keys, &key_count, &key_capacity, key_element_size, key_add, 1);
+    int value_sts = tds_ulist_add(values, &value_count, &value_capacity, value_element_size, value_add, 1);
+    if (key_sts != 0 || value_sts != 0)
+    {
+        // TODO: fix invariant memory state. Restore memory capacity should work most of the time.
+        // This is invariant is still non-fatal though, we may use more memory than needed.
+        return -1;
     }
+    *count += 1;
+    *capacity = key_capacity <= value_capacity ? key_capacity : value_capacity; // min(key_capacity, value_capacity);
+
+    if (key_capacity != value_capacity)
+        return -1;
+
+    return 0;
+}
+
+static inline int tds_map_remove(void** keys,
+                                 void** values,
+                                 size_t* count,
+                                 size_t* capacity,
+                                 size_t key_element_size,
+                                 size_t value_element_size,
+                                 size_t index)
+{
+    size_t value_count = *count;
+    size_t key_count = *count;
+    size_t key_capacity = *capacity;
+    size_t value_capacity = *capacity;
+    if (index >= *count)
+        return -1;
+
+    int key_sts = tds_ulist_remove(keys, &key_count, &key_capacity, key_element_size, index, 1);
+    int value_sts = tds_ulist_remove(values, &value_count, &value_capacity, value_element_size, index, 1);
+    if (key_sts != 0 || value_sts != 0)
+    {
+        // -2 indicates we are in a very bad situation and the data structure may be corrupted.
+        // This should not be able to happen, with current implementation, but if it does, we need to be able to recover from it.
+        return -2;
+    }
+    if (key_count != value_count)
+        return -2;
+    *count = key_count;
+    *capacity = key_capacity;
+    return 0;
+}
+
+#define TDS_MAP_IMPL(KEY_TYPE, VALUE_TYPE, NAME)                                                          \
+                                                                                                          \
+    struct TdsMap_##NAME                                                                                  \
+    {                                                                                                     \
+        KEY_TYPE* keys;                                                                                   \
+        VALUE_TYPE* values;                                                                               \
+        size_t count;                                                                                     \
+        size_t capacity;                                                                                  \
+    };                                                                                                    \
+                                                                                                          \
+    static inline int tds_map_##NAME##_create(struct TdsMap_##NAME* map)                                  \
+    {                                                                                                     \
+        memset(map, 0, sizeof(struct TdsMap_##NAME));                                                     \
+        return tds_map_create((void**)&map->keys,                                                         \
+                              (void**)&map->values,                                                       \
+                              &map->count,                                                                \
+                              &map->capacity,                                                             \
+                              sizeof(KEY_TYPE),                                                           \
+                              sizeof(VALUE_TYPE));                                                        \
+    }                                                                                                     \
+    static inline int tds_map_##NAME##_destroy(struct TdsMap_##NAME* map)                                 \
+    {                                                                                                     \
+        int sts = tds_map_destroy((void**)&map->keys, (void**)&map->values, &map->count, &map->capacity); \
+        if (sts != 0)                                                                                     \
+            return sts;                                                                                   \
+        memset(map, 0, sizeof(struct TdsMap_##NAME));                                                     \
+        return 0;                                                                                         \
+    }                                                                                                     \
+    static inline int tds_map_##NAME##_add(struct TdsMap_##NAME* map, KEY_TYPE key, VALUE_TYPE value)     \
+    {                                                                                                     \
+        return tds_map_add((void**)&map->keys,                                                            \
+                           (void**)&map->values,                                                          \
+                           &map->count,                                                                   \
+                           &map->capacity,                                                                \
+                           sizeof(KEY_TYPE),                                                              \
+                           sizeof(VALUE_TYPE),                                                            \
+                           &key,                                                                          \
+                           &value);                                                                       \
+    }                                                                                                     \
+    static inline int tds_map_##NAME##_addp(struct TdsMap_##NAME* map, KEY_TYPE* key, VALUE_TYPE* value)  \
+    {                                                                                                     \
+        return tds_map_add((void**)&map->keys,                                                            \
+                           (void**)&map->values,                                                          \
+                           &map->count,                                                                   \
+                           &map->capacity,                                                                \
+                           sizeof(KEY_TYPE),                                                              \
+                           sizeof(VALUE_TYPE),                                                            \
+                           key,                                                                           \
+                           value);                                                                        \
+    }                                                                                                     \
+    static inline int tds_map_##NAME##_remove(struct TdsMap_##NAME* map, size_t index)                    \
+    {                                                                                                     \
+        return tds_map_remove((void**)&map->keys,                                                         \
+                              (void**)&map->values,                                                       \
+                              &map->count,                                                                \
+                              &map->capacity,                                                             \
+                              sizeof(KEY_TYPE),                                                           \
+                              sizeof(VALUE_TYPE),                                                         \
+                              index);                                                                     \
+    }
+
 #endif
 
 /**********************************/
@@ -1092,10 +1220,16 @@ static inline int ulist_pop_last(void* data, size_t* count, void* out_element, s
 #ifndef _DEFAULT_SOURCE
 #define _DEFAULT_SOURCE
 #endif
+
+// Header only should not need other files
 #ifndef TINYCSOCKET_INTERNAL_H_
 #include "tinycsocket_internal.h"
 #endif
 #ifdef TINYCSOCKET_USE_POSIX_IMPL
+
+#ifndef TINYDATASTRUCTURES_H_
+#include "tinydatastructures.h"
+#endif
 
 #ifdef DO_WRAP
 #include "dbg_wrap.h"
@@ -1594,13 +1728,18 @@ TcsReturnCode tcs_receive_from(TcsSocket socket_ctx,
     }
 }
 
-struct __tcs_fd_poll_vector
-{
-    size_t capacity;
-    size_t count;
-    struct pollfd* data;
-    void** user_data;
-};
+#ifndef TDS_MAP_pollfd_pvoid
+#define TDS_MAP_pollfd_pvoid
+TDS_MAP_IMPL(struct pollfd, void*, poll)
+#endif
+
+// struct __tcs_fd_poll_vector
+// {
+//     size_t capacity;
+//     size_t count;
+//     struct pollfd* data;
+//     void** user_data;
+// };
 
 struct TcsPool
 {
@@ -1608,12 +1747,10 @@ struct TcsPool
     {
         struct __poll
         {
-            struct __tcs_fd_poll_vector vector;
+            struct TdsMap_poll map;
         } poll;
     } backend;
 };
-
-static const size_t TCS_POOL_CAPACITY_STEP = 1024;
 
 TcsReturnCode tcs_pool_create(struct TcsPool** pool)
 {
@@ -1625,22 +1762,12 @@ TcsReturnCode tcs_pool_create(struct TcsPool** pool)
         return TCS_ERROR_MEMORY;
     memset(*pool, 0, sizeof(struct TcsPool));
 
-    (*pool)->backend.poll.vector.data = (struct pollfd*)malloc(TCS_POOL_CAPACITY_STEP * sizeof(struct pollfd));
-    if ((*pool)->backend.poll.vector.data == NULL)
+    if (tds_map_poll_create(&(*pool)->backend.poll.map) != 0)
     {
-        tcs_pool_destory(pool);
+        free(*pool);
+        *pool = NULL;
         return TCS_ERROR_MEMORY;
     }
-    memset((*pool)->backend.poll.vector.data, 0, TCS_POOL_CAPACITY_STEP * sizeof(struct pollfd));
-
-    (*pool)->backend.poll.vector.user_data = (void**)malloc(TCS_POOL_CAPACITY_STEP * sizeof(void*));
-    if ((*pool)->backend.poll.vector.user_data == NULL)
-    {
-        tcs_pool_destory(pool);
-        return TCS_ERROR_MEMORY;
-    }
-
-    (*pool)->backend.poll.vector.capacity = TCS_POOL_CAPACITY_STEP;
 
     return TCS_SUCCESS;
 }
@@ -1650,8 +1777,13 @@ TcsReturnCode tcs_pool_destory(struct TcsPool** pool)
     if (pool == NULL || *pool == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    free((*pool)->backend.poll.vector.data);
-    free((*pool)->backend.poll.vector.user_data);
+    if (tds_map_poll_destroy(&(*pool)->backend.poll.map) != 0)
+    {
+        // Should not happen, but if it does, we may leak memory.
+        // We can not do anything about it.
+        return TCS_ERROR_MEMORY;
+    }
+
     free(*pool);
     *pool = NULL;
 
@@ -1669,30 +1801,6 @@ TcsReturnCode tcs_pool_add(struct TcsPool* pool,
         return TCS_ERROR_INVALID_ARGUMENT;
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
-    struct __tcs_fd_poll_vector* vec = &pool->backend.poll.vector;
-
-    // Should not happen, something is corrupted
-    if (vec->data == NULL)
-        return TCS_ERROR_UNKNOWN;
-
-    if (vec->count >= vec->capacity)
-    {
-        void* new_data = realloc(vec->data, vec->capacity + TCS_POOL_CAPACITY_STEP);
-        if (new_data == NULL)
-        {
-            return TCS_ERROR_MEMORY;
-        }
-        void* new_user_data = realloc(vec->user_data, vec->capacity + TCS_POOL_CAPACITY_STEP);
-        if (new_user_data == NULL)
-        {
-            free(new_data);
-            return TCS_ERROR_MEMORY;
-        }
-
-        vec->data = (struct pollfd*)new_data;
-        vec->user_data = (void**)new_user_data;
-        vec->capacity += TCS_POOL_CAPACITY_STEP;
-    }
 
     // todo(markusl): Add more events that is input and output events
     short ev = 0;
@@ -1703,50 +1811,13 @@ TcsReturnCode tcs_pool_add(struct TcsPool* pool,
     if (poll_error)
         ev |= POLLERR;
 
-    vec->data[vec->count].fd = socket_ctx;
-    vec->data[vec->count].revents = 0;
-    vec->data[vec->count].events = ev;
-    vec->user_data[vec->count] = user_data;
-    vec->count++;
+    struct pollfd pfd;
+    pfd.fd = socket_ctx;
+    pfd.events = ev;
+    pfd.revents = 0;
 
-    return TCS_SUCCESS;
-}
-
-static TcsReturnCode __tcs_pool_remove_index(struct TcsPool* pool, size_t index)
-{
-#ifndef NDEBUG
-    if (pool == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-#endif
-    struct __tcs_fd_poll_vector* vec = &pool->backend.poll.vector;
-
-    if (index >= vec->count)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    vec->count--;
-    vec->data[index] = vec->data[vec->count];
-    vec->user_data[index] = vec->user_data[vec->count];
-
-    bool is_minimum = vec->capacity == TCS_POOL_CAPACITY_STEP;
-    bool should_shrink = vec->capacity >= vec->count + 2 * TCS_POOL_CAPACITY_STEP; // hysteresis
-    if (!is_minimum && should_shrink)
-    {
-        // free only one step (two steps can be minimum because of hysteresis)
-        void* new_data = realloc(vec->data, vec->capacity - TCS_POOL_CAPACITY_STEP);
-        if (new_data == NULL)
-            return TCS_ERROR_MEMORY; // Should not happen since we are shrinking
-
-        void* new_user_data = realloc(vec->user_data, vec->capacity - TCS_POOL_CAPACITY_STEP);
-        if (new_user_data == NULL)
-        {
-            free(new_data);
-            return TCS_ERROR_MEMORY;
-        }
-
-        vec->capacity -= TCS_POOL_CAPACITY_STEP;
-        vec->data = (struct pollfd*)new_data;
-        vec->user_data = (void**)new_user_data;
-    }
+    if (tds_map_poll_addp(&pool->backend.poll.map, &pfd, &user_data) != 0)
+        return TCS_ERROR_MEMORY;
 
     return TCS_SUCCESS;
 }
@@ -1757,21 +1828,15 @@ TcsReturnCode tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
         return TCS_ERROR_INVALID_ARGUMENT;
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
-
-    struct __tcs_fd_poll_vector* vec = &pool->backend.poll.vector;
-
-    // Should not happen, something is corrupted
-    if (vec->data == NULL)
-        return TCS_ERROR_UNKNOWN;
+    struct TdsMap_poll* map = &pool->backend.poll.map;
 
     bool found = false;
-    for (size_t i = 0; i < vec->count; ++i)
+    for (size_t i = 0; i < map->count; ++i)
     {
-        if (socket_ctx == vec->data[i].fd)
+        if (socket_ctx == map->keys[i].fd)
         {
-            TcsReturnCode sts = __tcs_pool_remove_index(pool, i);
-            if (sts != TCS_SUCCESS)
-                return sts;
+            if (tds_map_poll_remove(&pool->backend.poll.map, i) != 0)
+                return TCS_ERROR_MEMORY;
             found = true;
             break;
         }
@@ -1798,15 +1863,15 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
     if (events_count > 0x7FFFFFFF || timeout_in_ms > 0x7FFFFFFF)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    struct __tcs_fd_poll_vector* vec = &pool->backend.poll.vector;
+    struct TdsMap_poll* map = &pool->backend.poll.map;
 
-    int poll_ret = poll(vec->data, vec->count, (int)timeout_in_ms);
+    int poll_ret = poll(map->keys, map->count, (int)timeout_in_ms);
     *events_populated = 0;
     if (poll_ret < 0)
     {
         return errno2retcode(errno);
     }
-    if ((size_t)poll_ret > vec->count)
+    if ((size_t)poll_ret > map->count)
     {
         return TCS_ERROR_UNKNOWN; // Corruption
     }
@@ -1815,17 +1880,19 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
     int filled = 0;
     for (size_t i = 0; filled < fill_max; ++i)
     {
-        if (i >= vec->count)
+        if (i >= map->count)
             return TCS_ERROR_UNKNOWN;
 
-        if (vec->data[i].revents != 0)
+        if (map->keys[i].revents != 0)
         {
-            events[filled].socket = vec->data[i].fd;
-            events[filled].user_data = vec->user_data[i];
-            events[filled].can_read = vec->data[i].revents & POLLIN;
-            events[filled].can_write = vec->data[i].revents & POLLOUT;
-            events[filled].error = (TcsReturnCode)(vec->data[i].revents & POLLERR);
-            vec->data[i].revents = 0;
+            events[filled].socket = map->keys[i].fd;
+            events[filled].user_data = map->values[i];
+            events[filled].can_read = map->keys[i].revents & POLLIN;
+            events[filled].can_write = map->keys[i].revents & POLLOUT;
+            events[filled].error = (map->keys[i].revents & POLLERR) == 0
+                                       ? TCS_SUCCESS
+                                       : TCS_ERROR_NOT_IMPLEMENTED; // TODO: implement error codes
+            map->keys[i].revents = 0;                               // Reset revents
             ++filled;
         }
     }
@@ -2306,6 +2373,16 @@ TDS_ULIST_IMPL(SOCKET, soc)
 TDS_ULIST_IMPL(void*, pvoid)
 #endif
 
+#ifndef ULIST_PVOID
+#define ULIST_PVOID
+TDS_ULIST_IMPL(void*, pvoid)
+#endif
+
+#ifndef TDS_MAP_socket_pvoid
+#define TDS_MAP_socket_pvoid
+TDS_MAP_IMPL(SOCKET, void*, socket_user)
+#endif
+
 // Needs to be compatible with fd_set, hopefully this works. Only used when FD_SETSIZE is to small.
 struct tcs_fd_set
 {
@@ -2313,18 +2390,12 @@ struct tcs_fd_set
     SOCKET fd_array[1]; // dynamic memory hack that is compatible with Win32 API fd_set
 };
 
-struct tcs_usr_data_vector
-{
-    UList_soc keys;
-    UList_pvoid values;
-};
-
 struct TcsPool
 {
-    UList_soc read_sockets;
-    UList_soc write_sockets;
-    UList_soc error_sockets;
-    struct tcs_usr_data_vector user_data;
+    struct TdsUList_soc read_sockets;
+    struct TdsUList_soc write_sockets;
+    struct TdsUList_soc error_sockets;
+    struct TdsMap_socket_user user_data;
 };
 
 const TcsSocket TCS_NULLSOCKET = INVALID_SOCKET;
@@ -2820,14 +2891,12 @@ TcsReturnCode tcs_pool_create(struct TcsPool** pool)
     if (*pool == NULL)
         return TCS_ERROR_MEMORY;
     memset(*pool, 0, sizeof(struct TcsPool)); // Just to be safe
-    int sts_read_array = ulist_soc_create(&(*pool)->read_sockets, 64);
-    int sts_write_array = ulist_soc_create(&(*pool)->write_sockets, 64);
-    int sts_error_array = ulist_soc_create(&(*pool)->error_sockets, 64);
-    int sts_user_data_key = ulist_soc_create(&(*pool)->user_data.keys, 64);
-    int sts_user_data_value = ulist_pvoid_create(&(*pool)->user_data.values, 64);
+    int sts_read_array = tds_ulist_soc_create(&(*pool)->read_sockets);
+    int sts_write_array = tds_ulist_soc_create(&(*pool)->write_sockets);
+    int sts_error_array = tds_ulist_soc_create(&(*pool)->error_sockets);
+    int sts_user_data = tds_map_socket_user_create(&(*pool)->user_data);
 
-    if (sts_read_array != 0 || sts_write_array != 0 || sts_error_array != 0 || sts_user_data_key != 0 ||
-        sts_user_data_value != 0)
+    if (sts_read_array != 0 || sts_write_array != 0 || sts_error_array != 0 || sts_user_data != 0)
     {
         tcs_pool_destory(pool);
         return TCS_ERROR_MEMORY;
@@ -2841,11 +2910,10 @@ TcsReturnCode tcs_pool_destory(struct TcsPool** pool)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     // Free away!
-    ulist_soc_destroy(&(*pool)->read_sockets);
-    ulist_soc_destroy(&(*pool)->write_sockets);
-    ulist_soc_destroy(&(*pool)->error_sockets);
-    ulist_soc_destroy(&(*pool)->user_data.keys);
-    ulist_pvoid_destroy(&(*pool)->user_data.values);
+    tds_ulist_soc_destroy(&(*pool)->read_sockets);
+    tds_ulist_soc_destroy(&(*pool)->write_sockets);
+    tds_ulist_soc_destroy(&(*pool)->error_sockets);
+    tds_map_socket_user_destroy(&(*pool)->user_data);
 
     free(*pool);
     *pool = NULL;
@@ -2865,12 +2933,11 @@ TcsReturnCode tcs_pool_add(struct TcsPool* pool,
     if (!poll_can_read && !poll_can_write && !poll_error)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    ulist_soc_add_one(&pool->user_data.keys, socket_ctx);
-    ulist_pvoid_add_one(&pool->user_data.values, user_data);
+    tds_map_socket_user_add(&pool->user_data, socket_ctx, user_data);
 
     if (poll_can_read)
     {
-        int sts = ulist_soc_add_one(&pool->read_sockets, socket_ctx);
+        int sts = tds_ulist_soc_add(&pool->read_sockets, &socket_ctx, 1);
         if (sts != 0)
         {
             return TCS_ERROR_MEMORY;
@@ -2878,20 +2945,20 @@ TcsReturnCode tcs_pool_add(struct TcsPool* pool,
     }
     if (poll_can_write)
     {
-        int sts = ulist_soc_add_one(&pool->write_sockets, socket_ctx);
+        int sts = tds_ulist_soc_add(&pool->write_sockets, &socket_ctx, 1);
         if (sts != 0)
         {
-            ulist_soc_pop_last(&pool->read_sockets, NULL);
+            tds_ulist_soc_remove(&pool->read_sockets, pool->read_sockets.count, 1);
             return TCS_ERROR_MEMORY;
         }
     }
     if (poll_error)
     {
-        int sts = ulist_soc_add_one(&pool->error_sockets, socket_ctx);
+        int sts = tds_ulist_soc_add(&pool->error_sockets, &socket_ctx, 1);
         if (sts != 0)
         {
-            ulist_soc_pop_last(&pool->read_sockets, NULL);
-            ulist_soc_pop_last(&pool->write_sockets, NULL);
+            tds_ulist_soc_remove(&pool->read_sockets, pool->read_sockets.count, 1);
+            tds_ulist_soc_remove(&pool->write_sockets, pool->write_sockets.count, 1);
             return TCS_ERROR_MEMORY;
         }
     }
@@ -2904,7 +2971,7 @@ TcsReturnCode tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
     {
         if (pool->read_sockets.data[i] == socket_ctx)
         {
-            ulist_soc_remove_one(&pool->read_sockets, i);
+            tds_ulist_soc_remove(&pool->read_sockets, i, 1);
             break;
         }
     }
@@ -2912,7 +2979,7 @@ TcsReturnCode tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
     {
         if (pool->write_sockets.data[i] == socket_ctx)
         {
-            ulist_soc_remove_one(&pool->write_sockets, i);
+            tds_ulist_soc_remove(&pool->write_sockets, i, 1);
             break;
         }
     }
@@ -2920,16 +2987,15 @@ TcsReturnCode tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
     {
         if (pool->error_sockets.data[i] == socket_ctx)
         {
-            ulist_soc_remove_one(&pool->error_sockets, i);
+            tds_ulist_soc_remove(&pool->error_sockets, i, 1);
             break;
         }
     }
-    for (size_t i = 0; i < pool->user_data.keys.count; ++i)
+    for (size_t i = 0; i < pool->user_data.count; ++i)
     {
-        if (pool->user_data.keys.data[i] == socket_ctx)
+        if (pool->user_data.keys[i] == socket_ctx)
         {
-            ulist_soc_remove_one(&pool->user_data.keys, i);
-            ulist_pvoid_remove_one(&pool->user_data.values, i);
+            tds_map_socket_user_remove(&pool->user_data, i);
         }
     }
 
@@ -3044,11 +3110,11 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
         {
             events[events_added].socket = rfds_cpy->fd_array[n];
             events[events_added].can_read = true;
-            for (size_t i = 0; i < pool->user_data.keys.count; ++i)
+            for (size_t i = 0; i < pool->user_data.count; ++i)
             {
-                if (events[events_added].socket == pool->user_data.keys.data[i])
+                if (events[events_added].socket == pool->user_data.keys[i])
                 {
-                    events[events_added].user_data = pool->user_data.values.data[i];
+                    events[events_added].user_data = pool->user_data.values[i];
                     break;
                 }
             }
@@ -3072,11 +3138,11 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
             {
                 events[new_n].socket = wfds_cpy->fd_array[n];
 
-                for (size_t i = 0; i < pool->user_data.keys.count; ++i)
+                for (size_t i = 0; i < pool->user_data.count; ++i)
                 {
-                    if (events[new_n].socket == pool->user_data.keys.data[i])
+                    if (events[new_n].socket == pool->user_data.keys[i])
                     {
-                        events[new_n].user_data = pool->user_data.values.data[i];
+                        events[new_n].user_data = pool->user_data.values[i];
                         break;
                     }
                 }
@@ -3101,11 +3167,11 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
             {
                 events[new_n].socket = efds_cpy->fd_array[n];
 
-                for (size_t i = 0; i < pool->user_data.keys.count; ++i)
+                for (size_t i = 0; i < pool->user_data.count; ++i)
                 {
-                    if (events[new_n].socket == pool->user_data.keys.data[i])
+                    if (events[new_n].socket == pool->user_data.keys[i])
                     {
-                        events[new_n].user_data = pool->user_data.values.data[i];
+                        events[new_n].user_data = pool->user_data.values[i];
                         break;
                     }
                 }

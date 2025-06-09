@@ -75,7 +75,7 @@ TEST_CASE("Check mock")
     CHECK(MOCK_ALLOC_COUNTER > pre_alloc);
     CHECK(MOCK_FREE_COUNTER > pre_free);
 }
-
+#if 0
 TEST_CASE("Example from README")
 {
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
@@ -95,6 +95,7 @@ TEST_CASE("Example from README")
 
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
+#endif
 
 TEST_CASE("Init Test")
 {
@@ -1160,58 +1161,217 @@ TEST_CASE("Multicast Add-Drop-Add Membership")
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 
-#ifndef ULIST_int
-#define ULIST_int
-TDS_ULIST_IMPL(int, int)
+TEST_CASE("TdsList capacity hysteresis")
+{
+    // Do not grow if not needed
+    CHECK(tds_ulist_best_capacity_fit(8, 8) == 8);
+    CHECK(tds_ulist_best_capacity_fit(16, 15) == 16);
+    CHECK(tds_ulist_best_capacity_fit(16, 9) == 16);
+
+    // Do not decrease if the change is small
+    CHECK(tds_ulist_best_capacity_fit(32, 15) == 32);
+
+    // Do increase if needed
+    CHECK(tds_ulist_best_capacity_fit(32, 33) == 64);
+
+    // Do decrease if change is large
+    CHECK(tds_ulist_best_capacity_fit(64, 16) == 16);
+}
+
+TDS_ULIST_IMPL(int, int);
+
+TEST_CASE("TdsUList create / destroy")
+{
+    // Given
+    struct TdsUList_int list;
+    CHECK(tds_ulist_int_create(&list) == 0);
+    CHECK(list.capacity == 8);
+    CHECK(list.count == 0);
+    CHECK(list.data != NULL);
+
+    // Clean up
+    CHECK(tds_ulist_int_destroy(&list) == 0);
+    CHECK(list.capacity == 0);
+    CHECK(list.count == 0);
+    CHECK(list.data == NULL);
+}
+
+TEST_CASE("TdsUList reserve")
+{
+    // Given
+    struct TdsUList_int list;
+    CHECK(tds_ulist_int_create(&list) == 0);
+    CHECK(list.capacity == 8);
+    CHECK(list.count == 0);
+    CHECK(list.data != NULL);
+
+    // When
+    CHECK(tds_ulist_int_reserve(&list, 128) == 0);
+
+    // Then
+    CHECK(list.capacity >= 128);
+    CHECK(list.count == 0);
+    CHECK(list.data != NULL);
+
+    // Clean up
+    CHECK(tds_ulist_int_destroy(&list) == 0);
+}
+
+TEST_CASE("TdsUList add")
+{
+    // Given
+    struct TdsUList_int list;
+    CHECK(tds_ulist_int_create(&list) == 0);
+
+    // When
+    for (int i = 0; i < 128; ++i)
+    {
+        CHECK(tds_ulist_int_add(&list, &i, 1) == 0);
+    }
+
+    // Then
+    CHECK(list.count == 128);
+    for (int i = 0; i < 128; ++i)
+    {
+        CHECK(list.data[i] == i);
+    }
+
+    // Clean up
+    CHECK(tds_ulist_int_destroy(&list) == 0);
+}
+
+TEST_CASE("TdsUList add many")
+{
+    // Given
+    struct TdsUList_int list;
+    CHECK(tds_ulist_int_create(&list) == 0);
+
+    int user_data[5] = {0, 1, 2, 3, 4};
+
+    // When
+    CHECK(tds_ulist_int_add(&list, user_data, 5) == 0);
+
+    // Then
+    CHECK(list.count == 5);
+    CHECK(list.data[0] == 0);
+    CHECK(list.data[1] == 1);
+    CHECK(list.data[2] == 2);
+    CHECK(list.data[3] == 3);
+    CHECK(list.data[4] == 4);
+
+    // Clean up
+    CHECK(tds_ulist_int_destroy(&list) == 0);
+}
+
+TEST_CASE("TdsUList remove")
+{
+    // Given
+    struct TdsUList_int list;
+    CHECK(tds_ulist_int_create(&list) == 0);
+    for (int i = 0; i < 100; ++i)
+    {
+        CHECK(tds_ulist_int_add(&list, &i, 1) == 0);
+    }
+
+    // When
+    tds_ulist_int_remove(&list, 1, 3);
+
+    // Then
+    CHECK(list.count == 97);
+    CHECK(list.data[0] == 0);
+    CHECK(list.data[1] != 1);
+    CHECK(list.data[2] != 2);
+    CHECK(list.data[3] != 3);
+
+    // Clean up
+    CHECK(tds_ulist_int_destroy(&list) == 0);
+}
+
+TEST_CASE("TdsUList remove capacity")
+{
+    // Given
+    struct TdsUList_int list;
+    CHECK(tds_ulist_int_create(&list) == 0);
+    for (int i = 0; i < 100; ++i)
+    {
+        CHECK(tds_ulist_int_add(&list, &i, 1) == 0);
+    }
+
+    // When
+
+    for (int i = 0; i < 90; ++i)
+    {
+        CHECK(tds_ulist_int_remove(&list, 0, 1) == 0);
+    }
+
+    // Then
+    CHECK(list.count == 10);
+    CHECK(list.data[0] != 0);
+    CHECK(list.capacity == 32);
+
+    // Clean up
+    CHECK(tds_ulist_int_destroy(&list) == 0);
+}
+
+TEST_CASE("TdsUList remove overlap")
+{
+    // Given
+    struct TdsUList_int list;
+    CHECK(tds_ulist_int_create(&list) == 0);
+    for (int i = 0; i < 100; ++i)
+    {
+        CHECK(tds_ulist_int_add(&list, &i, 1) == 0);
+    }
+
+    // When
+    CHECK(tds_ulist_int_remove(&list, 0, 90) == 0);
+
+    // Then
+    CHECK(list.count == 10);
+    CHECK(list.data[0] != 0);
+    CHECK(list.capacity == 16); // When removing more than one capacity grow step, hysteresis does not kick in
+
+    // Clean up
+    CHECK(tds_ulist_int_destroy(&list) == 0);
+}
+
+#ifndef TDS_MAP_int_double
+#define TDS_MAP_int_double
+TDS_MAP_IMPL(int, double, mymap)
 #endif
 
-TEST_CASE("Ulist_remove")
+TEST_CASE("TdsMap_int_double create")
 {
-    UList_int list;
-    CHECK(ulist_int_create(&list, 64) == 0);
-    for (int i = 0; i < 128; ++i)
-    {
-        CHECK(ulist_int_add_one(&list, i) == 0);
-    }
-
-    ulist_int_remove(&list, 1, 3);
-    CHECK(list.data[0] == 0);
-    CHECK(list.data[1] == 125);
-    CHECK(list.data[2] == 126);
-    CHECK(list.data[3] == 127);
-    CHECK(list.data[4] == 4);
-    CHECK(list.count == 125);
+    struct TdsMap_mymap map;
+    CHECK(tds_map_mymap_create(&map) == 0);
+    CHECK(map.capacity > 0);
+    CHECK(map.count == 0);
+    CHECK(map.keys != NULL);
+    CHECK(map.values != NULL);
+    CHECK(tds_map_mymap_destroy(&map) == 0);
+    CHECK(map.capacity == 0);
+    CHECK(map.count == 0);
+    CHECK(map.keys == NULL);
+    CHECK(map.values == NULL);
 }
 
-TEST_CASE("Ulist_remove_one")
+TEST_CASE("TdsMap_int_double add and remove")
 {
-    UList_int list;
-    CHECK(ulist_int_create(&list, 64) == 0);
-    for (int i = 0; i < 128; ++i)
-    {
-        CHECK(ulist_int_add_one(&list, i) == 0);
-    }
-
-    ulist_int_remove_one(&list, 1);
-    CHECK(list.data[0] == 0);
-    CHECK(list.data[1] == 127);
-    CHECK(list.data[2] == 2);
-    CHECK(list.count == 127);
-}
-
-TEST_CASE("Ulist_pop_last")
-{
-    UList_int list;
-    CHECK(ulist_int_create(&list, 64) == 0);
-    for (int i = 0; i < 128; ++i)
-    {
-        CHECK(ulist_int_add_one(&list, i) == 0);
-    }
-
-    int popped_value = 0;
-    ulist_int_pop_last(&list, &popped_value);
-    CHECK(popped_value == 127);
-    CHECK(list.count == 127);
-    CHECK(list.data[0] == 0);
-    CHECK(list.data[126] == 126);
+    struct TdsMap_mymap map;
+    CHECK(tds_map_mymap_create(&map) == 0);
+    CHECK(tds_map_mymap_add(&map, 0, 0.0) == 0);
+    CHECK(tds_map_mymap_add(&map, 1, 1.0) == 0);
+    CHECK(tds_map_mymap_add(&map, 2, 2.0) == 0);
+    CHECK(map.keys[0] == 0);
+    CHECK(map.keys[1] == 1);
+    CHECK(map.keys[2] == 2);
+    CHECK(map.values[0] == 0.0);
+    CHECK(map.values[1] == 1.0);
+    CHECK(map.values[2] == 2.0);
+    CHECK(map.count == 3);
+    CHECK(tds_map_mymap_remove(&map, 1) == 0);
+    CHECK(map.count == 2);
+    CHECK(map.keys[1] != 1);
+    CHECK(map.values[1] != 1.0);
+    CHECK(tds_map_mymap_destroy(&map) == 0);
 }

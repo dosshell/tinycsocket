@@ -29,10 +29,16 @@
 #ifndef _DEFAULT_SOURCE
 #define _DEFAULT_SOURCE
 #endif
+
+// Header only should not need other files
 #ifndef TINYCSOCKET_INTERNAL_H_
 #include "tinycsocket_internal.h"
 #endif
 #ifdef TINYCSOCKET_USE_POSIX_IMPL
+
+#ifndef TINYDATASTRUCTURES_H_
+#include "tinydatastructures.h"
+#endif
 
 #ifdef DO_WRAP
 #include "dbg_wrap.h"
@@ -531,13 +537,18 @@ TcsReturnCode tcs_receive_from(TcsSocket socket_ctx,
     }
 }
 
-struct __tcs_fd_poll_vector
-{
-    size_t capacity;
-    size_t count;
-    struct pollfd* data;
-    void** user_data;
-};
+#ifndef TDS_MAP_pollfd_pvoid
+#define TDS_MAP_pollfd_pvoid
+TDS_MAP_IMPL(struct pollfd, void*, poll)
+#endif
+
+// struct __tcs_fd_poll_vector
+// {
+//     size_t capacity;
+//     size_t count;
+//     struct pollfd* data;
+//     void** user_data;
+// };
 
 struct TcsPool
 {
@@ -545,12 +556,10 @@ struct TcsPool
     {
         struct __poll
         {
-            struct __tcs_fd_poll_vector vector;
+            struct TdsMap_poll map;
         } poll;
     } backend;
 };
-
-static const size_t TCS_POOL_CAPACITY_STEP = 1024;
 
 TcsReturnCode tcs_pool_create(struct TcsPool** pool)
 {
@@ -562,22 +571,12 @@ TcsReturnCode tcs_pool_create(struct TcsPool** pool)
         return TCS_ERROR_MEMORY;
     memset(*pool, 0, sizeof(struct TcsPool));
 
-    (*pool)->backend.poll.vector.data = (struct pollfd*)malloc(TCS_POOL_CAPACITY_STEP * sizeof(struct pollfd));
-    if ((*pool)->backend.poll.vector.data == NULL)
+    if (tds_map_poll_create(&(*pool)->backend.poll.map) != 0)
     {
-        tcs_pool_destory(pool);
+        free(*pool);
+        *pool = NULL;
         return TCS_ERROR_MEMORY;
     }
-    memset((*pool)->backend.poll.vector.data, 0, TCS_POOL_CAPACITY_STEP * sizeof(struct pollfd));
-
-    (*pool)->backend.poll.vector.user_data = (void**)malloc(TCS_POOL_CAPACITY_STEP * sizeof(void*));
-    if ((*pool)->backend.poll.vector.user_data == NULL)
-    {
-        tcs_pool_destory(pool);
-        return TCS_ERROR_MEMORY;
-    }
-
-    (*pool)->backend.poll.vector.capacity = TCS_POOL_CAPACITY_STEP;
 
     return TCS_SUCCESS;
 }
@@ -587,8 +586,13 @@ TcsReturnCode tcs_pool_destory(struct TcsPool** pool)
     if (pool == NULL || *pool == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    free((*pool)->backend.poll.vector.data);
-    free((*pool)->backend.poll.vector.user_data);
+    if (tds_map_poll_destroy(&(*pool)->backend.poll.map) != 0)
+    {
+        // Should not happen, but if it does, we may leak memory.
+        // We can not do anything about it.
+        return TCS_ERROR_MEMORY;
+    }
+
     free(*pool);
     *pool = NULL;
 
@@ -606,30 +610,6 @@ TcsReturnCode tcs_pool_add(struct TcsPool* pool,
         return TCS_ERROR_INVALID_ARGUMENT;
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
-    struct __tcs_fd_poll_vector* vec = &pool->backend.poll.vector;
-
-    // Should not happen, something is corrupted
-    if (vec->data == NULL)
-        return TCS_ERROR_UNKNOWN;
-
-    if (vec->count >= vec->capacity)
-    {
-        void* new_data = realloc(vec->data, vec->capacity + TCS_POOL_CAPACITY_STEP);
-        if (new_data == NULL)
-        {
-            return TCS_ERROR_MEMORY;
-        }
-        void* new_user_data = realloc(vec->user_data, vec->capacity + TCS_POOL_CAPACITY_STEP);
-        if (new_user_data == NULL)
-        {
-            free(new_data);
-            return TCS_ERROR_MEMORY;
-        }
-
-        vec->data = (struct pollfd*)new_data;
-        vec->user_data = (void**)new_user_data;
-        vec->capacity += TCS_POOL_CAPACITY_STEP;
-    }
 
     // todo(markusl): Add more events that is input and output events
     short ev = 0;
@@ -640,50 +620,13 @@ TcsReturnCode tcs_pool_add(struct TcsPool* pool,
     if (poll_error)
         ev |= POLLERR;
 
-    vec->data[vec->count].fd = socket_ctx;
-    vec->data[vec->count].revents = 0;
-    vec->data[vec->count].events = ev;
-    vec->user_data[vec->count] = user_data;
-    vec->count++;
+    struct pollfd pfd;
+    pfd.fd = socket_ctx;
+    pfd.events = ev;
+    pfd.revents = 0;
 
-    return TCS_SUCCESS;
-}
-
-static TcsReturnCode __tcs_pool_remove_index(struct TcsPool* pool, size_t index)
-{
-#ifndef NDEBUG
-    if (pool == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-#endif
-    struct __tcs_fd_poll_vector* vec = &pool->backend.poll.vector;
-
-    if (index >= vec->count)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    vec->count--;
-    vec->data[index] = vec->data[vec->count];
-    vec->user_data[index] = vec->user_data[vec->count];
-
-    bool is_minimum = vec->capacity == TCS_POOL_CAPACITY_STEP;
-    bool should_shrink = vec->capacity >= vec->count + 2 * TCS_POOL_CAPACITY_STEP; // hysteresis
-    if (!is_minimum && should_shrink)
-    {
-        // free only one step (two steps can be minimum because of hysteresis)
-        void* new_data = realloc(vec->data, vec->capacity - TCS_POOL_CAPACITY_STEP);
-        if (new_data == NULL)
-            return TCS_ERROR_MEMORY; // Should not happen since we are shrinking
-
-        void* new_user_data = realloc(vec->user_data, vec->capacity - TCS_POOL_CAPACITY_STEP);
-        if (new_user_data == NULL)
-        {
-            free(new_data);
-            return TCS_ERROR_MEMORY;
-        }
-
-        vec->capacity -= TCS_POOL_CAPACITY_STEP;
-        vec->data = (struct pollfd*)new_data;
-        vec->user_data = (void**)new_user_data;
-    }
+    if (tds_map_poll_addp(&pool->backend.poll.map, &pfd, &user_data) != 0)
+        return TCS_ERROR_MEMORY;
 
     return TCS_SUCCESS;
 }
@@ -694,21 +637,15 @@ TcsReturnCode tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
         return TCS_ERROR_INVALID_ARGUMENT;
     if (socket_ctx == TCS_NULLSOCKET)
         return TCS_ERROR_INVALID_ARGUMENT;
-
-    struct __tcs_fd_poll_vector* vec = &pool->backend.poll.vector;
-
-    // Should not happen, something is corrupted
-    if (vec->data == NULL)
-        return TCS_ERROR_UNKNOWN;
+    struct TdsMap_poll* map = &pool->backend.poll.map;
 
     bool found = false;
-    for (size_t i = 0; i < vec->count; ++i)
+    for (size_t i = 0; i < map->count; ++i)
     {
-        if (socket_ctx == vec->data[i].fd)
+        if (socket_ctx == map->keys[i].fd)
         {
-            TcsReturnCode sts = __tcs_pool_remove_index(pool, i);
-            if (sts != TCS_SUCCESS)
-                return sts;
+            if (tds_map_poll_remove(&pool->backend.poll.map, i) != 0)
+                return TCS_ERROR_MEMORY;
             found = true;
             break;
         }
@@ -735,15 +672,15 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
     if (events_count > 0x7FFFFFFF || timeout_in_ms > 0x7FFFFFFF)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    struct __tcs_fd_poll_vector* vec = &pool->backend.poll.vector;
+    struct TdsMap_poll* map = &pool->backend.poll.map;
 
-    int poll_ret = poll(vec->data, vec->count, (int)timeout_in_ms);
+    int poll_ret = poll(map->keys, map->count, (int)timeout_in_ms);
     *events_populated = 0;
     if (poll_ret < 0)
     {
         return errno2retcode(errno);
     }
-    if ((size_t)poll_ret > vec->count)
+    if ((size_t)poll_ret > map->count)
     {
         return TCS_ERROR_UNKNOWN; // Corruption
     }
@@ -752,17 +689,19 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
     int filled = 0;
     for (size_t i = 0; filled < fill_max; ++i)
     {
-        if (i >= vec->count)
+        if (i >= map->count)
             return TCS_ERROR_UNKNOWN;
 
-        if (vec->data[i].revents != 0)
+        if (map->keys[i].revents != 0)
         {
-            events[filled].socket = vec->data[i].fd;
-            events[filled].user_data = vec->user_data[i];
-            events[filled].can_read = vec->data[i].revents & POLLIN;
-            events[filled].can_write = vec->data[i].revents & POLLOUT;
-            events[filled].error = (TcsReturnCode)(vec->data[i].revents & POLLERR);
-            vec->data[i].revents = 0;
+            events[filled].socket = map->keys[i].fd;
+            events[filled].user_data = map->values[i];
+            events[filled].can_read = map->keys[i].revents & POLLIN;
+            events[filled].can_write = map->keys[i].revents & POLLOUT;
+            events[filled].error = (map->keys[i].revents & POLLERR) == 0
+                                       ? TCS_SUCCESS
+                                       : TCS_ERROR_NOT_IMPLEMENTED; // TODO: implement error codes
+            map->keys[i].revents = 0;                               // Reset revents
             ++filled;
         }
     }
