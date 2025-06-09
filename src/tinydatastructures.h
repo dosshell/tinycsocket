@@ -290,7 +290,7 @@ static inline int tds_map_remove(void** keys,
                                                                                                           \
     static inline int tds_map_##NAME##_create(struct TdsMap_##NAME* map)                                  \
     {                                                                                                     \
-        memset(map, 0, sizeof(TdsMap_##NAME));                                                            \
+        memset(map, 0, sizeof(struct TdsMap_##NAME));                                                     \
         return tds_map_create((void**)&map->keys,                                                         \
                               (void**)&map->values,                                                       \
                               &map->count,                                                                \
@@ -303,7 +303,7 @@ static inline int tds_map_remove(void** keys,
         int sts = tds_map_destroy((void**)&map->keys, (void**)&map->values, &map->count, &map->capacity); \
         if (sts != 0)                                                                                     \
             return sts;                                                                                   \
-        memset(map, 0, sizeof(TdsMap_##NAME));                                                            \
+        memset(map, 0, sizeof(struct TdsMap_##NAME));                                                     \
         return 0;                                                                                         \
     }                                                                                                     \
     static inline int tds_map_##NAME##_add(struct TdsMap_##NAME* map, KEY_TYPE key, VALUE_TYPE value)     \
@@ -316,6 +316,17 @@ static inline int tds_map_remove(void** keys,
                            sizeof(VALUE_TYPE),                                                            \
                            &key,                                                                          \
                            &value);                                                                       \
+    }                                                                                                     \
+    static inline int tds_map_##NAME##_addp(struct TdsMap_##NAME* map, KEY_TYPE* key, VALUE_TYPE* value)  \
+    {                                                                                                     \
+        return tds_map_add((void**)&map->keys,                                                            \
+                           (void**)&map->values,                                                          \
+                           &map->count,                                                                   \
+                           &map->capacity,                                                                \
+                           sizeof(KEY_TYPE),                                                              \
+                           sizeof(VALUE_TYPE),                                                            \
+                           key,                                                                           \
+                           value);                                                                        \
     }                                                                                                     \
     static inline int tds_map_##NAME##_remove(struct TdsMap_##NAME* map, size_t index)                    \
     {                                                                                                     \
