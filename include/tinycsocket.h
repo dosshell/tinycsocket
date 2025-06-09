@@ -2373,6 +2373,16 @@ TDS_ULIST_IMPL(SOCKET, soc)
 TDS_ULIST_IMPL(void*, pvoid)
 #endif
 
+#ifndef ULIST_PVOID
+#define ULIST_PVOID
+TDS_ULIST_IMPL(void*, pvoid)
+#endif
+
+#ifndef TDS_MAP_socket_pvoid
+#define TDS_MAP_socket_pvoid
+TDS_MAP_IMPL(SOCKET, void*, socket_user)
+#endif
+
 // Needs to be compatible with fd_set, hopefully this works. Only used when FD_SETSIZE is to small.
 struct tcs_fd_set
 {
@@ -2380,18 +2390,12 @@ struct tcs_fd_set
     SOCKET fd_array[1]; // dynamic memory hack that is compatible with Win32 API fd_set
 };
 
-struct tcs_usr_data_vector
-{
-    UList_soc keys;
-    UList_pvoid values;
-};
-
 struct TcsPool
 {
-    UList_soc read_sockets;
-    UList_soc write_sockets;
-    UList_soc error_sockets;
-    struct tcs_usr_data_vector user_data;
+    struct TdsUList_soc read_sockets;
+    struct TdsUList_soc write_sockets;
+    struct TdsUList_soc error_sockets;
+    struct TdsMap_socket_user user_data;
 };
 
 const TcsSocket TCS_NULLSOCKET = INVALID_SOCKET;
@@ -2887,14 +2891,12 @@ TcsReturnCode tcs_pool_create(struct TcsPool** pool)
     if (*pool == NULL)
         return TCS_ERROR_MEMORY;
     memset(*pool, 0, sizeof(struct TcsPool)); // Just to be safe
-    int sts_read_array = ulist_soc_create(&(*pool)->read_sockets, 64);
-    int sts_write_array = ulist_soc_create(&(*pool)->write_sockets, 64);
-    int sts_error_array = ulist_soc_create(&(*pool)->error_sockets, 64);
-    int sts_user_data_key = ulist_soc_create(&(*pool)->user_data.keys, 64);
-    int sts_user_data_value = ulist_pvoid_create(&(*pool)->user_data.values, 64);
+    int sts_read_array = tds_ulist_soc_create(&(*pool)->read_sockets);
+    int sts_write_array = tds_ulist_soc_create(&(*pool)->write_sockets);
+    int sts_error_array = tds_ulist_soc_create(&(*pool)->error_sockets);
+    int sts_user_data = tds_map_socket_user_create(&(*pool)->user_data);
 
-    if (sts_read_array != 0 || sts_write_array != 0 || sts_error_array != 0 || sts_user_data_key != 0 ||
-        sts_user_data_value != 0)
+    if (sts_read_array != 0 || sts_write_array != 0 || sts_error_array != 0 || sts_user_data != 0)
     {
         tcs_pool_destory(pool);
         return TCS_ERROR_MEMORY;
@@ -2908,11 +2910,10 @@ TcsReturnCode tcs_pool_destory(struct TcsPool** pool)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     // Free away!
-    ulist_soc_destroy(&(*pool)->read_sockets);
-    ulist_soc_destroy(&(*pool)->write_sockets);
-    ulist_soc_destroy(&(*pool)->error_sockets);
-    ulist_soc_destroy(&(*pool)->user_data.keys);
-    ulist_pvoid_destroy(&(*pool)->user_data.values);
+    tds_ulist_soc_destroy(&(*pool)->read_sockets);
+    tds_ulist_soc_destroy(&(*pool)->write_sockets);
+    tds_ulist_soc_destroy(&(*pool)->error_sockets);
+    tds_map_socket_user_destroy(&(*pool)->user_data);
 
     free(*pool);
     *pool = NULL;
@@ -2932,12 +2933,11 @@ TcsReturnCode tcs_pool_add(struct TcsPool* pool,
     if (!poll_can_read && !poll_can_write && !poll_error)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    ulist_soc_add_one(&pool->user_data.keys, socket_ctx);
-    ulist_pvoid_add_one(&pool->user_data.values, user_data);
+    tds_map_socket_user_add(&pool->user_data, socket_ctx, user_data);
 
     if (poll_can_read)
     {
-        int sts = ulist_soc_add_one(&pool->read_sockets, socket_ctx);
+        int sts = tds_ulist_soc_add(&pool->read_sockets, &socket_ctx, 1);
         if (sts != 0)
         {
             return TCS_ERROR_MEMORY;
@@ -2945,20 +2945,20 @@ TcsReturnCode tcs_pool_add(struct TcsPool* pool,
     }
     if (poll_can_write)
     {
-        int sts = ulist_soc_add_one(&pool->write_sockets, socket_ctx);
+        int sts = tds_ulist_soc_add(&pool->write_sockets, &socket_ctx, 1);
         if (sts != 0)
         {
-            ulist_soc_pop_last(&pool->read_sockets, NULL);
+            tds_ulist_soc_remove(&pool->read_sockets, pool->read_sockets.count, 1);
             return TCS_ERROR_MEMORY;
         }
     }
     if (poll_error)
     {
-        int sts = ulist_soc_add_one(&pool->error_sockets, socket_ctx);
+        int sts = tds_ulist_soc_add(&pool->error_sockets, &socket_ctx, 1);
         if (sts != 0)
         {
-            ulist_soc_pop_last(&pool->read_sockets, NULL);
-            ulist_soc_pop_last(&pool->write_sockets, NULL);
+            tds_ulist_soc_remove(&pool->read_sockets, pool->read_sockets.count, 1);
+            tds_ulist_soc_remove(&pool->write_sockets, pool->write_sockets.count, 1);
             return TCS_ERROR_MEMORY;
         }
     }
@@ -2971,7 +2971,7 @@ TcsReturnCode tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
     {
         if (pool->read_sockets.data[i] == socket_ctx)
         {
-            ulist_soc_remove_one(&pool->read_sockets, i);
+            tds_ulist_soc_remove(&pool->read_sockets, i, 1);
             break;
         }
     }
@@ -2979,7 +2979,7 @@ TcsReturnCode tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
     {
         if (pool->write_sockets.data[i] == socket_ctx)
         {
-            ulist_soc_remove_one(&pool->write_sockets, i);
+            tds_ulist_soc_remove(&pool->write_sockets, i, 1);
             break;
         }
     }
@@ -2987,16 +2987,15 @@ TcsReturnCode tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
     {
         if (pool->error_sockets.data[i] == socket_ctx)
         {
-            ulist_soc_remove_one(&pool->error_sockets, i);
+            tds_ulist_soc_remove(&pool->error_sockets, i, 1);
             break;
         }
     }
-    for (size_t i = 0; i < pool->user_data.keys.count; ++i)
+    for (size_t i = 0; i < pool->user_data.count; ++i)
     {
-        if (pool->user_data.keys.data[i] == socket_ctx)
+        if (pool->user_data.keys[i] == socket_ctx)
         {
-            ulist_soc_remove_one(&pool->user_data.keys, i);
-            ulist_pvoid_remove_one(&pool->user_data.values, i);
+            tds_map_socket_user_remove(&pool->user_data, i);
         }
     }
 
@@ -3111,11 +3110,11 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
         {
             events[events_added].socket = rfds_cpy->fd_array[n];
             events[events_added].can_read = true;
-            for (size_t i = 0; i < pool->user_data.keys.count; ++i)
+            for (size_t i = 0; i < pool->user_data.count; ++i)
             {
-                if (events[events_added].socket == pool->user_data.keys.data[i])
+                if (events[events_added].socket == pool->user_data.keys[i])
                 {
-                    events[events_added].user_data = pool->user_data.values.data[i];
+                    events[events_added].user_data = pool->user_data.values[i];
                     break;
                 }
             }
@@ -3139,11 +3138,11 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
             {
                 events[new_n].socket = wfds_cpy->fd_array[n];
 
-                for (size_t i = 0; i < pool->user_data.keys.count; ++i)
+                for (size_t i = 0; i < pool->user_data.count; ++i)
                 {
-                    if (events[new_n].socket == pool->user_data.keys.data[i])
+                    if (events[new_n].socket == pool->user_data.keys[i])
                     {
-                        events[new_n].user_data = pool->user_data.values.data[i];
+                        events[new_n].user_data = pool->user_data.values[i];
                         break;
                     }
                 }
@@ -3168,11 +3167,11 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
             {
                 events[new_n].socket = efds_cpy->fd_array[n];
 
-                for (size_t i = 0; i < pool->user_data.keys.count; ++i)
+                for (size_t i = 0; i < pool->user_data.count; ++i)
                 {
-                    if (events[new_n].socket == pool->user_data.keys.data[i])
+                    if (events[new_n].socket == pool->user_data.keys[i])
                     {
-                        events[new_n].user_data = pool->user_data.values.data[i];
+                        events[new_n].user_data = pool->user_data.values[i];
                         break;
                     }
                 }
