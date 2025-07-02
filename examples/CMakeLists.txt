@@ -19,5 +19,5 @@ set_target_properties(
     tcp_client
     udp_client
     udp_server
-    PROPERTIES FOLDER TCS/examples
+    PROPERTIES FOLDER tinycsocket/examples
 )

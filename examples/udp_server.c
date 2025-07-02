@@ -37,18 +37,16 @@ int main(void)
     if (tcs_lib_init() != TCS_SUCCESS)
         return show_error("Could not init tinycsocket");
 
-    TcsSocket socket = TCS_NULLSOCKET;
-    if (tcs_create(&socket, TCS_TYPE_UDP_IP4) != TCS_SUCCESS)
+    TcsSocket socket = TCS_SOCKET_INVALID;
+    if (tcs_udp_receiver_str(&socket, "localhost", 1212) != TCS_SUCCESS)
         return show_error("Could not create socket");
-
-    if (tcs_bind(socket, 1212) != TCS_SUCCESS)
-        return show_error("Could not bind to local address");
 
     struct TcsAddress remote_address = {0};
     uint8_t recv_buffer[1024];
     size_t recv_size = sizeof(recv_buffer) - sizeof('\0');
     size_t bytes_received = 0;
-    if (tcs_receive_from(socket, recv_buffer, recv_size, TCS_NO_FLAGS, &remote_address, &bytes_received) != TCS_SUCCESS)
+    if (tcs_receive_from(socket, recv_buffer, recv_size, TCS_FLAG_NONE, &remote_address, &bytes_received) !=
+        TCS_SUCCESS)
         return show_error("Could not receive data");
 
     // Makes sure it is a NULL terminated string, this is why we only accept 1023 bytes in receive
@@ -56,10 +54,10 @@ int main(void)
     printf("received: %s\n", recv_buffer);
 
     char msg[] = "I here you loud and clear\n";
-    if (tcs_send_to(socket, (const uint8_t*)msg, sizeof(msg), TCS_NO_FLAGS, &remote_address, NULL) != TCS_SUCCESS)
+    if (tcs_send_to(socket, (const uint8_t*)msg, sizeof(msg), TCS_FLAG_NONE, &remote_address, NULL) != TCS_SUCCESS)
         return show_error("Could not send message");
 
-    if (tcs_destroy(&socket) != TCS_SUCCESS)
+    if (tcs_close(&socket) != TCS_SUCCESS)
         return show_error("Could not close socket");
 
     if (tcs_lib_free() != TCS_SUCCESS)

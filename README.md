@@ -18,8 +18,8 @@ int main(int argc, const char* argv[])
     tcs_lib_init();
 
     TcsSocket client_socket = TCS_NULLSOCKET;
-    tcs_create(&client_socket, TCS_TYPE_TCP_IP4);
-    tcs_connect(client_socket, "example.com", 80);
+    tcs_create(&client_socket, TCS_PRESET_TCP_IP4);
+    tcs_connect_str(client_socket, "example.com", 80);
 
     uint8_t send_buffer[] = "GET / HTTP/1.1\nHost: example.com\n\n";
     tcs_send(client_socket, send_buffer, sizeof(send_buffer), TCS_MSG_SENDALL, NULL);

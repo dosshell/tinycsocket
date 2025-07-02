@@ -39,12 +39,10 @@ int main(void)
     if (tcs_lib_init() != TCS_SUCCESS)
         return show_error("Could not init tinycsocket");
 
-    TcsSocket client_socket = TCS_NULLSOCKET;
-    if (tcs_create(&client_socket, TCS_TYPE_TCP_IP4) != TCS_SUCCESS)
-        return show_error("Could not create a socket");
+    TcsSocket client_socket = TCS_SOCKET_INVALID;
 
-    if (tcs_connect(client_socket, "lcoalhost", 1212) != TCS_SUCCESS)
-        return show_error("Could not connect to server");
+    if (tcs_tcp_client_str(&client_socket, "localhost", 1212, 1000) != TCS_SUCCESS)
+        return show_error("Could not create a socket");
 
     char msg[] = "hello world\n";
     if (tcs_send(client_socket, (const uint8_t*)msg, sizeof(msg), TCS_MSG_SENDALL, NULL) != TCS_SUCCESS)
@@ -53,7 +51,7 @@ int main(void)
     uint8_t recv_buffer[1024];
     size_t recv_size = sizeof(recv_buffer) - sizeof('\0');
     size_t bytes_received = 0;
-    if (tcs_receive(client_socket, recv_buffer, recv_size, TCS_NO_FLAGS, &bytes_received) != TCS_SUCCESS)
+    if (tcs_receive(client_socket, recv_buffer, recv_size, TCS_FLAG_NONE, &bytes_received) != TCS_SUCCESS)
         return show_error("Could not receive data");
 
     // Makes sure it is a NULL terminated string, this is why we only accept 1023 bytes in receive
@@ -63,7 +61,7 @@ int main(void)
     if (tcs_shutdown(client_socket, TCS_SD_BOTH) != TCS_SUCCESS)
         return show_error("Could not shutdown socket");
 
-    if (tcs_destroy(&client_socket) != TCS_SUCCESS)
+    if (tcs_close(&client_socket) != TCS_SUCCESS)
         return show_error("Could not close the socket");
 
     if (tcs_lib_free() != TCS_SUCCESS)

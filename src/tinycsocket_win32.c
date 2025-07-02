@@ -104,7 +104,7 @@ struct TcsPool
     struct TdsMap_socket_user user_data;
 };
 
-const TcsSocket TCS_NULLSOCKET = INVALID_SOCKET;
+const TcsSocket TCS_SOCKET_INVALID = INVALID_SOCKET;
 const int TCS_INF = -1;
 
 // Addresses
@@ -116,10 +116,11 @@ const uint32_t TCS_ADDRESS_NONE_IP4 = INADDR_NONE;
 // Type
 const int TCS_SOCK_STREAM = SOCK_STREAM;
 const int TCS_SOCK_DGRAM = SOCK_DGRAM;
+const int TCS_SOCK_RAW = SOCK_RAW;
 
 // Protocol
-const int TCS_IPPROTO_TCP = IPPROTO_TCP;
-const int TCS_IPPROTO_UDP = IPPROTO_UDP;
+const uint16_t TCS_PROTOCOL_IP_TCP = IPPROTO_TCP;
+const uint16_t TCS_PROTOCOL_IP_UDP = IPPROTO_UDP;
 
 // Flags
 const uint32_t TCS_AI_PASSIVE = AI_PASSIVE;
@@ -133,7 +134,7 @@ const uint32_t TCS_MSG_WAITALL = 0x8; // Binary compatible when it does not exis
 const uint32_t TCS_MSG_SENDALL = 0x80000000;
 
 // Backlog
-const int TCS_BACKLOG_SOMAXCONN = SOMAXCONN;
+const int TCS_BACKLOG_MAX = SOMAXCONN;
 
 // Option levels
 const int TCS_SOL_SOCKET = SOL_SOCKET;
@@ -148,6 +149,7 @@ const int TCS_SO_RCVBUF = SO_RCVBUF;
 const int TCS_SO_RCVTIMEO = SO_RCVTIMEO;
 const int TCS_SO_SNDBUF = SO_SNDBUF;
 const int TCS_SO_OOBINLINE = SO_OOBINLINE;
+const int TCS_SO_PRIORITY = -1;
 
 // IP options
 const int TCS_SO_IP_NODELAY = TCP_NODELAY;
@@ -157,12 +159,14 @@ const int TCS_SO_IP_MULTICAST_LOOP = IP_MULTICAST_LOOP;
 
 int g_init_count = 0;
 
-static TcsReturnCode wsaerror2retcode(int wsa_error)
+// ######## Internal Helpers ########
+
+static TcsResult wsaerror2retcode(int wsa_error)
 {
     switch (wsa_error)
     {
         case WSANOTINITIALISED:
-            return TCS_ERROR_NOT_INITED;
+            return TCS_ERROR_LIBRARY_NOT_INITIALIZED;
         case WSAEWOULDBLOCK:
             return TCS_ERROR_WOULD_BLOCK;
         case WSAETIMEDOUT:
@@ -172,7 +176,7 @@ static TcsReturnCode wsaerror2retcode(int wsa_error)
     }
 }
 
-static TcsReturnCode socketstatus2retcode(int status)
+static TcsResult socketstatus2retcode(int status)
 {
     if (status == 0)
     {
@@ -189,28 +193,48 @@ static TcsReturnCode socketstatus2retcode(int status)
     }
 }
 
-static TcsReturnCode family2native(const TcsAddressFamily family, short* native_family)
+static TcsResult family2native(const TcsAddressFamily family, short* native_family)
 {
-    static short lut[TCS_AF_LENGTH] = {AF_UNSPEC, AF_INET, AF_INET6};
-    if (native_family == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (family >= TCS_AF_LENGTH || family < 0)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    *native_family = lut[family];
+    switch (family)
+    {
+        case TCS_AF_ANY:
+            *native_family = AF_UNSPEC;
+            return TCS_SUCCESS;
+        case TCS_AF_IP4:
+            *native_family = AF_INET;
+            return TCS_SUCCESS;
+        case TCS_AF_IP6:
+            *native_family = AF_INET6;
+            return TCS_SUCCESS;
+
+        case TCS_AF_PACKET:
+#if TCS_AVAILABLE_AF_PACKET
+            *native_family = AF_PACKET;
+#else
+            return TCS_ERROR_NOT_IMPLEMENTED;
+#endif
+            return TCS_SUCCESS;
+        default:
+            return TCS_ERROR_INVALID_ARGUMENT;
+    }
     return TCS_SUCCESS;
 }
 
-static TcsReturnCode sockaddr2native(const struct TcsAddress* in_addr, PSOCKADDR out_addr, int* out_addrlen)
+static TcsResult sockaddr2native(const struct TcsAddress* in_addr, PSOCKADDR out_addr, int* out_addrlen)
 {
     if (in_addr == NULL || out_addr == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
+    if (in_addr->family == TCS_AF_ANY)
+    {
+        return TCS_ERROR_NOT_IMPLEMENTED;
+    }
     if (in_addr->family == TCS_AF_IP4)
     {
         PSOCKADDR_IN addr = (PSOCKADDR_IN)out_addr;
         addr->sin_family = (ADDRESS_FAMILY)AF_INET;
-        addr->sin_port = htons((USHORT)in_addr->data.af_inet.port);
-        addr->sin_addr.S_un.S_addr = htonl((ULONG)in_addr->data.af_inet.address);
+        addr->sin_port = htons((USHORT)in_addr->data.ip4.port);
+        addr->sin_addr.S_un.S_addr = htonl((ULONG)in_addr->data.ip4.address);
 
         if (out_addrlen != NULL)
             *out_addrlen = sizeof(SOCKADDR_IN);
@@ -221,14 +245,14 @@ static TcsReturnCode sockaddr2native(const struct TcsAddress* in_addr, PSOCKADDR
     {
         return TCS_ERROR_NOT_IMPLEMENTED;
     }
-    else if (in_addr->family == TCS_AF_ANY)
+    else if (in_addr->family == TCS_AF_PACKET)
     {
         return TCS_ERROR_NOT_IMPLEMENTED;
     }
     return TCS_ERROR_NOT_IMPLEMENTED;
 }
 
-static TcsReturnCode native2sockaddr(const PSOCKADDR in_addr, struct TcsAddress* out_addr)
+static TcsResult native2sockaddr(const PSOCKADDR in_addr, struct TcsAddress* out_addr)
 {
     if (in_addr == NULL || out_addr == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -237,8 +261,8 @@ static TcsReturnCode native2sockaddr(const PSOCKADDR in_addr, struct TcsAddress*
     {
         PSOCKADDR_IN addr = (PSOCKADDR_IN)in_addr;
         out_addr->family = TCS_AF_IP4;
-        out_addr->data.af_inet.port = ntohs((uint16_t)addr->sin_port);
-        out_addr->data.af_inet.address = ntohl((uint32_t)addr->sin_addr.S_un.S_addr);
+        out_addr->data.ip4.port = ntohs((uint16_t)addr->sin_port);
+        out_addr->data.ip4.address = ntohl((uint32_t)addr->sin_addr.S_un.S_addr);
     }
     else if (in_addr->sa_family == AF_INET6)
     {
@@ -256,20 +280,20 @@ static TcsReturnCode native2sockaddr(const PSOCKADDR in_addr, struct TcsAddress*
     return TCS_SUCCESS;
 }
 
-TcsReturnCode tcs_lib_init(void)
+TcsResult tcs_lib_init(void)
 {
     if (g_init_count <= 0)
     {
         WSADATA wsa_data;
         int wsa_startup_status_code = WSAStartup(MAKEWORD(2, 2), &wsa_data);
         if (wsa_startup_status_code != 0)
-            return TCS_ERROR_KERNEL;
+            return TCS_ERROR_SYSTEM;
     }
     ++g_init_count;
     return TCS_SUCCESS;
 }
 
-TcsReturnCode tcs_lib_free(void)
+TcsResult tcs_lib_free(void)
 {
     g_init_count--;
     if (g_init_count <= 0)
@@ -279,13 +303,15 @@ TcsReturnCode tcs_lib_free(void)
     return TCS_SUCCESS;
 }
 
-TcsReturnCode tcs_create_ext(TcsSocket* socket_ctx, TcsAddressFamily family, int type, int protocol)
+TcsResult tcs_socket(TcsSocket* socket_ctx, TcsAddressFamily family, int type, int protocol)
 {
-    if (socket_ctx == NULL || *socket_ctx != TCS_NULLSOCKET)
+    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (*socket_ctx != TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     short native_family = AF_UNSPEC;
-    TcsReturnCode sts = family2native(family, &native_family);
+    TcsResult sts = family2native(family, &native_family);
     if (sts != TCS_SUCCESS)
         return sts;
 
@@ -303,48 +329,96 @@ TcsReturnCode tcs_create_ext(TcsSocket* socket_ctx, TcsAddressFamily family, int
     }
 }
 
-TcsReturnCode tcs_bind_address(TcsSocket socket_ctx, const struct TcsAddress* address)
+// tcs_socket_preset() is defined in tinycsocket_common.c
+
+TcsResult tcs_close(TcsSocket* socket_ctx)
 {
-    if (socket_ctx == TCS_NULLSOCKET)
+    if (socket_ctx == NULL || *socket_ctx == TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    int close_status = closesocket(*socket_ctx);
+    if (close_status != SOCKET_ERROR)
+    {
+        *socket_ctx = TCS_SOCKET_INVALID;
+        return TCS_SUCCESS;
+    }
+    else
+    {
+        return socketstatus2retcode(close_status);
+    }
+}
+
+// ######## High-level Socket Creation ########
+
+// tcs_tcp_server_str() is defined in tinycsocket_common.c
+// tcs_tcp_server() is defined in tinycsocket_common.c
+// tcs_tcp_client_str() is defined in tinycsocket_common.c
+// tcs_tcp_client() is defined in tinycsocket_common.c
+// tcs_udp_receiver_str() is defined in tinycsocket_common.c
+// tcs_udp_receiver() is defined in tinycsocket_common.c
+// tcs_udp_sender_str() is defined in tinycsocket_common.c
+// tcs_udp_sender() is defined in tinycsocket_common.c
+// tcs_udp_peer_str() is defined in tinycsocket_common.c
+// tcs_udp_peer() is defined in tinycsocket_common.c
+
+// ######## High-level Raw L2-Packet Sockets (Experimental) ########
+
+// tcs_packet_sender_str() is defined in tinycsocket_common.c
+// tcs_packet_sender() is defined in tinycsocket_common.c
+// tcs_packet_peer_str() is defined in tinycsocket_common.c
+// tcs_packet_peer() is defined in tinycsocket_common.c
+// tcs_packet_capture_iface() is defined in tinycsocket_common.c
+// tcs_packet_capture_ifname() is defined in tinycsocket_common.c
+
+// ######## Socket Operations ########
+
+TcsResult tcs_bind(TcsSocket socket_ctx, const struct TcsAddress* address)
+{
+    if (socket_ctx == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     SOCKADDR_STORAGE native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
     int addrlen = 0;
-    TcsReturnCode convert_addr_status = sockaddr2native(address, (PSOCKADDR)&native_sockaddr, &addrlen);
+    TcsResult convert_addr_status = sockaddr2native(address, (PSOCKADDR)&native_sockaddr, &addrlen);
     if (convert_addr_status != TCS_SUCCESS)
         return convert_addr_status;
     int bind_status = bind(socket_ctx, (PSOCKADDR)&native_sockaddr, addrlen);
     return socketstatus2retcode(bind_status);
 }
 
-TcsReturnCode tcs_connect_address(TcsSocket socket_ctx, const struct TcsAddress* address)
+TcsResult tcs_connect(TcsSocket socket_ctx, const struct TcsAddress* address)
 {
-    if (socket_ctx == TCS_NULLSOCKET)
+    if (socket_ctx == TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    if (address == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     SOCKADDR_STORAGE native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
     int addrlen = 0;
-    TcsReturnCode convert_addr_status = sockaddr2native(address, (PSOCKADDR)&native_sockaddr, &addrlen);
+    TcsResult convert_addr_status = sockaddr2native(address, (PSOCKADDR)&native_sockaddr, &addrlen);
     if (convert_addr_status != TCS_SUCCESS)
         return convert_addr_status;
     int connect_status = connect(socket_ctx, (PSOCKADDR)&native_sockaddr, addrlen);
     return socketstatus2retcode(connect_status);
 }
 
-TcsReturnCode tcs_listen(TcsSocket socket_ctx, int backlog)
+// tcs_connect_str() is defined in tinycsocket_common.c
+
+TcsResult tcs_listen(TcsSocket socket_ctx, int backlog)
 {
-    if (socket_ctx == TCS_NULLSOCKET)
+    if (socket_ctx == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     int status = listen(socket_ctx, (int)backlog);
     return socketstatus2retcode(status);
 }
 
-TcsReturnCode tcs_accept(TcsSocket socket_ctx, TcsSocket* child_socket_ctx, struct TcsAddress* address)
+TcsResult tcs_accept(TcsSocket socket_ctx, TcsSocket* child_socket_ctx, struct TcsAddress* address)
 {
-    if (socket_ctx == TCS_NULLSOCKET || child_socket_ctx == NULL || *child_socket_ctx != TCS_NULLSOCKET)
+    if (socket_ctx == TCS_SOCKET_INVALID || child_socket_ctx == NULL || *child_socket_ctx != TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     SOCKADDR_STORAGE native_sockaddr;
@@ -355,7 +429,7 @@ TcsReturnCode tcs_accept(TcsSocket socket_ctx, TcsSocket* child_socket_ctx, stru
     {
         if (address != NULL)
         {
-            TcsReturnCode convert_addr_status = native2sockaddr((PSOCKADDR)&native_sockaddr, address);
+            TcsResult convert_addr_status = native2sockaddr((PSOCKADDR)&native_sockaddr, address);
             if (convert_addr_status != TCS_SUCCESS)
                 return convert_addr_status;
         }
@@ -363,19 +437,29 @@ TcsReturnCode tcs_accept(TcsSocket socket_ctx, TcsSocket* child_socket_ctx, stru
     }
     else
     {
-        *child_socket_ctx = TCS_NULLSOCKET;
+        *child_socket_ctx = TCS_SOCKET_INVALID;
         int error_code = WSAGetLastError();
         return wsaerror2retcode(error_code);
     }
 }
 
-TcsReturnCode tcs_send(TcsSocket socket_ctx,
-                       const uint8_t* buffer,
-                       size_t buffer_size,
-                       uint32_t flags,
-                       size_t* bytes_sent)
+TcsResult tcs_shutdown(TcsSocket socket_ctx, TcsSocketDirection direction)
 {
-    if (socket_ctx == TCS_NULLSOCKET)
+    const int LUT[] = {SD_RECEIVE, SD_SEND, SD_BOTH};
+
+    if (socket_ctx == TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    const int how = LUT[direction];
+    int shutdown_status = shutdown(socket_ctx, how);
+    return socketstatus2retcode(shutdown_status);
+}
+
+// ######## Data Transfer ########
+
+TcsResult tcs_send(TcsSocket socket_ctx, const uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* bytes_sent)
+{
+    if (socket_ctx == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     if (bytes_sent != NULL)
@@ -394,7 +478,7 @@ TcsReturnCode tcs_send(TcsSocket socket_ctx,
         while (left > 0)
         {
             size_t sent = 0;
-            TcsReturnCode sts = tcs_send(socket_ctx, iterator, left, new_flags, &sent);
+            TcsResult sts = tcs_send(socket_ctx, iterator, left, new_flags, &sent);
             if (bytes_sent != NULL)
                 *bytes_sent += sent;
             if (sts != TCS_SUCCESS)
@@ -423,14 +507,14 @@ TcsReturnCode tcs_send(TcsSocket socket_ctx,
     }
 }
 
-TcsReturnCode tcs_send_to(TcsSocket socket_ctx,
-                          const uint8_t* buffer,
-                          size_t buffer_size,
-                          uint32_t flags,
-                          const struct TcsAddress* destination_address,
-                          size_t* bytes_sent)
+TcsResult tcs_send_to(TcsSocket socket_ctx,
+                      const uint8_t* buffer,
+                      size_t buffer_size,
+                      uint32_t flags,
+                      const struct TcsAddress* destination_address,
+                      size_t* bytes_sent)
 {
-    if (socket_ctx == TCS_NULLSOCKET)
+    if (socket_ctx == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     if (flags & TCS_MSG_SENDALL)
@@ -439,7 +523,7 @@ TcsReturnCode tcs_send_to(TcsSocket socket_ctx,
     SOCKADDR_STORAGE native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
     int addrlen = 0;
-    TcsReturnCode convert_addr_status = sockaddr2native(destination_address, (PSOCKADDR)&native_sockaddr, &addrlen);
+    TcsResult convert_addr_status = sockaddr2native(destination_address, (PSOCKADDR)&native_sockaddr, &addrlen);
     if (convert_addr_status != TCS_SUCCESS)
         return convert_addr_status;
 
@@ -461,13 +545,13 @@ TcsReturnCode tcs_send_to(TcsSocket socket_ctx,
     }
 }
 
-TcsReturnCode tcs_sendv(TcsSocket socket_ctx,
-                        const struct TcsBuffer* buffers,
-                        size_t buffer_count,
-                        uint32_t flags,
-                        size_t* bytes_sent)
+TcsResult tcs_sendv(TcsSocket socket_ctx,
+                    const struct TcsBuffer* buffers,
+                    size_t buffer_count,
+                    uint32_t flags,
+                    size_t* bytes_sent)
 {
-    if (socket_ctx == TCS_NULLSOCKET || buffers == NULL || buffer_count == 0)
+    if (socket_ctx == TCS_SOCKET_INVALID || buffers == NULL || buffer_count == 0)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     if (flags & TCS_MSG_SENDALL)
@@ -488,13 +572,9 @@ TcsReturnCode tcs_sendv(TcsSocket socket_ctx,
         return socketstatus2retcode(wsasend_status);
 }
 
-TcsReturnCode tcs_receive(TcsSocket socket_ctx,
-                          uint8_t* buffer,
-                          size_t buffer_size,
-                          uint32_t flags,
-                          size_t* bytes_received)
+TcsResult tcs_receive(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* bytes_received)
 {
-    if (socket_ctx == TCS_NULLSOCKET)
+    if (socket_ctx == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
 
 #if WINVER <= 0x501
@@ -507,7 +587,7 @@ TcsReturnCode tcs_receive(TcsSocket socket_ctx,
             size_t received_now = 0;
             uint8_t* cursor = buffer + received_so_far;
             size_t left = buffer_size - received_so_far;
-            TcsReturnCode sts = tcs_receive(socket_ctx, cursor, left, new_flags, &received_now);
+            TcsResult sts = tcs_receive(socket_ctx, cursor, left, new_flags, &received_now);
             if (sts != TCS_SUCCESS)
             {
                 if (bytes_received != NULL)
@@ -545,14 +625,14 @@ TcsReturnCode tcs_receive(TcsSocket socket_ctx,
     }
 }
 
-TcsReturnCode tcs_receive_from(TcsSocket socket_ctx,
-                               uint8_t* buffer,
-                               size_t buffer_size,
-                               uint32_t flags,
-                               struct TcsAddress* source_address,
-                               size_t* bytes_received)
+TcsResult tcs_receive_from(TcsSocket socket_ctx,
+                           uint8_t* buffer,
+                           size_t buffer_size,
+                           uint32_t flags,
+                           struct TcsAddress* source_address,
+                           size_t* bytes_received)
 {
-    if (socket_ctx == TCS_NULLSOCKET)
+    if (socket_ctx == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     SOCKADDR_STORAGE native_sockaddr;
@@ -573,7 +653,7 @@ TcsReturnCode tcs_receive_from(TcsSocket socket_ctx,
 
         if (source_address != NULL)
         {
-            TcsReturnCode convert_address_status = native2sockaddr((PSOCKADDR)&native_sockaddr, source_address);
+            TcsResult convert_address_status = native2sockaddr((PSOCKADDR)&native_sockaddr, source_address);
             return convert_address_status;
         }
 
@@ -588,7 +668,12 @@ TcsReturnCode tcs_receive_from(TcsSocket socket_ctx,
     }
 }
 
-TcsReturnCode tcs_pool_create(struct TcsPool** pool)
+// tcs_receive_line() is defined in tinycsocket_common.c
+// tcs_receive_netstring() is defined in tinycsocket_common.c
+
+// ######## Socket Pooling ########
+
+TcsResult tcs_pool_create(struct TcsPool** pool)
 {
     if (pool == NULL || *pool != NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -604,13 +689,13 @@ TcsReturnCode tcs_pool_create(struct TcsPool** pool)
 
     if (sts_read_array != 0 || sts_write_array != 0 || sts_error_array != 0 || sts_user_data != 0)
     {
-        tcs_pool_destory(pool);
+        tcs_pool_destroy(pool);
         return TCS_ERROR_MEMORY;
     }
     return TCS_SUCCESS;
 }
 
-TcsReturnCode tcs_pool_destory(struct TcsPool** pool)
+TcsResult tcs_pool_destroy(struct TcsPool** pool)
 {
     if (pool == NULL || *pool == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -627,12 +712,12 @@ TcsReturnCode tcs_pool_destory(struct TcsPool** pool)
     return TCS_SUCCESS;
 }
 
-TcsReturnCode tcs_pool_add(struct TcsPool* pool,
-                           TcsSocket socket_ctx,
-                           void* user_data,
-                           bool poll_can_read,
-                           bool poll_can_write,
-                           bool poll_error)
+TcsResult tcs_pool_add(struct TcsPool* pool,
+                       TcsSocket socket_ctx,
+                       void* user_data,
+                       bool poll_can_read,
+                       bool poll_can_write,
+                       bool poll_error)
 {
     if (pool == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -671,7 +756,7 @@ TcsReturnCode tcs_pool_add(struct TcsPool* pool,
     return TCS_SUCCESS;
 }
 
-TcsReturnCode tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
+TcsResult tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
 {
     for (size_t i = 0; i < pool->read_sockets.count; ++i)
     {
@@ -708,11 +793,11 @@ TcsReturnCode tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
     return TCS_SUCCESS;
 }
 
-TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
-                            struct TcsPollEvent* events,
-                            size_t events_capacity,
-                            size_t* events_populated,
-                            int64_t timeout_in_ms)
+TcsResult tcs_pool_poll(struct TcsPool* pool,
+                        struct TcsPollEvent* events,
+                        size_t events_capacity,
+                        size_t* events_populated,
+                        int64_t timeout_in_ms)
 {
     if (pool == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -910,80 +995,184 @@ TcsReturnCode tcs_pool_poll(struct TcsPool* pool,
     return TCS_SUCCESS;
 }
 
-TcsReturnCode tcs_set_option(TcsSocket socket_ctx,
-                             int32_t level,
-                             int32_t option_name,
-                             const void* option_value,
-                             size_t option_size)
+// ######## Socket Options ########
+
+TcsResult tcs_opt_set(TcsSocket socket_ctx,
+                      int32_t level,
+                      int32_t option_name,
+                      const void* option_value,
+                      size_t option_size)
 {
-    if (socket_ctx == TCS_NULLSOCKET)
+    if (socket_ctx == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
+
+    if (option_name == -1)
+        return TCS_ERROR_NOT_IMPLEMENTED;
 
     int sockopt_status =
         setsockopt(socket_ctx, (int)level, (int)option_name, (const char*)option_value, (int)option_size);
     return socketstatus2retcode(sockopt_status);
 }
 
-TcsReturnCode tcs_get_option(TcsSocket socket_ctx,
-                             int32_t level,
-                             int32_t option_name,
-                             void* option_value,
-                             size_t* option_size)
+TcsResult tcs_opt_get(TcsSocket socket_ctx, int32_t level, int32_t option_name, void* option_value, size_t* option_size)
 {
-    if (socket_ctx == TCS_NULLSOCKET || option_value == NULL || option_size == NULL)
+    if (socket_ctx == TCS_SOCKET_INVALID || option_value == NULL || option_size == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
+
+    if (option_name == -1)
+        return TCS_ERROR_NOT_IMPLEMENTED;
 
     int sockopt_status = getsockopt(socket_ctx, (int)level, (int)option_name, (char*)option_value, (int*)option_size);
     return socketstatus2retcode(sockopt_status);
 }
 
-TcsReturnCode tcs_shutdown(TcsSocket socket_ctx, TcsSocketDirection direction)
-{
-    const int LUT[] = {SD_RECEIVE, SD_SEND, SD_BOTH};
+// tcs_opt_broadcast_set() is defined in tinycocket_common.c
+// tcs_opt_broadcast_get() is defined in tinycocket_common.c
+// tcs_opt_keep_alive_set() is defined in inycocket_common.c
+// tcs_opt_keep_alive_get() is defined in tinycocket_common.c
+// tcs_opt_reuse_address_set() is defined in tiinycocket_common.c
+// tcs_opt_reuse_address_get() is defined in tiinycocket_common.c
+// tcs_opt_send_buffer_size_set() is defined in tininycocket_common.c
+// tcs_opt_send_buffer_size_get() is defined in tininycocket_common.c
+// tcs_opt_receive_buffer_size_set() is defined in tinyinycocket_common.c
+// tcs_opt_receive_buffer_size_get() is defined in tinyinycocket_common.c
 
-    if (socket_ctx == TCS_NULLSOCKET)
+TcsResult tcs_opt_receive_timeout_set(TcsSocket socket_ctx, int timeout_ms)
+{
+    if (socket_ctx == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    const int how = LUT[direction];
-    int shutdown_status = shutdown(socket_ctx, how);
-    return socketstatus2retcode(shutdown_status);
+    return tcs_opt_set(socket_ctx, TCS_SOL_SOCKET, TCS_SO_RCVTIMEO, &timeout_ms, sizeof(timeout_ms));
 }
 
-TcsReturnCode tcs_destroy(TcsSocket* socket_ctx)
+TcsResult tcs_opt_receive_timeout_get(TcsSocket socket_ctx, int* timeout_ms)
 {
-    if (socket_ctx == NULL || *socket_ctx == TCS_NULLSOCKET)
+    if (socket_ctx == TCS_SOCKET_INVALID || timeout_ms == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    int close_status = closesocket(*socket_ctx);
-    if (close_status != SOCKET_ERROR)
+    DWORD t = 0;
+    size_t t_size = sizeof(t);
+    TcsResult sts = tcs_opt_get(socket_ctx, TCS_SOL_SOCKET, TCS_SO_RCVTIMEO, &t, &t_size);
+
+    if (sts == TCS_SUCCESS)
     {
-        *socket_ctx = TCS_NULLSOCKET;
-        return TCS_SUCCESS;
+        *timeout_ms = (int)t;
     }
-    else
-    {
-        return socketstatus2retcode(close_status);
-    }
+    return sts;
 }
 
-TcsReturnCode tcs_resolve_hostname(const char* hostname,
-                                   TcsAddressFamily address_family,
-                                   struct TcsAddress found_addresses[],
-                                   size_t found_addresses_length,
-                                   size_t* no_of_found_addresses)
+TcsResult tcs_opt_linger_set(TcsSocket socket_ctx, bool do_linger, int timeout_seconds)
+{
+    if (socket_ctx == TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct linger l = {(u_short)do_linger, (u_short)timeout_seconds};
+    return tcs_opt_set(socket_ctx, TCS_SOL_SOCKET, TCS_SO_LINGER, &l, sizeof(l));
+}
+
+TcsResult tcs_opt_linger_get(TcsSocket socket_ctx, bool* do_linger, int* timeout_seconds)
+{
+    if (socket_ctx == TCS_SOCKET_INVALID || (do_linger == NULL && timeout_seconds == NULL))
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct linger l = {0, 0};
+    size_t l_size = sizeof(l);
+    TcsResult sts = tcs_opt_get(socket_ctx, TCS_SOL_SOCKET, TCS_SO_LINGER, &l, &l_size);
+    if (sts == TCS_SUCCESS)
+    {
+        if (do_linger)
+            *do_linger = l.l_onoff;
+        if (timeout_seconds)
+            *timeout_seconds = l.l_linger;
+    }
+
+    return sts;
+}
+
+// tcs_opt_ip_no_delay_set() is defined in tinycsocket_common.c
+// tcs_opt_ip_no_delay_get() is defined in tinycsocket_common.c
+// tcs_opt_out_of_band_inline_set() is defined in tinycsocket_common.c
+// tcs_opt_out_of_band_inline_get() is defined in tinycsocket_common.c
+// tcs_opt_priority_set() is defined in tinycsocket_common.c
+// tcs_opt_priority_get() is defined in tinycsocket_common.c
+// tcs_opt_nonblocking_set() is defined in tinycsocket_common.c
+// tcs_opt_nonblocking_get() is defined in tinycsocket_common.c
+
+TcsResult tcs_opt_membership_add(TcsSocket socket_ctx, const struct TcsAddress* multicast_address)
+{
+    return TCS_ERROR_NOT_IMPLEMENTED;
+}
+
+TcsResult tcs_opt_membership_add_to(TcsSocket socket_ctx,
+                                    const struct TcsAddress* local_address,
+                                    const struct TcsAddress* multicast_address)
+{
+    if (multicast_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    // TODO(markusl): Add ipv6 support
+    if (multicast_address->family != TCS_AF_IP4)
+        return TCS_ERROR_NOT_IMPLEMENTED;
+
+    struct ip_mreq imr;
+    memset(&imr, 0, sizeof imr);
+    imr.imr_multiaddr.s_addr = htonl(multicast_address->data.ip4.address);
+    if (local_address != NULL)
+        imr.imr_interface.s_addr = htonl(local_address->data.ip4.address);
+
+    return tcs_opt_set(socket_ctx, TCS_SOL_IP, TCS_SO_IP_MEMBERSHIP_ADD, &imr, sizeof(imr));
+}
+
+TcsResult tcs_opt_membership_drop(TcsSocket socket_ctx, const struct TcsAddress* multicast_address)
+{
+    return TCS_ERROR_NOT_IMPLEMENTED;
+}
+
+TcsResult tcs_opt_membership_drop_from(TcsSocket socket_ctx,
+                                       const struct TcsAddress* local_address,
+                                       const struct TcsAddress* multicast_address)
+{
+    if (multicast_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    // TODO(markusl): Add ipv6 support
+    if (multicast_address->family != TCS_AF_IP4)
+        return TCS_ERROR_NOT_IMPLEMENTED;
+
+    struct ip_mreq imr;
+    memset(&imr, 0, sizeof imr);
+    imr.imr_multiaddr.s_addr = htonl(multicast_address->data.ip4.address);
+    if (local_address != NULL)
+        imr.imr_interface.s_addr = htonl(local_address->data.ip4.address);
+
+    return tcs_opt_set(socket_ctx, TCS_SOL_IP, TCS_SO_IP_MEMBERSHIP_DROP, &imr, sizeof(imr));
+}
+
+// ######## Address and Interface Utilities ########
+
+TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, size_t* out_count)
+{
+    return TCS_ERROR_NOT_IMPLEMENTED;
+}
+
+TcsResult tcs_address_resolve(const char* hostname,
+                              TcsAddressFamily address_family,
+                              struct TcsAddress addresses[],
+                              size_t capacity,
+                              size_t* out_count)
 {
     if (hostname == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (found_addresses == NULL && no_of_found_addresses == NULL)
+    if (addresses == NULL && out_count == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (no_of_found_addresses != NULL)
-        *no_of_found_addresses = 0;
+    if (out_count != NULL)
+        *out_count = 0;
 
     ADDRINFOA native_hints;
     memset(&native_hints, 0, sizeof native_hints);
-    TcsReturnCode sts = family2native(address_family, (short*)&native_hints.ai_family);
+    TcsResult sts = family2native(address_family, (short*)&native_hints.ai_family);
     if (sts != TCS_SUCCESS)
         return sts;
 
@@ -996,23 +1185,23 @@ TcsReturnCode tcs_resolve_hostname(const char* hostname,
         return TCS_ERROR_UNKNOWN;
 
     size_t i = 0;
-    if (found_addresses == NULL)
+    if (addresses == NULL)
     {
         for (PADDRINFOA iter = native_addrinfo_list; iter != NULL; iter = iter->ai_next)
             i++;
     }
     else
     {
-        for (PADDRINFOA iter = native_addrinfo_list; iter != NULL && i < found_addresses_length; iter = iter->ai_next)
+        for (PADDRINFOA iter = native_addrinfo_list; iter != NULL && i < capacity; iter = iter->ai_next)
         {
-            TcsReturnCode address_convert_status = native2sockaddr(iter->ai_addr, &found_addresses[i]);
+            TcsResult address_convert_status = native2sockaddr(iter->ai_addr, &addresses[i]);
             if (address_convert_status != TCS_SUCCESS)
                 continue;
             i++;
         }
     }
-    if (no_of_found_addresses != NULL)
-        *no_of_found_addresses = i;
+    if (out_count != NULL)
+        *out_count = i;
 
     freeaddrinfo(native_addrinfo_list);
 
@@ -1022,10 +1211,24 @@ TcsReturnCode tcs_resolve_hostname(const char* hostname,
     return TCS_SUCCESS;
 }
 
-TcsReturnCode tcs_local_interfaces(struct TcsInterface found_interfaces[],
-                                   size_t found_interfaces_length,
-                                   size_t* no_of_found_interfaces)
+TcsResult tcs_address_resolve_timeout(const char* hostname,
+                                      TcsAddressFamily address_family,
+                                      struct TcsAddress addresses[],
+                                      size_t capacity,
+                                      size_t* out_count,
+                                      int timeout_ms)
 {
+    return TCS_ERROR_NOT_IMPLEMENTED;
+}
+
+TcsResult tcs_address_list(unsigned int interface_id_filter,
+                           TcsAddressFamily address_family_filter,
+                           struct TcsInterfaceAddress interface_addresses[],
+                           size_t capacity,
+                           size_t* out_count)
+{
+    return TCS_ERROR_NOT_IMPLEMENTED;
+    /*
     if (found_interfaces == NULL && no_of_found_interfaces == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
@@ -1088,97 +1291,31 @@ TcsReturnCode tcs_local_interfaces(struct TcsInterface found_interfaces[],
         *no_of_found_interfaces = i;
 
     return TCS_SUCCESS;
+    */
 }
 
-TcsReturnCode tcs_set_linger(TcsSocket socket_ctx, bool do_linger, int timeout_seconds)
+TcsResult tcs_address_socket_local(TcsSocket socket_ctx, struct TcsAddress* local_address)
 {
-    if (socket_ctx == TCS_NULLSOCKET)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    struct linger l = {(u_short)do_linger, (u_short)timeout_seconds};
-    return tcs_set_option(socket_ctx, TCS_SOL_SOCKET, TCS_SO_LINGER, &l, sizeof(l));
+    return TCS_ERROR_NOT_IMPLEMENTED;
 }
 
-TcsReturnCode tcs_get_linger(TcsSocket socket_ctx, bool* do_linger, int* timeout_seconds)
+TcsResult tcs_address_socket_remote(TcsSocket socket_ctx, struct TcsAddress* remote_address)
 {
-    if (socket_ctx == TCS_NULLSOCKET || (do_linger == NULL && timeout_seconds == NULL))
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    struct linger l = {0, 0};
-    size_t l_size = sizeof(l);
-    TcsReturnCode sts = tcs_get_option(socket_ctx, TCS_SOL_SOCKET, TCS_SO_LINGER, &l, &l_size);
-    if (sts == TCS_SUCCESS)
-    {
-        if (do_linger)
-            *do_linger = l.l_onoff;
-        if (timeout_seconds)
-            *timeout_seconds = l.l_linger;
-    }
-
-    return sts;
+    return TCS_ERROR_NOT_IMPLEMENTED;
 }
 
-TcsReturnCode tcs_set_receive_timeout(TcsSocket socket_ctx, int timeout_ms)
+TcsResult tcs_address_socket_family(TcsSocket socket_ctx, TcsAddressFamily* out_family)
 {
-    if (socket_ctx == TCS_NULLSOCKET)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    return tcs_set_option(socket_ctx, TCS_SOL_SOCKET, TCS_SO_RCVTIMEO, &timeout_ms, sizeof(timeout_ms));
+    return TCS_ERROR_NOT_IMPLEMENTED;
 }
 
-TcsReturnCode tcs_get_receive_timeout(TcsSocket socket_ctx, int* timeout_ms)
-{
-    if (socket_ctx == TCS_NULLSOCKET || timeout_ms == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
+// tcs_address_parse() is defined in tinycsocket_common.c
+// tcs_address_to_str() is defined in tinycsocket_common.c
+// tcs_address_is_equal() is defined in tinycsocket_common.c
+// tcs_address_is_any() is defined in tinycsocket_common.c
+// tcs_address_is_local() is defined in tinycsocket_common.c
+// tcs_address_is_loopback() is defined in tinycsocket_common.c
+// tcs_address_is_multicast() is defined in tinycsocket_common.c
+// tcs_address_is_broadcast() is defined in tinycsocket_common.c
 
-    DWORD t = 0;
-    size_t t_size = sizeof(t);
-    TcsReturnCode sts = tcs_get_option(socket_ctx, TCS_SOL_SOCKET, TCS_SO_RCVTIMEO, &t, &t_size);
-
-    if (sts == TCS_SUCCESS)
-    {
-        *timeout_ms = (int)t;
-    }
-    return sts;
-}
-
-TcsReturnCode tcs_set_ip_multicast_add(TcsSocket socket_ctx,
-                                       const struct TcsAddress* local_address,
-                                       const struct TcsAddress* multicast_address)
-{
-    if (multicast_address == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    // TODO(markusl): Add ipv6 support
-    if (multicast_address->family != TCS_AF_IP4)
-        return TCS_ERROR_NOT_IMPLEMENTED;
-
-    struct ip_mreq imr;
-    memset(&imr, 0, sizeof imr);
-    imr.imr_multiaddr.s_addr = htonl(multicast_address->data.af_inet.address);
-    if (local_address != NULL)
-        imr.imr_interface.s_addr = htonl(local_address->data.af_inet.address);
-
-    return tcs_set_option(socket_ctx, TCS_SOL_IP, TCS_SO_IP_MEMBERSHIP_ADD, &imr, sizeof(imr));
-}
-
-TcsReturnCode tcs_set_ip_multicast_drop(TcsSocket socket_ctx,
-                                        const struct TcsAddress* local_address,
-                                        const struct TcsAddress* multicast_address)
-{
-    if (multicast_address == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    // TODO(markusl): Add ipv6 support
-    if (multicast_address->family != TCS_AF_IP4)
-        return TCS_ERROR_NOT_IMPLEMENTED;
-
-    struct ip_mreq imr;
-    memset(&imr, 0, sizeof imr);
-    imr.imr_multiaddr.s_addr = htonl(multicast_address->data.af_inet.address);
-    if (local_address != NULL)
-        imr.imr_interface.s_addr = htonl(local_address->data.af_inet.address);
-
-    return tcs_set_option(socket_ctx, TCS_SOL_IP, TCS_SO_IP_MEMBERSHIP_DROP, &imr, sizeof(imr));
-}
 #endif

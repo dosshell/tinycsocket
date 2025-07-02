@@ -37,25 +37,22 @@ int main(void)
     if (tcs_lib_init() != TCS_SUCCESS)
         return show_error("Could not init tinycsocket");
 
-    TcsSocket listen_socket = TCS_NULLSOCKET;
-    TcsSocket child_socket = TCS_NULLSOCKET;
+    TcsSocket listen_socket = TCS_SOCKET_INVALID;
+    TcsSocket child_socket = TCS_SOCKET_INVALID;
 
-    if (tcs_create(&listen_socket, TCS_TYPE_TCP_IP4) != TCS_SUCCESS)
-        return show_error("Could not create a listen socket");
-
-    if (tcs_listen_to(listen_socket, 1212) != TCS_SUCCESS)
-        return show_error("Could not listen");
+    if (tcs_tcp_server_str(&listen_socket, "localhost", 1212) != TCS_SUCCESS)
+        return show_error("Could not create server socket");
 
     if (tcs_accept(listen_socket, &child_socket, NULL) != TCS_SUCCESS)
         return show_error("Could not accept socket");
 
-    if (tcs_destroy(&listen_socket) != TCS_SUCCESS)
+    if (tcs_close(&listen_socket) != TCS_SUCCESS)
         return show_error("Could not close listen socket");
 
     uint8_t recv_buffer[1024];
     size_t recv_size = sizeof(recv_buffer) - sizeof('\0');
     size_t bytes_received = 0;
-    if (tcs_receive(child_socket, recv_buffer, recv_size, TCS_NO_FLAGS, &bytes_received) != TCS_SUCCESS)
+    if (tcs_receive(child_socket, recv_buffer, recv_size, TCS_FLAG_NONE, &bytes_received) != TCS_SUCCESS)
         return show_error("Could not receive data from client");
 
     recv_buffer[bytes_received] = '\0';
@@ -68,7 +65,7 @@ int main(void)
     if (tcs_shutdown(child_socket, TCS_SD_BOTH) != TCS_SUCCESS)
         return show_error("Could not shutdown socket");
 
-    if (tcs_destroy(&child_socket) != TCS_SUCCESS)
+    if (tcs_close(&child_socket) != TCS_SUCCESS)
         return show_error("Could not close socket");
 
     if (tcs_lib_free() != TCS_SUCCESS)

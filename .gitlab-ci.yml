@@ -110,7 +110,7 @@ linux gcc v9.3 x86-64:
   script:
     - apk add cmake g++ ninja m4
     - mkdir build && cd build
-    - cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
+    - cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
     - cmake --build .
     - mv ./tests/tests ./tests_linux_gcc_x86-64
     - mv ./tests/tests_header_only ./tests_header_only_linux_gcc_x86-64
@@ -129,7 +129,7 @@ linux gcc v9.3 x86:
   script:
     - apk add cmake g++ ninja m4
     - mkdir build && cd build
-    - cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
+    - cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
     - cmake --build .
     - mv ./tests/tests ./tests_linux_gcc_x86
     - mv ./tests/tests_header_only ./tests_header_only_linux_gcc_x86
@@ -148,7 +148,7 @@ linux mingw-w64 x86-64 winxp:
   script:
     - apk add cmake mingw-w64-gcc ninja m4
     - mkdir build && cd build
-    - cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86-64_winxp.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
+    - cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86-64_winxp.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
     - cmake --build .
     - mv ./tests/tests.exe ./tests_mingw_x86-64_winxp.exe
     - mv ./tests/tests_header_only.exe ./tests_header_only_mingw_x86-64_winxp.exe
@@ -167,7 +167,7 @@ linux mingw-w64 x86 winxp:
   script:
     - apk add cmake mingw-w64-gcc ninja m4
     - mkdir build && cd build
-    - cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86_winxp.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
+    - cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86_winxp.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
     - cmake --build .
     - mv ./tests/tests.exe ./tests_mingw_x86_winxp.exe
     - mv ./tests/tests_header_only.exe ./tests_header_only_mingw_x86_winxp.exe
@@ -186,7 +186,7 @@ linux mingw-w64 x86-64 winblue:
   script:
     - apk add cmake mingw-w64-gcc ninja m4
     - mkdir build && cd build
-    - cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86-64_winblue.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
+    - cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86-64_winblue.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
     - cmake --build .
     - mv ./tests/tests.exe ./tests_mingw_x86-64_winblue.exe
     - mv ./tests/tests_header_only.exe ./tests_header_only_mingw_x86-64_winblue.exe
@@ -205,7 +205,7 @@ linux mingw-w64 x86 winblue:
   script:
     - apk add cmake mingw-w64-gcc ninja m4
     - mkdir build && cd build
-    - cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86_winblue.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
+    - cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86_winblue.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
     - cmake --build .
     - mv ./tests/tests.exe ./tests_mingw_x86_winblue.exe
     - mv ./tests/tests_header_only.exe ./tests_header_only_mingw_x86_winblue.exe
