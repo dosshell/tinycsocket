@@ -190,6 +190,14 @@ typedef int TcsSocket;
 typedef unsigned int TcsInterfaceId;
 #endif
 
+#ifndef TCS_SENDV_MAX
+#ifdef TCS_SMALL_STACK
+#define TCS_SENDV_MAX 128
+#else
+#define TCS_SENDV_MAX 1024
+#endif
+#endif
+
 /**
  * @brief Address Family
  */
@@ -270,13 +278,8 @@ extern const uint32_t TCS_ADDRESS_NONE_IP4;
 */
 struct TcsBuffer
 {
-#if defined(TINYCSOCKET_USE_WIN32_IMPL)
-    unsigned long length;
-    uint8_t* buffer;
-#elif defined(TINYCSOCKET_USE_POSIX_IMPL)
-    uint8_t* buffer;
-    size_t length;
-#endif
+    const uint8_t* data;
+    size_t size;
 };
 
 extern const TcsSocket TCS_SOCKET_INVALID; /**< Define new sockets to this value, always. */

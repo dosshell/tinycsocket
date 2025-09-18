@@ -21,7 +21,10 @@
  */
 
 #define DOCTEST_CONFIG_IMPLEMENT
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wfloat-equal"
 #include "doctest.h"
+#pragma GCC diagnostic pop
 
 #ifdef DO_WRAP
 #include "dbg_wrap.h"
@@ -378,12 +381,12 @@ TEST_CASE("sendv")
 
     // When
     TcsBuffer send_buffers[3];
-    send_buffers[0].buffer = (uint8_t*)"12345678";
-    send_buffers[0].length = 8;
-    send_buffers[1].buffer = (uint8_t*)"ABCDEFGH";
-    send_buffers[1].length = 8;
-    send_buffers[2].buffer = (uint8_t*)"abcdefgh";
-    send_buffers[2].length = 8;
+    send_buffers[0].data = (const uint8_t*)"12345678";
+    send_buffers[0].size = 8;
+    send_buffers[1].data = (const uint8_t*)"ABCDEFGH";
+    send_buffers[1].size = 8;
+    send_buffers[2].data = (const uint8_t*)"abcdefgh";
+    send_buffers[2].size = 8;
     CHECK(tcs_sendv(client_socket, send_buffers, 3, TCS_FLAG_NONE, NULL) == TCS_SUCCESS);
 
     uint8_t recv_buffer[24] = {0};
@@ -391,7 +394,7 @@ TEST_CASE("sendv")
 
     // Then
     for (int i = 0; i < 3; ++i)
-        CHECK(memcmp(send_buffers[i].buffer, recv_buffer + i * 8, 8) == 0);
+        CHECK(memcmp(send_buffers[i].data, recv_buffer + i * 8, 8) == 0);
 
     // Clean up
     CHECK(tcs_close(&client_socket) == TCS_SUCCESS);

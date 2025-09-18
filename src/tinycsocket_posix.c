@@ -57,6 +57,7 @@
 #include <sys/ioctl.h>   // Flags for ifaddrs
 #include <sys/socket.h>  // pretty much everything
 #include <sys/types.h>   // POSIX.1 compatibility
+#include <sys/uio.h>     // UIO_MAXIOV
 #include <unistd.h>      // close()
 
 // The logic might seem a bit reversed but it is to allow header only usage without defining TCS_AVAILABLE_XXX
@@ -588,36 +589,43 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     if (flags & TCS_MSG_SENDALL)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
-    // We are going to use undefined behavior optimization here, since we are going to use the struct iovec as a TcsBuffer.
-    // We check that the size and offset is the same and hope for the best.
-    // This is not a problem since we are using the same struct, but it is undefined behavior according to the standard.
+    // TCS_SENDV_MAX is default set to 1024. define TCS_SMALL_STACK to use a value of 128.
+    const size_t max_supported_iov =
+        UIO_MAXIOV > TCS_SENDV_MAX ? TCS_SENDV_MAX : UIO_MAXIOV; // min(TCS_SENDV_MAX, UIO_MAXIOV)
+    if (buffer_count > max_supported_iov)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     // Some plattforms (Glibc) do not follow posix. We have mixed size_t and int types for msg_iovlen.
     // We cast it to a narrower unsigned type to avoid warnings for later assignment.
     // If you read this and doesn't like it, you can use probably use the compiler extension typeof() instead
     // to cast it to correct type without warnigns. We can not, since we want to support more compilers.
 
-    if (sizeof(struct TcsBuffer) != sizeof(struct iovec))
-        return TCS_ERROR_NOT_IMPLEMENTED;
-
-    if (offsetof(struct TcsBuffer, length) != offsetof(struct iovec, iov_len))
-        return TCS_ERROR_NOT_IMPLEMENTED;
-
-#if USHRT_MAX < INT_MAX
-    if (buffer_count > USHRT_MAX)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    unsigned short narrow_casted_iovlen = (unsigned short)buffer_count;
+// Check if buffer_count can be placed in an unsigned short
+#if (UIO_MAXIOV > USHRT_MAX && TCS_SENDV_MAX > USHRT_MAX)
+    // You are using a plattform with very narrow unsigned short. Let's hope that your plattform follows POSIX standards here.
+    typedef int SAFE_IOVLEN;
 #else
-    if (buffer_count > UCHAR_MAX)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    unsigned char narrow_casted_iovlen = (unsigned char)buffer_count;
+    typedef unsigned short SAFE_IOVLEN_TYPE;
 #endif
+
+    SAFE_IOVLEN_TYPE narrow_casted_iovlen = (SAFE_IOVLEN_TYPE)buffer_count;
+
+    static struct iovec my_iovec[TCS_SENDV_MAX];
+    for (size_t i = 0; i < buffer_count; i++)
+    {
+        // We know that sendmsg() does not modify the data, so we can safely cast away the const here.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
+        my_iovec[i].iov_base = (void*)buffers[i].data;
+#pragma GCC diagnostic pop
+        my_iovec[i].iov_len = buffers[i].size;
+    }
 
     struct msghdr msg;
     msg.msg_name = NULL;
     msg.msg_namelen = 0;
-    msg.msg_iov = (struct iovec*)buffers; // UB: aliasing optimization here. We also lose const here unfortunately.
-    msg.msg_iovlen = narrow_casted_iovlen;
+    msg.msg_iov = my_iovec;
+    msg.msg_iovlen = narrow_casted_iovlen; // msg_iovlen is size_t or int type.
     msg.msg_control = NULL;
     msg.msg_controllen = 0;
     msg.msg_flags = 0;
