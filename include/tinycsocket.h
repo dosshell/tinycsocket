@@ -277,7 +277,7 @@ extern const uint32_t TCS_ADDRESS_NONE_IP4;
 struct TcsBuffer
 {
     const uint8_t* data;
-    size_t length;
+    size_t size;
 };
 
 extern const TcsSocket TCS_SOCKET_INVALID; /**< Define new sockets to this value, always. */
@@ -2337,11 +2337,11 @@ static inline int tds_map_remove(void** keys,
 #include <linux/if_packet.h> // struct sockaddr_ll
 #endif
 
-#ifndef TCS_MAX_IOVEC
+#ifndef TCS_SENDV_MAX
 #ifdef SMALL_STACK
-#define TCS_MAX_IOVEC 128
+#define TCS_SENDV_MAX 128
 #else
-#define TCS_MAX_IOVEC 1024
+#define TCS_SENDV_MAX 1024
 #endif
 #endif
 
@@ -2852,9 +2852,9 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     if (flags & TCS_MSG_SENDALL)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
-    // TCS_MAX_IOVEC is default set to 1024. define TCS_SMALL_STACK to use smaller value of 128.
+    // TCS_SENDV_MAX is default set to 1024. define TCS_SMALL_STACK to use smaller value of 128.
     const size_t max_supported_iov =
-        UIO_MAXIOV > TCS_MAX_IOVEC ? TCS_MAX_IOVEC : UIO_MAXIOV; // min(TCS_MAX_IOVEC, UIO_MAXIOV)
+        UIO_MAXIOV > TCS_SENDV_MAX ? TCS_SENDV_MAX : UIO_MAXIOV; // min(TCS_SENDV_MAX, UIO_MAXIOV)
     if (buffer_count > max_supported_iov)
         return TCS_ERROR_INVALID_ARGUMENT;
 
@@ -2864,7 +2864,7 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     // to cast it to correct type without warnigns. We can not, since we want to support more compilers.
 
 // Check if buffer_count can be placed in an unsigned short
-#if (UIO_MAXIOV > USHRT_MAX && TCS_MAX_IOVEC > USHRT_MAX)
+#if (UIO_MAXIOV > USHRT_MAX && TCS_SENDV_MAX > USHRT_MAX)
     // You are using a plattform with very narrow unsigned short. Let's hope that your plattform follows POSIX standards here.
     typedef int SAFE_IOVLEN;
 #else
@@ -2873,7 +2873,7 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
 
     SAFE_IOVLEN_TYPE narrow_casted_iovlen = (SAFE_IOVLEN_TYPE)buffer_count;
 
-    static struct iovec my_iovec[TCS_MAX_IOVEC];
+    static struct iovec my_iovec[TCS_SENDV_MAX];
     for (size_t i = 0; i < buffer_count; i++)
     {
         // We know that sendmsg() does not modify the data, so we can safely cast away the const here.
@@ -2881,7 +2881,7 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
 #pragma GCC diagnostic ignored "-Wcast-qual"
         my_iovec[i].iov_base = (void*)buffers[i].data;
 #pragma GCC diagnostic pop
-        my_iovec[i].iov_len = buffers[i].length;
+        my_iovec[i].iov_len = buffers[i].size;
     }
 
     struct msghdr msg;

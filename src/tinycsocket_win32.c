@@ -557,11 +557,18 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     if (flags & TCS_MSG_SENDALL)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
-    //TODO: Fix UB
-    WSABUF* wsa_buffers = (WSABUF*)buffers;
+    if (buffer_count > TCS_SENDV_MAX)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    WSABUF native_buffers[TCS_SENDV_MAX];
+    for (size_t i = 0; i < buffer_count; ++i)
+    {
+        native_buffers[i].buf = (CHAR*)buffers[i].data;
+        native_buffers[i].len = (ULONG)buffers[i].size;
+    }
 
     DWORD sent = 0;
-    int wsasend_status = WSASend(socket_ctx, wsa_buffers, (DWORD)buffer_count, &sent, (DWORD)flags, NULL, NULL);
+    int wsasend_status = WSASend(socket_ctx, native_buffers, (DWORD)buffer_count, &sent, (DWORD)flags, NULL, NULL);
 
     if (bytes_sent != NULL)
         *bytes_sent = (size_t)sent;
