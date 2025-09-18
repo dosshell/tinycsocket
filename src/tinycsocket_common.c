@@ -89,12 +89,71 @@ TcsResult tcs_socket_preset(TcsSocket* socket_ctx, TcsPreset socket_type)
 
 // ######## High-level Socket Creation ########
 
-TcsResult tcs_tcp_server_str(TcsSocket* socket_ctx, const char* local_address, uint16_t port)
+TcsResult tcs_tcp_server(TcsSocket* socket_ctx, const struct TcsAddress* local_address)
 {
-    return TCS_ERROR_NOT_IMPLEMENTED;
+    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (local_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    TcsResult res = tcs_socket(socket_ctx, local_address->family, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
+    if (res != TCS_SUCCESS)
+        return res;
+    res = tcs_bind(*socket_ctx, local_address);
+    if (res != TCS_SUCCESS)
+    {
+        tcs_close(socket_ctx);
+        return res;
+    }
+    res = tcs_listen(*socket_ctx, TCS_BACKLOG_MAX);
+    if (res != TCS_SUCCESS)
+    {
+        tcs_close(socket_ctx);
+        return res;
+    }
+    return TCS_SUCCESS;
 }
 
-TcsResult tcs_tcp_server(TcsSocket* socket_ctx, const struct TcsAddress* local_address)
+TcsResult tcs_tcp_server_str(TcsSocket* socket_ctx, const char* local_address, uint16_t port)
+{
+    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (local_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct TcsAddress bind_address = TCS_ADDRESS_NONE;
+    TcsResult res = tcs_address_parse(local_address, &bind_address);
+    if (res != TCS_SUCCESS)
+        return res;
+    if (bind_address.family != TCS_AF_IP4 && bind_address.family != TCS_AF_IP6)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    uint16_t* parsed_port = NULL;
+    if (bind_address.family == TCS_AF_IP4)
+    {
+        parsed_port = &bind_address.data.ip4.port;
+    }
+    else if (bind_address.family == TCS_AF_IP6)
+    {
+        parsed_port = &bind_address.data.ip6.port;
+    }
+    else
+    {
+        return TCS_ERROR_UNKNOWN;
+    }
+
+    if (port == 0 && *parsed_port == 0)
+        return TCS_ERROR_INVALID_ARGUMENT; // No port specified
+    if (port != 0 && *parsed_port != 0)
+        return TCS_ERROR_INVALID_ARGUMENT; // Port specified in both string and argument
+
+    if (port != 0 && *parsed_port == 0)
+        *parsed_port = port;
+
+    return tcs_tcp_server(socket_ctx, &bind_address);
+}
+
+TcsResult tcs_tcp_client(TcsSocket* socket_ctx, const struct TcsAddress* remote_address, int timeout_ms)
 {
     return TCS_ERROR_NOT_IMPLEMENTED;
 }
@@ -104,7 +163,7 @@ TcsResult tcs_tcp_client_str(TcsSocket* socket_ctx, const char* remote_address, 
     return TCS_ERROR_NOT_IMPLEMENTED;
 }
 
-TcsResult tcs_tcp_client(TcsSocket* socket_ctx, const struct TcsAddress* remote_address, int timeout_ms)
+TcsResult tcs_udp_receiver(TcsSocket* socket_ctx, const struct TcsAddress* local_address)
 {
     return TCS_ERROR_NOT_IMPLEMENTED;
 }
@@ -114,7 +173,7 @@ TcsResult tcs_udp_receiver_str(TcsSocket* socket_ctx, const char* local_address,
     return TCS_ERROR_NOT_IMPLEMENTED;
 }
 
-TcsResult tcs_udp_receiver(TcsSocket* socket_ctx, const struct TcsAddress* local_address)
+TcsResult tcs_udp_sender(TcsSocket* socket_ctx, const struct TcsAddress* remote_address)
 {
     return TCS_ERROR_NOT_IMPLEMENTED;
 }
@@ -124,7 +183,9 @@ TcsResult tcs_udp_sender_str(TcsSocket* socket_ctx, const char* remote_address, 
     return TCS_ERROR_NOT_IMPLEMENTED;
 }
 
-TcsResult tcs_udp_sender(TcsSocket* socket_ctx, const struct TcsAddress* remote_address)
+TcsResult tcs_udp_peer(TcsSocket* socket_ctx,
+                       const struct TcsAddress* local_address,
+                       const struct TcsAddress* remote_address)
 {
     return TCS_ERROR_NOT_IMPLEMENTED;
 }
@@ -134,13 +195,6 @@ TcsResult tcs_udp_peer_str(TcsSocket* socket_ctx,
                            uint16_t local_port,
                            const char* remote_address,
                            uint16_t remote_port)
-{
-    return TCS_ERROR_NOT_IMPLEMENTED;
-}
-
-TcsResult tcs_udp_peer(TcsSocket* socket_ctx,
-                       const struct TcsAddress* local_address,
-                       const struct TcsAddress* remote_address)
 {
     return TCS_ERROR_NOT_IMPLEMENTED;
 }
