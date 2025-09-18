@@ -270,13 +270,8 @@ extern const uint32_t TCS_ADDRESS_NONE_IP4;
 */
 struct TcsBuffer
 {
-#if defined(TINYCSOCKET_USE_WIN32_IMPL)
-    unsigned long length;
-    uint8_t* buffer;
-#elif defined(TINYCSOCKET_USE_POSIX_IMPL)
-    uint8_t* buffer;
+    const uint8_t* data;
     size_t length;
-#endif
 };
 
 extern const TcsSocket TCS_SOCKET_INVALID; /**< Define new sockets to this value, always. */
