@@ -3,7 +3,10 @@ cmake_minimum_required(VERSION 3.10)
 # CMake fix for crosscompile (MinGW-w64)
 set(CMAKE_TRY_COMPILE_TARGET_TYPE "STATIC_LIBRARY")
 
-project(tinycsocket VERSION 0.3)
+project(tinycsocket VERSION 0.4)
+
+include(CheckSymbolExists)
+include(CheckIncludeFile)
 
 # Add warning levels for gcc and msvc
 if(MSVC)
@@ -25,13 +28,13 @@ if(MSVC)
     endif()
     add_definitions("-D_CRT_SECURE_NO_WARNINGS")
 elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
-    set(COMMON_GXX_FLAGS
-        "-Wall -Wextra -pedantic -Winit-self -Wpointer-arith -Wcast-align -Wconversion -Wshadow -Wundef -Wwrite-strings -Wswitch-enum -Wswitch-default"
-    )
-    set(CMAKE_C_FLAGS
-        "${CMAKE_C_FLAGS} ${COMMON_GXX_FLAGS} -Wstrict-prototypes -Wmissing-prototypes -std=c99"
-    )
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_GXX_FLAGS}")
+    # set(COMMON_GXX_FLAGS
+    #     "-Wno-unused-parameter -Wall -Wextra -Wpedantic -Walloca -Wcast-align -Wcast-qual -Wdouble-promotion -Wduplicated-cond -Wenum-conversion -Wfloat-equal -Wformat-overflow=2 -Wformat-signedness -Wformat=2 -Wframe-larger-than=2048 -Wlogical-op -Wmissing-braces -Wmultichar -Wpointer-arith -Wrestrict -Wshadow -Wsuggest-attribute=format -Wsuggest-attribute=malloc -Wuninitialized -Wvla -Wwrite-strings -Wsign-conversion"
+    # )
+    # set(CMAKE_C_FLAGS
+    #     "${CMAKE_C_FLAGS} ${COMMON_GXX_FLAGS} -Wno-unused-parameter -Wall -Wextra -Wpedantic -Walloca -Wcast-align -Wcast-qual -Wdouble-promotion -Wduplicated-cond -Wenum-conversion -Wfloat-equal -Wformat-overflow=2 -Wformat-signedness -Wformat=2 -Wframe-larger-than=2048 -Wlogical-op -Wmissing-braces -Wmultichar -Wpointer-arith -Wrestrict -Wshadow -Wsuggest-attribute=format -Wsuggest-attribute=malloc -Wuninitialized -Wvla -Wwrite-strings -Wsign-conversion -std=c99"
+    # )
+    # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_GXX_FLAGS}")
     add_definitions(
         -D_POSIX_C_SOURCE=200112L
         -D_DEFAULT_SOURCE
@@ -45,10 +48,18 @@ option(TCS_WARNINGS_AS_ERRORS "Enable treat warnings as errors" OFF)
 option(TCS_GENERATE_COVERAGE "Enable for test coverage generation" OFF)
 
 # ifaddrs crossplatform define
-include(CheckSymbolExists)
-check_symbol_exists(getifaddrs "sys/types.h;ifaddrs.h" TCS_HAVE_IFADDRS)
-if(TCS_HAVE_IFADDRS)
-    add_definitions("-DTCS_HAVE_IFADDRS")
+if (NOT MSVC)
+    check_symbol_exists(getifaddrs "sys/types.h;ifaddrs.h" TCS_IFADDRS_FOUND)
+    if(NOT TCS_IFADDRS_FOUND)
+        MESSAGE("TCS warning: Symbol getifaddrs not found. Workaround will be applied.")
+        add_definitions("-DTCS_MISSING_IFADDRS")
+    endif()
+
+    check_include_file("linux/if_packet.h" TCS_AF_PACKET_FOUND)
+    if(NOT TCS_AF_PACKET_FOUND)
+        MESSAGE("TCS warning: Header sys/types.h does not exist. AF_PACKET will not be available.")
+        add_definitions("-DTCS_MISSING_AF_PACKET")
+    endif()
 endif()
 
 set(TINYCSOCKET_SRC
@@ -126,4 +137,27 @@ endif()
 
 if(TCS_ENABLE_EXAMPLES)
     add_subdirectory(examples)
+endif()
+
+# Documentation
+find_package(Doxygen QUIET)
+if(DOXYGEN_FOUND)
+    # Define output directory for Doxygen documentation
+    set(DOXYGEN_OUTPUT_DIR "${CMAKE_BINARY_DIR}/docs")
+    
+    # Add custom target to build documentation
+    add_custom_target(
+        docs
+        COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../docs/Doxyfile
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../docs
+        COMMENT "Generating API documentation with Doxygen"
+        VERBATIM
+    )
+    
+    # Set the target folder for organization in IDEs
+    set_target_properties(docs PROPERTIES FOLDER tinycsocket/docs)
+    
+    message(STATUS "Doxygen found: documentation target 'docs' is available")
+else()
+    message(STATUS "Doxygen not found: documentation target will not be available")
 endif()
