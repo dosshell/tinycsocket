@@ -196,6 +196,14 @@ typedef int TcsSocket;
 typedef unsigned int TcsInterfaceId;
 #endif
 
+#ifndef TCS_SENDV_MAX
+#ifdef TCS_SMALL_STACK
+#define TCS_SENDV_MAX 128
+#else
+#define TCS_SENDV_MAX 1024
+#endif
+#endif
+
 /**
  * @brief Address Family
  */
@@ -2337,14 +2345,6 @@ static inline int tds_map_remove(void** keys,
 #include <linux/if_packet.h> // struct sockaddr_ll
 #endif
 
-#ifndef TCS_SENDV_MAX
-#ifdef SMALL_STACK
-#define TCS_SENDV_MAX 128
-#else
-#define TCS_SENDV_MAX 1024
-#endif
-#endif
-
 #ifndef TDS_MAP_pollfd_pvoid
 #define TDS_MAP_pollfd_pvoid
 TDS_MAP_IMPL(struct pollfd, void*, poll)
@@ -2852,7 +2852,7 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     if (flags & TCS_MSG_SENDALL)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
-    // TCS_SENDV_MAX is default set to 1024. define TCS_SMALL_STACK to use smaller value of 128.
+    // TCS_SENDV_MAX is default set to 1024. define TCS_SMALL_STACK to use a value of 128.
     const size_t max_supported_iov =
         UIO_MAXIOV > TCS_SENDV_MAX ? TCS_SENDV_MAX : UIO_MAXIOV; // min(TCS_SENDV_MAX, UIO_MAXIOV)
     if (buffer_count > max_supported_iov)
@@ -4270,11 +4270,18 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     if (flags & TCS_MSG_SENDALL)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
-    //TODO: Fix UB
-    WSABUF* wsa_buffers = (WSABUF*)buffers;
+    if (buffer_count > TCS_SENDV_MAX)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    WSABUF native_buffers[TCS_SENDV_MAX];
+    for (size_t i = 0; i < buffer_count; ++i)
+    {
+        native_buffers[i].buf = (CHAR*)buffers[i].data;
+        native_buffers[i].len = (ULONG)buffers[i].size;
+    }
 
     DWORD sent = 0;
-    int wsasend_status = WSASend(socket_ctx, wsa_buffers, (DWORD)buffer_count, &sent, (DWORD)flags, NULL, NULL);
+    int wsasend_status = WSASend(socket_ctx, native_buffers, (DWORD)buffer_count, &sent, (DWORD)flags, NULL, NULL);
 
     if (bytes_sent != NULL)
         *bytes_sent = (size_t)sent;
