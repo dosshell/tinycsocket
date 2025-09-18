@@ -45,6 +45,7 @@
 #endif
 
 #include <errno.h>
+#include <fcntl.h>       // fcntl() for non-blocking
 #include <ifaddrs.h>     // getifaddr()
 #include <limits.h>      // IOV_MAX
 #include <net/if.h>      // Flags for ifaddrs (?)
@@ -170,12 +171,17 @@ static TcsResult errno2retcode(int error_code)
 {
     switch (error_code)
     {
+        case EAGAIN:
+#if defined(EWOULDBLOCK) && (EWOULDBLOCK != EAGAIN)
+        case EWOULDBLOCK:
+#endif
+            return TCS_ERROR_WOULD_BLOCK;
+        case EINPROGRESS:
+            return TCS_IN_PROGRESS;
         case EPERM:
             return TCS_ERROR_PERMISSION_DENIED;
         case ECONNREFUSED:
             return TCS_ERROR_CONNECTION_REFUSED;
-        case EAGAIN:
-            return TCS_ERROR_TIMED_OUT;
         case EINVAL:
             return TCS_ERROR_INVALID_ARGUMENT;
         case ENOMEM:
@@ -259,6 +265,30 @@ static TcsResult sockaddr2native(const struct TcsAddress* tcs_address,
     }
 
     return TCS_ERROR_NOT_IMPLEMENTED;
+}
+
+static TcsResult native2family(const sa_family_t native_family, TcsAddressFamily* family)
+{
+    switch (native_family)
+    {
+        case AF_UNSPEC:
+            *family = TCS_AF_ANY;
+            return TCS_SUCCESS;
+        case AF_INET:
+            *family = TCS_AF_IP4;
+            return TCS_SUCCESS;
+        case AF_INET6:
+            *family = TCS_AF_IP6;
+            return TCS_SUCCESS;
+#if TCS_AVAILABLE_AF_PACKET
+        case AF_PACKET:
+            *family = TCS_AF_PACKET;
+            return TCS_SUCCESS;
+#endif
+        default:
+            return TCS_ERROR_NOT_IMPLEMENTED;
+    }
+    return TCS_SUCCESS;
 }
 
 static TcsResult native2sockaddr(const struct sockaddr* in_addr, struct TcsAddress* out_addr)
@@ -670,9 +700,13 @@ TcsResult tcs_receive(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size,
     }
     else
     {
+        // TODO: Improve error codes for non-blocking sockets
         if (bytes_received != NULL)
             *bytes_received = 0;
-        return errno2retcode(errno);
+        if (errno == EAGAIN)
+            return TCS_ERROR_TIMED_OUT;
+        else
+            return errno2retcode(errno);
     }
 }
 
@@ -990,8 +1024,39 @@ TcsResult tcs_opt_linger_get(TcsSocket socket_ctx, bool* do_linger, int* timeout
 // tcs_opt_out_of_band_inline_get() is defined in tinycsocket_common.c
 // tcs_opt_priority_set() is defined in tinycsocket_common.c
 // tcs_opt_priority_get() is defined in tinycsocket_common.c
-// tcs_opt_nonblocking_set() is defined in tinycsocket_common.c
-// tcs_opt_nonblocking_get() is defined in tinycsocket_common.c
+
+TcsResult tcs_opt_nonblocking_set(TcsSocket socket_ctx, bool do_non_blocking)
+{
+    if (socket_ctx == TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    int flags = fcntl(socket_ctx, F_GETFL, 0);
+    if (flags == -1)
+        return errno2retcode(errno);
+
+    if (do_non_blocking)
+        flags |= O_NONBLOCK; /* sätt biten */
+    else
+        flags &= ~O_NONBLOCK; /* rensa biten */
+
+    if (fcntl(socket_ctx, F_SETFL, flags) == -1)
+        return errno2retcode(errno);
+
+    return TCS_SUCCESS;
+}
+
+TcsResult tcs_opt_nonblocking_get(TcsSocket socket_ctx, bool* is_non_blocking)
+{
+    if (socket_ctx == TCS_SOCKET_INVALID || is_non_blocking == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    int flags = fcntl(socket_ctx, F_GETFL, 0);
+    if (flags == -1)
+        return errno2retcode(errno);
+
+    *is_non_blocking = (flags & O_NONBLOCK) != 0;
+    return TCS_SUCCESS;
+}
 
 TcsResult tcs_opt_membership_add(TcsSocket socket_ctx, const struct TcsAddress* multicast_address)
 {
@@ -1263,11 +1328,30 @@ TcsResult tcs_address_resolve(const char* hostname,
     TcsResult family_convert_status = family2native(address_family, (sa_family_t*)&native_hints.ai_family);
     if (family_convert_status != TCS_SUCCESS)
         return family_convert_status;
+    native_hints.ai_flags = AI_NUMERICSERV;
+    native_hints.ai_socktype = SOCK_DGRAM;
+    native_hints.ai_protocol = IPPROTO_UDP;
 
     struct addrinfo* native_addrinfo_list = NULL;
     int sts = getaddrinfo(hostname, NULL, &native_hints, &native_addrinfo_list);
     if (sts == EAI_SYSTEM)
         return errno2retcode(errno);
+    else if (sts == EAI_AGAIN)
+        return TCS_ERROR_TEMPRORARY_FAILURE;
+    else if (sts == EAI_BADFLAGS)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    else if (sts == EAI_FAIL)
+        return TCS_ERROR_ADDRESS_LOOKUP_FAILED;
+    else if (sts == EAI_FAMILY)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    else if (sts == EAI_MEMORY)
+        return TCS_ERROR_MEMORY;
+    else if (sts == EAI_NONAME)
+        return TCS_ERROR_ADDRESS_LOOKUP_FAILED;
+    else if (sts == EAI_SERVICE)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    else if (sts == EAI_SOCKTYPE)
+        return TCS_ERROR_NOT_IMPLEMENTED;
     else if (native_addrinfo_list == NULL)
         return TCS_ERROR_UNKNOWN;
     else if (sts != 0)
@@ -1431,7 +1515,21 @@ TcsResult tcs_address_socket_remote(TcsSocket socket_ctx, struct TcsAddress* rem
 
 TcsResult tcs_address_socket_family(TcsSocket socket_ctx, TcsAddressFamily* out_family)
 {
-    return TCS_ERROR_NOT_IMPLEMENTED;
+    if (socket_ctx == TCS_SOCKET_INVALID || out_family == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct sockaddr_storage native_sockaddr;
+    memset(&native_sockaddr, 0, sizeof native_sockaddr);
+    socklen_t addrlen = sizeof native_sockaddr;
+    if (getsockname(socket_ctx, (struct sockaddr*)&native_sockaddr, &addrlen) != 0)
+        return errno2retcode(errno);
+
+    TcsAddressFamily family = TCS_AF_ANY;
+    TcsResult family_convert_status = native2family(native_sockaddr.ss_family, &family);
+    if (family_convert_status != TCS_SUCCESS)
+        return family_convert_status;
+    *out_family = family;
+    return TCS_SUCCESS;
 }
 
 // tcs_address_parse() is defined in tinycsocket_common.c

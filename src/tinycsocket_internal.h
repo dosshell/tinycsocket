@@ -361,6 +361,7 @@ typedef enum
 
     /* 1–15: Non-fatal return codes */
     TCS_AGAIN = 1,
+    TCS_IN_PROGRESS = 2,
 
     /* -1...-31: General errors */
     TCS_ERROR_UNKNOWN = -1,
@@ -377,6 +378,7 @@ typedef enum
     TCS_ERROR_SOCKET_CLOSED = -35,
     TCS_ERROR_WOULD_BLOCK = -36,
     TCS_ERROR_TIMED_OUT = -37,
+    TCS_ERROR_TEMPRORARY_FAILURE = -38,
 
     /* -64...-95: Configuration errors */
     TCS_ERROR_LIBRARY_NOT_INITIALIZED = -64,
