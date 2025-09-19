@@ -302,8 +302,6 @@ TcsResult tcs_connect_str(TcsSocket socket_ctx, const char* remote_address, uint
     if (remote_address == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    struct TcsAddress found_addresses;
-    size_t no_of_found_addresses = 0;
     TcsAddressFamily socket_family = TCS_AF_ANY;
     TcsResult res = tcs_address_socket_family(socket_ctx, &socket_family);
     if (res != TCS_SUCCESS)
@@ -311,6 +309,9 @@ TcsResult tcs_connect_str(TcsSocket socket_ctx, const char* remote_address, uint
 
     if (socket_family != TCS_AF_IP4 && socket_family != TCS_AF_IP6)
         return TCS_ERROR_NOT_IMPLEMENTED;
+
+    struct TcsAddress found_addresses;
+    size_t no_of_found_addresses = 0;
 
     res = tcs_address_resolve(remote_address, socket_family, &found_addresses, 1, &no_of_found_addresses);
     if (res != TCS_SUCCESS)

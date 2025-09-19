@@ -186,6 +186,8 @@ static TcsResult errno2retcode(int error_code)
             return TCS_ERROR_INVALID_ARGUMENT;
         case ENOMEM:
             return TCS_ERROR_MEMORY;
+        case EAI_SOCKTYPE:
+            return TCS_ERROR_NOT_IMPLEMENTED;
         default:
             return TCS_ERROR_UNKNOWN;
     }
@@ -696,17 +698,28 @@ TcsResult tcs_receive(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size,
     {
         if (bytes_received != NULL)
             *bytes_received = 0;
-        return TCS_ERROR_NOT_CONNECTED; // TODO: think about this
+        return TCS_SHUTDOWN;
     }
     else
     {
-        // TODO: Improve error codes for non-blocking sockets
         if (bytes_received != NULL)
             *bytes_received = 0;
+#if (EAGAIN == EWOULDBLOCK)
         if (errno == EAGAIN)
-            return TCS_ERROR_TIMED_OUT;
-        else
-            return errno2retcode(errno);
+        {
+            bool is_nonblocking = false;
+            int fcntl_flags = fcntl(socket_ctx, F_GETFL, 0);
+            if (fcntl_flags == -1)
+                return errno2retcode(errno);
+            if (fcntl_flags & O_NONBLOCK)
+                is_nonblocking = true;
+            if (is_nonblocking)
+                return TCS_ERROR_WOULD_BLOCK;
+            else
+                return TCS_ERROR_TIMED_OUT;
+        }
+#endif
+        return errno2retcode(errno);
     }
 }
 
@@ -1334,6 +1347,8 @@ TcsResult tcs_address_resolve(const char* hostname,
 
     struct addrinfo* native_addrinfo_list = NULL;
     int sts = getaddrinfo(hostname, NULL, &native_hints, &native_addrinfo_list);
+
+    // TODO: Move error codes to errno2retcode()
     if (sts == EAI_SYSTEM)
         return errno2retcode(errno);
     else if (sts == EAI_AGAIN)
@@ -1350,12 +1365,10 @@ TcsResult tcs_address_resolve(const char* hostname,
         return TCS_ERROR_ADDRESS_LOOKUP_FAILED;
     else if (sts == EAI_SERVICE)
         return TCS_ERROR_INVALID_ARGUMENT;
-    else if (sts == EAI_SOCKTYPE)
-        return TCS_ERROR_NOT_IMPLEMENTED;
     else if (native_addrinfo_list == NULL)
         return TCS_ERROR_UNKNOWN;
     else if (sts != 0)
-        return TCS_ERROR_UNKNOWN;
+        return errno2retcode(sts);
 
     size_t i = 0;
     if (found_addresses == NULL)

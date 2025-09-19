@@ -362,6 +362,7 @@ typedef enum
     /* 1–15: Non-fatal return codes */
     TCS_AGAIN = 1,
     TCS_IN_PROGRESS = 2,
+    TCS_SHUTDOWN = 3,
 
     /* -1...-31: General errors */
     TCS_ERROR_UNKNOWN = -1,
