@@ -206,6 +206,31 @@ TEST_CASE("Bind UDP")
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 
+TEST_CASE("Non-blocking")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    TcsSocket socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_preset(&socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
+
+    // When
+    TcsResult sts = tcs_opt_nonblocking_set(socket, true);
+    bool is_non_blocking = false;
+    TcsResult get_sts = tcs_opt_nonblocking_get(socket, &is_non_blocking);
+
+    CHECK(tcs_connect_str(socket, "127.0.0.1", 1337) == TCS_IN_PROGRESS);
+
+    // Then
+    CHECK(sts == TCS_SUCCESS);
+    CHECK(get_sts == TCS_SUCCESS);
+    CHECK(is_non_blocking == true);
+
+    // Clean up
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
 TEST_CASE("Simple TCP Test")
 {
     // Setup

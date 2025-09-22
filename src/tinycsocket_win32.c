@@ -1102,8 +1102,16 @@ TcsResult tcs_opt_linger_get(TcsSocket socket_ctx, bool* do_linger, int* timeout
 // tcs_opt_out_of_band_inline_get() is defined in tinycsocket_common.c
 // tcs_opt_priority_set() is defined in tinycsocket_common.c
 // tcs_opt_priority_get() is defined in tinycsocket_common.c
-// tcs_opt_nonblocking_set() is defined in tinycsocket_common.c
-// tcs_opt_nonblocking_get() is defined in tinycsocket_common.c
+
+TcsResult tcs_opt_nonblocking_set(TcsSocket socket_ctx, bool do_non_blocking)
+{
+    return TCS_ERROR_NOT_IMPLEMENTED;
+}
+
+TcsResult tcs_opt_nonblocking_get(TcsSocket socket_ctx, bool* is_non_blocking)
+{
+    return TCS_ERROR_NOT_IMPLEMENTED;
+}
 
 TcsResult tcs_opt_membership_add(TcsSocket socket_ctx, const struct TcsAddress* multicast_address)
 {
