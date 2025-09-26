@@ -1081,18 +1081,18 @@ TcsResult tcs_opt_membership_add(TcsSocket socket_ctx, const struct TcsAddress* 
 
     // Todo: Replace with tcs_address_socket() when implemented
     struct sockaddr_storage address_native_local;
-    memset(&address_native_local, 0, sizeof address_native_local);
-    socklen_t address_native_local_size = 0;
+    memset(&address_native_local, 0, sizeof(struct sockaddr_storage));
+    socklen_t address_native_local_size = sizeof(struct sockaddr_storage);
     if (getsockname(socket_ctx, (struct sockaddr*)&address_native_local, &address_native_local_size) != 0)
         return errno2retcode(errno);
-
-    if (address_native_local.ss_family != multicast_address->family)
-        return TCS_ERROR_INVALID_ARGUMENT;
 
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
     TcsResult sts = native2sockaddr((struct sockaddr*)&address_native_local, &local_address);
     if (sts != TCS_SUCCESS)
         return sts;
+
+    if (local_address.family != multicast_address->family)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     return tcs_opt_membership_add_to(socket_ctx, &local_address, multicast_address);
 }
@@ -1114,23 +1114,23 @@ TcsResult tcs_opt_membership_add_to(TcsSocket socket_ctx,
         return TCS_ERROR_INVALID_ARGUMENT;
 
     struct sockaddr_storage local_address_native;
-    memset(&local_address_native, 0, sizeof local_address_native);
-    socklen_t local_address_native_size = 0;
+    memset(&local_address_native, 0, sizeof(struct sockaddr_storage));
+    socklen_t local_address_native_size = sizeof(struct sockaddr_storage);
     TcsResult sts_la2n = sockaddr2native(local_address, &local_address_native, &local_address_native_size);
     if (sts_la2n != TCS_SUCCESS)
         return sts_la2n;
 
     struct sockaddr_storage multicast_address_native;
-    memset(&multicast_address_native, 0, sizeof multicast_address_native);
-    socklen_t multicast_address_native_size = 0;
+    memset(&multicast_address_native, 0, sizeof(struct sockaddr_storage));
+    socklen_t multicast_address_native_size = sizeof(struct sockaddr_storage);
     TcsResult sts_ma2n = sockaddr2native(multicast_address, &multicast_address_native, &multicast_address_native_size);
     if (sts_ma2n != TCS_SUCCESS)
         return sts_ma2n;
 
     if (multicast_address->family == TCS_AF_IP4)
     {
-        struct sockaddr_in* address_native_local_p = (struct sockaddr_in*)&local_address_native;
-        struct sockaddr_in* address_native_multicast_p = (struct sockaddr_in*)&multicast_address_native;
+        const struct sockaddr_in* address_native_local_p = (struct sockaddr_in*)&local_address_native;
+        const struct sockaddr_in* address_native_multicast_p = (struct sockaddr_in*)&multicast_address_native;
 
         struct ip_mreq mreq;
         memset(&mreq, 0, sizeof mreq);
@@ -1150,8 +1150,8 @@ TcsResult tcs_opt_membership_add_to(TcsSocket socket_ctx,
     else if (multicast_address->family == TCS_AF_PACKET)
     {
 #if TCS_AVAILABLE_AF_PACKET
-        struct sockaddr_ll* address_native_local_p = (struct sockaddr_ll*)&local_address_native;
-        struct sockaddr_ll* address_native_multicast_p = (struct sockaddr_ll*)&multicast_address_native;
+        const struct sockaddr_ll* address_native_local_p = (struct sockaddr_ll*)&local_address_native;
+        const struct sockaddr_ll* address_native_multicast_p = (struct sockaddr_ll*)&multicast_address_native;
 
         struct packet_mreq mreq;
         memset(&mreq, 0, sizeof mreq);
@@ -1187,17 +1187,17 @@ TcsResult tcs_opt_membership_drop(TcsSocket socket_ctx, const struct TcsAddress*
     // Todo: Replace with tcs_address_socket() when implemented
     struct sockaddr_storage address_native_local;
     memset(&address_native_local, 0, sizeof address_native_local);
-    socklen_t address_native_local_size = 0;
+    socklen_t address_native_local_size = sizeof(struct sockaddr_storage);
     if (getsockname(socket_ctx, (struct sockaddr*)&address_native_local, &address_native_local_size) != 0)
         return errno2retcode(errno);
-
-    if (address_native_local.ss_family != multicast_address->family)
-        return TCS_ERROR_INVALID_ARGUMENT;
 
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
     TcsResult sts = native2sockaddr((struct sockaddr*)&address_native_local, &local_address);
     if (sts != TCS_SUCCESS)
         return sts;
+
+    if (local_address.family != multicast_address->family)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     return tcs_opt_membership_drop_from(socket_ctx, &local_address, multicast_address);
 }
@@ -1219,14 +1219,14 @@ TcsResult tcs_opt_membership_drop_from(TcsSocket socket_ctx,
         return TCS_ERROR_INVALID_ARGUMENT;
 
     struct sockaddr_storage local_address_native;
-    memset(&local_address_native, 0, sizeof local_address_native);
+    memset(&local_address_native, 0, sizeof(struct sockaddr_storage));
     socklen_t local_address_native_size = 0;
     TcsResult sts_la2n = sockaddr2native(local_address, &local_address_native, &local_address_native_size);
     if (sts_la2n != TCS_SUCCESS)
         return sts_la2n;
 
     struct sockaddr_storage multicast_address_native;
-    memset(&multicast_address_native, 0, sizeof multicast_address_native);
+    memset(&multicast_address_native, 0, sizeof(struct sockaddr_storage));
     socklen_t multicast_address_native_size = 0;
     TcsResult sts_ma2n = sockaddr2native(multicast_address, &multicast_address_native, &multicast_address_native_size);
     if (sts_ma2n != TCS_SUCCESS)
@@ -1234,8 +1234,8 @@ TcsResult tcs_opt_membership_drop_from(TcsSocket socket_ctx,
 
     if (multicast_address->family == TCS_AF_IP4)
     {
-        struct sockaddr_in* address_native_local_p = (struct sockaddr_in*)&local_address_native;
-        struct sockaddr_in* address_native_multicast_p = (struct sockaddr_in*)&multicast_address_native;
+        const struct sockaddr_in* address_native_local_p = (struct sockaddr_in*)&local_address_native;
+        const struct sockaddr_in* address_native_multicast_p = (struct sockaddr_in*)&multicast_address_native;
 
         struct ip_mreq mreq;
         memset(&mreq, 0, sizeof mreq);
@@ -1255,8 +1255,8 @@ TcsResult tcs_opt_membership_drop_from(TcsSocket socket_ctx,
     else if (multicast_address->family == TCS_AF_PACKET)
     {
 #if TCS_AVAILABLE_AF_PACKET
-        struct sockaddr_ll* address_native_local_p = (struct sockaddr_ll*)&local_address_native;
-        struct sockaddr_ll* address_native_multicast_p = (struct sockaddr_ll*)&multicast_address_native;
+        const struct sockaddr_ll* address_native_local_p = (struct sockaddr_ll*)&local_address_native;
+        const struct sockaddr_ll* address_native_multicast_p = (struct sockaddr_ll*)&multicast_address_native;
 
         struct packet_mreq mreq;
         memset(&mreq, 0, sizeof mreq);
