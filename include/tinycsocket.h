@@ -5682,7 +5682,7 @@ TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t bu
         if (is_end)
             break;
 
-        expected_length += (size_t)t - '0';
+        expected_length = expected_length * 10 + ((size_t)t - '0');
     }
 
     if (parsed >= max_header)

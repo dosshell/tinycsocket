@@ -467,6 +467,49 @@ TEST_CASE("Simple TCP Netstring Test")
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 
+TEST_CASE("Netstring with multi-digit length")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    TcsSocket listen_socket = TCS_SOCKET_INVALID;
+    TcsSocket accept_socket = TCS_SOCKET_INVALID;
+    TcsSocket client_socket = TCS_SOCKET_INVALID;
+
+    REQUIRE(tcs_socket_preset(&listen_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
+    REQUIRE(tcs_socket_preset(&client_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
+
+    CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
+    TcsAddress local_address = TCS_ADDRESS_NONE;
+    local_address.family = TCS_AF_IP4;
+    local_address.data.ip4.address = TCS_ADDRESS_ANY_IP4;
+    local_address.data.ip4.port = 1213;
+    CHECK(tcs_bind(listen_socket, &local_address) == TCS_SUCCESS);
+    CHECK(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
+    REQUIRE(tcs_connect_str(client_socket, "localhost", 1213) == TCS_SUCCESS);
+
+    CHECK(tcs_accept(listen_socket, &accept_socket, NULL) == TCS_SUCCESS);
+    CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
+
+    // When
+    uint8_t recv_buffer[64] = {0};
+    const uint8_t* send_buffer = (const uint8_t*)"abcdefghijkl"; // 12 bytes
+    CHECK(tcs_send_netstring(client_socket, send_buffer, 12) == TCS_SUCCESS);
+
+    size_t bytes_received = 0;
+    CHECK(tcs_receive_netstring(accept_socket, recv_buffer, 64, &bytes_received) == TCS_SUCCESS);
+
+    // Then
+    CHECK(bytes_received == 12);
+    CHECK(memcmp(recv_buffer, send_buffer, 12) == 0);
+
+    // Clean up
+    CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
+    CHECK(tcs_close(&accept_socket) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
 // TODO(markusl): Broken on Windows (use nonblocking behind the curton?)
 #ifdef CROSS_ISSUE
 TEST_CASE("shutdown")
