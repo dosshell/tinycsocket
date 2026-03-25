@@ -221,6 +221,7 @@ windows-any tests:
   tags:
     - saas-windows-medium-amd64
   stage: test
+  timeout: 30m
   needs:
     - "windows-any msvc v19.40"
     - "linux mingw-w64 x86-64 winxp"
@@ -287,6 +288,7 @@ linux test x86-64:
     - docker
   image: amd64/alpine:3.23.3
   stage: test
+  timeout: 30m
   needs: ["linux gcc x86-64"]
   script:
     - apk add libstdc++
@@ -305,6 +307,7 @@ linux test x86:
     - docker
   image: i386/alpine:3.23.3
   stage: test
+  timeout: 30m
   needs: ["linux gcc x86"]
   script:
     - apk add libstdc++
