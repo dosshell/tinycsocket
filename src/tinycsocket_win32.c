@@ -402,7 +402,16 @@ TcsResult tcs_connect(TcsSocket socket_ctx, const struct TcsAddress* address)
     if (convert_addr_status != TCS_SUCCESS)
         return convert_addr_status;
     int connect_status = connect(socket_ctx, (PSOCKADDR)&native_sockaddr, addrlen);
-    return socketstatus2retcode(connect_status);
+    if (connect_status == SOCKET_ERROR)
+    {
+        int error_code = WSAGetLastError();
+        // Windows uses WSAEWOULDBLOCK for non-blocking connect in progress,
+        // while POSIX uses EINPROGRESS. Normalize to TCS_IN_PROGRESS.
+        if (error_code == WSAEWOULDBLOCK)
+            return TCS_IN_PROGRESS;
+        return wsaerror2retcode(error_code);
+    }
+    return TCS_SUCCESS;
 }
 
 // tcs_connect_str() is defined in tinycsocket_common.c
