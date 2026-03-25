@@ -18,11 +18,11 @@ code format:
   <<: *only-default
   tags:
     - docker
-  image: alpine:3.12
+  image: alpine:3.23.3
   stage: linting
   needs: []
   script:
-    - apk add clang python3
+    - apk add clang clang-extra-tools python3
     - clang-format --version
     - python3 ./tools/run-clang-format.py -j 1 -r --exclude tests/doctest.h src tests examples
 
@@ -30,7 +30,7 @@ static linting:
   <<: *only-default
   tags:
     - docker
-  image: ubuntu:18.04
+  image: ubuntu:24.04
   stage: linting
   needs: []
   script:
@@ -44,7 +44,7 @@ header updated:
   <<: *only-default
   tags:
     - docker
-  image: amd64/alpine:3.12
+  image: amd64/alpine:3.23.3
   stage: linting
   needs: []
   script:
@@ -57,7 +57,7 @@ posix coverage:
   <<: *only-default
   tags:
     - docker
-  image: amd64/alpine:3.12
+  image: amd64/alpine:3.23.3
   stage: linting
   needs: []
   script:
@@ -100,11 +100,11 @@ windows-any msvc v19.40:
       - ./build/tests_header_only_msvc_debug_x86-64.exe
       - ./build/tests_header_only_msvc_release_x86-64.exe
 
-linux gcc v9.3 x86-64:
+linux gcc x86-64:
   <<: *only-default
   tags:
     - docker
-  image: amd64/alpine:3.12
+  image: amd64/alpine:3.23.3
   stage: build
   needs: []
   script:
@@ -119,9 +119,9 @@ linux gcc v9.3 x86-64:
       - ./build/tests_linux_gcc_x86-64
       - ./build/tests_header_only_linux_gcc_x86-64
 
-linux gcc v9.3 x86:
+linux gcc x86:
   <<: *only-default
-  image: i386/alpine:3.12
+  image: i386/alpine:3.23.3
   stage: build
   needs: []
   tags:
@@ -140,7 +140,7 @@ linux gcc v9.3 x86:
 
 linux mingw-w64 x86-64 winxp:
   <<: *only-default
-  image: amd64/alpine:3.12
+  image: amd64/alpine:3.23.3
   stage: build
   needs: []
   tags:
@@ -159,7 +159,7 @@ linux mingw-w64 x86-64 winxp:
 
 linux mingw-w64 x86 winxp:
   <<: *only-default
-  image: i386/alpine:3.12
+  image: i386/alpine:3.23.3
   stage: build
   needs: []
   tags:
@@ -178,7 +178,7 @@ linux mingw-w64 x86 winxp:
 
 linux mingw-w64 x86-64 winblue:
   <<: *only-default
-  image: amd64/alpine:3.12
+  image: amd64/alpine:3.23.3
   stage: build
   needs: []
   tags:
@@ -197,7 +197,7 @@ linux mingw-w64 x86-64 winblue:
 
 linux mingw-w64 x86 winblue:
   <<: *only-default
-  image: i386/alpine:3.12
+  image: i386/alpine:3.23.3
   stage: build
   needs: []
   tags:
@@ -228,22 +228,22 @@ windows-any tests:
     - "linux mingw-w64 x86-64 winblue"
     - "linux mingw-w64 x86 winblue"
   script:
-    - ./build/tests_msvc_debug_x86.exe --reporters=junit,conosle --out=./report_windows-any_msvc_debug_x86.xml
-    - ./build/tests_msvc_release_x86.exe --reporters=junit,conosle --out=./report_windows-any_msvc_release_x86.xml
-    - ./build/tests_msvc_debug_x86-64.exe --reporters=junit,conosle --out=./report_windows-any_msvc_debug_x86-64.xml
-    - ./build/tests_msvc_release_x86-64.exe --reporters=junit,conosle --out=./report_windows-any_msvc_release_x86-64.xml
-    - ./build/tests_mingw_x86_winxp.exe --reporters=junit,conosle --out=./report_mingw_x86_winxp.xml
-    - ./build/tests_mingw_x86-64_winxp.exe --reporters=junit,conosle --out=./report_mingw_x86-64_winxp.xml
-    - ./build/tests_mingw_x86_winblue.exe --reporters=junit,conosle --out=./report_mingw_x86_winblue.xml
-    - ./build/tests_mingw_x86-64_winblue.exe --reporters=junit,conosle --out=./report_mingw_x86-64_winblue.xml
-    - ./build/tests_header_only_msvc_debug_x86.exe --reporters=junit,conosle --out=./report_header_only_windows-any_msvc_debug_x86.xml
-    - ./build/tests_header_only_msvc_release_x86.exe --reporters=junit,conosle --out=./report_header_only_windows-any_msvc_release_x86.xml
-    - ./build/tests_header_only_msvc_debug_x86-64.exe --reporters=junit,conosle --out=./report_header_only_windows-any_msvc_debug_x86-64.xml
-    - ./build/tests_header_only_msvc_release_x86-64.exe --reporters=junit,conosle --out=./report_header_only_windows-any_msvc_release_x86-64.xml
-    - ./build/tests_header_only_mingw_x86_winxp.exe --reporters=junit,conosle --out=./report_header_only_mingw_x86_winxp.xml
-    - ./build/tests_header_only_mingw_x86-64_winxp.exe --reporters=junit,conosle --out=./report_header_only_mingw_x86-64_winxp.xml
-    - ./build/tests_header_only_mingw_x86_winblue.exe --reporters=junit,conosle --out=./report_header_only_mingw_x86_winblue.xml
-    - ./build/tests_header_only_mingw_x86-64_winblue.exe --reporters=junit,conosle --out=./report_header_only_mingw_x86-64_winblue.xml
+    - ./build/tests_msvc_debug_x86.exe --reporters=junit,console --out=./report_windows-any_msvc_debug_x86.xml
+    - ./build/tests_msvc_release_x86.exe --reporters=junit,console --out=./report_windows-any_msvc_release_x86.xml
+    - ./build/tests_msvc_debug_x86-64.exe --reporters=junit,console --out=./report_windows-any_msvc_debug_x86-64.xml
+    - ./build/tests_msvc_release_x86-64.exe --reporters=junit,console --out=./report_windows-any_msvc_release_x86-64.xml
+    - ./build/tests_mingw_x86_winxp.exe --reporters=junit,console --out=./report_mingw_x86_winxp.xml
+    - ./build/tests_mingw_x86-64_winxp.exe --reporters=junit,console --out=./report_mingw_x86-64_winxp.xml
+    - ./build/tests_mingw_x86_winblue.exe --reporters=junit,console --out=./report_mingw_x86_winblue.xml
+    - ./build/tests_mingw_x86-64_winblue.exe --reporters=junit,console --out=./report_mingw_x86-64_winblue.xml
+    - ./build/tests_header_only_msvc_debug_x86.exe --reporters=junit,console --out=./report_header_only_windows-any_msvc_debug_x86.xml
+    - ./build/tests_header_only_msvc_release_x86.exe --reporters=junit,console --out=./report_header_only_windows-any_msvc_release_x86.xml
+    - ./build/tests_header_only_msvc_debug_x86-64.exe --reporters=junit,console --out=./report_header_only_windows-any_msvc_debug_x86-64.xml
+    - ./build/tests_header_only_msvc_release_x86-64.exe --reporters=junit,console --out=./report_header_only_windows-any_msvc_release_x86-64.xml
+    - ./build/tests_header_only_mingw_x86_winxp.exe --reporters=junit,console --out=./report_header_only_mingw_x86_winxp.xml
+    - ./build/tests_header_only_mingw_x86-64_winxp.exe --reporters=junit,console --out=./report_header_only_mingw_x86-64_winxp.xml
+    - ./build/tests_header_only_mingw_x86_winblue.exe --reporters=junit,console --out=./report_header_only_mingw_x86_winblue.xml
+    - ./build/tests_header_only_mingw_x86-64_winblue.exe --reporters=junit,console --out=./report_header_only_mingw_x86-64_winblue.xml
   artifacts:
     reports:
       junit:
@@ -271,8 +271,8 @@ windows-any tests:
 #  stage: test
 #  needs: ["windows-any msvc v19.40"]
 #  script:
-#    - ./build/tests_msvc_release_x86 --reporters=junit,conosle --out=./report_winxp_msvc_x86.xml
-#    - ./build/tests_header_only_msvc_release_x86 --reporters=junit,conosle --out=./report_header_only_winxp_msvc_x86.xml
+#    - ./build/tests_msvc_release_x86 --reporters=junit,console --out=./report_winxp_msvc_x86.xml
+#    - ./build/tests_header_only_msvc_release_x86 --reporters=junit,console --out=./report_header_only_winxp_msvc_x86.xml
 #  artifacts:
 #    reports:
 #      junit:
@@ -284,13 +284,13 @@ linux test x86-64:
   <<: *only-default
   tags:
     - docker
-  image: amd64/alpine:3.12
+  image: amd64/alpine:3.23.3
   stage: test
-  needs: ["linux gcc v9.3 x86-64"]
+  needs: ["linux gcc x86-64"]
   script:
     - apk add libstdc++
-    - ./build/tests_linux_gcc_x86-64 --reporters=junit,conosle --out=./report_linux_gcc_x86.xml
-    - ./build/tests_header_only_linux_gcc_x86-64 --reporters=junit,conosle --out=./report_header_only_linux_gcc_x86.xml
+    - ./build/tests_linux_gcc_x86-64 --reporters=junit,console --out=./report_linux_gcc_x86-64.xml
+    - ./build/tests_header_only_linux_gcc_x86-64 --reporters=junit,console --out=./report_header_only_linux_gcc_x86-64.xml
   artifacts:
     reports:
       junit:
@@ -301,13 +301,13 @@ linux test x86:
   <<: *only-default
   tags:
     - docker
-  image: i386/alpine:3.12
+  image: i386/alpine:3.23.3
   stage: test
-  needs: ["linux gcc v9.3 x86"]
+  needs: ["linux gcc x86"]
   script:
     - apk add libstdc++
-    - ./build/tests_linux_gcc_x86 --reporters=junit,conosle --out=./report_linux_gcc_x86.xml
-    - ./build/tests_header_only_linux_gcc_x86 --reporters=junit,conosle --out=./report_header_only_linux_gcc_x86.xml
+    - ./build/tests_linux_gcc_x86 --reporters=junit,console --out=./report_linux_gcc_x86.xml
+    - ./build/tests_header_only_linux_gcc_x86 --reporters=junit,console --out=./report_header_only_linux_gcc_x86.xml
   artifacts:
     reports:
       junit:
@@ -320,12 +320,14 @@ sphinx:
   <<: *only-default
   tags:
     - docker
-  image: ubuntu:22.04
+  image: ubuntu:24.04
   stage: deploy
   needs: []
+  variables:
+    TZ: UTC
   script:
     - apt update
     - apt install -y python3-pip make doxygen
-    - pip3 install -r docs/requirements.txt
+    - pip3 install --break-system-packages -r docs/requirements.txt
     - cd docs
     - make html
