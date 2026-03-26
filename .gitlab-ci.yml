@@ -214,6 +214,25 @@ linux mingw-w64 x86 winblue:
       - ./build/tests_mingw_x86_winblue.exe
       - ./build/tests_header_only_mingw_x86_winblue.exe
 
+linux mingw-w64 x86 win2k:
+  <<: *only-default
+  image: i386/alpine:3.23.3
+  stage: build
+  needs: []
+  tags:
+    - docker
+  script:
+    - apk add cmake mingw-w64-gcc ninja m4
+    - mkdir build && cd build
+    - cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86_win2k.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
+    - cmake --build .
+    - mv ./tests/tests.exe ./tests_mingw_x86_win2k.exe
+    - mv ./tests/tests_header_only.exe ./tests_header_only_mingw_x86_win2k.exe
+  artifacts:
+    paths:
+      - ./build/tests_mingw_x86_win2k.exe
+      - ./build/tests_header_only_mingw_x86_win2k.exe
+
 # TESTS
 
 windows-any tests:
@@ -228,6 +247,7 @@ windows-any tests:
     - "linux mingw-w64 x86 winxp"
     - "linux mingw-w64 x86-64 winblue"
     - "linux mingw-w64 x86 winblue"
+    - "linux mingw-w64 x86 win2k"
   script:
     - ./build/tests_msvc_debug_x86.exe --reporters=junit --out=./report_windows-any_msvc_debug_x86.xml
     - ./build/tests_msvc_release_x86.exe --reporters=junit --out=./report_windows-any_msvc_release_x86.xml
@@ -237,6 +257,7 @@ windows-any tests:
     - ./build/tests_mingw_x86-64_winxp.exe --reporters=junit --out=./report_mingw_x86-64_winxp.xml
     - ./build/tests_mingw_x86_winblue.exe --reporters=junit --out=./report_mingw_x86_winblue.xml
     - ./build/tests_mingw_x86-64_winblue.exe --reporters=junit --out=./report_mingw_x86-64_winblue.xml
+    - ./build/tests_mingw_x86_win2k.exe --reporters=junit --out=./report_mingw_x86_win2k.xml
     - ./build/tests_header_only_msvc_debug_x86.exe --reporters=junit --out=./report_header_only_windows-any_msvc_debug_x86.xml
     - ./build/tests_header_only_msvc_release_x86.exe --reporters=junit --out=./report_header_only_windows-any_msvc_release_x86.xml
     - ./build/tests_header_only_msvc_debug_x86-64.exe --reporters=junit --out=./report_header_only_windows-any_msvc_debug_x86-64.xml
@@ -245,6 +266,7 @@ windows-any tests:
     - ./build/tests_header_only_mingw_x86-64_winxp.exe --reporters=junit --out=./report_header_only_mingw_x86-64_winxp.xml
     - ./build/tests_header_only_mingw_x86_winblue.exe --reporters=junit --out=./report_header_only_mingw_x86_winblue.xml
     - ./build/tests_header_only_mingw_x86-64_winblue.exe --reporters=junit --out=./report_header_only_mingw_x86-64_winblue.xml
+    - ./build/tests_header_only_mingw_x86_win2k.exe --reporters=junit --out=./report_header_only_mingw_x86_win2k.xml
   artifacts:
     when: always
     paths:
@@ -256,6 +278,7 @@ windows-any tests:
       - report_mingw_x86-64_winxp.xml
       - report_mingw_x86_winblue.xml
       - report_mingw_x86-64_winblue.xml
+      - report_mingw_x86_win2k.xml
       - report_header_only_windows-any_msvc_debug_x86.xml
       - report_header_only_windows-any_msvc_release_x86.xml
       - report_header_only_windows-any_msvc_debug_x86-64.xml
@@ -264,6 +287,7 @@ windows-any tests:
       - report_header_only_mingw_x86-64_winxp.xml
       - report_header_only_mingw_x86_winblue.xml
       - report_header_only_mingw_x86-64_winblue.xml
+      - report_header_only_mingw_x86_win2k.xml
     reports:
       junit:
         - report_windows-any_msvc_debug_x86.xml
@@ -274,6 +298,7 @@ windows-any tests:
         - report_mingw_x86-64_winxp.xml
         - report_mingw_x86_winblue.xml
         - report_mingw_x86-64_winblue.xml
+        - report_mingw_x86_win2k.xml
         - report_header_only_windows-any_msvc_debug_x86.xml
         - report_header_only_windows-any_msvc_release_x86.xml
         - report_header_only_windows-any_msvc_debug_x86-64.xml
@@ -282,6 +307,7 @@ windows-any tests:
         - report_header_only_mingw_x86-64_winxp.xml
         - report_header_only_mingw_x86_winblue.xml
         - report_header_only_mingw_x86-64_winblue.xml
+        - report_header_only_mingw_x86_win2k.xml
 
 #winxp tests x86:
 #  <<: *only-default
@@ -343,6 +369,7 @@ linux wine test x86:
   needs:
     - "linux mingw-w64 x86 winxp"
     - "linux mingw-w64 x86 winblue"
+    - "linux mingw-w64 x86 win2k"
   variables:
     WINEDEBUG: "-all"
     XDG_RUNTIME_DIR: "/tmp/runtime"
@@ -353,6 +380,8 @@ linux wine test x86:
     - wine ./build/tests_header_only_mingw_x86_winxp.exe --reporters=junit --out=./report_wine_header_only_mingw_x86_winxp.xml
     - wine ./build/tests_mingw_x86_winblue.exe --reporters=junit --out=./report_wine_mingw_x86_winblue.xml
     - wine ./build/tests_header_only_mingw_x86_winblue.exe --reporters=junit --out=./report_wine_header_only_mingw_x86_winblue.xml
+    - wine ./build/tests_mingw_x86_win2k.exe --reporters=junit --out=./report_wine_mingw_x86_win2k.xml
+    - wine ./build/tests_header_only_mingw_x86_win2k.exe --reporters=junit --out=./report_wine_header_only_mingw_x86_win2k.xml
   artifacts:
     when: always
     paths:
@@ -360,12 +389,16 @@ linux wine test x86:
       - report_wine_header_only_mingw_x86_winxp.xml
       - report_wine_mingw_x86_winblue.xml
       - report_wine_header_only_mingw_x86_winblue.xml
+      - report_wine_mingw_x86_win2k.xml
+      - report_wine_header_only_mingw_x86_win2k.xml
     reports:
       junit:
         - report_wine_mingw_x86_winxp.xml
         - report_wine_header_only_mingw_x86_winxp.xml
         - report_wine_mingw_x86_winblue.xml
         - report_wine_header_only_mingw_x86_winblue.xml
+        - report_wine_mingw_x86_win2k.xml
+        - report_wine_header_only_mingw_x86_win2k.xml
 
 linux test x86-64:
   <<: *only-default
