@@ -17,8 +17,8 @@ int main(int argc, const char* argv[])
 {
     tcs_lib_init();
 
-    TcsSocket client_socket = TCS_NULLSOCKET;
-    tcs_create(&client_socket, TCS_PRESET_TCP_IP4);
+    TcsSocket client_socket = TCS_SOCKET_INVALID;
+    tcs_socket_preset(&client_socket, TCS_PRESET_TCP_IP4);
     tcs_connect_str(client_socket, "example.com", 80);
 
     uint8_t send_buffer[] = "GET / HTTP/1.1\nHost: example.com\n\n";
@@ -26,10 +26,10 @@ int main(int argc, const char* argv[])
 
     uint8_t recv_buffer[8192] = {0};
     size_t bytes_received = 0;
-    tcs_receive(client_socket, recv_buffer, 8192, TCS_NO_FLAGS, &bytes_received);
+    tcs_receive(client_socket, recv_buffer, 8192, TCS_FLAG_NONE, &bytes_received);
 
     tcs_shutdown(client_socket, TCS_SD_BOTH);
-    tcs_destroy(&client_socket);
+    tcs_close(&client_socket);
 
     tcs_lib_free();
 }
@@ -94,7 +94,7 @@ include(FetchContent)
 FetchContent_Declare(
     tinycsocket
     GIT_REPOSITORY https://gitlab.com/dosshell/tinycsocket.git
-    GIT_TAG v0.3  # Use the latest version tag, or master if you want the break your build system in the future
+    GIT_TAG v0.4  # Use the latest version tag, or master if you want to break your build system in the future
 )
 FetchContent_MakeAvailable(tinycsocket)
 
