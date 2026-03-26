@@ -70,8 +70,8 @@ TEST_CASE("Example from README")
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
 
     TcsSocket client_socket = TCS_SOCKET_INVALID;
-    CHECK(tcs_socket_preset(&client_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
-    CHECK(tcs_connect_str(client_socket, "example.com", 80) == TCS_SUCCESS);
+    REQUIRE(tcs_socket_preset(&client_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
+    REQUIRE(tcs_connect_str(client_socket, "example.com", 80) == TCS_SUCCESS);
 
     uint8_t send_buffer[] = "GET / HTTP/1.1\nHost: example.com\n\n";
     CHECK(tcs_send(client_socket, send_buffer, sizeof(send_buffer), TCS_MSG_SENDALL, NULL) == TCS_SUCCESS);
@@ -213,7 +213,7 @@ TEST_CASE("Non-blocking")
 
     // Given
     TcsSocket socket = TCS_SOCKET_INVALID;
-    CHECK(tcs_socket_preset(&socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
+    REQUIRE(tcs_socket_preset(&socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
 
     // When
     TcsResult sts = tcs_opt_nonblocking_set(socket, true);
@@ -241,8 +241,8 @@ TEST_CASE("Simple TCP Test")
     TcsSocket accept_socket = TCS_SOCKET_INVALID;
     TcsSocket client_socket = TCS_SOCKET_INVALID;
 
-    CHECK(tcs_socket_preset(&listen_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
-    CHECK(tcs_socket_preset(&client_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
+    REQUIRE(tcs_socket_preset(&listen_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
+    REQUIRE(tcs_socket_preset(&client_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
 
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
@@ -250,8 +250,8 @@ TEST_CASE("Simple TCP Test")
     local_address.data.ip4.address = TCS_ADDRESS_ANY_IP4;
     local_address.data.ip4.port = 1212;
     CHECK(tcs_bind(listen_socket, &local_address) == TCS_SUCCESS);
-    CHECK(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
-    CHECK(tcs_connect_str(client_socket, "localhost", 1212) == TCS_SUCCESS);
+    REQUIRE(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
+    REQUIRE(tcs_connect_str(client_socket, "localhost", 1212) == TCS_SUCCESS);
 
     CHECK(tcs_accept(listen_socket, &accept_socket, NULL) == TCS_SUCCESS);
     CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
@@ -281,8 +281,8 @@ TEST_CASE("Simple 2 msg tcs_receive_line")
     TcsSocket server_socket = TCS_SOCKET_INVALID;
     TcsSocket client_socket = TCS_SOCKET_INVALID;
 
-    CHECK(tcs_socket_preset(&listen_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
-    CHECK(tcs_socket_preset(&client_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
+    REQUIRE(tcs_socket_preset(&listen_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
+    REQUIRE(tcs_socket_preset(&client_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
 
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
@@ -291,7 +291,7 @@ TEST_CASE("Simple 2 msg tcs_receive_line")
     local_address.data.ip4.port = 1212;
     CHECK(tcs_bind(listen_socket, &local_address) == TCS_SUCCESS);
     CHECK(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
-    CHECK(tcs_connect_str(client_socket, "localhost", 1212) == TCS_SUCCESS);
+    REQUIRE(tcs_connect_str(client_socket, "localhost", 1212) == TCS_SUCCESS);
 
     CHECK(tcs_accept(listen_socket, &server_socket, NULL) == TCS_SUCCESS);
     CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
@@ -341,8 +341,8 @@ TEST_CASE("Partial msg tcs_receive_line")
     TcsSocket server_socket = TCS_SOCKET_INVALID;
     TcsSocket client_socket = TCS_SOCKET_INVALID;
 
-    CHECK(tcs_socket_preset(&listen_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
-    CHECK(tcs_socket_preset(&client_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
+    REQUIRE(tcs_socket_preset(&listen_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
+    REQUIRE(tcs_socket_preset(&client_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
 
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     TcsAddress local_address = TCS_ADDRESS_NONE;
@@ -350,8 +350,8 @@ TEST_CASE("Partial msg tcs_receive_line")
     local_address.data.ip4.address = TCS_ADDRESS_ANY_IP4;
     local_address.data.ip4.port = 1212;
     CHECK(tcs_bind(listen_socket, &local_address) == TCS_SUCCESS);
-    CHECK(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
-    CHECK(tcs_connect_str(client_socket, "localhost", 1212) == TCS_SUCCESS);
+    REQUIRE(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
+    REQUIRE(tcs_connect_str(client_socket, "localhost", 1212) == TCS_SUCCESS);
 
     CHECK(tcs_accept(listen_socket, &server_socket, NULL) == TCS_SUCCESS);
     CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
@@ -389,8 +389,8 @@ TEST_CASE("sendv")
     TcsSocket accept_socket = TCS_SOCKET_INVALID;
     TcsSocket client_socket = TCS_SOCKET_INVALID;
 
-    CHECK(tcs_socket_preset(&listen_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
-    CHECK(tcs_socket_preset(&client_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
+    REQUIRE(tcs_socket_preset(&listen_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
+    REQUIRE(tcs_socket_preset(&client_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
 
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     TcsAddress local_address = TCS_ADDRESS_NONE;
@@ -398,8 +398,8 @@ TEST_CASE("sendv")
     local_address.data.ip4.address = TCS_ADDRESS_ANY_IP4;
     local_address.data.ip4.port = 1212;
     CHECK(tcs_bind(listen_socket, &local_address) == TCS_SUCCESS);
-    CHECK(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
-    CHECK(tcs_connect_str(client_socket, "localhost", 1212) == TCS_SUCCESS);
+    REQUIRE(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
+    REQUIRE(tcs_connect_str(client_socket, "localhost", 1212) == TCS_SUCCESS);
 
     CHECK(tcs_accept(listen_socket, &accept_socket, NULL) == TCS_SUCCESS);
     CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
@@ -437,8 +437,8 @@ TEST_CASE("Simple TCP Netstring Test")
     TcsSocket accept_socket = TCS_SOCKET_INVALID;
     TcsSocket client_socket = TCS_SOCKET_INVALID;
 
-    CHECK(tcs_socket_preset(&listen_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
-    CHECK(tcs_socket_preset(&client_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
+    REQUIRE(tcs_socket_preset(&listen_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
+    REQUIRE(tcs_socket_preset(&client_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
 
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     TcsAddress local_address = TCS_ADDRESS_NONE;
@@ -446,8 +446,8 @@ TEST_CASE("Simple TCP Netstring Test")
     local_address.data.ip4.address = TCS_ADDRESS_ANY_IP4;
     local_address.data.ip4.port = 1212;
     CHECK(tcs_bind(listen_socket, &local_address) == TCS_SUCCESS);
-    CHECK(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
-    CHECK(tcs_connect_str(client_socket, "localhost", 1212) == TCS_SUCCESS);
+    REQUIRE(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
+    REQUIRE(tcs_connect_str(client_socket, "localhost", 1212) == TCS_SUCCESS);
 
     CHECK(tcs_accept(listen_socket, &accept_socket, NULL) == TCS_SUCCESS);
     CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
