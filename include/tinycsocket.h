@@ -1271,7 +1271,7 @@ TcsResult tcs_packet_peer_str(TcsSocket* socket_ctx,
  *
  * @param[out] socket_ctx  Pointer to a #TcsSocket handle that will be initialized on success. Must be set to
  *                         #TCS_SOCKET_INVALID before the call.
- * @param[in]  interface   Pointer to a ::TcsInterface structure that identifies the interface to capture from.
+ * @param[in]  iface      Pointer to a ::TcsInterface structure that identifies the interface to capture from.
  *
  * @retval TCS_SUCCESS          Socket created successfully.
  * @retval TCS_ERR_PERMISSION   Operation not permitted (may require CAP_NET_RAW).
@@ -1749,7 +1749,7 @@ TcsResult tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx);
 * @brief Remove a socket from the pool.
 *
 * @param[in] pool is your in-out pool context pointer created with @p tcs_pool_create().
-* @param[in, out] events is an array with in-out events. Assign each element to #TCS_EVENT_NONE.
+* @param[in, out] events is an array with in-out events. Assign each element to #TCS_POOL_EVENT_EMPTY.
 * @param events_count number of in elements in your events array. Does not make sense to have more events than number of sockets int the pool. If to short, all events may not be returned.
 * @param[out] events_populated will contain the number of events the parameter ev has been populated with by the call.
 * @param timeout_in_ms is the maximum wait time for any event. If any event happens before this time, the call will return immediately.
@@ -1884,8 +1884,8 @@ TcsResult tcs_address_socket_family(TcsSocket socket_ctx, TcsAddressFamily* out_
  *
  * Note that this function will not perform DNS resolution. Use ::tcs_address_resolve() for that.
  *
- * @param address
- * @param out_str
+ * @param str
+ * @param out_address
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  */
 TcsResult tcs_address_parse(const char str[], struct TcsAddress* out_address);
