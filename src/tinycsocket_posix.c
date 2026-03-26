@@ -1336,6 +1336,20 @@ TcsResult tcs_address_resolve(const char* hostname,
     if (no_of_found_addresses != NULL)
         *no_of_found_addresses = 0;
 
+    // Fast path: try numeric/MAC parse first to avoid DNS lookup
+    struct TcsAddress parsed = TCS_ADDRESS_NONE;
+    if (tcs_address_parse(hostname, &parsed) == TCS_SUCCESS && parsed.family != TCS_AF_ANY)
+    {
+        if (address_family == TCS_AF_ANY || parsed.family == address_family)
+        {
+            if (found_addresses != NULL && found_addresses_length > 0)
+                found_addresses[0] = parsed;
+            if (no_of_found_addresses != NULL)
+                *no_of_found_addresses = 1;
+            return TCS_SUCCESS;
+        }
+    }
+
     struct addrinfo native_hints;
     memset(&native_hints, 0, sizeof native_hints);
     TcsResult family_convert_status = family2native(address_family, (sa_family_t*)&native_hints.ai_family);

@@ -1194,6 +1194,20 @@ TcsResult tcs_address_resolve(const char* hostname,
     if (out_count != NULL)
         *out_count = 0;
 
+    // Fast path: try numeric/MAC parse first to avoid DNS lookup
+    struct TcsAddress parsed = TCS_ADDRESS_NONE;
+    if (tcs_address_parse(hostname, &parsed) == TCS_SUCCESS && parsed.family != TCS_AF_ANY)
+    {
+        if (address_family == TCS_AF_ANY || parsed.family == address_family)
+        {
+            if (addresses != NULL && capacity > 0)
+                addresses[0] = parsed;
+            if (out_count != NULL)
+                *out_count = 1;
+            return TCS_SUCCESS;
+        }
+    }
+
     ADDRINFOA native_hints;
     memset(&native_hints, 0, sizeof native_hints);
     TcsResult sts = family2native(address_family, (short*)&native_hints.ai_family);
