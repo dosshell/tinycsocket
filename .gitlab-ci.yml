@@ -229,24 +229,41 @@ windows-any tests:
     - "linux mingw-w64 x86-64 winblue"
     - "linux mingw-w64 x86 winblue"
   script:
-    - ./build/tests_msvc_debug_x86.exe --reporters=junit,console --out=./report_windows-any_msvc_debug_x86.xml
-    - ./build/tests_msvc_release_x86.exe --reporters=junit,console --out=./report_windows-any_msvc_release_x86.xml
-    - ./build/tests_msvc_debug_x86-64.exe --reporters=junit,console --out=./report_windows-any_msvc_debug_x86-64.xml
-    - ./build/tests_msvc_release_x86-64.exe --reporters=junit,console --out=./report_windows-any_msvc_release_x86-64.xml
-    - ./build/tests_mingw_x86_winxp.exe --reporters=junit,console --out=./report_mingw_x86_winxp.xml
-    - ./build/tests_mingw_x86-64_winxp.exe --reporters=junit,console --out=./report_mingw_x86-64_winxp.xml
-    - ./build/tests_mingw_x86_winblue.exe --reporters=junit,console --out=./report_mingw_x86_winblue.xml
-    - ./build/tests_mingw_x86-64_winblue.exe --reporters=junit,console --out=./report_mingw_x86-64_winblue.xml
-    - ./build/tests_header_only_msvc_debug_x86.exe --reporters=junit,console --out=./report_header_only_windows-any_msvc_debug_x86.xml
-    - ./build/tests_header_only_msvc_release_x86.exe --reporters=junit,console --out=./report_header_only_windows-any_msvc_release_x86.xml
-    - ./build/tests_header_only_msvc_debug_x86-64.exe --reporters=junit,console --out=./report_header_only_windows-any_msvc_debug_x86-64.xml
-    - ./build/tests_header_only_msvc_release_x86-64.exe --reporters=junit,console --out=./report_header_only_windows-any_msvc_release_x86-64.xml
-    - ./build/tests_header_only_mingw_x86_winxp.exe --reporters=junit,console --out=./report_header_only_mingw_x86_winxp.xml
-    - ./build/tests_header_only_mingw_x86-64_winxp.exe --reporters=junit,console --out=./report_header_only_mingw_x86-64_winxp.xml
-    - ./build/tests_header_only_mingw_x86_winblue.exe --reporters=junit,console --out=./report_header_only_mingw_x86_winblue.xml
-    - ./build/tests_header_only_mingw_x86-64_winblue.exe --reporters=junit,console --out=./report_header_only_mingw_x86-64_winblue.xml
+    - ./build/tests_msvc_debug_x86.exe --reporters=junit --out=./report_windows-any_msvc_debug_x86.xml
+    - ./build/tests_msvc_release_x86.exe --reporters=junit --out=./report_windows-any_msvc_release_x86.xml
+    - ./build/tests_msvc_debug_x86-64.exe --reporters=junit --out=./report_windows-any_msvc_debug_x86-64.xml
+    - ./build/tests_msvc_release_x86-64.exe --reporters=junit --out=./report_windows-any_msvc_release_x86-64.xml
+    - ./build/tests_mingw_x86_winxp.exe --reporters=junit --out=./report_mingw_x86_winxp.xml
+    - ./build/tests_mingw_x86-64_winxp.exe --reporters=junit --out=./report_mingw_x86-64_winxp.xml
+    - ./build/tests_mingw_x86_winblue.exe --reporters=junit --out=./report_mingw_x86_winblue.xml
+    - ./build/tests_mingw_x86-64_winblue.exe --reporters=junit --out=./report_mingw_x86-64_winblue.xml
+    - ./build/tests_header_only_msvc_debug_x86.exe --reporters=junit --out=./report_header_only_windows-any_msvc_debug_x86.xml
+    - ./build/tests_header_only_msvc_release_x86.exe --reporters=junit --out=./report_header_only_windows-any_msvc_release_x86.xml
+    - ./build/tests_header_only_msvc_debug_x86-64.exe --reporters=junit --out=./report_header_only_windows-any_msvc_debug_x86-64.xml
+    - ./build/tests_header_only_msvc_release_x86-64.exe --reporters=junit --out=./report_header_only_windows-any_msvc_release_x86-64.xml
+    - ./build/tests_header_only_mingw_x86_winxp.exe --reporters=junit --out=./report_header_only_mingw_x86_winxp.xml
+    - ./build/tests_header_only_mingw_x86-64_winxp.exe --reporters=junit --out=./report_header_only_mingw_x86-64_winxp.xml
+    - ./build/tests_header_only_mingw_x86_winblue.exe --reporters=junit --out=./report_header_only_mingw_x86_winblue.xml
+    - ./build/tests_header_only_mingw_x86-64_winblue.exe --reporters=junit --out=./report_header_only_mingw_x86-64_winblue.xml
   artifacts:
     when: always
+    paths:
+      - report_windows-any_msvc_debug_x86.xml
+      - report_windows-any_msvc_release_x86.xml
+      - report_windows-any_msvc_debug_x86-64.xml
+      - report_windows-any_msvc_release_x86-64.xml
+      - report_mingw_x86_winxp.xml
+      - report_mingw_x86-64_winxp.xml
+      - report_mingw_x86_winblue.xml
+      - report_mingw_x86-64_winblue.xml
+      - report_header_only_windows-any_msvc_debug_x86.xml
+      - report_header_only_windows-any_msvc_release_x86.xml
+      - report_header_only_windows-any_msvc_debug_x86-64.xml
+      - report_header_only_windows-any_msvc_release_x86-64.xml
+      - report_header_only_mingw_x86_winxp.xml
+      - report_header_only_mingw_x86-64_winxp.xml
+      - report_header_only_mingw_x86_winblue.xml
+      - report_header_only_mingw_x86-64_winblue.xml
     reports:
       junit:
         - report_windows-any_msvc_debug_x86.xml
@@ -273,8 +290,8 @@ windows-any tests:
 #  stage: test
 #  needs: ["windows-any msvc v19.40"]
 #  script:
-#    - ./build/tests_msvc_release_x86 --reporters=junit,console --out=./report_winxp_msvc_x86.xml
-#    - ./build/tests_header_only_msvc_release_x86 --reporters=junit,console --out=./report_header_only_winxp_msvc_x86.xml
+#    - ./build/tests_msvc_release_x86 --reporters=junit --out=./report_winxp_msvc_x86.xml
+#    - ./build/tests_header_only_msvc_release_x86 --reporters=junit --out=./report_header_only_winxp_msvc_x86.xml
 #  artifacts:
 #    reports:
 #      junit:
@@ -292,10 +309,13 @@ linux test x86-64:
   needs: ["linux gcc x86-64"]
   script:
     - apk add libstdc++
-    - ./build/tests_linux_gcc_x86-64 --reporters=junit,console --out=./report_linux_gcc_x86-64.xml
-    - ./build/tests_header_only_linux_gcc_x86-64 --reporters=junit,console --out=./report_header_only_linux_gcc_x86-64.xml
+    - ./build/tests_linux_gcc_x86-64 --reporters=junit --out=./report_linux_gcc_x86-64.xml
+    - ./build/tests_header_only_linux_gcc_x86-64 --reporters=junit --out=./report_header_only_linux_gcc_x86-64.xml
   artifacts:
     when: always
+    paths:
+      - report_linux_gcc_x86-64.xml
+      - report_header_only_linux_gcc_x86-64.xml
     reports:
       junit:
         - report_linux_gcc_x86-64.xml
@@ -311,10 +331,13 @@ linux test x86:
   needs: ["linux gcc x86"]
   script:
     - apk add libstdc++
-    - ./build/tests_linux_gcc_x86 --reporters=junit,console --out=./report_linux_gcc_x86.xml
-    - ./build/tests_header_only_linux_gcc_x86 --reporters=junit,console --out=./report_header_only_linux_gcc_x86.xml
+    - ./build/tests_linux_gcc_x86 --reporters=junit --out=./report_linux_gcc_x86.xml
+    - ./build/tests_header_only_linux_gcc_x86 --reporters=junit --out=./report_header_only_linux_gcc_x86.xml
   artifacts:
     when: always
+    paths:
+      - report_linux_gcc_x86.xml
+      - report_header_only_linux_gcc_x86.xml
     reports:
       junit:
         - report_linux_gcc_x86.xml
