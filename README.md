@@ -125,21 +125,19 @@ like.
 
 # Tested platforms in CI
 
-These platforms are always tested for every commit.
+These platforms are tested for every merge request. All configurations are tested as both static library and header-only.
 
-------------
-| OS                       | Compiler                    | Comments     |
-|--------------------------|-----------------------------|--------------|
-| Windows 2022             | MSVC v19.40                 | WINVER=0x502 |
-| Windows 2022             | x86_64-w64-mingw32-gcc v9.3 | WINVER=0x502 |
-| Windows 2022             | x86_64-w64-mingw32-g++ v9.3 | WINVER=0x502 |
-| Windows 2022             | i686-w64-mingw32-gcc v9.3   | WINVER=0x501 |
-| Windows 2022             | i686-w64-mingw32-g++ v9.3   | WINVER=0x501 |
-| Windows 2022             | x86_64-w64-mingw32-gcc v9.3 | WINVER=0x603 |
-| Windows 2022             | x86_64-w64-mingw32-g++ v9.3 | WINVER=0x603 |
-| Windows 2022             | i686-w64-mingw32-gcc v9.3   | WINVER=0x603 |
-| Windows 2022             | i686-w64-mingw32-g++ v9.3   | WINVER=0x603 |
-| Linux Alpine 3.12 x86-64 | gcc v9.3                    |              |
-| Linux Alpine 3.12 x86-64 | g++ v9.3                    |              |
-| Linux Alpine 3.12 x86    | gcc v9.3                    |              |
-| Linux Alpine 3.12 x86    | g++ v9.3                    |              |
+| OS                          | Compiler                       | WINVER |
+|-----------------------------|--------------------------------|--------|
+| Windows 2022                | MSVC v19.40 x86                |        |
+| Windows 2022                | MSVC v19.40 x86-64             |        |
+| Windows 2022                | i686-w64-mingw32-gcc v15.2     | 0x501  |
+| Windows 2022                | i686-w64-mingw32-gcc v15.2     | 0x603  |
+| Windows 2022                | x86_64-w64-mingw32-gcc v15.2   | 0x502  |
+| Windows 2022                | x86_64-w64-mingw32-gcc v15.2   | 0x603  |
+| Wine 10.19 (Alpine)         | i686-w64-mingw32-gcc v15.2     | 0x501  |
+| Wine 10.19 (Alpine)         | i686-w64-mingw32-gcc v15.2     | 0x603  |
+| Wine 10.19 (Alpine)         | x86_64-w64-mingw32-gcc v15.2   | 0x502  |
+| Wine 10.19 (Alpine)         | x86_64-w64-mingw32-gcc v15.2   | 0x603  |
+| Linux Alpine 3.23 x86-64    | gcc v15.2                      |        |
+| Linux Alpine 3.23 x86       | gcc v15.2                      |        |
