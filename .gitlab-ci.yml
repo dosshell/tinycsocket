@@ -299,6 +299,74 @@ windows-any tests:
 #        - report_header_only_winxp_msvc_x86.xml
 #  allow_failure: true
 
+linux wine test x86-64:
+  <<: *only-default
+  tags:
+    - docker
+  image: amd64/alpine:3.23.3
+  stage: test
+  timeout: 30m
+  needs:
+    - "linux mingw-w64 x86-64 winxp"
+    - "linux mingw-w64 x86-64 winblue"
+  variables:
+    WINEDEBUG: "-all"
+    XDG_RUNTIME_DIR: "/tmp/runtime"
+  script:
+    - apk add wine
+    - mkdir -p "$XDG_RUNTIME_DIR"
+    - wine64 ./build/tests_mingw_x86-64_winxp.exe --reporters=junit --out=./report_wine_mingw_x86-64_winxp.xml
+    - wine64 ./build/tests_header_only_mingw_x86-64_winxp.exe --reporters=junit --out=./report_wine_header_only_mingw_x86-64_winxp.xml
+    - wine64 ./build/tests_mingw_x86-64_winblue.exe --reporters=junit --out=./report_wine_mingw_x86-64_winblue.xml
+    - wine64 ./build/tests_header_only_mingw_x86-64_winblue.exe --reporters=junit --out=./report_wine_header_only_mingw_x86-64_winblue.xml
+  artifacts:
+    when: always
+    paths:
+      - report_wine_mingw_x86-64_winxp.xml
+      - report_wine_header_only_mingw_x86-64_winxp.xml
+      - report_wine_mingw_x86-64_winblue.xml
+      - report_wine_header_only_mingw_x86-64_winblue.xml
+    reports:
+      junit:
+        - report_wine_mingw_x86-64_winxp.xml
+        - report_wine_header_only_mingw_x86-64_winxp.xml
+        - report_wine_mingw_x86-64_winblue.xml
+        - report_wine_header_only_mingw_x86-64_winblue.xml
+
+linux wine test x86:
+  <<: *only-default
+  tags:
+    - docker
+  image: i386/alpine:3.23.3
+  stage: test
+  timeout: 30m
+  needs:
+    - "linux mingw-w64 x86 winxp"
+    - "linux mingw-w64 x86 winblue"
+  variables:
+    WINEDEBUG: "-all"
+    XDG_RUNTIME_DIR: "/tmp/runtime"
+  script:
+    - apk add wine
+    - mkdir -p "$XDG_RUNTIME_DIR"
+    - wine ./build/tests_mingw_x86_winxp.exe --reporters=junit --out=./report_wine_mingw_x86_winxp.xml
+    - wine ./build/tests_header_only_mingw_x86_winxp.exe --reporters=junit --out=./report_wine_header_only_mingw_x86_winxp.xml
+    - wine ./build/tests_mingw_x86_winblue.exe --reporters=junit --out=./report_wine_mingw_x86_winblue.xml
+    - wine ./build/tests_header_only_mingw_x86_winblue.exe --reporters=junit --out=./report_wine_header_only_mingw_x86_winblue.xml
+  artifacts:
+    when: always
+    paths:
+      - report_wine_mingw_x86_winxp.xml
+      - report_wine_header_only_mingw_x86_winxp.xml
+      - report_wine_mingw_x86_winblue.xml
+      - report_wine_header_only_mingw_x86_winblue.xml
+    reports:
+      junit:
+        - report_wine_mingw_x86_winxp.xml
+        - report_wine_header_only_mingw_x86_winxp.xml
+        - report_wine_mingw_x86_winblue.xml
+        - report_wine_header_only_mingw_x86_winblue.xml
+
 linux test x86-64:
   <<: *only-default
   tags:
