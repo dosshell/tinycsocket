@@ -753,7 +753,7 @@ TcsResult tcs_address_parse(const char str[], struct TcsAddress* out_address)
     int n_dots = 0;
     int double_colons = 0;
 
-    for (int i = 0; i < 21; ++i) // max ipv4 string length with port colon
+    for (int i = 0; i < 21 && str[i] != '\0'; ++i) // max ipv4 string length with port colon
     {
         if (str[i] == '.')
         {
