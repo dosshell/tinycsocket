@@ -5444,14 +5444,14 @@ TcsResult tcs_address_socket_family(TcsSocket socket_ctx, TcsAddressFamily* out_
     if (socket_ctx == TCS_SOCKET_INVALID || out_family == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    SOCKADDR_STORAGE native_sockaddr;
-    memset(&native_sockaddr, 0, sizeof native_sockaddr);
-    int addrlen = sizeof native_sockaddr;
-    if (getsockname((SOCKET)socket_ctx, (PSOCKADDR)&native_sockaddr, &addrlen) != 0)
+    WSAPROTOCOL_INFOA info;
+    memset(&info, 0, sizeof info);
+    int info_size = sizeof info;
+    if (getsockopt((SOCKET)socket_ctx, SOL_SOCKET, SO_PROTOCOL_INFOA, (char*)&info, &info_size) != 0)
         return wsaerror2retcode(WSAGetLastError());
 
     TcsAddressFamily family = TCS_AF_ANY;
-    TcsResult sts = native2family(native_sockaddr.ss_family, &family);
+    TcsResult sts = native2family((short)info.iAddressFamily, &family);
     if (sts != TCS_SUCCESS)
         return sts;
     *out_family = family;
