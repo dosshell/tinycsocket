@@ -77,12 +77,12 @@ static const char* const TCS_LICENSE_TXT =
 * - TcsResult tcs_udp_peer_str(TcsSocket* socket_ctx, const char* local_address, uint16_t local_port, const char* remote_address, uint16_t remote_port);
 *
 * High-level Raw L2-Packet Sockets (Experimental):
-* - TcsResult tcs_packet_sender(TcsSocket* socket_ctx, const struct TcsAddress* remote_address);
-* - TcsResult tcs_packet_sender_str(TcsSocket* socket_ctx, const char* interface_name, const uint8_t destination_mac[6], uint16_t protocol);
-* - TcsResult tcs_packet_peer(TcsSocket* socket_ctx, const struct TcsAddress* local_address, const struct TcsAddress* remote_address);
-* - TcsResult tcs_packet_peer_str(TcsSocket* socket_ctx, const char* interface_name, const uint8_t destination_mac[6], uint16_t protocol);
-* - TcsResult tcs_packet_capture_iface(TcsSocket* socket_ctx, const struct TcsInterface* iface);
-* - TcsResult tcs_packet_capture_ifname(TcsSocket* socket_ctx, const char* interface_name);
+* - TcsResult tcs_raw(TcsSocket* socket_ctx, const struct TcsAddress* bind_address);
+* - TcsResult tcs_raw_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol);
+*
+* High-level L2-Packet DGRAM Sockets (Experimental):
+* - TcsResult tcs_packet(TcsSocket* socket_ctx, const struct TcsAddress* local_address, const struct TcsAddress* remote_address);
+* - TcsResult tcs_packet_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol, const uint8_t destination_mac[6]);
 *
 * Socket Operations:
 * - TcsResult tcs_bind(TcsSocket socket_ctx, const struct TcsAddress* local_address);
@@ -294,6 +294,9 @@ extern const int TCS_SOCK_RAW;    /**< Use for raw sockets, eg. layer 2 packet s
 extern const uint16_t TCS_PROTOCOL_IP_TCP; /**< Use TCP protocol (use with TCS_SOCK_STREAM for normal cases) */
 extern const uint16_t TCS_PROTOCOL_IP_UDP; /**< Use UDP protocol (use with TCS_SOCK_DGRAM for normal cases) */
 
+// Ethernet protocols (host byte order)
+static const uint16_t TCS_ETH_P_ALL = 0x0003; /**< Receive all protocols. Use with TCS_AF_PACKET for capture. */
+
 // Simple socket creation
 typedef enum
 {
@@ -301,7 +304,8 @@ typedef enum
     TCS_PRESET_UDP_IP4,
     TCS_PRESET_TCP_IP6,
     TCS_PRESET_UDP_IP6,
-    TCS_PRESET_PACKET, // Layer 2, CAP_NET_RAW permission may be needed
+    TCS_PRESET_RAW,    // Layer 2 raw, CAP_NET_RAW permission may be needed
+    TCS_PRESET_PACKET, // Layer 2 dgram, CAP_NET_RAW permission may be needed
 } TcsPreset;
 
 // Flags
@@ -548,7 +552,7 @@ TcsResult tcs_socket(TcsSocket* socket_ctx, TcsAddressFamily family, int type, i
  *   - ::TCS_PRESET_UDP_IP4   — UDP over IPv4  
  *   - ::TCS_PRESET_TCP_IP6   — TCP over IPv6  
  *   - ::TCS_PRESET_UDP_IP6   — UDP over IPv6  
- *   - ::TCS_PRESET_PACKET    — Raw Layer-2 (may require *CAP_NET_RAW*)
+ *   - ::TCS_PRESET_RAW    — Raw Layer-2 (may require *CAP_NET_RAW*)
  *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  *
@@ -1169,134 +1173,94 @@ TcsResult tcs_udp_peer_str(TcsSocket* socket_ctx,
 // ######## High-level Raw L2-Packet Sockets (Experimental) ########
 
 /**
- * @brief Create a raw packet socket targeting a specific remote address.
+ * @brief Open a raw L2 packet socket bound to a specific interface and protocol filter.
  *
  * @warning This API is **experimental** and not recommended for production use.
  *
- * @param[out] socket_ctx     Pointer to a #TcsSocket handle that will be initialized on success. Must be set to
- *                            #TCS_SOCKET_INVALID before the call.
- * @param[in]  remote_address Pointer to the remote ::TcsAddress to which the socket will send packets.
+ * The socket uses SOCK_RAW, giving full control over the Ethernet frame including VLAN tags.
+ * Use ::tcs_send_to() / ::tcs_receive_from() for communication.
  *
- * @retval TCS_SUCCESS        Socket created successfully.
- * @retval TCS_ERR_PERMISSION Operation not permitted (may require CAP_NET_RAW).
- * @retval TCS_ERR_INVALID    The supplied address was invalid or unsupported.
- * @retval TCS_ERR_SYS        Underlying OS error.
- *
- * @see tcs_packet_sender_str()
- */
-TcsResult tcs_packet_sender(TcsSocket* socket_ctx, const struct TcsAddress* remote_address);
-
-/**
- * @brief Create a raw packet socket for Ethernet frame transmission given interface name, destination MAC, and EtherType.
- *
- * @warning This API is **experimental** and must not be used in production.
- *
- * @param[out] socket_ctx       Pointer to a #TcsSocket handle that will be initialized on success. Must be set to
- *                              #TCS_SOCKET_INVALID before the call.
- * @param[in]  interface_name   Null-terminated name of the network interface to bind (e.g. `"eth0"`).
- * @param[in]  destination_mac  Destination hardware address (6 bytes).
- * @param[in]  protocol         EtherType value in host byte order.
- *
- * @retval TCS_SUCCESS          Socket created successfully.
- * @retval TCS_ERR_PERMISSION   Operation not permitted (may require CAP_NET_RAW).
- * @retval TCS_ERR_NOT_FOUND    Interface not found.
- * @retval TCS_ERR_SYS          Underlying OS error.
- */
-TcsResult tcs_packet_sender_str(TcsSocket* socket_ctx,
-                                const char* interface_name,
-                                const uint8_t destination_mac[6],
-                                uint16_t protocol);
-
-/**
- * @brief Create a raw packet socket bound to a local/remote address pair.
- *
- * @warning This API is **experimental** and not recommended for production use.
- *
- * @param[out] socket_ctx     Pointer to a #TcsSocket handle that will be initialized on success. Must be set to
- *                            #TCS_SOCKET_INVALID before the call.
- * @param[in]  local_address  Pointer to a ::TcsAddress that specifies the local endpoint to bind.
- * @param[in]  remote_address Pointer to a ::TcsAddress that specifies the
- *                            remote peer address.
- *
- * @retval TCS_SUCCESS        Socket created successfully.
- * @retval TCS_ERR_PERMISSION Operation not permitted (may require CAP_NET_RAW).
- * @retval TCS_ERR_NOT_FOUND  Interface or address not found.
- * @retval TCS_ERR_INVALID    One or more addresses were invalid.
- * @retval TCS_ERR_SYS        Underlying OS error.
- *
- * @see tcs_packet_peer_str()
- * @see tcs_packet_sender_str()
- * @see tcs_packet_sender()
- */
-TcsResult tcs_packet_peer(TcsSocket* socket_ctx,
-                          const struct TcsAddress* local_address,
-                          const struct TcsAddress* remote_address);
-
-/**
- * @brief Create a raw packet socket bound to a specific peer.
- *
- * @warning This API is **experimental** and not recommended for production use.
- *
- * @param[out] socket_ctx       Pointer to a #TcsSocket handle that will be initialized on success. Must be set to
- *                              #TCS_SOCKET_INVALID before the call.
- * @param[in]  interface_name   Null-terminated name of the network interface
- *                              to bind (e.g. `"eth0"`).
- * @param[in]  destination_mac  Destination hardware address (6 bytes).
- * @param[in]  protocol         EtherType value in host byte order.
- *
- * @retval TCS_SUCCESS          Socket created successfully.
- * @retval TCS_ERR_PERMISSION   Operation not permitted (may require CAP_NET_RAW).
- * @retval TCS_ERR_NOT_FOUND    Interface not found.
- * @retval TCS_ERR_INVALID      Invalid arguments (e.g. malformed MAC).
- * @retval TCS_ERR_SYS          Underlying OS error.
- *
- * @see tcs_packet_sender_str()
- * @see tcs_packet_sender()
- */
-TcsResult tcs_packet_peer_str(TcsSocket* socket_ctx,
-                              const char* interface_name,
-                              const uint8_t destination_mac[6],
-                              uint16_t protocol);
-
-/**
- * @brief Create a raw packet socket in capture mode on a given interface.
- *
- * @warning This API is **experimental** and not recommended for production use.
- *
- * @param[out] socket_ctx  Pointer to a #TcsSocket handle that will be initialized on success. Must be set to
- *                         #TCS_SOCKET_INVALID before the call.
- * @param[in]  iface      Pointer to a ::TcsInterface structure that identifies the interface to capture from.
- *
- * @retval TCS_SUCCESS          Socket created successfully.
- * @retval TCS_ERR_PERMISSION   Operation not permitted (may require CAP_NET_RAW).
- * @retval TCS_ERR_NOT_FOUND    Interface not found or not available.
- * @retval TCS_ERR_INVALID      Invalid argument(s).
- * @retval TCS_ERR_SYS          Underlying OS error.
- *
- * @see tcs_packet_capture()
- * @see tcs_packet_peer_str()
- */
-TcsResult tcs_packet_capture_iface(TcsSocket* socket_ctx, const struct TcsInterface* iface);
-
-/**
- * @brief Create a raw packet socket in capture mode on a given interface using its name.
- *
- * @warning This API is **experimental** and not recommended for production use.
- *
- * @param[out] socket_ctx      Pointer to a #TcsSocket handle that will be initialized on success. Must be set to
- *                             #TCS_SOCKET_INVALID before the call.
- * @param[in]  interface_name  Null-terminated name of the network interface to capture from (e.g. "eth0", "wlan0").
+ * @param[out] socket_ctx    Pointer to a #TcsSocket handle that will be initialized on success. Must be set to
+ *                           #TCS_SOCKET_INVALID before the call.
+ * @param[in]  bind_address  Pointer to a ::TcsAddress with family TCS_AF_PACKET specifying interface_id and protocol.
+ *                           Use #TCS_ETH_P_ALL to capture all protocols.
  *
  * @retval TCS_SUCCESS                  Socket created successfully.
  * @retval TCS_ERROR_PERMISSION_DENIED  Operation not permitted (may require CAP_NET_RAW).
  * @retval TCS_ERROR_INVALID_ARGUMENT   Invalid argument(s) provided.
- * @retval TCS_ERROR_SYSTEM             Interface not found or other underlying OS error.
  *
- * @see tcs_packet_capture_iface()
- * @see tcs_interface_list()
- * @see tcs_receive_from()
+ * @see tcs_raw_str()
  */
-TcsResult tcs_packet_capture_ifname(TcsSocket* socket_ctx, const char* interface_name);
+TcsResult tcs_raw(TcsSocket* socket_ctx, const struct TcsAddress* bind_address);
+
+/**
+ * @brief Open a raw L2 packet socket by interface name and protocol filter.
+ *
+ * @warning This API is **experimental** and not recommended for production use.
+ *
+ * Convenience wrapper around ::tcs_raw() that resolves the interface name
+ * to an interface ID via ::tcs_interface_list().
+ *
+ * @param[out] socket_ctx      Pointer to a #TcsSocket handle that will be initialized on success. Must be set to
+ *                             #TCS_SOCKET_INVALID before the call.
+ * @param[in]  interface_name  Null-terminated name of the network interface (e.g. "eth0", "wlan0").
+ * @param[in]  protocol        EtherType filter in host byte order. Use #TCS_ETH_P_ALL to capture all protocols.
+ *
+ * @retval TCS_SUCCESS                  Socket created successfully.
+ * @retval TCS_ERROR_PERMISSION_DENIED  Operation not permitted (may require CAP_NET_RAW).
+ * @retval TCS_ERROR_INVALID_ARGUMENT   Invalid argument(s) or interface not found.
+ *
+ * @see tcs_raw()
+ * @see tcs_interface_list()
+ */
+TcsResult tcs_raw_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol);
+
+// ######## High-level L2-Packet DGRAM Sockets (Experimental) ########
+
+/**
+ * @brief Open an L2 packet DGRAM socket with optional local bind and/or remote connect.
+ *
+ * @warning This API is **experimental** and not recommended for production use.
+ *
+ * The socket uses SOCK_DGRAM, where the kernel handles the Ethernet header.
+ * Pass local_address to bind (receive filter), remote_address to connect (default destination),
+ * or both. At least one must be non-NULL.
+ *
+ * @param[out] socket_ctx      Pointer to a #TcsSocket handle. Must be #TCS_SOCKET_INVALID before call.
+ * @param[in]  local_address   Local address to bind, or NULL to skip bind.
+ * @param[in]  remote_address  Remote address to connect, or NULL to skip connect.
+ *
+ * @retval TCS_SUCCESS                  Socket created successfully.
+ * @retval TCS_ERROR_PERMISSION_DENIED  Operation not permitted (may require CAP_NET_RAW).
+ * @retval TCS_ERROR_INVALID_ARGUMENT   Invalid argument(s) provided.
+ *
+ * @see tcs_packet_str()
+ */
+TcsResult tcs_packet(TcsSocket* socket_ctx,
+                     const struct TcsAddress* local_address,
+                     const struct TcsAddress* remote_address);
+
+/**
+ * @brief Open an L2 packet DGRAM socket by interface name, protocol filter, and optional destination MAC.
+ *
+ * @warning This API is **experimental** and not recommended for production use.
+ *
+ * @param[out] socket_ctx       Pointer to a #TcsSocket handle. Must be #TCS_SOCKET_INVALID before call.
+ * @param[in]  interface_name   Null-terminated name of the network interface (e.g. "eth0").
+ * @param[in]  protocol         EtherType filter in host byte order. 0 to skip bind.
+ * @param[in]  destination_mac  Destination MAC (6 bytes) to connect, or NULL to skip connect.
+ *
+ * @retval TCS_SUCCESS                  Socket created successfully.
+ * @retval TCS_ERROR_PERMISSION_DENIED  Operation not permitted (may require CAP_NET_RAW).
+ * @retval TCS_ERROR_INVALID_ARGUMENT   Invalid argument(s) or interface not found.
+ *
+ * @see tcs_packet()
+ * @see tcs_interface_list()
+ */
+TcsResult tcs_packet_str(TcsSocket* socket_ctx,
+                         const char* interface_name,
+                         uint16_t protocol,
+                         const uint8_t destination_mac[6]);
 
 /**
  * @brief Binds a socket to a local address.

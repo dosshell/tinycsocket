@@ -407,12 +407,13 @@ TcsResult tcs_close(TcsSocket* socket_ctx)
 
 // ######## High-level Raw L2-Packet Sockets (Experimental) ########
 
-// tcs_packet_sender_str() is defined in tinycsocket_common.c
-// tcs_packet_sender() is defined in tinycsocket_common.c
-// tcs_packet_peer_str() is defined in tinycsocket_common.c
-// tcs_packet_peer() is defined in tinycsocket_common.c
-// tcs_packet_capture_iface() is defined in tinycsocket_common.c
-// tcs_packet_capture_ifname() is defined in tinycsocket_common.c
+// tcs_raw() is defined in tinycsocket_common.c
+// tcs_raw_str() is defined in tinycsocket_common.c
+
+// ######## High-level L2-Packet DGRAM Sockets (Experimental) ########
+
+// tcs_packet() is defined in tinycsocket_common.c
+// tcs_packet_str() is defined in tinycsocket_common.c
 
 // ######## Socket Operations ########
 
