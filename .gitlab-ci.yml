@@ -61,7 +61,7 @@ posix coverage:
   stage: linting
   needs: []
   script:
-    - apk add cmake g++ ninja m4 gcovr
+    - apk add cmake g++ ninja m4 gcovr linux-headers
     - ./tools/coverage.sh
   artifacts:
     expire_in: 7 days
@@ -108,7 +108,7 @@ linux gcc x86-64:
   stage: build
   needs: []
   script:
-    - apk add cmake g++ ninja m4
+    - apk add cmake g++ ninja m4 linux-headers
     - mkdir build && cd build
     - cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
     - cmake --build .
@@ -127,7 +127,7 @@ linux gcc x86:
   tags:
     - docker
   script:
-    - apk add cmake g++ ninja m4
+    - apk add cmake g++ ninja m4 linux-headers
     - mkdir build && cd build
     - cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
     - cmake --build .
