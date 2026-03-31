@@ -34,9 +34,9 @@
 #define _WIN32_WINNT 0x0502
 #define WINVER 0x0502
 #else
-#define NTDDI_VERSION 0x05010300
-#define _WIN32_WINNT 0x0501
-#define WINVER 0x0501
+#define NTDDI_VERSION 0x05000100
+#define _WIN32_WINNT 0x0500
+#define WINVER 0x0500
 #endif
 #endif
 #define WIN32_LEAN_AND_MEAN
