@@ -140,13 +140,13 @@ linux gcc x86:
 
 linux mingw-w64 x86-64 winxp:
   <<: *only-default
-  image: amd64/alpine:3.23.3
+  image: ubuntu:24.04
   stage: build
   needs: []
   tags:
     - docker
   script:
-    - apk add cmake mingw-w64-gcc ninja m4
+    - apt update && apt install -y cmake ninja-build m4 gcc-mingw-w64-x86-64-posix g++-mingw-w64-x86-64-posix
     - mkdir build && cd build
     - cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86-64_winxp.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
     - cmake --build .
@@ -159,13 +159,13 @@ linux mingw-w64 x86-64 winxp:
 
 linux mingw-w64 x86 winxp:
   <<: *only-default
-  image: i386/alpine:3.23.3
+  image: ubuntu:24.04
   stage: build
   needs: []
   tags:
     - docker
   script:
-    - apk add cmake mingw-w64-gcc ninja m4
+    - apt update && apt install -y cmake ninja-build m4 gcc-mingw-w64-i686-posix g++-mingw-w64-i686-posix
     - mkdir build && cd build
     - cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86_winxp.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
     - cmake --build .
@@ -216,13 +216,13 @@ linux mingw-w64 x86 winblue:
 
 linux mingw-w64 x86 win2k:
   <<: *only-default
-  image: i386/alpine:3.23.3
+  image: ubuntu:24.04
   stage: build
   needs: []
   tags:
     - docker
   script:
-    - apk add cmake mingw-w64-gcc ninja m4
+    - apt update && apt install -y cmake ninja-build m4 gcc-mingw-w64-i686-posix g++-mingw-w64-i686-posix
     - mkdir build && cd build
     - cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86_win2k.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
     - cmake --build .

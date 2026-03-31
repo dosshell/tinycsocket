@@ -542,50 +542,28 @@ TcsResult tcs_raw_str(TcsSocket* socket_ctx, const char* interface_name, uint16_
 
 // ######## High-level L2-Packet DGRAM Sockets (Experimental) ########
 
-TcsResult tcs_packet(TcsSocket* socket_ctx,
-                     const struct TcsAddress* local_address,
-                     const struct TcsAddress* remote_address)
+TcsResult tcs_packet(TcsSocket* socket_ctx, const struct TcsAddress* bind_address)
 {
     if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
-    if (local_address == NULL && remote_address == NULL)
+    if (bind_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (bind_address->family != TCS_AF_PACKET)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    const struct TcsAddress* addr = local_address != NULL ? local_address : remote_address;
-    if (addr->family != TCS_AF_PACKET)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    TcsResult res = tcs_socket(socket_ctx, TCS_AF_PACKET, TCS_SOCK_DGRAM, addr->data.packet.protocol);
+    TcsResult res = tcs_socket(socket_ctx, TCS_AF_PACKET, TCS_SOCK_DGRAM, bind_address->data.packet.protocol);
     if (res != TCS_SUCCESS)
         return res;
-
-    if (local_address != NULL)
+    res = tcs_bind(*socket_ctx, bind_address);
+    if (res != TCS_SUCCESS)
     {
-        res = tcs_bind(*socket_ctx, local_address);
-        if (res != TCS_SUCCESS)
-        {
-            tcs_close(socket_ctx);
-            return res;
-        }
+        tcs_close(socket_ctx);
+        return res;
     }
-
-    if (remote_address != NULL)
-    {
-        res = tcs_connect(*socket_ctx, remote_address);
-        if (res != TCS_SUCCESS)
-        {
-            tcs_close(socket_ctx);
-            return res;
-        }
-    }
-
     return TCS_SUCCESS;
 }
 
-TcsResult tcs_packet_str(TcsSocket* socket_ctx,
-                         const char* interface_name,
-                         uint16_t protocol,
-                         const uint8_t destination_mac[6])
+TcsResult tcs_packet_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol)
 {
     if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -602,31 +580,11 @@ TcsResult tcs_packet_str(TcsSocket* socket_ctx,
     {
         if (strcmp(interfaces[i].name, interface_name) == 0)
         {
-            struct TcsAddress* local_ptr = NULL;
-            struct TcsAddress local_address = TCS_ADDRESS_NONE;
-            if (protocol != 0)
-            {
-                local_address.family = TCS_AF_PACKET;
-                local_address.data.packet.interface_id = interfaces[i].id;
-                local_address.data.packet.protocol = protocol;
-                local_ptr = &local_address;
-            }
-
-            struct TcsAddress* remote_ptr = NULL;
-            struct TcsAddress remote_address = TCS_ADDRESS_NONE;
-            if (destination_mac != NULL)
-            {
-                remote_address.family = TCS_AF_PACKET;
-                remote_address.data.packet.interface_id = interfaces[i].id;
-                remote_address.data.packet.protocol = protocol;
-                memcpy(remote_address.data.packet.mac, destination_mac, 6);
-                remote_ptr = &remote_address;
-            }
-
-            if (local_ptr == NULL && remote_ptr == NULL)
-                return TCS_ERROR_INVALID_ARGUMENT;
-
-            return tcs_packet(socket_ctx, local_ptr, remote_ptr);
+            struct TcsAddress bind_address = TCS_ADDRESS_NONE;
+            bind_address.family = TCS_AF_PACKET;
+            bind_address.data.packet.interface_id = interfaces[i].id;
+            bind_address.data.packet.protocol = protocol;
+            return tcs_packet(socket_ctx, &bind_address);
         }
     }
 

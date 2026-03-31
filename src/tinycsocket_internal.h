@@ -81,8 +81,8 @@ static const char* const TCS_LICENSE_TXT =
 * - TcsResult tcs_raw_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol);
 *
 * High-level L2-Packet DGRAM Sockets (Experimental):
-* - TcsResult tcs_packet(TcsSocket* socket_ctx, const struct TcsAddress* local_address, const struct TcsAddress* remote_address);
-* - TcsResult tcs_packet_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol, const uint8_t destination_mac[6]);
+* - TcsResult tcs_packet(TcsSocket* socket_ctx, const struct TcsAddress* bind_address);
+* - TcsResult tcs_packet_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol);
 *
 * Socket Operations:
 * - TcsResult tcs_bind(TcsSocket socket_ctx, const struct TcsAddress* local_address);
@@ -1218,17 +1218,16 @@ TcsResult tcs_raw_str(TcsSocket* socket_ctx, const char* interface_name, uint16_
 // ######## High-level L2-Packet DGRAM Sockets (Experimental) ########
 
 /**
- * @brief Open an L2 packet DGRAM socket with optional local bind and/or remote connect.
+ * @brief Open an L2 packet DGRAM socket bound to a specific interface and protocol filter.
  *
  * @warning This API is **experimental** and not recommended for production use.
  *
  * The socket uses SOCK_DGRAM, where the kernel handles the Ethernet header.
- * Pass local_address to bind (receive filter), remote_address to connect (default destination),
- * or both. At least one must be non-NULL.
+ * Use ::tcs_send_to() / ::tcs_receive_from() for communication.
+ * Note: connect() is not supported on AF_PACKET sockets (see packet(7)).
  *
- * @param[out] socket_ctx      Pointer to a #TcsSocket handle. Must be #TCS_SOCKET_INVALID before call.
- * @param[in]  local_address   Local address to bind, or NULL to skip bind.
- * @param[in]  remote_address  Remote address to connect, or NULL to skip connect.
+ * @param[out] socket_ctx    Pointer to a #TcsSocket handle. Must be #TCS_SOCKET_INVALID before call.
+ * @param[in]  bind_address  Pointer to a ::TcsAddress with family TCS_AF_PACKET specifying interface_id and protocol.
  *
  * @retval TCS_SUCCESS                  Socket created successfully.
  * @retval TCS_ERROR_PERMISSION_DENIED  Operation not permitted (may require CAP_NET_RAW).
@@ -1236,19 +1235,19 @@ TcsResult tcs_raw_str(TcsSocket* socket_ctx, const char* interface_name, uint16_
  *
  * @see tcs_packet_str()
  */
-TcsResult tcs_packet(TcsSocket* socket_ctx,
-                     const struct TcsAddress* local_address,
-                     const struct TcsAddress* remote_address);
+TcsResult tcs_packet(TcsSocket* socket_ctx, const struct TcsAddress* bind_address);
 
 /**
- * @brief Open an L2 packet DGRAM socket by interface name, protocol filter, and optional destination MAC.
+ * @brief Open an L2 packet DGRAM socket by interface name and protocol filter.
  *
  * @warning This API is **experimental** and not recommended for production use.
  *
- * @param[out] socket_ctx       Pointer to a #TcsSocket handle. Must be #TCS_SOCKET_INVALID before call.
- * @param[in]  interface_name   Null-terminated name of the network interface (e.g. "eth0").
- * @param[in]  protocol         EtherType filter in host byte order. 0 to skip bind.
- * @param[in]  destination_mac  Destination MAC (6 bytes) to connect, or NULL to skip connect.
+ * Convenience wrapper around ::tcs_packet() that resolves the interface name
+ * to an interface ID via ::tcs_interface_list().
+ *
+ * @param[out] socket_ctx      Pointer to a #TcsSocket handle. Must be #TCS_SOCKET_INVALID before call.
+ * @param[in]  interface_name  Null-terminated name of the network interface (e.g. "eth0").
+ * @param[in]  protocol        EtherType filter in host byte order.
  *
  * @retval TCS_SUCCESS                  Socket created successfully.
  * @retval TCS_ERROR_PERMISSION_DENIED  Operation not permitted (may require CAP_NET_RAW).
@@ -1257,10 +1256,7 @@ TcsResult tcs_packet(TcsSocket* socket_ctx,
  * @see tcs_packet()
  * @see tcs_interface_list()
  */
-TcsResult tcs_packet_str(TcsSocket* socket_ctx,
-                         const char* interface_name,
-                         uint16_t protocol,
-                         const uint8_t destination_mac[6]);
+TcsResult tcs_packet_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol);
 
 /**
  * @brief Binds a socket to a local address.

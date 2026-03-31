@@ -230,8 +230,8 @@ TEST_CASE("Non-blocking")
 
     // Then
     CHECK(sts == TCS_SUCCESS);
-    CHECK(get_sts == TCS_SUCCESS);
-    CHECK(is_non_blocking == true);
+    CHECK_POSIX(get_sts == TCS_SUCCESS);
+    CHECK_POSIX(is_non_blocking == true);
 
     // Clean up
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
@@ -768,7 +768,10 @@ TEST_CASE("Interface list")
     size_t no_of_found_interfaces = 0;
 
     // When
-    CHECK(tcs_interface_list(interfaces, 8, &no_of_found_interfaces) == TCS_SUCCESS);
+    TcsResult iface_res = tcs_interface_list(interfaces, 8, &no_of_found_interfaces);
+    if (iface_res != TCS_SUCCESS)
+        printf("tcs_interface_list failed with error code: %d\n", iface_res);
+    CHECK(iface_res == TCS_SUCCESS);
 
     // Then
     CHECK(no_of_found_interfaces > 0);
@@ -1691,7 +1694,7 @@ TEST_CASE("Create DGRAM packet socket with preset")
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 
-TEST_CASE("tcs_packet receiver only")
+TEST_CASE("tcs_packet bind")
 {
     // Setup
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
@@ -1703,13 +1706,13 @@ TEST_CASE("tcs_packet receiver only")
     CHECK_POSIX(tcs_address_list(0, TCS_AF_PACKET, addrs, 8, &addresses_found) == TCS_SUCCESS);
     CHECK_POSIX(addresses_found > 0);
 
-    struct TcsAddress local_address = TCS_ADDRESS_NONE;
-    local_address.family = TCS_AF_PACKET;
-    local_address.data.packet.interface_id = addrs[0].iface.id;
-    local_address.data.packet.protocol = 0x22F0;
+    struct TcsAddress bind_address = TCS_ADDRESS_NONE;
+    bind_address.family = TCS_AF_PACKET;
+    bind_address.data.packet.interface_id = addrs[0].iface.id;
+    bind_address.data.packet.protocol = 0x22F0;
 
-    // When - bind only, no connect
-    CHECK_POSIX(tcs_packet(&socket, &local_address, NULL) == TCS_SUCCESS);
+    // When
+    CHECK_POSIX(tcs_packet(&socket, &bind_address) == TCS_SUCCESS);
 
     // Then
     CHECK_POSIX(socket != TCS_SOCKET_INVALID);
@@ -1719,7 +1722,7 @@ TEST_CASE("tcs_packet receiver only")
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 
-TEST_CASE("tcs_packet sender only")
+TEST_CASE("tcs_packet sendto")
 {
     // Setup
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
@@ -1731,104 +1734,33 @@ TEST_CASE("tcs_packet sender only")
     CHECK_POSIX(tcs_address_list(0, TCS_AF_PACKET, addrs, 8, &addresses_found) == TCS_SUCCESS);
     CHECK_POSIX(addresses_found > 0);
 
-    struct TcsAddress remote_address = TCS_ADDRESS_NONE;
-    remote_address.family = TCS_AF_PACKET;
-    remote_address.data.packet.interface_id = addrs[0].iface.id;
-    remote_address.data.packet.protocol = 0x22F0;
-    memcpy(remote_address.data.packet.mac, AVTP_DEST_ADDR, sizeof(AVTP_DEST_ADDR));
+    struct TcsAddress bind_address = TCS_ADDRESS_NONE;
+    bind_address.family = TCS_AF_PACKET;
+    bind_address.data.packet.interface_id = addrs[0].iface.id;
+    bind_address.data.packet.protocol = 0x22F0;
 
-    // When - connect only, no bind
-    CHECK_POSIX(tcs_packet(&socket, NULL, &remote_address) == TCS_SUCCESS);
+    CHECK_POSIX(tcs_packet(&socket, &bind_address) == TCS_SUCCESS);
 
-    // Then - send with default destination
+    // When - sendto with explicit destination
+    struct TcsAddress dest_address = TCS_ADDRESS_NONE;
+    dest_address.family = TCS_AF_PACKET;
+    dest_address.data.packet.interface_id = addrs[0].iface.id;
+    dest_address.data.packet.protocol = 0x22F0;
+    memcpy(dest_address.data.packet.mac, AVTP_DEST_ADDR, sizeof(AVTP_DEST_ADDR));
+
     uint8_t msg[] = "hello world\n";
     size_t bytes_sent = 0;
-    CHECK_POSIX(tcs_send(socket, msg, sizeof(msg), TCS_FLAG_NONE, &bytes_sent) == TCS_SUCCESS);
+    CHECK_POSIX(tcs_send_to(socket, msg, sizeof(msg), TCS_FLAG_NONE, &dest_address, &bytes_sent) == TCS_SUCCESS);
     CHECK_POSIX(bytes_sent == sizeof(msg));
-    CHECK_POSIX(tcs_close(&socket) == TCS_SUCCESS);
-
-    // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
-}
-
-TEST_CASE("tcs_packet peer bind and connect")
-{
-    // Setup
-    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
-
-    // Given
-    TcsSocket socket = TCS_SOCKET_INVALID;
-    struct TcsInterfaceAddress addrs[8];
-    size_t addresses_found = 0;
-    CHECK_POSIX(tcs_address_list(0, TCS_AF_PACKET, addrs, 8, &addresses_found) == TCS_SUCCESS);
-    CHECK_POSIX(addresses_found > 0);
-
-    struct TcsAddress local_address = TCS_ADDRESS_NONE;
-    local_address.family = TCS_AF_PACKET;
-    local_address.data.packet.interface_id = addrs[0].iface.id;
-    local_address.data.packet.protocol = 0x22F0;
-
-    struct TcsAddress remote_address = TCS_ADDRESS_NONE;
-    remote_address.family = TCS_AF_PACKET;
-    remote_address.data.packet.interface_id = addrs[0].iface.id;
-    remote_address.data.packet.protocol = 0x22F0;
-    memcpy(remote_address.data.packet.mac, AVTP_DEST_ADDR, sizeof(AVTP_DEST_ADDR));
-
-    // When - both bind and connect
-    CHECK_POSIX(tcs_packet(&socket, &local_address, &remote_address) == TCS_SUCCESS);
 
     // Then
-    CHECK_POSIX(socket != TCS_SOCKET_INVALID);
     CHECK_POSIX(tcs_close(&socket) == TCS_SUCCESS);
 
     // Clean up
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 
-TEST_CASE("tcs_packet_str sender")
-{
-    // Setup
-    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
-
-    // Given
-    TcsSocket socket = TCS_SOCKET_INVALID;
-    struct TcsInterface interfaces[8];
-    size_t iface_count = 0;
-    CHECK(tcs_interface_list(interfaces, 8, &iface_count) == TCS_SUCCESS);
-    CHECK(iface_count > 0);
-
-    // Find first non-loopback interface
-    const char* iface_name = NULL;
-    for (size_t i = 0; i < iface_count; ++i)
-    {
-        if (strcmp(interfaces[i].name, "lo") != 0)
-        {
-            iface_name = interfaces[i].name;
-            break;
-        }
-    }
-    if (iface_name == NULL)
-    {
-        REQUIRE(tcs_lib_free() == TCS_SUCCESS);
-        return;
-    }
-
-    // When - connect only via str
-    CHECK_POSIX(tcs_packet_str(&socket, iface_name, 0, AVTP_DEST_ADDR) == TCS_SUCCESS);
-
-    // Then
-    CHECK_POSIX(socket != TCS_SOCKET_INVALID);
-    uint8_t msg[] = "hello world\n";
-    size_t bytes_sent = 0;
-    CHECK_POSIX(tcs_send(socket, msg, sizeof(msg), TCS_FLAG_NONE, &bytes_sent) == TCS_SUCCESS);
-    CHECK_POSIX(bytes_sent == sizeof(msg));
-    CHECK_POSIX(tcs_close(&socket) == TCS_SUCCESS);
-
-    // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
-}
-
-TEST_CASE("tcs_packet_str receiver")
+TEST_CASE("tcs_packet_str bind")
 {
     // Setup
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
@@ -1855,8 +1787,8 @@ TEST_CASE("tcs_packet_str receiver")
         return;
     }
 
-    // When - bind only via str
-    CHECK_POSIX(tcs_packet_str(&socket, iface_name, 0x22F0, NULL) == TCS_SUCCESS);
+    // When
+    CHECK_POSIX(tcs_packet_str(&socket, iface_name, 0x22F0) == TCS_SUCCESS);
 
     // Then
     CHECK_POSIX(socket != TCS_SOCKET_INVALID);
@@ -1874,11 +1806,11 @@ TEST_CASE("tcs_packet invalid arguments")
     // Given
     TcsSocket socket = TCS_SOCKET_INVALID;
 
-    // When/Then - both NULL should fail
-    CHECK(tcs_packet(&socket, NULL, NULL) == TCS_ERROR_INVALID_ARGUMENT);
+    // When/Then - NULL address should fail
+    CHECK(tcs_packet(&socket, NULL) == TCS_ERROR_INVALID_ARGUMENT);
 
     // When/Then - NULL socket should fail
-    CHECK(tcs_packet(NULL, NULL, NULL) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_packet(NULL, NULL) == TCS_ERROR_INVALID_ARGUMENT);
 
     // Clean up
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);

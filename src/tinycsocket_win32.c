@@ -28,17 +28,6 @@
 #include "dbg_wrap.h"
 #endif
 
-#if !defined(NTDDI_VERSION) && !defined(_WIN32_WINNT) && !defined(WINVER)
-#ifdef _WIN64
-#define NTDDI_VERSION 0x05020000
-#define _WIN32_WINNT 0x0502
-#define WINVER 0x0502
-#else
-#define NTDDI_VERSION 0x05000100
-#define _WIN32_WINNT 0x0500
-#define WINVER 0x0500
-#endif
-#endif
 #define WIN32_LEAN_AND_MEAN
 // Header only should not need other files
 #ifndef TINYDATASTRUCTURES_H_
@@ -53,8 +42,22 @@
 #include <iphlpapi.h> // GetAdaptersAddresses
 #include <ws2tcpip.h> // getaddrinfo
 
+#include <stdio.h>  // fprintf (debug diagnostics)
 #include <stdlib.h> // Malloc for GetAdaptersAddresses
 #include <string.h> // memset
+
+// SOCKADDR_STORAGE was introduced in Windows XP (0x0501).
+// For Win2K targets with MSVC, define it ourselves.
+// mingw-w64 always defines it, so check _MSC_VER to avoid redefinition.
+#if defined(_MSC_VER) && defined(_WIN32_WINNT) && _WIN32_WINNT < 0x0501
+typedef struct
+{
+    short ss_family;
+    char __ss_pad1[6];
+    __int64 __ss_align;
+    char __ss_pad2[112];
+} SOCKADDR_STORAGE, *PSOCKADDR_STORAGE;
+#endif
 
 #if defined(_MSC_VER) || defined(__clang__)
 #pragma comment(lib, "wsock32.lib")
@@ -65,9 +68,6 @@
 #ifdef __cplusplus
 using std::min;
 #endif
-
-// Forwards declaration due to winver dispatch
-// We will dispatch at lib_init() which OS functions to call depending on OS support
 
 #ifndef ULIST_SOC
 #define ULIST_SOC
@@ -1324,7 +1324,11 @@ TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, 
         adapters = (PIP_ADAPTER_ADDRESSES)malloc(buffer_size);
         if (adapters == NULL)
             return TCS_ERROR_MEMORY;
-        adapter_sts = GetAdaptersAddresses(AF_UNSPEC, 0, NULL, adapters, &buffer_size);
+        adapter_sts = GetAdaptersAddresses(AF_UNSPEC,
+                                           GAA_FLAG_SKIP_DNS_SERVER | GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST,
+                                           NULL,
+                                           adapters,
+                                           &buffer_size);
         if (adapter_sts == ERROR_BUFFER_OVERFLOW)
         {
             free(adapters);
@@ -1343,6 +1347,8 @@ TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, 
     }
     if (adapter_sts != NO_ERROR)
     {
+        // Debug: log the actual Windows error code for diagnostics
+        fprintf(stderr, "GetAdaptersAddresses failed with error: %lu (0x%lX)\n", adapter_sts, adapter_sts);
         if (adapters != NULL)
             free(adapters);
         return TCS_ERROR_UNKNOWN;
@@ -1485,7 +1491,11 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
         adapters = (PIP_ADAPTER_ADDRESSES)malloc(buffer_size);
         if (adapters == NULL)
             return TCS_ERROR_MEMORY;
-        adapter_sts = GetAdaptersAddresses(AF_UNSPEC, 0, NULL, adapters, &buffer_size);
+        adapter_sts = GetAdaptersAddresses(AF_UNSPEC,
+                                           GAA_FLAG_SKIP_DNS_SERVER | GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST,
+                                           NULL,
+                                           adapters,
+                                           &buffer_size);
         if (adapter_sts == ERROR_BUFFER_OVERFLOW)
         {
             free(adapters);
