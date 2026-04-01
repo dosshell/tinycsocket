@@ -53,7 +53,6 @@
 #include <netinet/in.h>  // IPPROTO_XXP
 #include <netinet/tcp.h> // TCP_NODELAY
 #include <poll.h>        // poll()
-#include <stdio.h>       // fprintf (debug diagnostics)
 #include <stdlib.h>      // malloc()/free()
 #include <string.h>      // strcpy, memset
 #include <sys/ioctl.h>   // Flags for ifaddrs
