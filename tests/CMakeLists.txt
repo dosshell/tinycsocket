@@ -75,7 +75,6 @@ target_include_directories(
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
 )
 set_target_properties(tests_header_only PROPERTIES FOLDER tinycsocket/tests)
-add_definitions(-DDOCTEST_CONFIG_TREAT_CHAR_STAR_AS_STRING)
 
 add_test(NAME tests COMMAND tests)
 add_test(NAME tests_header_only COMMAND tests_header_only)
