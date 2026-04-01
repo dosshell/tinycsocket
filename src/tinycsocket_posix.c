@@ -453,12 +453,7 @@ TcsResult tcs_connect(TcsSocket socket_ctx, const struct TcsAddress* address)
     if (connect(socket_ctx, (const struct sockaddr*)&native_sockaddr, sockaddr_size) == 0)
         return TCS_SUCCESS;
     else
-    {
-        // Debug: log unmapped errno values
-        if (errno2retcode(errno) == TCS_ERROR_UNKNOWN)
-            fprintf(stderr, "connect() failed with unmapped errno: %d (%s)\n", errno, strerror(errno));
         return errno2retcode(errno);
-    }
 }
 
 // tcs_connect_str() is defined in tinycsocket_common.c
