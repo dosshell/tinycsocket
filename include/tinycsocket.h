@@ -35,24 +35,24 @@
 
 static const char* const TCS_VERSION_TXT = "v0.4-dev";
 static const char* const TCS_LICENSE_TXT =
-    "Copyright 2018 Markus Lindelöw"
+    "Copyright 2018 Markus Lindelöw\n"
     "\n"
-    "Permission is hereby granted, free of charge, to any person obtaining a copy"
-    "of this software and associated documentation files(the \"Software\"), to deal"
-    "in the Software without restriction, including without limitation the rights"
-    "to use, copy, modify, merge, publish, distribute, sublicense, and / or sell"
-    "copies of the Software, and to permit persons to whom the Software is"
-    "furnished to do so, subject to the following conditions:"
+    "Permission is hereby granted, free of charge, to any person obtaining a copy "
+    "of this software and associated documentation files(the \"Software\"), to deal "
+    "in the Software without restriction, including without limitation the rights "
+    "to use, copy, modify, merge, publish, distribute, sublicense, and / or sell "
+    "copies of the Software, and to permit persons to whom the Software is "
+    "furnished to do so, subject to the following conditions:\n"
     "\n"
-    "The above copyright notice and this permission notice shall be included in all"
-    "copies or substantial portions of the Software."
+    "The above copyright notice and this permission notice shall be included in all "
+    "copies or substantial portions of the Software.\n"
     "\n"
-    "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR"
-    "IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,"
-    "FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE"
-    "AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER"
-    "LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,"
-    "OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE"
+    "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR "
+    "IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, "
+    "FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE "
+    "AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER "
+    "LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, "
+    "OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE "
     "SOFTWARE.";
 
 /*
@@ -83,12 +83,12 @@ static const char* const TCS_LICENSE_TXT =
 * - TcsResult tcs_udp_peer_str(TcsSocket* socket_ctx, const char* local_address, uint16_t local_port, const char* remote_address, uint16_t remote_port);
 *
 * High-level Raw L2-Packet Sockets (Experimental):
-* - TcsResult tcs_packet_sender(TcsSocket* socket_ctx, const struct TcsAddress* remote_address);
-* - TcsResult tcs_packet_sender_str(TcsSocket* socket_ctx, const char* interface_name, const uint8_t destination_mac[6], uint16_t protocol);
-* - TcsResult tcs_packet_peer(TcsSocket* socket_ctx, const struct TcsAddress* local_address, const struct TcsAddress* remote_address);
-* - TcsResult tcs_packet_peer_str(TcsSocket* socket_ctx, const char* interface_name, const uint8_t destination_mac[6], uint16_t protocol);
-* - TcsResult tcs_packet_capture_iface(TcsSocket* socket_ctx, const struct TcsInterface* iface);
-* - TcsResult tcs_packet_capture_ifname(TcsSocket* socket_ctx, const char* interface_name);
+* - TcsResult tcs_raw(TcsSocket* socket_ctx, const struct TcsAddress* bind_address);
+* - TcsResult tcs_raw_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol);
+*
+* High-level L2-Packet DGRAM Sockets (Experimental):
+* - TcsResult tcs_packet(TcsSocket* socket_ctx, const struct TcsAddress* bind_address);
+* - TcsResult tcs_packet_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol);
 *
 * Socket Operations:
 * - TcsResult tcs_bind(TcsSocket socket_ctx, const struct TcsAddress* local_address);
@@ -196,12 +196,8 @@ typedef int TcsSocket;
 typedef unsigned int TcsInterfaceId;
 #endif
 
-#ifndef TCS_SENDV_MAX
-#ifdef TCS_SMALL_STACK
-#define TCS_SENDV_MAX 128
-#else
-#define TCS_SENDV_MAX 1024
-#endif
+#ifndef TCS_SENDV_STACK_MAX
+#define TCS_SENDV_STACK_MAX 112
 #endif
 
 /**
@@ -300,6 +296,9 @@ extern const int TCS_SOCK_RAW;    /**< Use for raw sockets, eg. layer 2 packet s
 extern const uint16_t TCS_PROTOCOL_IP_TCP; /**< Use TCP protocol (use with TCS_SOCK_STREAM for normal cases) */
 extern const uint16_t TCS_PROTOCOL_IP_UDP; /**< Use UDP protocol (use with TCS_SOCK_DGRAM for normal cases) */
 
+// Ethernet protocols (host byte order)
+static const uint16_t TCS_ETH_P_ALL = 0x0003; /**< Receive all protocols. Use with TCS_AF_PACKET for capture. */
+
 // Simple socket creation
 typedef enum
 {
@@ -307,7 +306,8 @@ typedef enum
     TCS_PRESET_UDP_IP4,
     TCS_PRESET_TCP_IP6,
     TCS_PRESET_UDP_IP6,
-    TCS_PRESET_PACKET, // Layer 2, CAP_NET_RAW permission may be needed
+    TCS_PRESET_RAW,    // Layer 2 raw, CAP_NET_RAW permission may be needed
+    TCS_PRESET_PACKET, // Layer 2 dgram, CAP_NET_RAW permission may be needed
 } TcsPreset;
 
 // Flags
@@ -385,7 +385,7 @@ typedef enum
     TCS_ERROR_SOCKET_CLOSED = -35,
     TCS_ERROR_WOULD_BLOCK = -36,
     TCS_ERROR_TIMED_OUT = -37,
-    TCS_ERROR_TEMPRORARY_FAILURE = -38,
+    TCS_ERROR_TEMPORARY_FAILURE = -38,
 
     /* -64...-95: Configuration errors */
     TCS_ERROR_LIBRARY_NOT_INITIALIZED = -64,
@@ -499,7 +499,7 @@ TcsResult tcs_lib_free(void);
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  *
  * @retval #TCS_SUCCESS if successful.
- * @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument. Suck as a socket that is not #TCS_SOCKET_INVALID.
+ * @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument. Such as a socket that is not #TCS_SOCKET_INVALID.
  * @retval #TCS_ERROR_NOT_IMPLEMENTED if you have provided an address family that is not supported on this platform.
  * @retval #TCS_ERROR_PERMISSION_DENIED if you do not have permission to create the socket. E.g. raw sockets often require elevated permissions.
  *
@@ -554,11 +554,11 @@ TcsResult tcs_socket(TcsSocket* socket_ctx, TcsAddressFamily family, int type, i
  *   - ::TCS_PRESET_UDP_IP4   — UDP over IPv4  
  *   - ::TCS_PRESET_TCP_IP6   — TCP over IPv6  
  *   - ::TCS_PRESET_UDP_IP6   — UDP over IPv6  
- *   - ::TCS_PRESET_PACKET    — Raw Layer-2 (may require *CAP_NET_RAW*)
+ *   - ::TCS_PRESET_RAW    — Raw Layer-2 (may require *CAP_NET_RAW*)
  *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  *
- * @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument. Suck as a socket value that is not #TCS_SOCKET_INVALID.
+ * @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument. Such as a socket value that is not #TCS_SOCKET_INVALID.
  *
  * @see tcs_socket()
  * @see tcs_tcp_server_str()
@@ -1175,134 +1175,90 @@ TcsResult tcs_udp_peer_str(TcsSocket* socket_ctx,
 // ######## High-level Raw L2-Packet Sockets (Experimental) ########
 
 /**
- * @brief Create a raw packet socket targeting a specific remote address.
+ * @brief Open a raw L2 packet socket bound to a specific interface and protocol filter.
  *
  * @warning This API is **experimental** and not recommended for production use.
  *
- * @param[out] socket_ctx     Pointer to a #TcsSocket handle that will be initialized on success. Must be set to
- *                            #TCS_SOCKET_INVALID before the call.
- * @param[in]  remote_address Pointer to the remote ::TcsAddress to which the socket will send packets.
+ * The socket uses SOCK_RAW, giving full control over the Ethernet frame including VLAN tags.
+ * Use ::tcs_send_to() / ::tcs_receive_from() for communication.
  *
- * @retval TCS_SUCCESS        Socket created successfully.
- * @retval TCS_ERR_PERMISSION Operation not permitted (may require CAP_NET_RAW).
- * @retval TCS_ERR_INVALID    The supplied address was invalid or unsupported.
- * @retval TCS_ERR_SYS        Underlying OS error.
- *
- * @see tcs_packet_sender_str()
- */
-TcsResult tcs_packet_sender(TcsSocket* socket_ctx, const struct TcsAddress* remote_address);
-
-/**
- * @brief Create a raw packet socket for Ethernet frame transmission given interface name, destination MAC, and EtherType.
- *
- * @warning This API is **experimental** and must not be used in production.
- *
- * @param[out] socket_ctx       Pointer to a #TcsSocket handle that will be initialized on success. Must be set to
- *                              #TCS_SOCKET_INVALID before the call.
- * @param[in]  interface_name   Null-terminated name of the network interface to bind (e.g. `"eth0"`).
- * @param[in]  destination_mac  Destination hardware address (6 bytes).
- * @param[in]  protocol         EtherType value in host byte order.
- *
- * @retval TCS_SUCCESS          Socket created successfully.
- * @retval TCS_ERR_PERMISSION   Operation not permitted (may require CAP_NET_RAW).
- * @retval TCS_ERR_NOT_FOUND    Interface not found.
- * @retval TCS_ERR_SYS          Underlying OS error.
- */
-TcsResult tcs_packet_sender_str(TcsSocket* socket_ctx,
-                                const char* interface_name,
-                                const uint8_t destination_mac[6],
-                                uint16_t protocol);
-
-/**
- * @brief Create a raw packet socket bound to a local/remote address pair.
- *
- * @warning This API is **experimental** and not recommended for production use.
- *
- * @param[out] socket_ctx     Pointer to a #TcsSocket handle that will be initialized on success. Must be set to
- *                            #TCS_SOCKET_INVALID before the call.
- * @param[in]  local_address  Pointer to a ::TcsAddress that specifies the local endpoint to bind.
- * @param[in]  remote_address Pointer to a ::TcsAddress that specifies the
- *                            remote peer address.
- *
- * @retval TCS_SUCCESS        Socket created successfully.
- * @retval TCS_ERR_PERMISSION Operation not permitted (may require CAP_NET_RAW).
- * @retval TCS_ERR_NOT_FOUND  Interface or address not found.
- * @retval TCS_ERR_INVALID    One or more addresses were invalid.
- * @retval TCS_ERR_SYS        Underlying OS error.
- *
- * @see tcs_packet_peer_str()
- * @see tcs_packet_sender_str()
- * @see tcs_packet_sender()
- */
-TcsResult tcs_packet_peer(TcsSocket* socket_ctx,
-                          const struct TcsAddress* local_address,
-                          const struct TcsAddress* remote_address);
-
-/**
- * @brief Create a raw packet socket bound to a specific peer.
- *
- * @warning This API is **experimental** and not recommended for production use.
- *
- * @param[out] socket_ctx       Pointer to a #TcsSocket handle that will be initialized on success. Must be set to
- *                              #TCS_SOCKET_INVALID before the call.
- * @param[in]  interface_name   Null-terminated name of the network interface
- *                              to bind (e.g. `"eth0"`).
- * @param[in]  destination_mac  Destination hardware address (6 bytes).
- * @param[in]  protocol         EtherType value in host byte order.
- *
- * @retval TCS_SUCCESS          Socket created successfully.
- * @retval TCS_ERR_PERMISSION   Operation not permitted (may require CAP_NET_RAW).
- * @retval TCS_ERR_NOT_FOUND    Interface not found.
- * @retval TCS_ERR_INVALID      Invalid arguments (e.g. malformed MAC).
- * @retval TCS_ERR_SYS          Underlying OS error.
- *
- * @see tcs_packet_sender_str()
- * @see tcs_packet_sender()
- */
-TcsResult tcs_packet_peer_str(TcsSocket* socket_ctx,
-                              const char* interface_name,
-                              const uint8_t destination_mac[6],
-                              uint16_t protocol);
-
-/**
- * @brief Create a raw packet socket in capture mode on a given interface.
- *
- * @warning This API is **experimental** and not recommended for production use.
- *
- * @param[out] socket_ctx  Pointer to a #TcsSocket handle that will be initialized on success. Must be set to
- *                         #TCS_SOCKET_INVALID before the call.
- * @param[in]  iface      Pointer to a ::TcsInterface structure that identifies the interface to capture from.
- *
- * @retval TCS_SUCCESS          Socket created successfully.
- * @retval TCS_ERR_PERMISSION   Operation not permitted (may require CAP_NET_RAW).
- * @retval TCS_ERR_NOT_FOUND    Interface not found or not available.
- * @retval TCS_ERR_INVALID      Invalid argument(s).
- * @retval TCS_ERR_SYS          Underlying OS error.
- *
- * @see tcs_packet_capture()
- * @see tcs_packet_peer_str()
- */
-TcsResult tcs_packet_capture_iface(TcsSocket* socket_ctx, const struct TcsInterface* iface);
-
-/**
- * @brief Create a raw packet socket in capture mode on a given interface using its name.
- *
- * @warning This API is **experimental** and not recommended for production use.
- *
- * @param[out] socket_ctx      Pointer to a #TcsSocket handle that will be initialized on success. Must be set to
- *                             #TCS_SOCKET_INVALID before the call.
- * @param[in]  interface_name  Null-terminated name of the network interface to capture from (e.g. "eth0", "wlan0").
+ * @param[out] socket_ctx    Pointer to a #TcsSocket handle that will be initialized on success. Must be set to
+ *                           #TCS_SOCKET_INVALID before the call.
+ * @param[in]  bind_address  Pointer to a ::TcsAddress with family TCS_AF_PACKET specifying interface_id and protocol.
+ *                           Use #TCS_ETH_P_ALL to capture all protocols.
  *
  * @retval TCS_SUCCESS                  Socket created successfully.
  * @retval TCS_ERROR_PERMISSION_DENIED  Operation not permitted (may require CAP_NET_RAW).
  * @retval TCS_ERROR_INVALID_ARGUMENT   Invalid argument(s) provided.
- * @retval TCS_ERROR_SYSTEM             Interface not found or other underlying OS error.
  *
- * @see tcs_packet_capture_iface()
- * @see tcs_interface_list()
- * @see tcs_receive_from()
+ * @see tcs_raw_str()
  */
-TcsResult tcs_packet_capture_ifname(TcsSocket* socket_ctx, const char* interface_name);
+TcsResult tcs_raw(TcsSocket* socket_ctx, const struct TcsAddress* bind_address);
+
+/**
+ * @brief Open a raw L2 packet socket by interface name and protocol filter.
+ *
+ * @warning This API is **experimental** and not recommended for production use.
+ *
+ * Convenience wrapper around ::tcs_raw() that resolves the interface name
+ * to an interface ID via ::tcs_interface_list().
+ *
+ * @param[out] socket_ctx      Pointer to a #TcsSocket handle that will be initialized on success. Must be set to
+ *                             #TCS_SOCKET_INVALID before the call.
+ * @param[in]  interface_name  Null-terminated name of the network interface (e.g. "eth0", "wlan0").
+ * @param[in]  protocol        EtherType filter in host byte order. Use #TCS_ETH_P_ALL to capture all protocols.
+ *
+ * @retval TCS_SUCCESS                  Socket created successfully.
+ * @retval TCS_ERROR_PERMISSION_DENIED  Operation not permitted (may require CAP_NET_RAW).
+ * @retval TCS_ERROR_INVALID_ARGUMENT   Invalid argument(s) or interface not found.
+ *
+ * @see tcs_raw()
+ * @see tcs_interface_list()
+ */
+TcsResult tcs_raw_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol);
+
+// ######## High-level L2-Packet DGRAM Sockets (Experimental) ########
+
+/**
+ * @brief Open an L2 packet DGRAM socket bound to a specific interface and protocol filter.
+ *
+ * @warning This API is **experimental** and not recommended for production use.
+ *
+ * The socket uses SOCK_DGRAM, where the kernel handles the Ethernet header.
+ * Use ::tcs_send_to() / ::tcs_receive_from() for communication.
+ * Note: connect() is not supported on AF_PACKET sockets (see packet(7)).
+ *
+ * @param[out] socket_ctx    Pointer to a #TcsSocket handle. Must be #TCS_SOCKET_INVALID before call.
+ * @param[in]  bind_address  Pointer to a ::TcsAddress with family TCS_AF_PACKET specifying interface_id and protocol.
+ *
+ * @retval TCS_SUCCESS                  Socket created successfully.
+ * @retval TCS_ERROR_PERMISSION_DENIED  Operation not permitted (may require CAP_NET_RAW).
+ * @retval TCS_ERROR_INVALID_ARGUMENT   Invalid argument(s) provided.
+ *
+ * @see tcs_packet_str()
+ */
+TcsResult tcs_packet(TcsSocket* socket_ctx, const struct TcsAddress* bind_address);
+
+/**
+ * @brief Open an L2 packet DGRAM socket by interface name and protocol filter.
+ *
+ * @warning This API is **experimental** and not recommended for production use.
+ *
+ * Convenience wrapper around ::tcs_packet() that resolves the interface name
+ * to an interface ID via ::tcs_interface_list().
+ *
+ * @param[out] socket_ctx      Pointer to a #TcsSocket handle. Must be #TCS_SOCKET_INVALID before call.
+ * @param[in]  interface_name  Null-terminated name of the network interface (e.g. "eth0").
+ * @param[in]  protocol        EtherType filter in host byte order.
+ *
+ * @retval TCS_SUCCESS                  Socket created successfully.
+ * @retval TCS_ERROR_PERMISSION_DENIED  Operation not permitted (may require CAP_NET_RAW).
+ * @retval TCS_ERROR_INVALID_ARGUMENT   Invalid argument(s) or interface not found.
+ *
+ * @see tcs_packet()
+ * @see tcs_interface_list()
+ */
+TcsResult tcs_packet_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol);
 
 /**
  * @brief Binds a socket to a local address.
@@ -2100,8 +2056,8 @@ static inline int tds_map_create(void** keys,
 
     if (key_sts != 0 || value_sts != 0)
     {
-        tds_ulist_destroy(keys, &value_count, &value_capacity);
-        tds_ulist_destroy(values, &key_count, &key_capacity);
+        tds_ulist_destroy(keys, &key_count, &key_capacity);
+        tds_ulist_destroy(values, &value_count, &value_capacity);
         if (key_sts != 0)
             return key_sts;
         if (value_sts != 0)
@@ -2109,8 +2065,8 @@ static inline int tds_map_create(void** keys,
     }
     if (key_capacity != value_capacity)
     {
-        tds_ulist_destroy(keys, &value_count, &value_capacity);
-        tds_ulist_destroy(values, &key_count, &key_capacity);
+        tds_ulist_destroy(keys, &key_count, &key_capacity);
+        tds_ulist_destroy(values, &value_count, &value_capacity);
         return -1;
     }
     *capacity = key_capacity;
@@ -2319,6 +2275,7 @@ static inline int tds_map_remove(void** keys,
 #include <netinet/in.h>  // IPPROTO_XXP
 #include <netinet/tcp.h> // TCP_NODELAY
 #include <poll.h>        // poll()
+#include <stdio.h>       // fprintf (debug diagnostics)
 #include <stdlib.h>      // malloc()/free()
 #include <string.h>      // strcpy, memset
 #include <sys/ioctl.h>   // Flags for ifaddrs
@@ -2673,12 +2630,13 @@ TcsResult tcs_close(TcsSocket* socket_ctx)
 
 // ######## High-level Raw L2-Packet Sockets (Experimental) ########
 
-// tcs_packet_sender_str() is defined in tinycsocket_common.c
-// tcs_packet_sender() is defined in tinycsocket_common.c
-// tcs_packet_peer_str() is defined in tinycsocket_common.c
-// tcs_packet_peer() is defined in tinycsocket_common.c
-// tcs_packet_capture_iface() is defined in tinycsocket_common.c
-// tcs_packet_capture_ifname() is defined in tinycsocket_common.c
+// tcs_raw() is defined in tinycsocket_common.c
+// tcs_raw_str() is defined in tinycsocket_common.c
+
+// ######## High-level L2-Packet DGRAM Sockets (Experimental) ########
+
+// tcs_packet() is defined in tinycsocket_common.c
+// tcs_packet_str() is defined in tinycsocket_common.c
 
 // ######## Socket Operations ########
 
@@ -2719,7 +2677,12 @@ TcsResult tcs_connect(TcsSocket socket_ctx, const struct TcsAddress* address)
     if (connect(socket_ctx, (const struct sockaddr*)&native_sockaddr, sockaddr_size) == 0)
         return TCS_SUCCESS;
     else
+    {
+        // Debug: log unmapped errno values
+        if (errno2retcode(errno) == TCS_ERROR_UNKNOWN)
+            fprintf(stderr, "connect() failed with unmapped errno: %d (%s)\n", errno, strerror(errno));
         return errno2retcode(errno);
+    }
 }
 
 // tcs_connect_str() is defined in tinycsocket_common.c
@@ -2773,6 +2736,8 @@ TcsResult tcs_shutdown(TcsSocket socket_ctx, TcsSocketDirection direction)
     const int LUT[] = {SHUT_RD, SHUT_WR, SHUT_RDWR};
 
     if (socket_ctx == TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (direction < 0 || direction > 2)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     const int how = LUT[direction];
@@ -2887,10 +2852,7 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     if (flags & TCS_MSG_SENDALL)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
-    // TCS_SENDV_MAX is default set to 1024. define TCS_SMALL_STACK to use a value of 128.
-    const size_t max_supported_iov =
-        UIO_MAXIOV > TCS_SENDV_MAX ? TCS_SENDV_MAX : UIO_MAXIOV; // min(TCS_SENDV_MAX, UIO_MAXIOV)
-    if (buffer_count > max_supported_iov)
+    if (buffer_count > UIO_MAXIOV)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     // Some plattforms (Glibc) do not follow posix. We have mixed size_t and int types for msg_iovlen.
@@ -2899,7 +2861,7 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     // to cast it to correct type without warnigns. We can not, since we want to support more compilers.
 
 // Check if buffer_count can be placed in an unsigned short
-#if (UIO_MAXIOV > USHRT_MAX && TCS_SENDV_MAX > USHRT_MAX)
+#if (UIO_MAXIOV > USHRT_MAX)
     // You are using a plattform with very narrow unsigned short. Let's hope that your plattform follows POSIX standards here.
     typedef int SAFE_IOVLEN;
 #else
@@ -2908,7 +2870,18 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
 
     SAFE_IOVLEN_TYPE narrow_casted_iovlen = (SAFE_IOVLEN_TYPE)buffer_count;
 
-    static struct iovec my_iovec[TCS_SENDV_MAX];
+    struct iovec stack_iovec[TCS_SENDV_STACK_MAX];
+    struct iovec* my_iovec = stack_iovec;
+    struct iovec* heap_iovec = NULL;
+
+    if (buffer_count > TCS_SENDV_STACK_MAX)
+    {
+        heap_iovec = (struct iovec*)malloc(sizeof(struct iovec) * buffer_count);
+        if (heap_iovec == NULL)
+            return TCS_ERROR_MEMORY;
+        my_iovec = heap_iovec;
+    }
+
     for (size_t i = 0; i < buffer_count; i++)
     {
         // We know that sendmsg() does not modify the data, so we can safely cast away the const here.
@@ -2930,6 +2903,8 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
 
     ssize_t ret = 0;
     ret = sendmsg(socket_ctx, &msg, TCS_DEFAULT_SEND_FLAGS | (int)flags);
+
+    free(heap_iovec);
 
     if (ret >= 0)
     {
@@ -3227,16 +3202,16 @@ TcsResult tcs_opt_get(TcsSocket socket_ctx, int32_t level, int32_t option_name, 
     }
 }
 
-// tcs_opt_broadcast_set() is defined in tinycocket_common.c
-// tcs_opt_broadcast_get() is defined in tinycocket_common.c
-// tcs_opt_keep_alive_set() is defined in inycocket_common.c
-// tcs_opt_keep_alive_get() is defined in tinycocket_common.c
-// tcs_opt_reuse_address_set() is defined in tiinycocket_common.c
-// tcs_opt_reuse_address_get() is defined in tiinycocket_common.c
-// tcs_opt_send_buffer_size_set() is defined in tininycocket_common.c
-// tcs_opt_send_buffer_size_get() is defined in tininycocket_common.c
-// tcs_opt_receive_buffer_size_set() is defined in tinyinycocket_common.c
-// tcs_opt_receive_buffer_size_get() is defined in tinyinycocket_common.c
+// tcs_opt_broadcast_set() is defined in tinycsocket_common.c
+// tcs_opt_broadcast_get() is defined in tinycsocket_common.c
+// tcs_opt_keep_alive_set() is defined in tinycsocket_common.c
+// tcs_opt_keep_alive_get() is defined in tinycsocket_common.c
+// tcs_opt_reuse_address_set() is defined in tinycsocket_common.c
+// tcs_opt_reuse_address_get() is defined in tinycsocket_common.c
+// tcs_opt_send_buffer_size_set() is defined in tinycsocket_common.c
+// tcs_opt_send_buffer_size_get() is defined in tinycsocket_common.c
+// tcs_opt_receive_buffer_size_set() is defined in tinycsocket_common.c
+// tcs_opt_receive_buffer_size_get() is defined in tinycsocket_common.c
 
 TcsResult tcs_opt_receive_timeout_set(TcsSocket socket_ctx, int timeout_ms)
 {
@@ -3434,12 +3409,7 @@ TcsResult tcs_opt_membership_add_to(TcsSocket socket_ctx,
         return TCS_ERROR_NOT_IMPLEMENTED;
 #endif
     }
-    else
-    {
-        return TCS_ERROR_NOT_IMPLEMENTED;
-    }
-
-    return TCS_ERROR_UNKNOWN; // Not reachable
+    return TCS_ERROR_NOT_IMPLEMENTED;
 }
 
 TcsResult tcs_opt_membership_drop(TcsSocket socket_ctx, const struct TcsAddress* multicast_address)
@@ -3539,12 +3509,7 @@ TcsResult tcs_opt_membership_drop_from(TcsSocket socket_ctx,
         return TCS_ERROR_NOT_IMPLEMENTED;
 #endif
     }
-    else
-    {
-        return TCS_ERROR_NOT_IMPLEMENTED;
-    }
-
-    return TCS_ERROR_UNKNOWN; // Not reachable
+    return TCS_ERROR_NOT_IMPLEMENTED;
 }
 
 // ######## Address and Interface Utilities ########
@@ -3632,7 +3597,7 @@ TcsResult tcs_address_resolve(const char* hostname,
     if (sts == EAI_SYSTEM)
         return errno2retcode(errno);
     else if (sts == EAI_AGAIN)
-        return TCS_ERROR_TEMPRORARY_FAILURE;
+        return TCS_ERROR_TEMPORARY_FAILURE;
     else if (sts == EAI_BADFLAGS)
         return TCS_ERROR_INVALID_ARGUMENT;
     else if (sts == EAI_FAIL)
@@ -3869,17 +3834,6 @@ TcsResult tcs_address_socket_family(TcsSocket socket_ctx, TcsAddressFamily* out_
 #include "dbg_wrap.h"
 #endif
 
-#if !defined(NTDDI_VERSION) && !defined(_WIN32_WINNT) && !defined(WINVER)
-#ifdef _WIN64
-#define NTDDI_VERSION 0x05020000
-#define _WIN32_WINNT 0x0502
-#define WINVER 0x0502
-#else
-#define NTDDI_VERSION 0x05000100
-#define _WIN32_WINNT 0x0500
-#define WINVER 0x0500
-#endif
-#endif
 #define WIN32_LEAN_AND_MEAN
 // Header only should not need other files
 #ifndef TINYDATASTRUCTURES_H_
@@ -3894,8 +3848,22 @@ TcsResult tcs_address_socket_family(TcsSocket socket_ctx, TcsAddressFamily* out_
 #include <iphlpapi.h> // GetAdaptersAddresses
 #include <ws2tcpip.h> // getaddrinfo
 
+#include <stdio.h>  // fprintf (debug diagnostics)
 #include <stdlib.h> // Malloc for GetAdaptersAddresses
 #include <string.h> // memset
+
+// SOCKADDR_STORAGE was introduced in Windows XP (0x0501).
+// For Win2K targets with MSVC, define it ourselves.
+// mingw-w64 always defines it, so check _MSC_VER to avoid redefinition.
+#if defined(_MSC_VER) && defined(_WIN32_WINNT) && _WIN32_WINNT < 0x0501
+typedef struct
+{
+    short ss_family;
+    char __ss_pad1[6];
+    __int64 __ss_align;
+    char __ss_pad2[112];
+} SOCKADDR_STORAGE, *PSOCKADDR_STORAGE;
+#endif
 
 #if defined(_MSC_VER) || defined(__clang__)
 #pragma comment(lib, "wsock32.lib")
@@ -3907,17 +3875,9 @@ TcsResult tcs_address_socket_family(TcsSocket socket_ctx, TcsAddressFamily* out_
 using std::min;
 #endif
 
-// Forwards declaration due to winver dispatch
-// We will dispatch at lib_init() which OS functions to call depending on OS support
-
 #ifndef ULIST_SOC
 #define ULIST_SOC
 TDS_ULIST_IMPL(SOCKET, soc)
-#endif
-
-#ifndef ULIST_PVOID
-#define ULIST_PVOID
-TDS_ULIST_IMPL(void*, pvoid)
 #endif
 
 #ifndef ULIST_PVOID
@@ -3997,8 +3957,6 @@ const int TCS_SO_IP_NODELAY = TCP_NODELAY;
 const int TCS_SO_IP_MEMBERSHIP_ADD = IP_ADD_MEMBERSHIP;
 const int TCS_SO_IP_MEMBERSHIP_DROP = IP_DROP_MEMBERSHIP;
 const int TCS_SO_IP_MULTICAST_LOOP = IP_MULTICAST_LOOP;
-
-int g_init_count = 0;
 
 // ######## Internal Helpers ########
 
@@ -4142,32 +4100,21 @@ static TcsResult native2sockaddr(const PSOCKADDR in_addr, struct TcsAddress* out
 
 TcsResult tcs_lib_init(void)
 {
-    if (g_init_count <= 0)
-    {
-        WSADATA wsa_data;
-        int wsa_startup_status_code = WSAStartup(MAKEWORD(2, 2), &wsa_data);
-        if (wsa_startup_status_code != 0)
-            return TCS_ERROR_SYSTEM;
-    }
-    ++g_init_count;
+    WSADATA wsa_data;
+    if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0)
+        return TCS_ERROR_SYSTEM;
     return TCS_SUCCESS;
 }
 
 TcsResult tcs_lib_free(void)
 {
-    g_init_count--;
-    if (g_init_count <= 0)
-    {
-        WSACleanup();
-    }
+    WSACleanup();
     return TCS_SUCCESS;
 }
 
 TcsResult tcs_socket(TcsSocket* socket_ctx, TcsAddressFamily family, int type, int protocol)
 {
     if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (*socket_ctx != TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     short native_family = AF_UNSPEC;
@@ -4223,12 +4170,13 @@ TcsResult tcs_close(TcsSocket* socket_ctx)
 
 // ######## High-level Raw L2-Packet Sockets (Experimental) ########
 
-// tcs_packet_sender_str() is defined in tinycsocket_common.c
-// tcs_packet_sender() is defined in tinycsocket_common.c
-// tcs_packet_peer_str() is defined in tinycsocket_common.c
-// tcs_packet_peer() is defined in tinycsocket_common.c
-// tcs_packet_capture_iface() is defined in tinycsocket_common.c
-// tcs_packet_capture_ifname() is defined in tinycsocket_common.c
+// tcs_raw() is defined in tinycsocket_common.c
+// tcs_raw_str() is defined in tinycsocket_common.c
+
+// ######## High-level L2-Packet DGRAM Sockets (Experimental) ########
+
+// tcs_packet() is defined in tinycsocket_common.c
+// tcs_packet_str() is defined in tinycsocket_common.c
 
 // ######## Socket Operations ########
 
@@ -4317,6 +4265,8 @@ TcsResult tcs_shutdown(TcsSocket socket_ctx, TcsSocketDirection direction)
     const int LUT[] = {SD_RECEIVE, SD_SEND, SD_BOTH};
 
     if (socket_ctx == TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (direction < 0 || direction > 2)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     const int how = LUT[direction];
@@ -4426,10 +4376,18 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     if (flags & TCS_MSG_SENDALL)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
-    if (buffer_count > TCS_SENDV_MAX)
-        return TCS_ERROR_INVALID_ARGUMENT;
+    WSABUF stack_buffers[TCS_SENDV_STACK_MAX];
+    WSABUF* native_buffers = stack_buffers;
+    WSABUF* heap_buffers = NULL;
 
-    WSABUF native_buffers[TCS_SENDV_MAX];
+    if (buffer_count > TCS_SENDV_STACK_MAX)
+    {
+        heap_buffers = (WSABUF*)malloc(sizeof(WSABUF) * buffer_count);
+        if (heap_buffers == NULL)
+            return TCS_ERROR_MEMORY;
+        native_buffers = heap_buffers;
+    }
+
     for (size_t i = 0; i < buffer_count; ++i)
     {
         native_buffers[i].buf = (CHAR*)buffers[i].data;
@@ -4438,6 +4396,8 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
 
     DWORD sent = 0;
     int wsasend_status = WSASend(socket_ctx, native_buffers, (DWORD)buffer_count, &sent, (DWORD)flags, NULL, NULL);
+
+    free(heap_buffers);
 
     if (bytes_sent != NULL)
         *bytes_sent = (size_t)sent;
@@ -4600,7 +4560,9 @@ TcsResult tcs_pool_add(struct TcsPool* pool,
     if (!poll_can_read && !poll_can_write && !poll_error)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    tds_map_socket_user_add(&pool->user_data, socket_ctx, user_data);
+    int map_sts = tds_map_socket_user_add(&pool->user_data, socket_ctx, user_data);
+    if (map_sts != 0)
+        return TCS_ERROR_MEMORY;
 
     if (poll_can_read)
     {
@@ -4663,6 +4625,7 @@ TcsResult tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
         if (pool->user_data.keys[i] == socket_ctx)
         {
             tds_map_socket_user_remove(&pool->user_data, i);
+            break;
         }
     }
 
@@ -4714,7 +4677,7 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
         rfds_cpy = rfds_heap;
     }
 
-    if (pool->write_sockets.count >= FD_SETSIZE)
+    if (pool->write_sockets.count <= FD_SETSIZE)
     {
         FD_ZERO(&wfds_stack);
         wfds_cpy = (struct tcs_fd_set*)&wfds_stack;
@@ -4732,8 +4695,8 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
     }
     else
     {
-        wfds_heap = (struct tcs_fd_set*)malloc(data_offset + sizeof(SOCKET) * pool->error_sockets.count);
-        wfds_cpy = wfds_heap;
+        efds_heap = (struct tcs_fd_set*)malloc(data_offset + sizeof(SOCKET) * pool->error_sockets.count);
+        efds_cpy = efds_heap;
     }
 
     if (rfds_cpy == NULL || wfds_cpy == NULL || efds_cpy == NULL)
@@ -4902,16 +4865,16 @@ TcsResult tcs_opt_get(TcsSocket socket_ctx, int32_t level, int32_t option_name, 
     return socketstatus2retcode(sockopt_status);
 }
 
-// tcs_opt_broadcast_set() is defined in tinycocket_common.c
-// tcs_opt_broadcast_get() is defined in tinycocket_common.c
-// tcs_opt_keep_alive_set() is defined in inycocket_common.c
-// tcs_opt_keep_alive_get() is defined in tinycocket_common.c
-// tcs_opt_reuse_address_set() is defined in tiinycocket_common.c
-// tcs_opt_reuse_address_get() is defined in tiinycocket_common.c
-// tcs_opt_send_buffer_size_set() is defined in tininycocket_common.c
-// tcs_opt_send_buffer_size_get() is defined in tininycocket_common.c
-// tcs_opt_receive_buffer_size_set() is defined in tinyinycocket_common.c
-// tcs_opt_receive_buffer_size_get() is defined in tinyinycocket_common.c
+// tcs_opt_broadcast_set() is defined in tinycsocket_common.c
+// tcs_opt_broadcast_get() is defined in tinycsocket_common.c
+// tcs_opt_keep_alive_set() is defined in tinycsocket_common.c
+// tcs_opt_keep_alive_get() is defined in tinycsocket_common.c
+// tcs_opt_reuse_address_set() is defined in tinycsocket_common.c
+// tcs_opt_reuse_address_get() is defined in tinycsocket_common.c
+// tcs_opt_send_buffer_size_set() is defined in tinycsocket_common.c
+// tcs_opt_send_buffer_size_get() is defined in tinycsocket_common.c
+// tcs_opt_receive_buffer_size_set() is defined in tinycsocket_common.c
+// tcs_opt_receive_buffer_size_get() is defined in tinycsocket_common.c
 
 TcsResult tcs_opt_receive_timeout_set(TcsSocket socket_ctx, int timeout_ms)
 {
@@ -5164,7 +5127,11 @@ TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, 
         adapters = (PIP_ADAPTER_ADDRESSES)malloc(buffer_size);
         if (adapters == NULL)
             return TCS_ERROR_MEMORY;
-        adapter_sts = GetAdaptersAddresses(AF_UNSPEC, 0, NULL, adapters, &buffer_size);
+        adapter_sts = GetAdaptersAddresses(AF_UNSPEC,
+                                           GAA_FLAG_SKIP_DNS_SERVER | GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST,
+                                           NULL,
+                                           adapters,
+                                           &buffer_size);
         if (adapter_sts == ERROR_BUFFER_OVERFLOW)
         {
             free(adapters);
@@ -5183,6 +5150,8 @@ TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, 
     }
     if (adapter_sts != NO_ERROR)
     {
+        // Debug: log the actual Windows error code for diagnostics
+        fprintf(stderr, "GetAdaptersAddresses failed with error: %lu (0x%lX)\n", adapter_sts, adapter_sts);
         if (adapters != NULL)
             free(adapters);
         return TCS_ERROR_UNKNOWN;
@@ -5325,7 +5294,11 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
         adapters = (PIP_ADAPTER_ADDRESSES)malloc(buffer_size);
         if (adapters == NULL)
             return TCS_ERROR_MEMORY;
-        adapter_sts = GetAdaptersAddresses(AF_UNSPEC, 0, NULL, adapters, &buffer_size);
+        adapter_sts = GetAdaptersAddresses(AF_UNSPEC,
+                                           GAA_FLAG_SKIP_DNS_SERVER | GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST,
+                                           NULL,
+                                           adapters,
+                                           &buffer_size);
         if (adapter_sts == ERROR_BUFFER_OVERFLOW)
         {
             free(adapters);
@@ -5537,9 +5510,14 @@ TcsResult tcs_socket_preset(TcsSocket* socket_ctx, TcsPreset socket_type)
             type = TCS_SOCK_DGRAM;
             protocol = TCS_PROTOCOL_IP_UDP;
             break;
-        case TCS_PRESET_PACKET:
+        case TCS_PRESET_RAW:
             family = TCS_AF_PACKET;
             type = TCS_SOCK_RAW;
+            protocol = 0; // Block all traffic, unblock with tcs_bind_addr()
+            break;
+        case TCS_PRESET_PACKET:
+            family = TCS_AF_PACKET;
+            type = TCS_SOCK_DGRAM;
             protocol = 0; // Block all traffic, unblock with tcs_bind_addr()
             break;
         case TCS_PRESET_TCP_IP6:
@@ -5554,7 +5532,6 @@ TcsResult tcs_socket_preset(TcsSocket* socket_ctx, TcsPreset socket_type)
             break;
         default:
             return TCS_ERROR_NOT_IMPLEMENTED;
-            break;
     }
     return tcs_socket(socket_ctx, family, type, protocol);
 }
@@ -5662,56 +5639,240 @@ TcsResult tcs_tcp_client(TcsSocket* socket_ctx, const struct TcsAddress* remote_
         return res;
     }
     res = tcs_connect(*socket_ctx, remote_address);
-    // // TODO: kolla vad tcs_connect returnerar i icke-blockande läge
+    if (res != TCS_IN_PROGRESS && res != TCS_SUCCESS)
+    {
+        tcs_pool_destroy(&timeout_pool);
+        tcs_close(socket_ctx);
+        return res;
+    }
 
-    // tcs_pool_add(timeout_pool, *socket_ctx, NULL, true, true, true);
+    if (res == TCS_IN_PROGRESS)
+    {
+        res = tcs_pool_add(timeout_pool, *socket_ctx, NULL, false, true, true);
+        if (res != TCS_SUCCESS)
+        {
+            tcs_pool_destroy(&timeout_pool);
+            tcs_close(socket_ctx);
+            return res;
+        }
 
-    // struct TcsPollEvent event;
-    // size_t events_populated = 0;
-    // tcs_pool_poll(timeout_pool, &event, 1, &events_populated, timeout_ms);
-    // if (events_populated == 0)
-    //     res = TCS_ERROR_TIMED_OUT;
-    // else if ((event.events & TCS_POLLERR) != 0)
-    //     res = TCS_ERROR_CONNECTION_REFUSED;
-    // else if ((event.events & TCS_POLLHUP) != 0)
-    //     res = TCS_ERROR_CONNECTION_REFUSED;
-    // else if ((event.events & TCS_POLLOUT) != 0)
-    //     res = TCS_SUCCESS;
-    // else
-    //     res = TCS_ERROR_UNKNOWN;
-    return TCS_ERROR_UNKNOWN;
+        struct TcsPollEvent event = TCS_POOL_EVENT_EMPTY;
+        size_t events_populated = 0;
+        res = tcs_pool_poll(timeout_pool, &event, 1, &events_populated, timeout_ms);
+        if (res == TCS_ERROR_TIMED_OUT)
+        {
+            tcs_pool_destroy(&timeout_pool);
+            tcs_close(socket_ctx);
+            return TCS_ERROR_TIMED_OUT;
+        }
+        if (res != TCS_SUCCESS || events_populated == 0)
+        {
+            tcs_pool_destroy(&timeout_pool);
+            tcs_close(socket_ctx);
+            return res != TCS_SUCCESS ? res : TCS_ERROR_UNKNOWN;
+        }
+        if (event.error != TCS_SUCCESS)
+        {
+            tcs_pool_destroy(&timeout_pool);
+            tcs_close(socket_ctx);
+            return TCS_ERROR_CONNECTION_REFUSED;
+        }
+    }
+
+    tcs_pool_destroy(&timeout_pool);
+
+    res = tcs_opt_nonblocking_set(*socket_ctx, false);
+    if (res != TCS_SUCCESS)
+    {
+        tcs_close(socket_ctx);
+        return res;
+    }
+
+    return TCS_SUCCESS;
 }
 
 TcsResult tcs_tcp_client_str(TcsSocket* socket_ctx, const char* remote_address, uint16_t port, int timeout_ms)
 {
-    return TCS_ERROR_NOT_IMPLEMENTED;
+    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (remote_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct TcsAddress address = TCS_ADDRESS_NONE;
+    TcsResult res = tcs_address_parse(remote_address, &address);
+    if (res != TCS_SUCCESS)
+        return res;
+    if (address.family != TCS_AF_IP4 && address.family != TCS_AF_IP6)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    uint16_t* parsed_port = NULL;
+    if (address.family == TCS_AF_IP4)
+    {
+        parsed_port = &address.data.ip4.port;
+    }
+    else if (address.family == TCS_AF_IP6)
+    {
+        parsed_port = &address.data.ip6.port;
+    }
+    else
+    {
+        return TCS_ERROR_UNKNOWN;
+    }
+
+    if (port == 0 && *parsed_port == 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (port != 0 && *parsed_port != 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    if (port != 0 && *parsed_port == 0)
+        *parsed_port = port;
+
+    return tcs_tcp_client(socket_ctx, &address, timeout_ms);
 }
 
 TcsResult tcs_udp_receiver(TcsSocket* socket_ctx, const struct TcsAddress* local_address)
 {
-    return TCS_ERROR_NOT_IMPLEMENTED;
+    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (local_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    TcsResult res = tcs_socket(socket_ctx, local_address->family, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP);
+    if (res != TCS_SUCCESS)
+        return res;
+    res = tcs_bind(*socket_ctx, local_address);
+    if (res != TCS_SUCCESS)
+    {
+        tcs_close(socket_ctx);
+        return res;
+    }
+    return TCS_SUCCESS;
 }
 
 TcsResult tcs_udp_receiver_str(TcsSocket* socket_ctx, const char* local_address, uint16_t port)
 {
-    return TCS_ERROR_NOT_IMPLEMENTED;
+    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (local_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct TcsAddress bind_address = TCS_ADDRESS_NONE;
+    TcsResult res = tcs_address_parse(local_address, &bind_address);
+    if (res != TCS_SUCCESS)
+        return res;
+    if (bind_address.family != TCS_AF_IP4 && bind_address.family != TCS_AF_IP6)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    uint16_t* parsed_port = NULL;
+    if (bind_address.family == TCS_AF_IP4)
+    {
+        parsed_port = &bind_address.data.ip4.port;
+    }
+    else if (bind_address.family == TCS_AF_IP6)
+    {
+        parsed_port = &bind_address.data.ip6.port;
+    }
+    else
+    {
+        return TCS_ERROR_UNKNOWN;
+    }
+
+    if (port == 0 && *parsed_port == 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (port != 0 && *parsed_port != 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    if (port != 0 && *parsed_port == 0)
+        *parsed_port = port;
+
+    return tcs_udp_receiver(socket_ctx, &bind_address);
 }
 
 TcsResult tcs_udp_sender(TcsSocket* socket_ctx, const struct TcsAddress* remote_address)
 {
-    return TCS_ERROR_NOT_IMPLEMENTED;
+    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (remote_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    TcsResult res = tcs_socket(socket_ctx, remote_address->family, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP);
+    if (res != TCS_SUCCESS)
+        return res;
+    res = tcs_connect(*socket_ctx, remote_address);
+    if (res != TCS_SUCCESS)
+    {
+        tcs_close(socket_ctx);
+        return res;
+    }
+    return TCS_SUCCESS;
 }
 
 TcsResult tcs_udp_sender_str(TcsSocket* socket_ctx, const char* remote_address, uint16_t port)
 {
-    return TCS_ERROR_NOT_IMPLEMENTED;
+    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (remote_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct TcsAddress address = TCS_ADDRESS_NONE;
+    TcsResult res = tcs_address_parse(remote_address, &address);
+    if (res != TCS_SUCCESS)
+        return res;
+    if (address.family != TCS_AF_IP4 && address.family != TCS_AF_IP6)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    uint16_t* parsed_port = NULL;
+    if (address.family == TCS_AF_IP4)
+    {
+        parsed_port = &address.data.ip4.port;
+    }
+    else if (address.family == TCS_AF_IP6)
+    {
+        parsed_port = &address.data.ip6.port;
+    }
+    else
+    {
+        return TCS_ERROR_UNKNOWN;
+    }
+
+    if (port == 0 && *parsed_port == 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (port != 0 && *parsed_port != 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    if (port != 0 && *parsed_port == 0)
+        *parsed_port = port;
+
+    return tcs_udp_sender(socket_ctx, &address);
 }
 
 TcsResult tcs_udp_peer(TcsSocket* socket_ctx,
                        const struct TcsAddress* local_address,
                        const struct TcsAddress* remote_address)
 {
-    return TCS_ERROR_NOT_IMPLEMENTED;
+    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (local_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (remote_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    TcsResult res = tcs_socket(socket_ctx, local_address->family, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP);
+    if (res != TCS_SUCCESS)
+        return res;
+    res = tcs_bind(*socket_ctx, local_address);
+    if (res != TCS_SUCCESS)
+    {
+        tcs_close(socket_ctx);
+        return res;
+    }
+    res = tcs_connect(*socket_ctx, remote_address);
+    if (res != TCS_SUCCESS)
+    {
+        tcs_close(socket_ctx);
+        return res;
+    }
+    return TCS_SUCCESS;
 }
 
 TcsResult tcs_udp_peer_str(TcsSocket* socket_ctx,
@@ -5720,47 +5881,160 @@ TcsResult tcs_udp_peer_str(TcsSocket* socket_ctx,
                            const char* remote_address,
                            uint16_t remote_port)
 {
-    return TCS_ERROR_NOT_IMPLEMENTED;
+    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (local_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (remote_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct TcsAddress local_addr = TCS_ADDRESS_NONE;
+    TcsResult res = tcs_address_parse(local_address, &local_addr);
+    if (res != TCS_SUCCESS)
+        return res;
+    if (local_addr.family != TCS_AF_IP4 && local_addr.family != TCS_AF_IP6)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct TcsAddress remote_addr = TCS_ADDRESS_NONE;
+    res = tcs_address_parse(remote_address, &remote_addr);
+    if (res != TCS_SUCCESS)
+        return res;
+    if (remote_addr.family != TCS_AF_IP4 && remote_addr.family != TCS_AF_IP6)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    uint16_t* local_parsed_port = NULL;
+    if (local_addr.family == TCS_AF_IP4)
+        local_parsed_port = &local_addr.data.ip4.port;
+    else if (local_addr.family == TCS_AF_IP6)
+        local_parsed_port = &local_addr.data.ip6.port;
+    else
+        return TCS_ERROR_UNKNOWN;
+
+    if (local_port == 0 && *local_parsed_port == 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (local_port != 0 && *local_parsed_port != 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (local_port != 0 && *local_parsed_port == 0)
+        *local_parsed_port = local_port;
+
+    uint16_t* remote_parsed_port = NULL;
+    if (remote_addr.family == TCS_AF_IP4)
+        remote_parsed_port = &remote_addr.data.ip4.port;
+    else if (remote_addr.family == TCS_AF_IP6)
+        remote_parsed_port = &remote_addr.data.ip6.port;
+    else
+        return TCS_ERROR_UNKNOWN;
+
+    if (remote_port == 0 && *remote_parsed_port == 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (remote_port != 0 && *remote_parsed_port != 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (remote_port != 0 && *remote_parsed_port == 0)
+        *remote_parsed_port = remote_port;
+
+    return tcs_udp_peer(socket_ctx, &local_addr, &remote_addr);
 }
 
 // ######## High-level Raw L2-Packet Sockets (Experimental) ########
 
-TcsResult tcs_packet_sender_str(TcsSocket* socket_ctx,
-                                const char* interface_name,
-                                const uint8_t destination_mac[6],
-                                uint16_t protocol)
+TcsResult tcs_raw(TcsSocket* socket_ctx, const struct TcsAddress* bind_address)
 {
-    return TCS_ERROR_NOT_IMPLEMENTED;
+    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (bind_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (bind_address->family != TCS_AF_PACKET)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    TcsResult res = tcs_socket(socket_ctx, TCS_AF_PACKET, TCS_SOCK_RAW, bind_address->data.packet.protocol);
+    if (res != TCS_SUCCESS)
+        return res;
+    res = tcs_bind(*socket_ctx, bind_address);
+    if (res != TCS_SUCCESS)
+    {
+        tcs_close(socket_ctx);
+        return res;
+    }
+    return TCS_SUCCESS;
 }
 
-TcsResult tcs_packet_sender(TcsSocket* socket_ctx, const struct TcsAddress* remote_address)
+TcsResult tcs_raw_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol)
 {
-    return TCS_ERROR_NOT_IMPLEMENTED;
+    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (interface_name == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct TcsInterface interfaces[32];
+    size_t count = 0;
+    TcsResult res = tcs_interface_list(interfaces, 32, &count);
+    if (res != TCS_SUCCESS)
+        return res;
+
+    for (size_t i = 0; i < count; ++i)
+    {
+        if (strcmp(interfaces[i].name, interface_name) == 0)
+        {
+            struct TcsAddress bind_address = TCS_ADDRESS_NONE;
+            bind_address.family = TCS_AF_PACKET;
+            bind_address.data.packet.interface_id = interfaces[i].id;
+            bind_address.data.packet.protocol = protocol;
+            return tcs_raw(socket_ctx, &bind_address);
+        }
+    }
+
+    return TCS_ERROR_INVALID_ARGUMENT;
 }
 
-TcsResult tcs_packet_peer_str(TcsSocket* socket_ctx,
-                              const char* interface_name,
-                              const uint8_t destination_mac[6],
-                              uint16_t protocol)
+// ######## High-level L2-Packet DGRAM Sockets (Experimental) ########
+
+TcsResult tcs_packet(TcsSocket* socket_ctx, const struct TcsAddress* bind_address)
 {
-    return TCS_ERROR_NOT_IMPLEMENTED;
+    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (bind_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (bind_address->family != TCS_AF_PACKET)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    TcsResult res = tcs_socket(socket_ctx, TCS_AF_PACKET, TCS_SOCK_DGRAM, bind_address->data.packet.protocol);
+    if (res != TCS_SUCCESS)
+        return res;
+    res = tcs_bind(*socket_ctx, bind_address);
+    if (res != TCS_SUCCESS)
+    {
+        tcs_close(socket_ctx);
+        return res;
+    }
+    return TCS_SUCCESS;
 }
 
-TcsResult tcs_packet_peer(TcsSocket* socket_ctx,
-                          const struct TcsAddress* local_address,
-                          const struct TcsAddress* remote_address)
+TcsResult tcs_packet_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol)
 {
-    return TCS_ERROR_NOT_IMPLEMENTED;
-}
+    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (interface_name == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
-TcsResult tcs_packet_capture_iface(TcsSocket* socket_ctx, const struct TcsInterface* iface)
-{
-    return TCS_ERROR_NOT_IMPLEMENTED;
-}
+    struct TcsInterface interfaces[32];
+    size_t count = 0;
+    TcsResult res = tcs_interface_list(interfaces, 32, &count);
+    if (res != TCS_SUCCESS)
+        return res;
 
-TcsResult tcs_packet_capture_ifname(TcsSocket* socket_ctx, const char* interface_name)
-{
-    return TCS_ERROR_NOT_IMPLEMENTED;
+    for (size_t i = 0; i < count; ++i)
+    {
+        if (strcmp(interfaces[i].name, interface_name) == 0)
+        {
+            struct TcsAddress bind_address = TCS_ADDRESS_NONE;
+            bind_address.family = TCS_AF_PACKET;
+            bind_address.data.packet.interface_id = interfaces[i].id;
+            bind_address.data.packet.protocol = protocol;
+            return tcs_packet(socket_ctx, &bind_address);
+        }
+    }
+
+    return TCS_ERROR_INVALID_ARGUMENT;
 }
 
 // ######## Socket Operations ########
@@ -5875,7 +6149,7 @@ TcsResult tcs_receive_line(TcsSocket socket_ctx,
                            size_t* bytes_received,
                            uint8_t delimiter)
 {
-    if (socket_ctx == TCS_SOCKET_INVALID || buffer == NULL || buffer_length <= 0)
+    if (socket_ctx == TCS_SOCKET_INVALID || buffer == NULL || buffer_length == 0)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     /*
@@ -5965,7 +6239,7 @@ TcsResult tcs_receive_line(TcsSocket socket_ctx,
 
 TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_length, size_t* bytes_received)
 {
-    if (socket_ctx == TCS_SOCKET_INVALID || buffer == NULL || buffer_length <= 0)
+    if (socket_ctx == TCS_SOCKET_INVALID || buffer == NULL || buffer_length == 0)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     size_t expected_length = 0;
@@ -6318,7 +6592,7 @@ TcsResult tcs_address_to_str(const struct TcsAddress* address, char str[70])
     if (str == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    memset(str, 0, 40);
+    memset(str, 0, 70);
     if (address->family == TCS_AF_IP4)
     {
         uint32_t d = address->data.ip4.address;
@@ -6384,24 +6658,93 @@ bool tcs_address_is_equal(const struct TcsAddress* l, const struct TcsAddress* r
 
 bool tcs_address_is_any(const struct TcsAddress* addr)
 {
-    return false; // Not implemented
+    if (addr == NULL)
+        return false;
+    switch (addr->family)
+    {
+        case TCS_AF_IP4:
+            return addr->data.ip4.address == TCS_ADDRESS_ANY_IP4;
+        case TCS_AF_IP6: {
+            static const uint8_t any6[16] = {0};
+            return memcmp(addr->data.ip6.address, any6, 16) == 0;
+        }
+        default:
+            return false;
+    }
 }
 
 bool tcs_address_is_local(const struct TcsAddress* addr)
 {
-    return false; // Not implemented
+    if (addr == NULL)
+        return false;
+    switch (addr->family)
+    {
+        case TCS_AF_IP4:
+            return (addr->data.ip4.address >> 16) == 0xA9FE; // 169.254.0.0/16
+        case TCS_AF_IP6:
+            return addr->data.ip6.address[0] == 0xFE && (addr->data.ip6.address[1] & 0xC0) == 0x80; // fe80::/10
+        default:
+            return false;
+    }
 }
+
 bool tcs_address_is_loopback(const struct TcsAddress* addr)
 {
-    return false; // Not implemented
+    if (addr == NULL)
+        return false;
+    switch (addr->family)
+    {
+        case TCS_AF_IP4:
+            return addr->data.ip4.address == TCS_ADDRESS_LOOPBACK_IP4;
+        case TCS_AF_IP6:
+            return addr->data.ip6.address[0] == 0 && addr->data.ip6.address[1] == 0 && addr->data.ip6.address[2] == 0 &&
+                   addr->data.ip6.address[3] == 0 && addr->data.ip6.address[4] == 0 && addr->data.ip6.address[5] == 0 &&
+                   addr->data.ip6.address[6] == 0 && addr->data.ip6.address[7] == 0 && addr->data.ip6.address[8] == 0 &&
+                   addr->data.ip6.address[9] == 0 && addr->data.ip6.address[10] == 0 &&
+                   addr->data.ip6.address[11] == 0 && addr->data.ip6.address[12] == 0 &&
+                   addr->data.ip6.address[13] == 0 && addr->data.ip6.address[14] == 0 &&
+                   addr->data.ip6.address[15] == 1;
+        case TCS_AF_PACKET: {
+            static const uint8_t zero_mac[6] = {0};
+            return memcmp(addr->data.packet.mac, zero_mac, 6) == 0;
+        }
+        default:
+            return false;
+    }
 }
+
 bool tcs_address_is_multicast(const struct TcsAddress* addr)
 {
-    return false; // Not implemented
+    if (addr == NULL)
+        return false;
+    switch (addr->family)
+    {
+        case TCS_AF_IP4:
+            return (addr->data.ip4.address >> 24) >= 224 && (addr->data.ip4.address >> 24) <= 239;
+        case TCS_AF_IP6:
+            return addr->data.ip6.address[0] == 0xFF;
+        case TCS_AF_PACKET:
+            return (addr->data.packet.mac[0] & 0x01) != 0;
+        default:
+            return false;
+    }
 }
+
 bool tcs_address_is_broadcast(const struct TcsAddress* addr)
 {
-    return false; // Not implemented
+    if (addr == NULL)
+        return false;
+    switch (addr->family)
+    {
+        case TCS_AF_IP4:
+            return addr->data.ip4.address == TCS_ADDRESS_BROADCAST_IP4;
+        case TCS_AF_PACKET:
+            return addr->data.packet.mac[0] == 0xFF && addr->data.packet.mac[1] == 0xFF &&
+                   addr->data.packet.mac[2] == 0xFF && addr->data.packet.mac[3] == 0xFF &&
+                   addr->data.packet.mac[4] == 0xFF && addr->data.packet.mac[5] == 0xFF;
+        default:
+            return false;
+    }
 }
 
 #endif

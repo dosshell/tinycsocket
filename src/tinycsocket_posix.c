@@ -53,6 +53,7 @@
 #include <netinet/in.h>  // IPPROTO_XXP
 #include <netinet/tcp.h> // TCP_NODELAY
 #include <poll.h>        // poll()
+#include <stdio.h>       // fprintf (debug diagnostics)
 #include <stdlib.h>      // malloc()/free()
 #include <string.h>      // strcpy, memset
 #include <sys/ioctl.h>   // Flags for ifaddrs
@@ -407,12 +408,13 @@ TcsResult tcs_close(TcsSocket* socket_ctx)
 
 // ######## High-level Raw L2-Packet Sockets (Experimental) ########
 
-// tcs_packet_sender_str() is defined in tinycsocket_common.c
-// tcs_packet_sender() is defined in tinycsocket_common.c
-// tcs_packet_peer_str() is defined in tinycsocket_common.c
-// tcs_packet_peer() is defined in tinycsocket_common.c
-// tcs_packet_capture_iface() is defined in tinycsocket_common.c
-// tcs_packet_capture_ifname() is defined in tinycsocket_common.c
+// tcs_raw() is defined in tinycsocket_common.c
+// tcs_raw_str() is defined in tinycsocket_common.c
+
+// ######## High-level L2-Packet DGRAM Sockets (Experimental) ########
+
+// tcs_packet() is defined in tinycsocket_common.c
+// tcs_packet_str() is defined in tinycsocket_common.c
 
 // ######## Socket Operations ########
 
@@ -453,7 +455,12 @@ TcsResult tcs_connect(TcsSocket socket_ctx, const struct TcsAddress* address)
     if (connect(socket_ctx, (const struct sockaddr*)&native_sockaddr, sockaddr_size) == 0)
         return TCS_SUCCESS;
     else
+    {
+        // Debug: log unmapped errno values
+        if (errno2retcode(errno) == TCS_ERROR_UNKNOWN)
+            fprintf(stderr, "connect() failed with unmapped errno: %d (%s)\n", errno, strerror(errno));
         return errno2retcode(errno);
+    }
 }
 
 // tcs_connect_str() is defined in tinycsocket_common.c
@@ -507,6 +514,8 @@ TcsResult tcs_shutdown(TcsSocket socket_ctx, TcsSocketDirection direction)
     const int LUT[] = {SHUT_RD, SHUT_WR, SHUT_RDWR};
 
     if (socket_ctx == TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (direction < 0 || direction > 2)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     const int how = LUT[direction];
@@ -621,10 +630,7 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     if (flags & TCS_MSG_SENDALL)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
-    // TCS_SENDV_MAX is default set to 1024. define TCS_SMALL_STACK to use a value of 128.
-    const size_t max_supported_iov =
-        UIO_MAXIOV > TCS_SENDV_MAX ? TCS_SENDV_MAX : UIO_MAXIOV; // min(TCS_SENDV_MAX, UIO_MAXIOV)
-    if (buffer_count > max_supported_iov)
+    if (buffer_count > UIO_MAXIOV)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     // Some plattforms (Glibc) do not follow posix. We have mixed size_t and int types for msg_iovlen.
@@ -633,7 +639,7 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     // to cast it to correct type without warnigns. We can not, since we want to support more compilers.
 
 // Check if buffer_count can be placed in an unsigned short
-#if (UIO_MAXIOV > USHRT_MAX && TCS_SENDV_MAX > USHRT_MAX)
+#if (UIO_MAXIOV > USHRT_MAX)
     // You are using a plattform with very narrow unsigned short. Let's hope that your plattform follows POSIX standards here.
     typedef int SAFE_IOVLEN;
 #else
@@ -642,7 +648,18 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
 
     SAFE_IOVLEN_TYPE narrow_casted_iovlen = (SAFE_IOVLEN_TYPE)buffer_count;
 
-    static struct iovec my_iovec[TCS_SENDV_MAX];
+    struct iovec stack_iovec[TCS_SENDV_STACK_MAX];
+    struct iovec* my_iovec = stack_iovec;
+    struct iovec* heap_iovec = NULL;
+
+    if (buffer_count > TCS_SENDV_STACK_MAX)
+    {
+        heap_iovec = (struct iovec*)malloc(sizeof(struct iovec) * buffer_count);
+        if (heap_iovec == NULL)
+            return TCS_ERROR_MEMORY;
+        my_iovec = heap_iovec;
+    }
+
     for (size_t i = 0; i < buffer_count; i++)
     {
         // We know that sendmsg() does not modify the data, so we can safely cast away the const here.
@@ -664,6 +681,8 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
 
     ssize_t ret = 0;
     ret = sendmsg(socket_ctx, &msg, TCS_DEFAULT_SEND_FLAGS | (int)flags);
+
+    free(heap_iovec);
 
     if (ret >= 0)
     {
@@ -961,16 +980,16 @@ TcsResult tcs_opt_get(TcsSocket socket_ctx, int32_t level, int32_t option_name, 
     }
 }
 
-// tcs_opt_broadcast_set() is defined in tinycocket_common.c
-// tcs_opt_broadcast_get() is defined in tinycocket_common.c
-// tcs_opt_keep_alive_set() is defined in inycocket_common.c
-// tcs_opt_keep_alive_get() is defined in tinycocket_common.c
-// tcs_opt_reuse_address_set() is defined in tiinycocket_common.c
-// tcs_opt_reuse_address_get() is defined in tiinycocket_common.c
-// tcs_opt_send_buffer_size_set() is defined in tininycocket_common.c
-// tcs_opt_send_buffer_size_get() is defined in tininycocket_common.c
-// tcs_opt_receive_buffer_size_set() is defined in tinyinycocket_common.c
-// tcs_opt_receive_buffer_size_get() is defined in tinyinycocket_common.c
+// tcs_opt_broadcast_set() is defined in tinycsocket_common.c
+// tcs_opt_broadcast_get() is defined in tinycsocket_common.c
+// tcs_opt_keep_alive_set() is defined in tinycsocket_common.c
+// tcs_opt_keep_alive_get() is defined in tinycsocket_common.c
+// tcs_opt_reuse_address_set() is defined in tinycsocket_common.c
+// tcs_opt_reuse_address_get() is defined in tinycsocket_common.c
+// tcs_opt_send_buffer_size_set() is defined in tinycsocket_common.c
+// tcs_opt_send_buffer_size_get() is defined in tinycsocket_common.c
+// tcs_opt_receive_buffer_size_set() is defined in tinycsocket_common.c
+// tcs_opt_receive_buffer_size_get() is defined in tinycsocket_common.c
 
 TcsResult tcs_opt_receive_timeout_set(TcsSocket socket_ctx, int timeout_ms)
 {
@@ -1168,12 +1187,7 @@ TcsResult tcs_opt_membership_add_to(TcsSocket socket_ctx,
         return TCS_ERROR_NOT_IMPLEMENTED;
 #endif
     }
-    else
-    {
-        return TCS_ERROR_NOT_IMPLEMENTED;
-    }
-
-    return TCS_ERROR_UNKNOWN; // Not reachable
+    return TCS_ERROR_NOT_IMPLEMENTED;
 }
 
 TcsResult tcs_opt_membership_drop(TcsSocket socket_ctx, const struct TcsAddress* multicast_address)
@@ -1273,12 +1287,7 @@ TcsResult tcs_opt_membership_drop_from(TcsSocket socket_ctx,
         return TCS_ERROR_NOT_IMPLEMENTED;
 #endif
     }
-    else
-    {
-        return TCS_ERROR_NOT_IMPLEMENTED;
-    }
-
-    return TCS_ERROR_UNKNOWN; // Not reachable
+    return TCS_ERROR_NOT_IMPLEMENTED;
 }
 
 // ######## Address and Interface Utilities ########
@@ -1366,7 +1375,7 @@ TcsResult tcs_address_resolve(const char* hostname,
     if (sts == EAI_SYSTEM)
         return errno2retcode(errno);
     else if (sts == EAI_AGAIN)
-        return TCS_ERROR_TEMPRORARY_FAILURE;
+        return TCS_ERROR_TEMPORARY_FAILURE;
     else if (sts == EAI_BADFLAGS)
         return TCS_ERROR_INVALID_ARGUMENT;
     else if (sts == EAI_FAIL)

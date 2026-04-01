@@ -28,17 +28,6 @@
 #include "dbg_wrap.h"
 #endif
 
-#if !defined(NTDDI_VERSION) && !defined(_WIN32_WINNT) && !defined(WINVER)
-#ifdef _WIN64
-#define NTDDI_VERSION 0x05020000
-#define _WIN32_WINNT 0x0502
-#define WINVER 0x0502
-#else
-#define NTDDI_VERSION 0x05000100
-#define _WIN32_WINNT 0x0500
-#define WINVER 0x0500
-#endif
-#endif
 #define WIN32_LEAN_AND_MEAN
 // Header only should not need other files
 #ifndef TINYDATASTRUCTURES_H_
@@ -53,8 +42,22 @@
 #include <iphlpapi.h> // GetAdaptersAddresses
 #include <ws2tcpip.h> // getaddrinfo
 
+#include <stdio.h>  // fprintf (debug diagnostics)
 #include <stdlib.h> // Malloc for GetAdaptersAddresses
 #include <string.h> // memset
+
+// SOCKADDR_STORAGE was introduced in Windows XP (0x0501).
+// For Win2K targets with MSVC, define it ourselves.
+// mingw-w64 always defines it, so check _MSC_VER to avoid redefinition.
+#if defined(_MSC_VER) && defined(_WIN32_WINNT) && _WIN32_WINNT < 0x0501
+typedef struct
+{
+    short ss_family;
+    char __ss_pad1[6];
+    __int64 __ss_align;
+    char __ss_pad2[112];
+} SOCKADDR_STORAGE, *PSOCKADDR_STORAGE;
+#endif
 
 #if defined(_MSC_VER) || defined(__clang__)
 #pragma comment(lib, "wsock32.lib")
@@ -66,17 +69,9 @@
 using std::min;
 #endif
 
-// Forwards declaration due to winver dispatch
-// We will dispatch at lib_init() which OS functions to call depending on OS support
-
 #ifndef ULIST_SOC
 #define ULIST_SOC
 TDS_ULIST_IMPL(SOCKET, soc)
-#endif
-
-#ifndef ULIST_PVOID
-#define ULIST_PVOID
-TDS_ULIST_IMPL(void*, pvoid)
 #endif
 
 #ifndef ULIST_PVOID
@@ -156,8 +151,6 @@ const int TCS_SO_IP_NODELAY = TCP_NODELAY;
 const int TCS_SO_IP_MEMBERSHIP_ADD = IP_ADD_MEMBERSHIP;
 const int TCS_SO_IP_MEMBERSHIP_DROP = IP_DROP_MEMBERSHIP;
 const int TCS_SO_IP_MULTICAST_LOOP = IP_MULTICAST_LOOP;
-
-int g_init_count = 0;
 
 // ######## Internal Helpers ########
 
@@ -301,32 +294,21 @@ static TcsResult native2sockaddr(const PSOCKADDR in_addr, struct TcsAddress* out
 
 TcsResult tcs_lib_init(void)
 {
-    if (g_init_count <= 0)
-    {
-        WSADATA wsa_data;
-        int wsa_startup_status_code = WSAStartup(MAKEWORD(2, 2), &wsa_data);
-        if (wsa_startup_status_code != 0)
-            return TCS_ERROR_SYSTEM;
-    }
-    ++g_init_count;
+    WSADATA wsa_data;
+    if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0)
+        return TCS_ERROR_SYSTEM;
     return TCS_SUCCESS;
 }
 
 TcsResult tcs_lib_free(void)
 {
-    g_init_count--;
-    if (g_init_count <= 0)
-    {
-        WSACleanup();
-    }
+    WSACleanup();
     return TCS_SUCCESS;
 }
 
 TcsResult tcs_socket(TcsSocket* socket_ctx, TcsAddressFamily family, int type, int protocol)
 {
     if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (*socket_ctx != TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     short native_family = AF_UNSPEC;
@@ -382,12 +364,13 @@ TcsResult tcs_close(TcsSocket* socket_ctx)
 
 // ######## High-level Raw L2-Packet Sockets (Experimental) ########
 
-// tcs_packet_sender_str() is defined in tinycsocket_common.c
-// tcs_packet_sender() is defined in tinycsocket_common.c
-// tcs_packet_peer_str() is defined in tinycsocket_common.c
-// tcs_packet_peer() is defined in tinycsocket_common.c
-// tcs_packet_capture_iface() is defined in tinycsocket_common.c
-// tcs_packet_capture_ifname() is defined in tinycsocket_common.c
+// tcs_raw() is defined in tinycsocket_common.c
+// tcs_raw_str() is defined in tinycsocket_common.c
+
+// ######## High-level L2-Packet DGRAM Sockets (Experimental) ########
+
+// tcs_packet() is defined in tinycsocket_common.c
+// tcs_packet_str() is defined in tinycsocket_common.c
 
 // ######## Socket Operations ########
 
@@ -476,6 +459,8 @@ TcsResult tcs_shutdown(TcsSocket socket_ctx, TcsSocketDirection direction)
     const int LUT[] = {SD_RECEIVE, SD_SEND, SD_BOTH};
 
     if (socket_ctx == TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (direction < 0 || direction > 2)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     const int how = LUT[direction];
@@ -585,10 +570,18 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     if (flags & TCS_MSG_SENDALL)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
-    if (buffer_count > TCS_SENDV_MAX)
-        return TCS_ERROR_INVALID_ARGUMENT;
+    WSABUF stack_buffers[TCS_SENDV_STACK_MAX];
+    WSABUF* native_buffers = stack_buffers;
+    WSABUF* heap_buffers = NULL;
 
-    WSABUF native_buffers[TCS_SENDV_MAX];
+    if (buffer_count > TCS_SENDV_STACK_MAX)
+    {
+        heap_buffers = (WSABUF*)malloc(sizeof(WSABUF) * buffer_count);
+        if (heap_buffers == NULL)
+            return TCS_ERROR_MEMORY;
+        native_buffers = heap_buffers;
+    }
+
     for (size_t i = 0; i < buffer_count; ++i)
     {
         native_buffers[i].buf = (CHAR*)buffers[i].data;
@@ -597,6 +590,8 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
 
     DWORD sent = 0;
     int wsasend_status = WSASend(socket_ctx, native_buffers, (DWORD)buffer_count, &sent, (DWORD)flags, NULL, NULL);
+
+    free(heap_buffers);
 
     if (bytes_sent != NULL)
         *bytes_sent = (size_t)sent;
@@ -759,7 +754,9 @@ TcsResult tcs_pool_add(struct TcsPool* pool,
     if (!poll_can_read && !poll_can_write && !poll_error)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    tds_map_socket_user_add(&pool->user_data, socket_ctx, user_data);
+    int map_sts = tds_map_socket_user_add(&pool->user_data, socket_ctx, user_data);
+    if (map_sts != 0)
+        return TCS_ERROR_MEMORY;
 
     if (poll_can_read)
     {
@@ -822,6 +819,7 @@ TcsResult tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
         if (pool->user_data.keys[i] == socket_ctx)
         {
             tds_map_socket_user_remove(&pool->user_data, i);
+            break;
         }
     }
 
@@ -873,7 +871,7 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
         rfds_cpy = rfds_heap;
     }
 
-    if (pool->write_sockets.count >= FD_SETSIZE)
+    if (pool->write_sockets.count <= FD_SETSIZE)
     {
         FD_ZERO(&wfds_stack);
         wfds_cpy = (struct tcs_fd_set*)&wfds_stack;
@@ -891,8 +889,8 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
     }
     else
     {
-        wfds_heap = (struct tcs_fd_set*)malloc(data_offset + sizeof(SOCKET) * pool->error_sockets.count);
-        wfds_cpy = wfds_heap;
+        efds_heap = (struct tcs_fd_set*)malloc(data_offset + sizeof(SOCKET) * pool->error_sockets.count);
+        efds_cpy = efds_heap;
     }
 
     if (rfds_cpy == NULL || wfds_cpy == NULL || efds_cpy == NULL)
@@ -1061,16 +1059,16 @@ TcsResult tcs_opt_get(TcsSocket socket_ctx, int32_t level, int32_t option_name, 
     return socketstatus2retcode(sockopt_status);
 }
 
-// tcs_opt_broadcast_set() is defined in tinycocket_common.c
-// tcs_opt_broadcast_get() is defined in tinycocket_common.c
-// tcs_opt_keep_alive_set() is defined in inycocket_common.c
-// tcs_opt_keep_alive_get() is defined in tinycocket_common.c
-// tcs_opt_reuse_address_set() is defined in tiinycocket_common.c
-// tcs_opt_reuse_address_get() is defined in tiinycocket_common.c
-// tcs_opt_send_buffer_size_set() is defined in tininycocket_common.c
-// tcs_opt_send_buffer_size_get() is defined in tininycocket_common.c
-// tcs_opt_receive_buffer_size_set() is defined in tinyinycocket_common.c
-// tcs_opt_receive_buffer_size_get() is defined in tinyinycocket_common.c
+// tcs_opt_broadcast_set() is defined in tinycsocket_common.c
+// tcs_opt_broadcast_get() is defined in tinycsocket_common.c
+// tcs_opt_keep_alive_set() is defined in tinycsocket_common.c
+// tcs_opt_keep_alive_get() is defined in tinycsocket_common.c
+// tcs_opt_reuse_address_set() is defined in tinycsocket_common.c
+// tcs_opt_reuse_address_get() is defined in tinycsocket_common.c
+// tcs_opt_send_buffer_size_set() is defined in tinycsocket_common.c
+// tcs_opt_send_buffer_size_get() is defined in tinycsocket_common.c
+// tcs_opt_receive_buffer_size_set() is defined in tinycsocket_common.c
+// tcs_opt_receive_buffer_size_get() is defined in tinycsocket_common.c
 
 TcsResult tcs_opt_receive_timeout_set(TcsSocket socket_ctx, int timeout_ms)
 {
@@ -1323,7 +1321,11 @@ TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, 
         adapters = (PIP_ADAPTER_ADDRESSES)malloc(buffer_size);
         if (adapters == NULL)
             return TCS_ERROR_MEMORY;
-        adapter_sts = GetAdaptersAddresses(AF_UNSPEC, 0, NULL, adapters, &buffer_size);
+        adapter_sts = GetAdaptersAddresses(AF_UNSPEC,
+                                           GAA_FLAG_SKIP_DNS_SERVER | GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST,
+                                           NULL,
+                                           adapters,
+                                           &buffer_size);
         if (adapter_sts == ERROR_BUFFER_OVERFLOW)
         {
             free(adapters);
@@ -1342,6 +1344,8 @@ TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, 
     }
     if (adapter_sts != NO_ERROR)
     {
+        // Debug: log the actual Windows error code for diagnostics
+        fprintf(stderr, "GetAdaptersAddresses failed with error: %lu (0x%lX)\n", adapter_sts, adapter_sts);
         if (adapters != NULL)
             free(adapters);
         return TCS_ERROR_UNKNOWN;
@@ -1484,7 +1488,11 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
         adapters = (PIP_ADAPTER_ADDRESSES)malloc(buffer_size);
         if (adapters == NULL)
             return TCS_ERROR_MEMORY;
-        adapter_sts = GetAdaptersAddresses(AF_UNSPEC, 0, NULL, adapters, &buffer_size);
+        adapter_sts = GetAdaptersAddresses(AF_UNSPEC,
+                                           GAA_FLAG_SKIP_DNS_SERVER | GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST,
+                                           NULL,
+                                           adapters,
+                                           &buffer_size);
         if (adapter_sts == ERROR_BUFFER_OVERFLOW)
         {
             free(adapters);
