@@ -79,8 +79,6 @@ static const char* const TCS_LICENSE_TXT =
 * High-level Raw L2-Packet Sockets (Experimental):
 * - TcsResult tcs_raw(TcsSocket* socket_ctx, const struct TcsAddress* bind_address);
 * - TcsResult tcs_raw_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol);
-*
-* High-level L2-Packet DGRAM Sockets (Experimental):
 * - TcsResult tcs_packet(TcsSocket* socket_ctx, const struct TcsAddress* bind_address);
 * - TcsResult tcs_packet_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol);
 *
@@ -144,7 +142,6 @@ static const char* const TCS_LICENSE_TXT =
 * Address and Interface Utilities:
 * - TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, size_t* out_count);
 * - TcsResult tcs_address_resolve(const char* hostname, TcsAddressFamily address_family, struct TcsAddress addresses[], size_t capacity, size_t* out_count);
-* - TcsResult tcs_address_resolve_timeout(const char* hostname, TcsAddressFamily address_family, struct TcsAddress addresses[], size_t capacity, size_t* out_count, int timeout_ms);
 * - TcsResult tcs_address_list(unsigned int interface_id_filter, TcsAddressFamily address_family_filter, struct TcsInterfaceAddress interface_addresses[], size_t capacity, size_t* out_count);
 * - TcsResult tcs_address_socket_local(TcsSocket socket_ctx, struct TcsAddress* local_address);
 * - TcsResult tcs_address_socket_remote(TcsSocket socket_ctx, struct TcsAddress* remote_address);
@@ -371,6 +368,7 @@ typedef enum
     TCS_ERROR_SYSTEM = -4, /* OS error not mapped below */
     TCS_ERROR_PERMISSION_DENIED = -5,
     TCS_ERROR_NOT_IMPLEMENTED = -6,
+    TCS_ERROR_NOT_SUPPORTED = -7, /* OS does not support this functionality */
 
     /* -32...-63: Network and socket errors */
     TCS_ERROR_ADDRESS_LOOKUP_FAILED = -32,
@@ -1793,6 +1791,12 @@ TcsResult tcs_opt_membership_add(TcsSocket socket_ctx, const struct TcsAddress* 
 TcsResult tcs_opt_membership_drop(TcsSocket socket_ctx, const struct TcsAddress* multicast_address);
 
 TcsResult tcs_opt_nonblocking_set(TcsSocket socket_ctx, bool do_nonblocking);
+
+/**
+* @brief Query the non-blocking state of a socket.
+*
+* @note Not supported on Windows. Will return #TCS_ERROR_NOT_SUPPORTED on that platform.
+*/
 TcsResult tcs_opt_nonblocking_get(TcsSocket socket_ctx, bool* is_nonblocking);
 
 TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, size_t* out_count);
@@ -1801,12 +1805,6 @@ TcsResult tcs_address_resolve(const char* hostname,
                               struct TcsAddress addresses[],
                               size_t capacity,
                               size_t* out_count);
-TcsResult tcs_address_resolve_timeout(const char* hostname,
-                                      TcsAddressFamily address_family,
-                                      struct TcsAddress addresses[],
-                                      size_t capacity,
-                                      size_t* out_count,
-                                      int timeout_ms);
 TcsResult tcs_address_list(unsigned int interface_id_filter,
                            TcsAddressFamily address_family_filter,
                            struct TcsInterfaceAddress interface_addresses[],

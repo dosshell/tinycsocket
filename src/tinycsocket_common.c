@@ -1029,7 +1029,6 @@ TcsResult tcs_opt_priority_get(TcsSocket socket_ctx, int* priority)
 
 // tcs_interface_list() is defined in OS specific files
 // tcs_address_resolve() is defined in OS specific files
-// tcs_address_resolve_timeout() is defined in OS specific files
 // tcs_address_list() is defined in OS specific files
 // tcs_address_socket_local() is defined in OS specific files
 // tcs_address_socket_remote() is defined in OS specific files
@@ -1207,7 +1206,6 @@ bool tcs_address_is_equal(const struct TcsAddress* l, const struct TcsAddress* r
         default:
             return false;
     }
-    return false;
 }
 
 bool tcs_address_is_any(const struct TcsAddress* addr)
