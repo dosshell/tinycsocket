@@ -762,7 +762,9 @@ TcsResult tcs_pool_add(struct TcsPool* pool,
     if (!poll_can_read && !poll_can_write && !poll_error)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    tds_map_socket_user_add(&pool->user_data, socket_ctx, user_data);
+    int map_sts = tds_map_socket_user_add(&pool->user_data, socket_ctx, user_data);
+    if (map_sts != 0)
+        return TCS_ERROR_MEMORY;
 
     if (poll_can_read)
     {
