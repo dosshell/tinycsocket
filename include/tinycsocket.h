@@ -4554,6 +4554,9 @@ TcsResult tcs_pool_add(struct TcsPool* pool,
 
 TcsResult tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
 {
+    if (pool == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
     for (size_t i = 0; i < pool->read_sockets.count; ++i)
     {
         if (pool->read_sockets.data[i] == socket_ctx)
