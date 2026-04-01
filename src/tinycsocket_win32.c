@@ -1051,7 +1051,10 @@ TcsResult tcs_opt_get(TcsSocket socket_ctx, int32_t level, int32_t option_name, 
     if (option_name == -1)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
-    int sockopt_status = getsockopt(socket_ctx, (int)level, (int)option_name, (char*)option_value, (int*)option_size);
+    int optlen = (int)*option_size;
+    int sockopt_status = getsockopt(socket_ctx, (int)level, (int)option_name, (char*)option_value, &optlen);
+    if (sockopt_status == 0)
+        *option_size = (size_t)optlen;
     return socketstatus2retcode(sockopt_status);
 }
 
