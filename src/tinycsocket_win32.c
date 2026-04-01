@@ -874,7 +874,7 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
         rfds_cpy = rfds_heap;
     }
 
-    if (pool->write_sockets.count >= FD_SETSIZE)
+    if (pool->write_sockets.count <= FD_SETSIZE)
     {
         FD_ZERO(&wfds_stack);
         wfds_cpy = (struct tcs_fd_set*)&wfds_stack;
@@ -892,8 +892,8 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
     }
     else
     {
-        wfds_heap = (struct tcs_fd_set*)malloc(data_offset + sizeof(SOCKET) * pool->error_sockets.count);
-        wfds_cpy = wfds_heap;
+        efds_heap = (struct tcs_fd_set*)malloc(data_offset + sizeof(SOCKET) * pool->error_sockets.count);
+        efds_cpy = efds_heap;
     }
 
     if (rfds_cpy == NULL || wfds_cpy == NULL || efds_cpy == NULL)
