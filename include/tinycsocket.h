@@ -2741,6 +2741,8 @@ TcsResult tcs_shutdown(TcsSocket socket_ctx, TcsSocketDirection direction)
 
     if (socket_ctx == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
+    if (direction < 0 || direction > 2)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     const int how = LUT[direction];
     if (shutdown(socket_ctx, how) == 0)
@@ -4285,6 +4287,8 @@ TcsResult tcs_shutdown(TcsSocket socket_ctx, TcsSocketDirection direction)
     const int LUT[] = {SD_RECEIVE, SD_SEND, SD_BOTH};
 
     if (socket_ctx == TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (direction < 0 || direction > 2)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     const int how = LUT[direction];
