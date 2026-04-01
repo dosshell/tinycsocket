@@ -16,7 +16,8 @@ if(NOT MSVC)
     target_compile_options(tests PUBLIC -std=c++11)
 endif()
 # Android does not need to link to any threads. It does not follow posix.
-if(NOT CMAKE_SYSTEM_NAME STREQUAL "Android")
+# MSVC does not need to link to any threads. Windows has threads built-in.
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Android" AND NOT MSVC)
     find_package(Threads REQUIRED)
     target_link_libraries(tests PRIVATE Threads::Threads)
 endif()
@@ -63,7 +64,7 @@ if(MINGW)
         PRIVATE -std=c++11 -fPIC -static -static-libgcc -static-libstdc++
     )
 endif()
-if(NOT CMAKE_SYSTEM_NAME STREQUAL "Android")
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Android" AND NOT MSVC)
     find_package(Threads REQUIRED)
     target_link_libraries(tests_header_only PRIVATE Threads::Threads)
 endif()

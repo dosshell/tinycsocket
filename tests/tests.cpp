@@ -21,10 +21,14 @@
  */
 
 #define DOCTEST_CONFIG_IMPLEMENT
+#ifndef _MSC_VER
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wfloat-equal"
+#endif
 #include "doctest.h"
+#ifndef _MSC_VER
 #pragma GCC diagnostic pop
+#endif
 
 #ifdef DO_WRAP
 #include "dbg_wrap.h"

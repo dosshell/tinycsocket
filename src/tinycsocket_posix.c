@@ -1416,16 +1416,6 @@ TcsResult tcs_address_resolve(const char* hostname,
     return TCS_SUCCESS;
 }
 
-TcsResult tcs_address_resolve_timeout(const char* hostname,
-                                      TcsAddressFamily address_family,
-                                      struct TcsAddress addresses[],
-                                      size_t capacity,
-                                      size_t* out_count,
-                                      int timeout_ms)
-{
-    return TCS_ERROR_NOT_IMPLEMENTED;
-}
-
 #if TCS_AVAILABLE_IFADDRS // acquired from CMake
 TcsResult tcs_address_list(unsigned int interface_id_filter,
                            TcsAddressFamily address_family_filter,

@@ -199,18 +199,11 @@ static TcsResult family2native(const TcsAddressFamily family, short* native_fami
         case TCS_AF_IP6:
             *native_family = AF_INET6;
             return TCS_SUCCESS;
-
         case TCS_AF_PACKET:
-#if TCS_AVAILABLE_AF_PACKET
-            *native_family = AF_PACKET;
-#else
             return TCS_ERROR_NOT_IMPLEMENTED;
-#endif
-            return TCS_SUCCESS;
         default:
             return TCS_ERROR_INVALID_ARGUMENT;
     }
-    return TCS_SUCCESS;
 }
 
 static TcsResult sockaddr2native(const struct TcsAddress* in_addr, PSOCKADDR out_addr, int* out_addrlen)
@@ -261,7 +254,6 @@ static TcsResult native2family(const short native_family, TcsAddressFamily* fami
         default:
             return TCS_ERROR_NOT_IMPLEMENTED;
     }
-    return TCS_ERROR_UNKNOWN;
 }
 
 static TcsResult native2sockaddr(const PSOCKADDR in_addr, struct TcsAddress* out_addr)
@@ -1145,8 +1137,10 @@ TcsResult tcs_opt_nonblocking_set(TcsSocket socket_ctx, bool do_non_blocking)
 
 TcsResult tcs_opt_nonblocking_get(TcsSocket socket_ctx, bool* is_non_blocking)
 {
+    (void)socket_ctx;
+    (void)is_non_blocking;
     // Win32 does not provide an API to query the non-blocking state of a socket
-    return TCS_ERROR_NOT_IMPLEMENTED;
+    return TCS_ERROR_NOT_SUPPORTED;
 }
 
 TcsResult tcs_opt_membership_add(TcsSocket socket_ctx, const struct TcsAddress* multicast_address)
@@ -1458,16 +1452,6 @@ TcsResult tcs_address_resolve(const char* hostname,
     return TCS_SUCCESS;
 }
 
-TcsResult tcs_address_resolve_timeout(const char* hostname,
-                                      TcsAddressFamily address_family,
-                                      struct TcsAddress addresses[],
-                                      size_t capacity,
-                                      size_t* out_count,
-                                      int timeout_ms)
-{
-    return TCS_ERROR_NOT_IMPLEMENTED;
-}
-
 TcsResult tcs_address_list(unsigned int interface_id_filter,
                            TcsAddressFamily address_family_filter,
                            struct TcsInterfaceAddress interface_addresses[],
@@ -1615,10 +1599,10 @@ TcsResult tcs_address_socket_family(TcsSocket socket_ctx, TcsAddressFamily* out_
     if (socket_ctx == TCS_SOCKET_INVALID || out_family == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    WSAPROTOCOL_INFOA info;
+    WSAPROTOCOL_INFOW info;
     memset(&info, 0, sizeof info);
     int info_size = sizeof info;
-    if (getsockopt((SOCKET)socket_ctx, SOL_SOCKET, SO_PROTOCOL_INFOA, (char*)&info, &info_size) != 0)
+    if (getsockopt((SOCKET)socket_ctx, SOL_SOCKET, SO_PROTOCOL_INFOW, (char*)&info, &info_size) != 0)
         return wsaerror2retcode(WSAGetLastError());
 
     TcsAddressFamily family = TCS_AF_ANY;

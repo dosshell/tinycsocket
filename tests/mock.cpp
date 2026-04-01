@@ -27,6 +27,8 @@ int MOCK_ALLOC_FAIL_AFTER = MOCK_FAIL_OFF; // -1 for off
 
 void* __wrap_malloc(size_t size, char const* filename MAYBE_UNUSED, int line_number MAYBE_UNUSED)
 {
+    (void)filename;
+    (void)line_number;
     MOCK_ALLOC_COUNTER++;
 
     if (MOCK_ALLOC_FAIL_AFTER == 0)
@@ -42,6 +44,8 @@ void* __wrap_malloc(size_t size, char const* filename MAYBE_UNUSED, int line_num
 
 void* __wrap_realloc(void* ptr, size_t size, char const* filename MAYBE_UNUSED, int line_number MAYBE_UNUSED)
 {
+    (void)filename;
+    (void)line_number;
     if (size == 0)
     {
 #ifdef _MSC_VER
