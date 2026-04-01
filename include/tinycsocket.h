@@ -6542,7 +6542,7 @@ TcsResult tcs_address_parse(const char str[], struct TcsAddress* out_address)
 
 TcsResult tcs_address_to_str(const struct TcsAddress* address, char str[70])
 {
-    if (str == NULL)
+    if (address == NULL || str == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     memset(str, 0, 70);
