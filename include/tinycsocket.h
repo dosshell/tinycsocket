@@ -385,7 +385,7 @@ typedef enum
     TCS_ERROR_SOCKET_CLOSED = -35,
     TCS_ERROR_WOULD_BLOCK = -36,
     TCS_ERROR_TIMED_OUT = -37,
-    TCS_ERROR_TEMPRORARY_FAILURE = -38,
+    TCS_ERROR_TEMPORARY_FAILURE = -38,
 
     /* -64...-95: Configuration errors */
     TCS_ERROR_LIBRARY_NOT_INITIALIZED = -64,
@@ -499,7 +499,7 @@ TcsResult tcs_lib_free(void);
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  *
  * @retval #TCS_SUCCESS if successful.
- * @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument. Suck as a socket that is not #TCS_SOCKET_INVALID.
+ * @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument. Such as a socket that is not #TCS_SOCKET_INVALID.
  * @retval #TCS_ERROR_NOT_IMPLEMENTED if you have provided an address family that is not supported on this platform.
  * @retval #TCS_ERROR_PERMISSION_DENIED if you do not have permission to create the socket. E.g. raw sockets often require elevated permissions.
  *
@@ -558,7 +558,7 @@ TcsResult tcs_socket(TcsSocket* socket_ctx, TcsAddressFamily family, int type, i
  *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  *
- * @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument. Suck as a socket value that is not #TCS_SOCKET_INVALID.
+ * @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument. Such as a socket value that is not #TCS_SOCKET_INVALID.
  *
  * @see tcs_socket()
  * @see tcs_tcp_server_str()
@@ -3202,16 +3202,16 @@ TcsResult tcs_opt_get(TcsSocket socket_ctx, int32_t level, int32_t option_name, 
     }
 }
 
-// tcs_opt_broadcast_set() is defined in tinycocket_common.c
-// tcs_opt_broadcast_get() is defined in tinycocket_common.c
-// tcs_opt_keep_alive_set() is defined in inycocket_common.c
-// tcs_opt_keep_alive_get() is defined in tinycocket_common.c
-// tcs_opt_reuse_address_set() is defined in tiinycocket_common.c
-// tcs_opt_reuse_address_get() is defined in tiinycocket_common.c
-// tcs_opt_send_buffer_size_set() is defined in tininycocket_common.c
-// tcs_opt_send_buffer_size_get() is defined in tininycocket_common.c
-// tcs_opt_receive_buffer_size_set() is defined in tinyinycocket_common.c
-// tcs_opt_receive_buffer_size_get() is defined in tinyinycocket_common.c
+// tcs_opt_broadcast_set() is defined in tinycsocket_common.c
+// tcs_opt_broadcast_get() is defined in tinycsocket_common.c
+// tcs_opt_keep_alive_set() is defined in tinycsocket_common.c
+// tcs_opt_keep_alive_get() is defined in tinycsocket_common.c
+// tcs_opt_reuse_address_set() is defined in tinycsocket_common.c
+// tcs_opt_reuse_address_get() is defined in tinycsocket_common.c
+// tcs_opt_send_buffer_size_set() is defined in tinycsocket_common.c
+// tcs_opt_send_buffer_size_get() is defined in tinycsocket_common.c
+// tcs_opt_receive_buffer_size_set() is defined in tinycsocket_common.c
+// tcs_opt_receive_buffer_size_get() is defined in tinycsocket_common.c
 
 TcsResult tcs_opt_receive_timeout_set(TcsSocket socket_ctx, int timeout_ms)
 {
@@ -3607,7 +3607,7 @@ TcsResult tcs_address_resolve(const char* hostname,
     if (sts == EAI_SYSTEM)
         return errno2retcode(errno);
     else if (sts == EAI_AGAIN)
-        return TCS_ERROR_TEMPRORARY_FAILURE;
+        return TCS_ERROR_TEMPORARY_FAILURE;
     else if (sts == EAI_BADFLAGS)
         return TCS_ERROR_INVALID_ARGUMENT;
     else if (sts == EAI_FAIL)
@@ -4880,16 +4880,16 @@ TcsResult tcs_opt_get(TcsSocket socket_ctx, int32_t level, int32_t option_name, 
     return socketstatus2retcode(sockopt_status);
 }
 
-// tcs_opt_broadcast_set() is defined in tinycocket_common.c
-// tcs_opt_broadcast_get() is defined in tinycocket_common.c
-// tcs_opt_keep_alive_set() is defined in inycocket_common.c
-// tcs_opt_keep_alive_get() is defined in tinycocket_common.c
-// tcs_opt_reuse_address_set() is defined in tiinycocket_common.c
-// tcs_opt_reuse_address_get() is defined in tiinycocket_common.c
-// tcs_opt_send_buffer_size_set() is defined in tininycocket_common.c
-// tcs_opt_send_buffer_size_get() is defined in tininycocket_common.c
-// tcs_opt_receive_buffer_size_set() is defined in tinyinycocket_common.c
-// tcs_opt_receive_buffer_size_get() is defined in tinyinycocket_common.c
+// tcs_opt_broadcast_set() is defined in tinycsocket_common.c
+// tcs_opt_broadcast_get() is defined in tinycsocket_common.c
+// tcs_opt_keep_alive_set() is defined in tinycsocket_common.c
+// tcs_opt_keep_alive_get() is defined in tinycsocket_common.c
+// tcs_opt_reuse_address_set() is defined in tinycsocket_common.c
+// tcs_opt_reuse_address_get() is defined in tinycsocket_common.c
+// tcs_opt_send_buffer_size_set() is defined in tinycsocket_common.c
+// tcs_opt_send_buffer_size_get() is defined in tinycsocket_common.c
+// tcs_opt_receive_buffer_size_set() is defined in tinycsocket_common.c
+// tcs_opt_receive_buffer_size_get() is defined in tinycsocket_common.c
 
 TcsResult tcs_opt_receive_timeout_set(TcsSocket socket_ctx, int timeout_ms)
 {

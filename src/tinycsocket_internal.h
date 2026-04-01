@@ -379,7 +379,7 @@ typedef enum
     TCS_ERROR_SOCKET_CLOSED = -35,
     TCS_ERROR_WOULD_BLOCK = -36,
     TCS_ERROR_TIMED_OUT = -37,
-    TCS_ERROR_TEMPRORARY_FAILURE = -38,
+    TCS_ERROR_TEMPORARY_FAILURE = -38,
 
     /* -64...-95: Configuration errors */
     TCS_ERROR_LIBRARY_NOT_INITIALIZED = -64,
@@ -493,7 +493,7 @@ TcsResult tcs_lib_free(void);
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  *
  * @retval #TCS_SUCCESS if successful.
- * @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument. Suck as a socket that is not #TCS_SOCKET_INVALID.
+ * @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument. Such as a socket that is not #TCS_SOCKET_INVALID.
  * @retval #TCS_ERROR_NOT_IMPLEMENTED if you have provided an address family that is not supported on this platform.
  * @retval #TCS_ERROR_PERMISSION_DENIED if you do not have permission to create the socket. E.g. raw sockets often require elevated permissions.
  *
@@ -552,7 +552,7 @@ TcsResult tcs_socket(TcsSocket* socket_ctx, TcsAddressFamily family, int type, i
  *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  *
- * @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument. Suck as a socket value that is not #TCS_SOCKET_INVALID.
+ * @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument. Such as a socket value that is not #TCS_SOCKET_INVALID.
  *
  * @see tcs_socket()
  * @see tcs_tcp_server_str()
