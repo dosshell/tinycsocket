@@ -3973,8 +3973,6 @@ const int TCS_SO_IP_MEMBERSHIP_ADD = IP_ADD_MEMBERSHIP;
 const int TCS_SO_IP_MEMBERSHIP_DROP = IP_DROP_MEMBERSHIP;
 const int TCS_SO_IP_MULTICAST_LOOP = IP_MULTICAST_LOOP;
 
-int g_init_count = 0;
-
 // ######## Internal Helpers ########
 
 static TcsResult wsaerror2retcode(int wsa_error)
@@ -4117,26 +4115,15 @@ static TcsResult native2sockaddr(const PSOCKADDR in_addr, struct TcsAddress* out
 
 TcsResult tcs_lib_init(void)
 {
-    if (g_init_count <= 0)
-    {
-        WSADATA wsa_data;
-        int wsa_startup_status_code = WSAStartup(MAKEWORD(2, 2), &wsa_data);
-        if (wsa_startup_status_code != 0)
-            return TCS_ERROR_SYSTEM;
-    }
-    ++g_init_count;
+    WSADATA wsa_data;
+    if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0)
+        return TCS_ERROR_SYSTEM;
     return TCS_SUCCESS;
 }
 
 TcsResult tcs_lib_free(void)
 {
-    if (g_init_count <= 0)
-        return TCS_ERROR_LIBRARY_NOT_INITIALIZED;
-    g_init_count--;
-    if (g_init_count == 0)
-    {
-        WSACleanup();
-    }
+    WSACleanup();
     return TCS_SUCCESS;
 }
 
