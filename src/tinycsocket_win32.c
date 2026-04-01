@@ -836,11 +836,9 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
                         struct TcsPollEvent* events,
                         size_t events_capacity,
                         size_t* events_populated,
-                        int64_t timeout_in_ms)
+                        int timeout_ms)
 {
     if (pool == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (timeout_in_ms != TCS_WAIT_INF && (timeout_in_ms > 0xffffffff || timeout_in_ms < 0))
         return TCS_ERROR_INVALID_ARGUMENT;
     if (events == NULL || events_populated == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -924,10 +922,10 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
     // Run select
     struct timeval* t_ptr = NULL;
     struct timeval t = {0, 0};
-    if (timeout_in_ms != TCS_WAIT_INF)
+    if (timeout_ms != TCS_WAIT_INF)
     {
-        t.tv_sec = (long)(timeout_in_ms / 1000);
-        t.tv_usec = (long)(timeout_in_ms % 1000) * 1000;
+        t.tv_sec = (long)(timeout_ms / 1000);
+        t.tv_usec = (long)(timeout_ms % 1000) * 1000;
         t_ptr = &t;
     }
     int no = select(IGNORE, (fd_set*)rfds_cpy, (fd_set*)wfds_cpy, (fd_set*)efds_cpy, t_ptr);
