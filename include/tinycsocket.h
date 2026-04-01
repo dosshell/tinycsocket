@@ -4136,8 +4136,6 @@ TcsResult tcs_socket(TcsSocket* socket_ctx, TcsAddressFamily family, int type, i
 {
     if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
-    if (*socket_ctx != TCS_SOCKET_INVALID)
-        return TCS_ERROR_INVALID_ARGUMENT;
 
     short native_family = AF_UNSPEC;
     TcsResult sts = family2native(family, &native_family);
