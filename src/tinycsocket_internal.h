@@ -1638,7 +1638,7 @@ TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t bu
 *     {
 *         uint8_t recv_buffer[8192] = {0};
 *         size_t bytes_received = 0;
-*         tcs_receive(ev[i].socket, recv_buffer, 8191, TCS_NO_FLAGS, &bytes_received);
+*         tcs_receive(ev[i].socket, recv_buffer, 8191, TCS_FLAG_NONE, &bytes_received);
 *         recv_buffer[bytes_received] = '\n';
 *         printf(recv_buffer);
 *     }
