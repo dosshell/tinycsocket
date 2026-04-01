@@ -167,7 +167,8 @@ def write_function_references(m, file: Path):
         )
         # CSV list of parameters
         for p in n.params:
-            f.write(f"""    "{p[0]}", "{p[1]}", "{p[2]}"\n""")
+            desc = str(p[2]).replace("\n", " ") if p[2] else ""
+            f.write(f"""    "{p[0]}", "{p[1]}", "{desc}"\n""")
         f.write(f"\n" f"**Returns:**\n\n" f"{n.returns}\n\n")
         # See Also
         if len(n.seealso) > 0:

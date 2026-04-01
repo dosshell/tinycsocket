@@ -484,10 +484,7 @@ TcsResult tcs_lib_free(void);
  *
  * @param[out] socket_ctx pointer to socket context to be created, which must have been initialized to #TCS_SOCKET_INVALID before use.
  * @param[in] family See ::TcsAddressFamily enum for supported values.
- * @param[in] type specifies the type of the socket, supported values are:
- *   - ::TCS_SOCK_STREAM
- *   - ::TCS_SOCK_DGRAM
- *   - ::TCS_SOCK_RAW
+ * @param[in] type specifies the type of the socket, supported values are: ::TCS_SOCK_STREAM, ::TCS_SOCK_DGRAM and ::TCS_SOCK_RAW.
  * @param[in] protocol specifies the protocol, for example #TCS_PROTOCOL_IP_TCP or #TCS_PROTOCOL_IP_UDP.
  *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
@@ -543,12 +540,7 @@ TcsResult tcs_socket(TcsSocket* socket_ctx, TcsAddressFamily family, int type, i
  * @endcode
  *
  * @param[out] socket_ctx pointer to socket context to be created, which must have been initialized to #TCS_SOCKET_INVALID before use.
- * @param[in]  socket_type Socket family / transport combination:  
- *   - ::TCS_PRESET_TCP_IP4   — TCP over IPv4  
- *   - ::TCS_PRESET_UDP_IP4   — UDP over IPv4  
- *   - ::TCS_PRESET_TCP_IP6   — TCP over IPv6  
- *   - ::TCS_PRESET_UDP_IP6   — UDP over IPv6  
- *   - ::TCS_PRESET_RAW    — Raw Layer-2 (may require *CAP_NET_RAW*)
+ * @param[in]  socket_type Socket family / transport combination. See ::TcsPreset for supported values.
  *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  *
