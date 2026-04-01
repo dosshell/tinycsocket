@@ -889,21 +889,16 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
                         struct TcsPollEvent* events,
                         size_t events_count,
                         size_t* events_populated,
-                        int64_t timeout_in_ms)
+                        int timeout_ms)
 {
     if (pool == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
     if (events_populated == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    // We do not support more more elements or time than signed int32 supports.
-    // todo(markusl): Add support for int64 timeout
-    if (events_count > 0x7FFFFFFF || timeout_in_ms > 0x7FFFFFFF)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
     struct TdsMap_poll* map = &pool->backend.poll.map;
 
-    int poll_ret = poll(map->keys, map->count, (int)timeout_in_ms);
+    int poll_ret = poll(map->keys, map->count, timeout_ms);
     *events_populated = 0;
     if (poll_ret < 0)
     {

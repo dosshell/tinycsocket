@@ -114,7 +114,7 @@ static const char* const TCS_LICENSE_TXT =
 * - TcsResult tcs_pool_destroy(struct TcsPool** pool);
 * - TcsResult tcs_pool_add(struct TcsPool* pool, TcsSocket socket_ctx, void* user_data, bool poll_can_read, bool poll_can_write, bool poll_error);
 * - TcsResult tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx);
-* - TcsResult tcs_pool_poll(struct TcsPool* pool, struct TcsPollEvent* events, size_t events_count, size_t* events_populated, int64_t timeout_in_ms);
+* - TcsResult tcs_pool_poll(struct TcsPool* pool, struct TcsPollEvent* events, size_t events_count, size_t* events_populated, int timeout_ms);
 *
 * Socket Options:
 * - TcsResult tcs_opt_set(TcsSocket socket_ctx, int32_t level, int32_t option_name, const void* option_value, size_t option_size);
@@ -1708,7 +1708,7 @@ TcsResult tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx);
 * @param[in, out] events is an array with in-out events. Assign each element to #TCS_POOL_EVENT_EMPTY.
 * @param events_count number of in elements in your events array. Does not make sense to have more events than number of sockets int the pool. If to short, all events may not be returned.
 * @param[out] events_populated will contain the number of events the parameter ev has been populated with by the call.
-* @param timeout_in_ms is the maximum wait time for any event. If any event happens before this time, the call will return immediately.
+* @param timeout_ms is the maximum wait time for any event. If any event happens before this time, the call will return immediately.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_pool_remove()
 */
@@ -1716,7 +1716,7 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
                         struct TcsPollEvent* events,
                         size_t events_count,
                         size_t* events_populated,
-                        int64_t timeout_in_ms);
+                        int timeout_ms);
 
 /**
 * @brief Set parameters on a socket. It is recommended to use tcs_set_xxx instead.
@@ -3111,21 +3111,16 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
                         struct TcsPollEvent* events,
                         size_t events_count,
                         size_t* events_populated,
-                        int64_t timeout_in_ms)
+                        int timeout_ms)
 {
     if (pool == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
     if (events_populated == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    // We do not support more more elements or time than signed int32 supports.
-    // todo(markusl): Add support for int64 timeout
-    if (events_count > 0x7FFFFFFF || timeout_in_ms > 0x7FFFFFFF)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
     struct TdsMap_poll* map = &pool->backend.poll.map;
 
-    int poll_ret = poll(map->keys, map->count, (int)timeout_in_ms);
+    int poll_ret = poll(map->keys, map->count, timeout_ms);
     *events_populated = 0;
     if (poll_ret < 0)
     {
@@ -4642,11 +4637,9 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
                         struct TcsPollEvent* events,
                         size_t events_capacity,
                         size_t* events_populated,
-                        int64_t timeout_in_ms)
+                        int timeout_ms)
 {
     if (pool == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (timeout_in_ms != TCS_WAIT_INF && (timeout_in_ms > 0xffffffff || timeout_in_ms < 0))
         return TCS_ERROR_INVALID_ARGUMENT;
     if (events == NULL || events_populated == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -4730,10 +4723,10 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
     // Run select
     struct timeval* t_ptr = NULL;
     struct timeval t = {0, 0};
-    if (timeout_in_ms != TCS_WAIT_INF)
+    if (timeout_ms != TCS_WAIT_INF)
     {
-        t.tv_sec = (long)(timeout_in_ms / 1000);
-        t.tv_usec = (long)(timeout_in_ms % 1000) * 1000;
+        t.tv_sec = (long)(timeout_ms / 1000);
+        t.tv_usec = (long)(timeout_ms % 1000) * 1000;
         t_ptr = &t;
     }
     int no = select(IGNORE, (fd_set*)rfds_cpy, (fd_set*)wfds_cpy, (fd_set*)efds_cpy, t_ptr);

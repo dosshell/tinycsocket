@@ -108,7 +108,7 @@ static const char* const TCS_LICENSE_TXT =
 * - TcsResult tcs_pool_destroy(struct TcsPool** pool);
 * - TcsResult tcs_pool_add(struct TcsPool* pool, TcsSocket socket_ctx, void* user_data, bool poll_can_read, bool poll_can_write, bool poll_error);
 * - TcsResult tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx);
-* - TcsResult tcs_pool_poll(struct TcsPool* pool, struct TcsPollEvent* events, size_t events_count, size_t* events_populated, int64_t timeout_in_ms);
+* - TcsResult tcs_pool_poll(struct TcsPool* pool, struct TcsPollEvent* events, size_t events_count, size_t* events_populated, int timeout_ms);
 *
 * Socket Options:
 * - TcsResult tcs_opt_set(TcsSocket socket_ctx, int32_t level, int32_t option_name, const void* option_value, size_t option_size);
@@ -1702,7 +1702,7 @@ TcsResult tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx);
 * @param[in, out] events is an array with in-out events. Assign each element to #TCS_POOL_EVENT_EMPTY.
 * @param events_count number of in elements in your events array. Does not make sense to have more events than number of sockets int the pool. If to short, all events may not be returned.
 * @param[out] events_populated will contain the number of events the parameter ev has been populated with by the call.
-* @param timeout_in_ms is the maximum wait time for any event. If any event happens before this time, the call will return immediately.
+* @param timeout_ms is the maximum wait time for any event. If any event happens before this time, the call will return immediately.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_pool_remove()
 */
@@ -1710,7 +1710,7 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
                         struct TcsPollEvent* events,
                         size_t events_count,
                         size_t* events_populated,
-                        int64_t timeout_in_ms);
+                        int timeout_ms);
 
 /**
 * @brief Set parameters on a socket. It is recommended to use tcs_set_xxx instead.
