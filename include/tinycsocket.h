@@ -4124,8 +4124,10 @@ TcsResult tcs_lib_init(void)
 
 TcsResult tcs_lib_free(void)
 {
-    g_init_count--;
     if (g_init_count <= 0)
+        return TCS_ERROR_LIBRARY_NOT_INITIALIZED;
+    g_init_count--;
+    if (g_init_count == 0)
     {
         WSACleanup();
     }
