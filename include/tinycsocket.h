@@ -5542,7 +5542,6 @@ TcsResult tcs_socket_preset(TcsSocket* socket_ctx, TcsPreset socket_type)
             break;
         default:
             return TCS_ERROR_NOT_IMPLEMENTED;
-            break;
     }
     return tcs_socket(socket_ctx, family, type, protocol);
 }
