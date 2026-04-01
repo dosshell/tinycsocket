@@ -2423,14 +2423,13 @@ static TcsResult family2native(const TcsAddressFamily family, sa_family_t* nativ
         case TCS_AF_PACKET:
 #if TCS_AVAILABLE_AF_PACKET
             *native_family = AF_PACKET;
+            return TCS_SUCCESS;
 #else
             return TCS_ERROR_NOT_IMPLEMENTED;
 #endif
-            return TCS_SUCCESS;
         default:
             return TCS_ERROR_INVALID_ARGUMENT;
     }
-    return TCS_SUCCESS;
 }
 
 static TcsResult sockaddr2native(const struct TcsAddress* tcs_address,
@@ -2503,7 +2502,6 @@ static TcsResult native2family(const sa_family_t native_family, TcsAddressFamily
         default:
             return TCS_ERROR_NOT_IMPLEMENTED;
     }
-    return TCS_SUCCESS;
 }
 
 static TcsResult native2sockaddr(const struct sockaddr* in_addr, struct TcsAddress* out_addr)
