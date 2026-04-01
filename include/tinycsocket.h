@@ -2060,8 +2060,8 @@ static inline int tds_map_create(void** keys,
 
     if (key_sts != 0 || value_sts != 0)
     {
-        tds_ulist_destroy(keys, &value_count, &value_capacity);
-        tds_ulist_destroy(values, &key_count, &key_capacity);
+        tds_ulist_destroy(keys, &key_count, &key_capacity);
+        tds_ulist_destroy(values, &value_count, &value_capacity);
         if (key_sts != 0)
             return key_sts;
         if (value_sts != 0)
@@ -2069,8 +2069,8 @@ static inline int tds_map_create(void** keys,
     }
     if (key_capacity != value_capacity)
     {
-        tds_ulist_destroy(keys, &value_count, &value_capacity);
-        tds_ulist_destroy(values, &key_count, &key_capacity);
+        tds_ulist_destroy(keys, &key_count, &key_capacity);
+        tds_ulist_destroy(values, &value_count, &value_capacity);
         return -1;
     }
     *capacity = key_capacity;
