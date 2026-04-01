@@ -1155,9 +1155,9 @@ TcsResult tcs_address_to_str(const struct TcsAddress* address, char str[70])
         uint8_t b3 = (uint8_t)((d >> 16) & 0xFF);
         uint8_t b4 = (uint8_t)((d >> 24) & 0xFF);
         if (p == 0)
-            sprintf(str, "%i.%i.%i.%i", b4, b3, b2, b1);
+            snprintf(str, 70, "%i.%i.%i.%i", b4, b3, b2, b1);
         else
-            sprintf(str, "%i.%i.%i.%i:%i", b4, b3, b2, b1, p);
+            snprintf(str, 70, "%i.%i.%i.%i:%i", b4, b3, b2, b1, p);
     }
     else if (address->family == TCS_AF_IP6)
     {
@@ -1165,14 +1165,15 @@ TcsResult tcs_address_to_str(const struct TcsAddress* address, char str[70])
     }
     else if (address->family == TCS_AF_PACKET)
     {
-        sprintf(str,
-                "%02X:%02X:%02X:%02X:%02X:%02X",
-                address->data.packet.mac[0],
-                address->data.packet.mac[1],
-                address->data.packet.mac[2],
-                address->data.packet.mac[3],
-                address->data.packet.mac[4],
-                address->data.packet.mac[5]);
+        snprintf(str,
+                 70,
+                 "%02X:%02X:%02X:%02X:%02X:%02X",
+                 address->data.packet.mac[0],
+                 address->data.packet.mac[1],
+                 address->data.packet.mac[2],
+                 address->data.packet.mac[3],
+                 address->data.packet.mac[4],
+                 address->data.packet.mac[5]);
     }
     else
     {
