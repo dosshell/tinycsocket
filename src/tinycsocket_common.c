@@ -1146,7 +1146,7 @@ TcsResult tcs_address_to_str(const struct TcsAddress* address, char str[70])
     if (str == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    memset(str, 0, 40);
+    memset(str, 0, 70);
     if (address->family == TCS_AF_IP4)
     {
         uint32_t d = address->data.ip4.address;

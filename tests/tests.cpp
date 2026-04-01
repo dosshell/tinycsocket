@@ -812,7 +812,7 @@ TEST_CASE("Get loopback address")
     {
         if (ifaddrs[i].address.family == TCS_AF_IP4 && ifaddrs[i].address.data.ip4.address == TCS_ADDRESS_LOOPBACK_IP4)
         {
-            char out_str[40];
+            char out_str[70];
             tcs_address_to_str(&ifaddrs[i].address, out_str);
             printf("Interface loopback: %u; %s; %s\n", ifaddrs[i].iface.id, ifaddrs[i].iface.name, out_str);
             found_loopback = true;
