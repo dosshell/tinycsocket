@@ -984,8 +984,11 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
                     break;
                 }
             }
-            // Check for new events
-            events[new_n].error = TCS_ERROR_NOT_IMPLEMENTED; //TODO(markusl): Make this a proper error
+            // Get the actual socket error
+            int so_error = 0;
+            int so_error_size = sizeof(so_error);
+            getsockopt((SOCKET)efds_cpy->fd_array[n], SOL_SOCKET, SO_ERROR, (char*)&so_error, &so_error_size);
+            events[new_n].error = so_error != 0 ? wsaerror2retcode(so_error) : TCS_ERROR_UNKNOWN;
             if (events_added == new_n)
             {
                 events[new_n].socket = efds_cpy->fd_array[n];
