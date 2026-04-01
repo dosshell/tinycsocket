@@ -6165,7 +6165,7 @@ TcsResult tcs_receive_line(TcsSocket socket_ctx,
                            size_t* bytes_received,
                            uint8_t delimiter)
 {
-    if (socket_ctx == TCS_SOCKET_INVALID || buffer == NULL || buffer_length <= 0)
+    if (socket_ctx == TCS_SOCKET_INVALID || buffer == NULL || buffer_length == 0)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     /*
@@ -6255,7 +6255,7 @@ TcsResult tcs_receive_line(TcsSocket socket_ctx,
 
 TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_length, size_t* bytes_received)
 {
-    if (socket_ctx == TCS_SOCKET_INVALID || buffer == NULL || buffer_length <= 0)
+    if (socket_ctx == TCS_SOCKET_INVALID || buffer == NULL || buffer_length == 0)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     size_t expected_length = 0;
