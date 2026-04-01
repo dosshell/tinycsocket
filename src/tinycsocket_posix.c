@@ -1187,12 +1187,7 @@ TcsResult tcs_opt_membership_add_to(TcsSocket socket_ctx,
         return TCS_ERROR_NOT_IMPLEMENTED;
 #endif
     }
-    else
-    {
-        return TCS_ERROR_NOT_IMPLEMENTED;
-    }
-
-    return TCS_ERROR_UNKNOWN; // Not reachable
+    return TCS_ERROR_NOT_IMPLEMENTED;
 }
 
 TcsResult tcs_opt_membership_drop(TcsSocket socket_ctx, const struct TcsAddress* multicast_address)
@@ -1292,12 +1287,7 @@ TcsResult tcs_opt_membership_drop_from(TcsSocket socket_ctx,
         return TCS_ERROR_NOT_IMPLEMENTED;
 #endif
     }
-    else
-    {
-        return TCS_ERROR_NOT_IMPLEMENTED;
-    }
-
-    return TCS_ERROR_UNKNOWN; // Not reachable
+    return TCS_ERROR_NOT_IMPLEMENTED;
 }
 
 // ######## Address and Interface Utilities ########
