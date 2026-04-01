@@ -4569,6 +4569,7 @@ TcsResult tcs_pool_add(struct TcsPool* pool,
         int sts = tds_ulist_soc_add(&pool->read_sockets, &socket_ctx, 1);
         if (sts != 0)
         {
+            tds_map_socket_user_remove(&pool->user_data, pool->user_data.count - 1);
             return TCS_ERROR_MEMORY;
         }
     }
@@ -4577,7 +4578,9 @@ TcsResult tcs_pool_add(struct TcsPool* pool,
         int sts = tds_ulist_soc_add(&pool->write_sockets, &socket_ctx, 1);
         if (sts != 0)
         {
-            tds_ulist_soc_remove(&pool->read_sockets, pool->read_sockets.count, 1);
+            if (poll_can_read)
+                tds_ulist_soc_remove(&pool->read_sockets, pool->read_sockets.count - 1, 1);
+            tds_map_socket_user_remove(&pool->user_data, pool->user_data.count - 1);
             return TCS_ERROR_MEMORY;
         }
     }
@@ -4586,8 +4589,11 @@ TcsResult tcs_pool_add(struct TcsPool* pool,
         int sts = tds_ulist_soc_add(&pool->error_sockets, &socket_ctx, 1);
         if (sts != 0)
         {
-            tds_ulist_soc_remove(&pool->read_sockets, pool->read_sockets.count, 1);
-            tds_ulist_soc_remove(&pool->write_sockets, pool->write_sockets.count, 1);
+            if (poll_can_write)
+                tds_ulist_soc_remove(&pool->write_sockets, pool->write_sockets.count - 1, 1);
+            if (poll_can_read)
+                tds_ulist_soc_remove(&pool->read_sockets, pool->read_sockets.count - 1, 1);
+            tds_map_socket_user_remove(&pool->user_data, pool->user_data.count - 1);
             return TCS_ERROR_MEMORY;
         }
     }
