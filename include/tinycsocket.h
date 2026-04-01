@@ -2105,11 +2105,11 @@ static inline int tds_map_add(void** keys,
         // This is invariant is still non-fatal though, we may use more memory than needed.
         return -1;
     }
-    *count += 1;
-    *capacity = key_capacity <= value_capacity ? key_capacity : value_capacity; // min(key_capacity, value_capacity);
-
     if (key_capacity != value_capacity)
         return -1;
+
+    *count += 1;
+    *capacity = key_capacity;
 
     return 0;
 }
