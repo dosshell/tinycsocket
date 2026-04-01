@@ -4635,6 +4635,7 @@ TcsResult tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
         if (pool->user_data.keys[i] == socket_ctx)
         {
             tds_map_socket_user_remove(&pool->user_data, i);
+            break;
         }
     }
 
