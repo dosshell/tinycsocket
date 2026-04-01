@@ -588,10 +588,18 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     if (flags & TCS_MSG_SENDALL)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
-    if (buffer_count > TCS_SENDV_MAX)
-        return TCS_ERROR_INVALID_ARGUMENT;
+    WSABUF stack_buffers[TCS_SENDV_STACK_MAX];
+    WSABUF* native_buffers = stack_buffers;
+    WSABUF* heap_buffers = NULL;
 
-    WSABUF native_buffers[TCS_SENDV_MAX];
+    if (buffer_count > TCS_SENDV_STACK_MAX)
+    {
+        heap_buffers = (WSABUF*)malloc(sizeof(WSABUF) * buffer_count);
+        if (heap_buffers == NULL)
+            return TCS_ERROR_MEMORY;
+        native_buffers = heap_buffers;
+    }
+
     for (size_t i = 0; i < buffer_count; ++i)
     {
         native_buffers[i].buf = (CHAR*)buffers[i].data;
@@ -600,6 +608,8 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
 
     DWORD sent = 0;
     int wsasend_status = WSASend(socket_ctx, native_buffers, (DWORD)buffer_count, &sent, (DWORD)flags, NULL, NULL);
+
+    free(heap_buffers);
 
     if (bytes_sent != NULL)
         *bytes_sent = (size_t)sent;

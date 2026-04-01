@@ -196,12 +196,8 @@ typedef int TcsSocket;
 typedef unsigned int TcsInterfaceId;
 #endif
 
-#ifndef TCS_SENDV_MAX
-#ifdef TCS_SMALL_STACK
-#define TCS_SENDV_MAX 128
-#else
-#define TCS_SENDV_MAX 1024
-#endif
+#ifndef TCS_SENDV_STACK_MAX
+#define TCS_SENDV_STACK_MAX 112
 #endif
 
 /**
@@ -2856,10 +2852,7 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     if (flags & TCS_MSG_SENDALL)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
-    // TCS_SENDV_MAX is default set to 1024. define TCS_SMALL_STACK to use a value of 128.
-    const size_t max_supported_iov =
-        UIO_MAXIOV > TCS_SENDV_MAX ? TCS_SENDV_MAX : UIO_MAXIOV; // min(TCS_SENDV_MAX, UIO_MAXIOV)
-    if (buffer_count > max_supported_iov)
+    if (buffer_count > UIO_MAXIOV)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     // Some plattforms (Glibc) do not follow posix. We have mixed size_t and int types for msg_iovlen.
@@ -2868,7 +2861,7 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     // to cast it to correct type without warnigns. We can not, since we want to support more compilers.
 
 // Check if buffer_count can be placed in an unsigned short
-#if (UIO_MAXIOV > USHRT_MAX && TCS_SENDV_MAX > USHRT_MAX)
+#if (UIO_MAXIOV > USHRT_MAX)
     // You are using a plattform with very narrow unsigned short. Let's hope that your plattform follows POSIX standards here.
     typedef int SAFE_IOVLEN;
 #else
@@ -2877,7 +2870,18 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
 
     SAFE_IOVLEN_TYPE narrow_casted_iovlen = (SAFE_IOVLEN_TYPE)buffer_count;
 
-    static struct iovec my_iovec[TCS_SENDV_MAX];
+    struct iovec stack_iovec[TCS_SENDV_STACK_MAX];
+    struct iovec* my_iovec = stack_iovec;
+    struct iovec* heap_iovec = NULL;
+
+    if (buffer_count > TCS_SENDV_STACK_MAX)
+    {
+        heap_iovec = (struct iovec*)malloc(sizeof(struct iovec) * buffer_count);
+        if (heap_iovec == NULL)
+            return TCS_ERROR_MEMORY;
+        my_iovec = heap_iovec;
+    }
+
     for (size_t i = 0; i < buffer_count; i++)
     {
         // We know that sendmsg() does not modify the data, so we can safely cast away the const here.
@@ -2899,6 +2903,8 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
 
     ssize_t ret = 0;
     ret = sendmsg(socket_ctx, &msg, TCS_DEFAULT_SEND_FLAGS | (int)flags);
+
+    free(heap_iovec);
 
     if (ret >= 0)
     {
@@ -4398,10 +4404,18 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     if (flags & TCS_MSG_SENDALL)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
-    if (buffer_count > TCS_SENDV_MAX)
-        return TCS_ERROR_INVALID_ARGUMENT;
+    WSABUF stack_buffers[TCS_SENDV_STACK_MAX];
+    WSABUF* native_buffers = stack_buffers;
+    WSABUF* heap_buffers = NULL;
 
-    WSABUF native_buffers[TCS_SENDV_MAX];
+    if (buffer_count > TCS_SENDV_STACK_MAX)
+    {
+        heap_buffers = (WSABUF*)malloc(sizeof(WSABUF) * buffer_count);
+        if (heap_buffers == NULL)
+            return TCS_ERROR_MEMORY;
+        native_buffers = heap_buffers;
+    }
+
     for (size_t i = 0; i < buffer_count; ++i)
     {
         native_buffers[i].buf = (CHAR*)buffers[i].data;
@@ -4410,6 +4424,8 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
 
     DWORD sent = 0;
     int wsasend_status = WSASend(socket_ctx, native_buffers, (DWORD)buffer_count, &sent, (DWORD)flags, NULL, NULL);
+
+    free(heap_buffers);
 
     if (bytes_sent != NULL)
         *bytes_sent = (size_t)sent;

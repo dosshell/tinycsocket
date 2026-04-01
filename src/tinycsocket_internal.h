@@ -190,12 +190,8 @@ typedef int TcsSocket;
 typedef unsigned int TcsInterfaceId;
 #endif
 
-#ifndef TCS_SENDV_MAX
-#ifdef TCS_SMALL_STACK
-#define TCS_SENDV_MAX 128
-#else
-#define TCS_SENDV_MAX 1024
-#endif
+#ifndef TCS_SENDV_STACK_MAX
+#define TCS_SENDV_STACK_MAX 112
 #endif
 
 /**
