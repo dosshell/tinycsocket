@@ -79,11 +79,6 @@ TDS_ULIST_IMPL(SOCKET, soc)
 TDS_ULIST_IMPL(void*, pvoid)
 #endif
 
-#ifndef ULIST_PVOID
-#define ULIST_PVOID
-TDS_ULIST_IMPL(void*, pvoid)
-#endif
-
 #ifndef TDS_MAP_socket_pvoid
 #define TDS_MAP_socket_pvoid
 TDS_MAP_IMPL(SOCKET, void*, socket_user)
