@@ -2845,21 +2845,6 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     if (buffer_count > UIO_MAXIOV)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    // Some plattforms (Glibc) do not follow posix. We have mixed size_t and int types for msg_iovlen.
-    // We cast it to a narrower unsigned type to avoid warnings for later assignment.
-    // If you read this and doesn't like it, you can use probably use the compiler extension typeof() instead
-    // to cast it to correct type without warnigns. We can not, since we want to support more compilers.
-
-// Check if buffer_count can be placed in an unsigned short
-#if (UIO_MAXIOV > USHRT_MAX)
-    // You are using a plattform with very narrow unsigned short. Let's hope that your plattform follows POSIX standards here.
-    typedef int SAFE_IOVLEN;
-#else
-    typedef unsigned short SAFE_IOVLEN_TYPE;
-#endif
-
-    SAFE_IOVLEN_TYPE narrow_casted_iovlen = (SAFE_IOVLEN_TYPE)buffer_count;
-
     struct iovec stack_iovec[TCS_SENDV_STACK_MAX];
     struct iovec* my_iovec = stack_iovec;
     struct iovec* heap_iovec = NULL;
@@ -2886,7 +2871,12 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     msg.msg_name = NULL;
     msg.msg_namelen = 0;
     msg.msg_iov = my_iovec;
-    msg.msg_iovlen = narrow_casted_iovlen; // msg_iovlen is size_t or int type.
+    // msg_iovlen type varies across platforms (int on POSIX, size_t on glibc).
+    // buffer_count is already validated against UIO_MAXIOV above.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+    msg.msg_iovlen = buffer_count;
+#pragma GCC diagnostic pop
     msg.msg_control = NULL;
     msg.msg_controllen = 0;
     msg.msg_flags = 0;
