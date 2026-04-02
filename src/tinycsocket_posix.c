@@ -137,6 +137,7 @@ const int TCS_SOL_SOCKET = SOL_SOCKET;
 const int TCS_SOL_IP = IPPROTO_IP; // Same as SOL_IP but crossplatform (BSD)
 
 // Socket options
+const int TCS_SO_TYPE = SO_TYPE;
 const int TCS_SO_BROADCAST = SO_BROADCAST;
 const int TCS_SO_KEEPALIVE = SO_KEEPALIVE;
 const int TCS_SO_LINGER = SO_LINGER;
@@ -195,6 +196,9 @@ static TcsResult errno2retcode(int error_code)
 
 static TcsResult family2native(const TcsAddressFamily family, sa_family_t* native_family)
 {
+    if (native_family == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
     switch (family)
     {
         case TCS_AF_ANY:
@@ -270,6 +274,9 @@ static TcsResult sockaddr2native(const struct TcsAddress* tcs_address,
 
 static TcsResult native2family(const sa_family_t native_family, TcsAddressFamily* family)
 {
+    if (family == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
     switch (native_family)
     {
         case AF_UNSPEC:
@@ -577,6 +584,10 @@ TcsResult tcs_send_to(TcsSocket socket_ctx,
 {
     if (socket_ctx == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
+    if (buffer == NULL && buffer_size > 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (destination_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     if (flags & TCS_MSG_SENDALL)
         return TCS_ERROR_NOT_IMPLEMENTED;
@@ -639,6 +650,11 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
 
     for (size_t i = 0; i < buffer_count; i++)
     {
+        if (buffers[i].data == NULL && buffers[i].size > 0)
+        {
+            free(heap_iovec);
+            return TCS_ERROR_INVALID_ARGUMENT;
+        }
         // We know that sendmsg() does not modify the data, so we can safely cast away the const here.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
@@ -686,6 +702,8 @@ TcsResult tcs_receive(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size,
 {
     if (socket_ctx == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
+    if (buffer == NULL && buffer_size > 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     ssize_t recv_status = recv(socket_ctx, (char*)buffer, buffer_size, TCS_DEFAULT_RECV_FLAGS | (int)flags);
 
@@ -699,7 +717,10 @@ TcsResult tcs_receive(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size,
     {
         if (bytes_received != NULL)
             *bytes_received = 0;
-        return TCS_SHUTDOWN;
+        int sock_type = 0;
+        if (tcs_opt_type_get(socket_ctx, &sock_type) == TCS_SUCCESS && sock_type == TCS_SOCK_STREAM)
+            return TCS_SHUTDOWN;
+        return TCS_SUCCESS;
     }
     else
     {
@@ -733,6 +754,8 @@ TcsResult tcs_receive_from(TcsSocket socket_ctx,
 {
     if (socket_ctx == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
+    if (buffer == NULL && buffer_size > 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     struct sockaddr_storage native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
@@ -757,7 +780,10 @@ TcsResult tcs_receive_from(TcsSocket socket_ctx,
     {
         if (bytes_received != NULL)
             *bytes_received = 0;
-        return TCS_ERROR_SOCKET_CLOSED; // TODO: think about this
+        int sock_type = 0;
+        if (tcs_opt_type_get(socket_ctx, &sock_type) == TCS_SUCCESS && sock_type == TCS_SOCK_STREAM)
+            return TCS_SHUTDOWN;
+        return TCS_SUCCESS;
     }
     else
     {
@@ -873,9 +899,7 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
                         size_t* events_populated,
                         int timeout_ms)
 {
-    if (pool == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (events_populated == NULL)
+    if (pool == NULL || events == NULL || events_populated == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     struct TdsMap_poll* map = &pool->backend.poll.map;
@@ -908,8 +932,10 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
             {
                 int so_error = 0;
                 socklen_t so_error_size = sizeof(so_error);
-                getsockopt(map->keys[i].fd, SOL_SOCKET, SO_ERROR, &so_error, &so_error_size);
-                events[filled].error = so_error != 0 ? errno2retcode(so_error) : TCS_ERROR_UNKNOWN;
+                if (getsockopt(map->keys[i].fd, SOL_SOCKET, SO_ERROR, &so_error, &so_error_size) != 0)
+                    events[filled].error = errno2retcode(errno);
+                else
+                    events[filled].error = so_error != 0 ? errno2retcode(so_error) : TCS_ERROR_UNKNOWN;
             }
             else
             {
@@ -980,7 +1006,7 @@ TcsResult tcs_opt_get(TcsSocket socket_ctx, int32_t level, int32_t option_name, 
 
 TcsResult tcs_opt_receive_timeout_set(TcsSocket socket_ctx, int timeout_ms)
 {
-    if (socket_ctx == TCS_SOCKET_INVALID)
+    if (socket_ctx == TCS_SOCKET_INVALID || timeout_ms < 0)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     struct timeval tv;
@@ -1085,15 +1111,8 @@ TcsResult tcs_opt_membership_add(TcsSocket socket_ctx, const struct TcsAddress* 
     if (multicast_address == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    // Todo: Replace with tcs_address_socket() when implemented
-    struct sockaddr_storage address_native_local;
-    memset(&address_native_local, 0, sizeof(struct sockaddr_storage));
-    socklen_t address_native_local_size = sizeof(struct sockaddr_storage);
-    if (getsockname(socket_ctx, (struct sockaddr*)&address_native_local, &address_native_local_size) != 0)
-        return errno2retcode(errno);
-
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
-    TcsResult sts = native2sockaddr((struct sockaddr*)&address_native_local, &local_address);
+    TcsResult sts = tcs_address_socket_local(socket_ctx, &local_address);
     if (sts != TCS_SUCCESS)
         return sts;
 
@@ -1121,14 +1140,14 @@ TcsResult tcs_opt_membership_add_to(TcsSocket socket_ctx,
 
     struct sockaddr_storage local_address_native;
     memset(&local_address_native, 0, sizeof(struct sockaddr_storage));
-    socklen_t local_address_native_size = sizeof(struct sockaddr_storage);
+    socklen_t local_address_native_size = 0;
     TcsResult sts_la2n = sockaddr2native(local_address, &local_address_native, &local_address_native_size);
     if (sts_la2n != TCS_SUCCESS)
         return sts_la2n;
 
     struct sockaddr_storage multicast_address_native;
     memset(&multicast_address_native, 0, sizeof(struct sockaddr_storage));
-    socklen_t multicast_address_native_size = sizeof(struct sockaddr_storage);
+    socklen_t multicast_address_native_size = 0;
     TcsResult sts_ma2n = sockaddr2native(multicast_address, &multicast_address_native, &multicast_address_native_size);
     if (sts_ma2n != TCS_SUCCESS)
         return sts_ma2n;
@@ -1185,15 +1204,8 @@ TcsResult tcs_opt_membership_drop(TcsSocket socket_ctx, const struct TcsAddress*
     if (multicast_address == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    // Todo: Replace with tcs_address_socket() when implemented
-    struct sockaddr_storage address_native_local;
-    memset(&address_native_local, 0, sizeof address_native_local);
-    socklen_t address_native_local_size = sizeof(struct sockaddr_storage);
-    if (getsockname(socket_ctx, (struct sockaddr*)&address_native_local, &address_native_local_size) != 0)
-        return errno2retcode(errno);
-
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
-    TcsResult sts = native2sockaddr((struct sockaddr*)&address_native_local, &local_address);
+    TcsResult sts = tcs_address_socket_local(socket_ctx, &local_address);
     if (sts != TCS_SUCCESS)
         return sts;
 
@@ -1391,6 +1403,8 @@ TcsResult tcs_address_resolve(const char* hostname,
         for (struct addrinfo* iter = native_addrinfo_list; iter != NULL && i < found_addresses_length;
              iter = iter->ai_next)
         {
+            if (iter->ai_addr == NULL)
+                continue;
             TcsResult convert_address_status = native2sockaddr(iter->ai_addr, &found_addresses[i]);
             if (convert_address_status != TCS_SUCCESS)
                 continue;
@@ -1518,12 +1532,30 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
 
 TcsResult tcs_address_socket_local(TcsSocket socket_ctx, struct TcsAddress* local_address)
 {
-    return TCS_ERROR_NOT_IMPLEMENTED;
+    if (socket_ctx == TCS_SOCKET_INVALID || local_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct sockaddr_storage native_sockaddr;
+    memset(&native_sockaddr, 0, sizeof native_sockaddr);
+    socklen_t addrlen = sizeof native_sockaddr;
+    if (getsockname(socket_ctx, (struct sockaddr*)&native_sockaddr, &addrlen) != 0)
+        return errno2retcode(errno);
+
+    return native2sockaddr((struct sockaddr*)&native_sockaddr, local_address);
 }
 
 TcsResult tcs_address_socket_remote(TcsSocket socket_ctx, struct TcsAddress* remote_address)
 {
-    return TCS_ERROR_NOT_IMPLEMENTED;
+    if (socket_ctx == TCS_SOCKET_INVALID || remote_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct sockaddr_storage native_sockaddr;
+    memset(&native_sockaddr, 0, sizeof native_sockaddr);
+    socklen_t addrlen = sizeof native_sockaddr;
+    if (getpeername(socket_ctx, (struct sockaddr*)&native_sockaddr, &addrlen) != 0)
+        return errno2retcode(errno);
+
+    return native2sockaddr((struct sockaddr*)&native_sockaddr, remote_address);
 }
 
 TcsResult tcs_address_socket_family(TcsSocket socket_ctx, TcsAddressFamily* out_family)

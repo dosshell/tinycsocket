@@ -111,6 +111,7 @@ static const char* const TCS_LICENSE_TXT =
 * Socket Options:
 * - TcsResult tcs_opt_set(TcsSocket socket_ctx, int32_t level, int32_t option_name, const void* option_value, size_t option_size);
 * - TcsResult tcs_opt_get(TcsSocket socket_ctx, int32_t level, int32_t option_name, void* option_value, size_t* option_size);
+* - TcsResult tcs_opt_type_get(TcsSocket socket_ctx, int* type);
 * - TcsResult tcs_opt_broadcast_set(TcsSocket socket_ctx, bool do_allow_broadcast);
 * - TcsResult tcs_opt_broadcast_get(TcsSocket socket_ctx, bool* is_broadcast_allowed);
 * - TcsResult tcs_opt_keep_alive_set(TcsSocket socket_ctx, bool do_keep_alive);
@@ -328,6 +329,7 @@ extern const int TCS_SOL_SOCKET; /**< Socket option level for socket options */
 extern const int TCS_SOL_IP;     /**< IP option level for socket options */
 
 // Socket options
+extern const int TCS_SO_TYPE;
 extern const int TCS_SO_BROADCAST;
 extern const int TCS_SO_KEEPALIVE;
 extern const int TCS_SO_LINGER;
@@ -1746,6 +1748,15 @@ TcsResult tcs_opt_get(TcsSocket socket_ctx,
                       int32_t option_name,
                       void* option_value,
                       size_t* option_size);
+
+/**
+* @brief Query the socket type (e.g. ::TCS_SOCK_STREAM or ::TCS_SOCK_DGRAM).
+*
+* @param socket_ctx socket to query.
+* @param type pointer to receive the socket type.
+* @return #TCS_SUCCESS if successful, otherwise the error code.
+*/
+TcsResult tcs_opt_type_get(TcsSocket socket_ctx, int* type);
 
 /**
 * @brief Enable the socket to be allowed to use broadcast.

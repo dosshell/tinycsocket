@@ -816,7 +816,10 @@ TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t bu
         if (is_end)
             break;
 
-        expected_length = expected_length * 10 + ((size_t)t - '0');
+        size_t digit = (size_t)t - '0';
+        if (expected_length > (SIZE_MAX - digit) / 10)
+            return TCS_ERROR_ILL_FORMED_MESSAGE;
+        expected_length = expected_length * 10 + digit;
     }
 
     if (parsed >= max_header)
@@ -862,6 +865,17 @@ TcsResult tcs_opt_broadcast_set(TcsSocket socket_ctx, bool do_allow_broadcast)
 
     int b = do_allow_broadcast ? 1 : 0;
     return tcs_opt_set(socket_ctx, TCS_SOL_SOCKET, TCS_SO_BROADCAST, &b, sizeof(b));
+}
+
+TcsResult tcs_opt_type_get(TcsSocket socket_ctx, int* type)
+{
+    if (socket_ctx == TCS_SOCKET_INVALID || type == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    int t = 0;
+    size_t s = sizeof(t);
+    TcsResult sts = tcs_opt_get(socket_ctx, TCS_SOL_SOCKET, TCS_SO_TYPE, &t, &s);
+    *type = t;
+    return sts;
 }
 
 TcsResult tcs_opt_broadcast_get(TcsSocket socket_ctx, bool* is_broadcast_allowed)
