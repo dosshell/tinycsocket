@@ -778,7 +778,7 @@ TcsResult tcs_pool_add(struct TcsPool* pool,
                        bool poll_can_write,
                        bool poll_error)
 {
-    if (pool == NULL)
+    if (pool == NULL || socket_ctx == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
     if (!poll_can_read && !poll_can_write && !poll_error)
         return TCS_ERROR_INVALID_ARGUMENT;
