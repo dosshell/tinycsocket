@@ -1541,23 +1541,30 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
 
 TcsResult tcs_address_socket_local(TcsSocket socket_ctx, struct TcsAddress* local_address)
 {
-    if (socket_ctx == TCS_SOCKET_INVALID)
+    if (socket_ctx == TCS_SOCKET_INVALID || local_address == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (local_address == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
+    struct sockaddr_storage native_sockaddr;
+    memset(&native_sockaddr, 0, sizeof native_sockaddr);
+    socklen_t addrlen = sizeof native_sockaddr;
+    if (getsockname(socket_ctx, (struct sockaddr*)&native_sockaddr, &addrlen) != 0)
+        return errno2retcode(errno);
 
-    return TCS_ERROR_NOT_IMPLEMENTED;
+    return native2sockaddr((struct sockaddr*)&native_sockaddr, local_address);
 }
 
 TcsResult tcs_address_socket_remote(TcsSocket socket_ctx, struct TcsAddress* remote_address)
 {
-    if (socket_ctx == TCS_SOCKET_INVALID)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (remote_address == NULL)
+    if (socket_ctx == TCS_SOCKET_INVALID || remote_address == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    return TCS_ERROR_NOT_IMPLEMENTED;
+    struct sockaddr_storage native_sockaddr;
+    memset(&native_sockaddr, 0, sizeof native_sockaddr);
+    socklen_t addrlen = sizeof native_sockaddr;
+    if (getpeername(socket_ctx, (struct sockaddr*)&native_sockaddr, &addrlen) != 0)
+        return errno2retcode(errno);
+
+    return native2sockaddr((struct sockaddr*)&native_sockaddr, remote_address);
 }
 
 TcsResult tcs_address_socket_family(TcsSocket socket_ctx, TcsAddressFamily* out_family)

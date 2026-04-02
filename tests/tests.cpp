@@ -1805,3 +1805,96 @@ TEST_CASE("tcs_packet invalid arguments")
     // Clean up
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
+
+TEST_CASE("tcs_address_socket_local on TCP")
+{
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    TcsSocket listen_socket = TCS_SOCKET_INVALID;
+    TcsSocket client_socket = TCS_SOCKET_INVALID;
+
+    REQUIRE(tcs_socket_preset(&listen_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
+    REQUIRE(tcs_socket_preset(&client_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
+
+    CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
+    struct TcsAddress bind_address = TCS_ADDRESS_NONE;
+    bind_address.family = TCS_AF_IP4;
+    bind_address.data.ip4.address = TCS_ADDRESS_LOOPBACK_IP4;
+    bind_address.data.ip4.port = 1260;
+    CHECK(tcs_bind(listen_socket, &bind_address) == TCS_SUCCESS);
+    REQUIRE(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
+    REQUIRE(tcs_connect_str(client_socket, "127.0.0.1", 1260) == TCS_SUCCESS);
+
+    TcsSocket accept_socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_accept(listen_socket, &accept_socket, NULL) == TCS_SUCCESS);
+
+    // When
+    struct TcsAddress local_addr = TCS_ADDRESS_NONE;
+    CHECK_POSIX(tcs_address_socket_local(client_socket, &local_addr) == TCS_SUCCESS);
+
+    // Then
+    CHECK_POSIX(local_addr.family == TCS_AF_IP4);
+    CHECK_POSIX(local_addr.data.ip4.address == TCS_ADDRESS_LOOPBACK_IP4);
+    CHECK_POSIX(local_addr.data.ip4.port != 0);
+
+    // Clean up
+    CHECK(tcs_close(&accept_socket) == TCS_SUCCESS);
+    CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
+    CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
+TEST_CASE("tcs_address_socket_remote on TCP")
+{
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    TcsSocket listen_socket = TCS_SOCKET_INVALID;
+    TcsSocket client_socket = TCS_SOCKET_INVALID;
+
+    REQUIRE(tcs_socket_preset(&listen_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
+    REQUIRE(tcs_socket_preset(&client_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
+
+    CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
+    struct TcsAddress bind_address = TCS_ADDRESS_NONE;
+    bind_address.family = TCS_AF_IP4;
+    bind_address.data.ip4.address = TCS_ADDRESS_LOOPBACK_IP4;
+    bind_address.data.ip4.port = 1261;
+    CHECK(tcs_bind(listen_socket, &bind_address) == TCS_SUCCESS);
+    REQUIRE(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
+    REQUIRE(tcs_connect_str(client_socket, "127.0.0.1", 1261) == TCS_SUCCESS);
+
+    TcsSocket accept_socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_accept(listen_socket, &accept_socket, NULL) == TCS_SUCCESS);
+
+    // When
+    struct TcsAddress remote_addr = TCS_ADDRESS_NONE;
+    CHECK_POSIX(tcs_address_socket_remote(client_socket, &remote_addr) == TCS_SUCCESS);
+
+    // Then
+    CHECK_POSIX(remote_addr.family == TCS_AF_IP4);
+    CHECK_POSIX(remote_addr.data.ip4.address == TCS_ADDRESS_LOOPBACK_IP4);
+    CHECK_POSIX(remote_addr.data.ip4.port == 1261);
+
+    // Clean up
+    CHECK(tcs_close(&accept_socket) == TCS_SUCCESS);
+    CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
+    CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
+TEST_CASE("tcs_address_socket_local and remote with invalid args")
+{
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    struct TcsAddress addr = TCS_ADDRESS_NONE;
+    CHECK(tcs_address_socket_local(TCS_SOCKET_INVALID, &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_socket_remote(TCS_SOCKET_INVALID, &addr) == TCS_ERROR_INVALID_ARGUMENT);
+
+    TcsSocket socket = TCS_SOCKET_INVALID;
+    REQUIRE(tcs_socket_preset(&socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
+    CHECK(tcs_address_socket_local(socket, NULL) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_socket_remote(socket, NULL) == TCS_ERROR_INVALID_ARGUMENT);
+
+    CHECK(tcs_close(&socket) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
