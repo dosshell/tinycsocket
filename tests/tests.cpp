@@ -109,20 +109,6 @@ TEST_CASE("Init Test")
     CHECK(post_mem_diff == pre_mem_diff);
 }
 
-TEST_CASE("Init Test")
-{
-    // Given
-    int pre_mem_diff = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
-
-    // When
-    CHECK(tcs_lib_init() == TCS_SUCCESS);
-    CHECK(tcs_lib_free() == TCS_SUCCESS);
-    int post_mem_diff = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
-
-    // Then
-    CHECK(post_mem_diff == pre_mem_diff);
-}
-
 TEST_CASE("Create socket")
 {
     // Setup

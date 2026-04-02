@@ -123,11 +123,14 @@ if(TCS_ENABLE_TESTS)
 endif()
 
 if(TCS_GENERATE_COVERAGE)
-    if(MSVC)
+    if(NOT TCS_ENABLE_TESTS)
+        message(SEND_ERROR "TCS_GENERATE_COVERAGE requires TCS_ENABLE_TESTS to be enabled.")
+    elseif(MSVC)
         message(SEND_ERROR "MSVC with code coverage is not supported.")
+    else()
+        target_compile_options(tinycsocket_wrapped PRIVATE --coverage)
+        target_link_libraries(tinycsocket_wrapped PRIVATE --coverage)
     endif()
-    target_compile_options(tinycsocket_wrapped PRIVATE --coverage)
-    target_link_libraries(tinycsocket_wrapped PRIVATE --coverage)
 endif()
 
 if(TCS_ENABLE_TESTS)
@@ -147,8 +150,8 @@ if(DOXYGEN_FOUND)
     # Add custom target to build documentation
     add_custom_target(
         docs
-        COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../docs/Doxyfile
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../docs
+        COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/docs/Doxyfile
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/docs
         COMMENT "Generating API documentation with Doxygen"
         VERBATIM
     )

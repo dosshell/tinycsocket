@@ -788,6 +788,9 @@ TcsResult tcs_pool_add(struct TcsPool* pool,
 
 TcsResult tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
 {
+    if (pool == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
     for (size_t i = 0; i < pool->read_sockets.count; ++i)
     {
         if (pool->read_sockets.data[i] == socket_ctx)
@@ -981,8 +984,11 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
                     break;
                 }
             }
-            // Check for new events
-            events[new_n].error = TCS_ERROR_NOT_IMPLEMENTED; //TODO(markusl): Make this a proper error
+            // Get the actual socket error
+            int so_error = 0;
+            int so_error_size = sizeof(so_error);
+            getsockopt((SOCKET)efds_cpy->fd_array[n], SOL_SOCKET, SO_ERROR, (char*)&so_error, &so_error_size);
+            events[new_n].error = so_error != 0 ? wsaerror2retcode(so_error) : TCS_ERROR_UNKNOWN;
             if (events_added == new_n)
             {
                 events[new_n].socket = efds_cpy->fd_array[n];
@@ -1051,7 +1057,10 @@ TcsResult tcs_opt_get(TcsSocket socket_ctx, int32_t level, int32_t option_name, 
     if (option_name == -1)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
-    int sockopt_status = getsockopt(socket_ctx, (int)level, (int)option_name, (char*)option_value, (int*)option_size);
+    int optlen = (int)*option_size;
+    int sockopt_status = getsockopt(socket_ctx, (int)level, (int)option_name, (char*)option_value, &optlen);
+    if (sockopt_status == 0)
+        *option_size = (size_t)optlen;
     return socketstatus2retcode(sockopt_status);
 }
 

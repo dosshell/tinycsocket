@@ -53,7 +53,6 @@
 #include <netinet/in.h>  // IPPROTO_XXP
 #include <netinet/tcp.h> // TCP_NODELAY
 #include <poll.h>        // poll()
-#include <stdio.h>       // fprintf (debug diagnostics)
 #include <stdlib.h>      // malloc()/free()
 #include <string.h>      // strcpy, memset
 #include <sys/ioctl.h>   // Flags for ifaddrs
@@ -211,14 +210,13 @@ static TcsResult family2native(const TcsAddressFamily family, sa_family_t* nativ
         case TCS_AF_PACKET:
 #if TCS_AVAILABLE_AF_PACKET
             *native_family = AF_PACKET;
+            return TCS_SUCCESS;
 #else
             return TCS_ERROR_NOT_IMPLEMENTED;
 #endif
-            return TCS_SUCCESS;
         default:
             return TCS_ERROR_INVALID_ARGUMENT;
     }
-    return TCS_SUCCESS;
 }
 
 static TcsResult sockaddr2native(const struct TcsAddress* tcs_address,
@@ -291,7 +289,6 @@ static TcsResult native2family(const sa_family_t native_family, TcsAddressFamily
         default:
             return TCS_ERROR_NOT_IMPLEMENTED;
     }
-    return TCS_SUCCESS;
 }
 
 static TcsResult native2sockaddr(const struct sockaddr* in_addr, struct TcsAddress* out_addr)
@@ -455,12 +452,7 @@ TcsResult tcs_connect(TcsSocket socket_ctx, const struct TcsAddress* address)
     if (connect(socket_ctx, (const struct sockaddr*)&native_sockaddr, sockaddr_size) == 0)
         return TCS_SUCCESS;
     else
-    {
-        // Debug: log unmapped errno values
-        if (errno2retcode(errno) == TCS_ERROR_UNKNOWN)
-            fprintf(stderr, "connect() failed with unmapped errno: %d (%s)\n", errno, strerror(errno));
         return errno2retcode(errno);
-    }
 }
 
 // tcs_connect_str() is defined in tinycsocket_common.c
@@ -633,21 +625,6 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     if (buffer_count > UIO_MAXIOV)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    // Some plattforms (Glibc) do not follow posix. We have mixed size_t and int types for msg_iovlen.
-    // We cast it to a narrower unsigned type to avoid warnings for later assignment.
-    // If you read this and doesn't like it, you can use probably use the compiler extension typeof() instead
-    // to cast it to correct type without warnigns. We can not, since we want to support more compilers.
-
-// Check if buffer_count can be placed in an unsigned short
-#if (UIO_MAXIOV > USHRT_MAX)
-    // You are using a plattform with very narrow unsigned short. Let's hope that your plattform follows POSIX standards here.
-    typedef int SAFE_IOVLEN;
-#else
-    typedef unsigned short SAFE_IOVLEN_TYPE;
-#endif
-
-    SAFE_IOVLEN_TYPE narrow_casted_iovlen = (SAFE_IOVLEN_TYPE)buffer_count;
-
     struct iovec stack_iovec[TCS_SENDV_STACK_MAX];
     struct iovec* my_iovec = stack_iovec;
     struct iovec* heap_iovec = NULL;
@@ -674,7 +651,12 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     msg.msg_name = NULL;
     msg.msg_namelen = 0;
     msg.msg_iov = my_iovec;
-    msg.msg_iovlen = narrow_casted_iovlen; // msg_iovlen is size_t or int type.
+    // msg_iovlen type varies across platforms (int on POSIX, size_t on glibc).
+    // buffer_count is already validated against UIO_MAXIOV above.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+    msg.msg_iovlen = buffer_count;
+#pragma GCC diagnostic pop
     msg.msg_control = NULL;
     msg.msg_controllen = 0;
     msg.msg_flags = 0;
@@ -922,10 +904,18 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
             events[filled].user_data = map->values[i];
             events[filled].can_read = map->keys[i].revents & POLLIN;
             events[filled].can_write = map->keys[i].revents & POLLOUT;
-            events[filled].error = (map->keys[i].revents & POLLERR) == 0
-                                       ? TCS_SUCCESS
-                                       : TCS_ERROR_NOT_IMPLEMENTED; // TODO: implement error codes
-            map->keys[i].revents = 0;                               // Reset revents
+            if (map->keys[i].revents & POLLERR)
+            {
+                int so_error = 0;
+                socklen_t so_error_size = sizeof(so_error);
+                getsockopt(map->keys[i].fd, SOL_SOCKET, SO_ERROR, &so_error, &so_error_size);
+                events[filled].error = so_error != 0 ? errno2retcode(so_error) : TCS_ERROR_UNKNOWN;
+            }
+            else
+            {
+                events[filled].error = TCS_SUCCESS;
+            }
+            map->keys[i].revents = 0; // Reset revents
             ++filled;
         }
     }
@@ -958,8 +948,10 @@ TcsResult tcs_opt_get(TcsSocket socket_ctx, int32_t level, int32_t option_name, 
     if (socket_ctx == TCS_SOCKET_INVALID || option_value == NULL || option_size == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (getsockopt(socket_ctx, (int)level, (int)option_name, (void*)option_value, (socklen_t*)option_size) == 0)
+    socklen_t optlen = (socklen_t)*option_size;
+    if (getsockopt(socket_ctx, (int)level, (int)option_name, (void*)option_value, &optlen) == 0)
     {
+        *option_size = (size_t)optlen;
         // Linux sets the buffer size to the doubled because of internal use and returns the full doubled size including internal part
 #ifdef __linux__
         if (option_name == TCS_SO_RCVBUF || option_name == TCS_SO_SNDBUF)

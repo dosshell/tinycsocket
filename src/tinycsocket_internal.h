@@ -556,7 +556,7 @@ TcsResult tcs_socket(TcsSocket* socket_ctx, TcsAddressFamily family, int type, i
 TcsResult tcs_socket_preset(TcsSocket* socket_ctx, TcsPreset socket_type);
 
 /**
-* @brief Closes the socket, stop communication and free all recourses for the socket.
+* @brief Closes the socket, stop communication and free all resources for the socket.
 *
 * This will free all resources associated with the socket and set the socket value to #TCS_SOCKET_INVALID.
 *
@@ -596,7 +596,7 @@ TcsResult tcs_close(TcsSocket* socket_ctx);
 *   local_address.data.ip4.port = 1212;
 *   
 *   TcsSocket server_socket = TCS_SOCKET_INVALID; // Always initialize TcsSocket to TCS_SOCKET_INVALID.
-*   TcsResult tcs_server_res = tcs_tcp_server_str(&server_socket, &local_address);
+*   TcsResult tcs_server_res = tcs_tcp_server(&server_socket, &local_address);
 *   if (tcs_server_res != TCS_SUCCESS)
 *   {
 *     tcs_lib_free();
@@ -1442,7 +1442,6 @@ TcsResult tcs_connect_str(TcsSocket socket_ctx, const char* remote_address, uint
  * @param backlog is the maximum number of queued incoming sockets. Use #TCS_BACKLOG_MAX to set it to max.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_accept()
- * @see tcs_listen_to()
  */
 TcsResult tcs_listen(TcsSocket socket_ctx, int backlog);
 
@@ -1451,16 +1450,20 @@ TcsResult tcs_listen(TcsSocket socket_ctx, int backlog);
  *
  * The accepted socket will get assigned a random local free port.
  * The listening socket will not be affected by this call.
- * 
+ *
  * Example usage:
  * @code
- * TcsSocket listen_socket = TCS_NULLSOCKET;
- * tcs_create(&listen_socket, TCS_PRESET_TCP_IP4);
- * tcs_listen_to(listen_socket, 1212);
+ * TcsSocket listen_socket = TCS_SOCKET_INVALID;
+ * tcs_socket_preset(&listen_socket, TCS_PRESET_TCP_IP4);
+ * struct TcsAddress local_address = TCS_ADDRESS_NONE;
+ * local_address.family = TCS_AF_IP4;
+ * local_address.data.ip4.port = 1212;
+ * tcs_bind(listen_socket, &local_address);
+ * tcs_listen(listen_socket, TCS_BACKLOG_MAX);
  * while (true)
  * {
- *   TcsSocket client_socket = TCS_NULLSOCKET;
- *   tcs_accept(listen_socket, &client_socket, NULL)
+ *   TcsSocket client_socket = TCS_SOCKET_INVALID;
+ *   tcs_accept(listen_socket, &client_socket, NULL);
  *   // Do stuff with client_socket here
  *   tcs_close(&client_socket);
  * }
@@ -1510,7 +1513,6 @@ TcsResult tcs_send(TcsSocket socket_ctx, const uint8_t* buffer, size_t buffer_si
  * @param bytes_sent is how many bytes that was successfully sent.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_receive_from()
- * @see tcs_getaddrinfo()
  */
 TcsResult tcs_send_to(TcsSocket socket_ctx,
                       const uint8_t* buffer,
@@ -1565,7 +1567,6 @@ TcsResult tcs_receive(TcsSocket socket_ctx,
 * @param bytes_received is how many bytes that was successfully written to your buffer.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_send_to()
-* @see tcs_getaddrinfo()
 */
 TcsResult tcs_receive_from(TcsSocket socket_ctx,
                            uint8_t* buffer,
@@ -1607,12 +1608,20 @@ TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t bu
 *
 * @code
 * tcs_lib_init();
-* TCS_SOCKET socket1 = TCS_NULLSOCKET;
-* TCS_SOCKET socket2 = TCS_NULLSOCKET;
-* tcs_create(&socket1, TCS_PRESET_UDP_IP4);
-* tcs_create(&socket2, TCS_PRESET_UDP_IP4);
-* tcs_bind(socket, 1000)
-* tcs_bind(socket, 1001)
+* TcsSocket socket1 = TCS_SOCKET_INVALID;
+* TcsSocket socket2 = TCS_SOCKET_INVALID;
+* tcs_socket_preset(&socket1, TCS_PRESET_UDP_IP4);
+* tcs_socket_preset(&socket2, TCS_PRESET_UDP_IP4);
+*
+* struct TcsAddress addr1 = TCS_ADDRESS_NONE;
+* addr1.family = TCS_AF_IP4;
+* addr1.data.ip4.port = 1000;
+* tcs_bind(socket1, &addr1);
+*
+* struct TcsAddress addr2 = TCS_ADDRESS_NONE;
+* addr2.family = TCS_AF_IP4;
+* addr2.data.ip4.port = 1001;
+* tcs_bind(socket2, &addr2);
 *
 * struct TcsPool* pool = NULL;
 * tcs_pool_create(&pool);
@@ -1620,17 +1629,15 @@ TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t bu
 * tcs_pool_add(pool, socket2, NULL, true, false, false);
 *
 * size_t populated = 0;
-* TcsPollEvent ev[2] = {TCS_NULLEVENT, TCS_NULLEVENT};
-* tcs_pool_poll(pool, ev, 2, &populated, 1000);  // Will wait 1000 ms for data on port 1000 or 1001
-* for (int i = 0; i < populated; ++i)
+* struct TcsPollEvent ev[2] = {TCS_POOL_EVENT_EMPTY, TCS_POOL_EVENT_EMPTY};
+* tcs_pool_poll(pool, ev, 2, &populated, 1000); // Will wait 1000 ms for data on port 1000 or 1001
+* for (size_t i = 0; i < populated; ++i)
 * {
 *     if (ev[i].can_read)
 *     {
 *         uint8_t recv_buffer[8192] = {0};
 *         size_t bytes_received = 0;
 *         tcs_receive(ev[i].socket, recv_buffer, 8191, TCS_FLAG_NONE, &bytes_received);
-*         recv_buffer[bytes_received] = '\n';
-*         printf(recv_buffer);
 *     }
 * }
 * tcs_pool_destroy(&pool);
@@ -1650,7 +1657,7 @@ TcsResult tcs_pool_create(struct TcsPool** pool);
 *
 * Will set @p pool to NULL when successfully.
 *
-* @param[in, out] pool is your in-out pool context pointer created with tcs_pool_create()
+* @param[in,out] pool is your pool context pointer created with tcs_pool_create(). Will be set to NULL.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_pool_create()
 */
@@ -1659,11 +1666,11 @@ TcsResult tcs_pool_destroy(struct TcsPool** pool);
 /**
 * @brief Add a socket to the pool.
 *
-* @param[in] pool is your in-out pool context pointer created with tcs_pool_create()
+* @param[in] pool is your pool context pointer created with tcs_pool_create().
 * @param socket_ctx will be added to the pool. Note that you can still use it outside of the pool.
 * @param[in] user_data is a pointer of your choice that is associated with the socket. Use NULL if not used.
-* @param poll_can_read true if you want to poll @p socket_ctx for to be able to read.
-* @param poll_can_write true if you want to poll @p socket_ctx for to be able to write.
+* @param poll_can_read true if you want to poll @p socket_ctx for read events.
+* @param poll_can_write true if you want to poll @p socket_ctx for write events.
 * @param poll_error true if you want to poll if any error has happened to @p socket_ctx.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_pool_remove()
@@ -1681,17 +1688,17 @@ TcsResult tcs_pool_add(struct TcsPool* pool,
 * @param[in] pool is a context pointer created with tcs_pool_create()
 * @param socket_ctx will be removed from the pool.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
-* @see tcs_pool_remove()
+* @see tcs_pool_add()
 */
 TcsResult tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx);
 
 /**
-* @brief Remove a socket from the pool.
+* @brief Wait for events on sockets in the pool.
 *
-* @param[in] pool is your in-out pool context pointer created with @p tcs_pool_create().
-* @param[in, out] events is an array with in-out events. Assign each element to #TCS_POOL_EVENT_EMPTY.
-* @param events_count number of in elements in your events array. Does not make sense to have more events than number of sockets int the pool. If to short, all events may not be returned.
-* @param[out] events_populated will contain the number of events the parameter ev has been populated with by the call.
+* @param[in] pool is your pool context pointer created with @p tcs_pool_create().
+* @param[in,out] events is an array with in-out events. Assign each element to #TCS_POOL_EVENT_EMPTY.
+* @param events_count number of in elements in your events array. Does not make sense to have more events than number of sockets in the pool. If too short, all events may not be returned.
+* @param[out] events_populated will contain the number of events the parameter events has been populated with by the call.
 * @param timeout_ms is the maximum wait time for any event. If any event happens before this time, the call will return immediately.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_pool_remove()
@@ -1703,7 +1710,7 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
                         int timeout_ms);
 
 /**
-* @brief Set parameters on a socket. It is recommended to use tcs_set_xxx instead.
+* @brief Set parameters on a socket. It is recommended to use tcs_opt_*_set() instead.
 *
 * @param socket_ctx is your in-out socket context.
 * @param level is the definition level.
@@ -1719,7 +1726,7 @@ TcsResult tcs_opt_set(TcsSocket socket_ctx,
                       size_t option_size);
 
 /**
-* @brief Get parameters on a socket. It is recommended to use tcs_get_xxx instead.
+* @brief Get parameters on a socket. It is recommended to use tcs_opt_*_get() instead.
 *
 * @code
 * uint8_t c;
@@ -1740,7 +1747,7 @@ TcsResult tcs_opt_get(TcsSocket socket_ctx,
                       void* option_value,
                       size_t* option_size);
 
-/*
+/**
 * @brief Enable the socket to be allowed to use broadcast.
 *
 * Only valid for protocols that support broadcast, for example UDP. Default is false.

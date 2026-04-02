@@ -9,7 +9,7 @@ add_definitions(-DDOCTEST_CONFIG_TREAT_CHAR_STAR_AS_STRING)
 if(MINGW)
     target_link_libraries(
         tests
-        PRIVATE -std=c++11 -fPIC -static -static-libgcc -static-libstdc++
+        PRIVATE -static -static-libgcc -static-libstdc++
     )
 endif()
 if(NOT MSVC)
@@ -33,7 +33,7 @@ endif()
 if(MINGW)
     target_link_libraries(
         test_translation_units
-        PRIVATE -std=c99 -fPIC -static -static-libgcc -static-libstdc++
+        PRIVATE -static -static-libgcc -static-libstdc++
     )
 endif()
 
@@ -61,7 +61,7 @@ endif()
 if(MINGW)
     target_link_libraries(
         tests_header_only
-        PRIVATE -std=c++11 -fPIC -static -static-libgcc -static-libstdc++
+        PRIVATE -static -static-libgcc -static-libstdc++
     )
 endif()
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Android" AND NOT MSVC)
@@ -75,7 +75,6 @@ target_include_directories(
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
 )
 set_target_properties(tests_header_only PROPERTIES FOLDER tinycsocket/tests)
-add_definitions(-DDOCTEST_CONFIG_TREAT_CHAR_STAR_AS_STRING)
 
 add_test(NAME tests COMMAND tests)
 add_test(NAME tests_header_only COMMAND tests_header_only)
