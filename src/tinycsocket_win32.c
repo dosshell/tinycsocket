@@ -589,6 +589,11 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
 
     for (size_t i = 0; i < buffer_count; ++i)
     {
+        if (buffers[i].data == NULL && buffers[i].size > 0)
+        {
+            free(heap_buffers);
+            return TCS_ERROR_INVALID_ARGUMENT;
+        }
         native_buffers[i].buf = (CHAR*)buffers[i].data;
         native_buffers[i].len = (ULONG)buffers[i].size;
     }

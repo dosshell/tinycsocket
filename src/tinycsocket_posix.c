@@ -650,6 +650,11 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
 
     for (size_t i = 0; i < buffer_count; i++)
     {
+        if (buffers[i].data == NULL && buffers[i].size > 0)
+        {
+            free(heap_iovec);
+            return TCS_ERROR_INVALID_ARGUMENT;
+        }
         // We know that sendmsg() does not modify the data, so we can safely cast away the const here.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
