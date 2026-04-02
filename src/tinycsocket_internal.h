@@ -27,6 +27,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define tcs_static_assert(name, expr) typedef char tcs_sa_##name[(expr) ? 1 : -1]
+
 static const char* const TCS_VERSION_TXT = "v0.4-dev";
 static const char* const TCS_LICENSE_TXT =
     "Copyright 2018 Markus Lindelöw\n"
@@ -206,6 +208,14 @@ typedef enum
 } TcsAddressFamily;
 
 /**
+ * @brief IPv6 address (16 bytes), analogous to POSIX struct in6_addr.
+ */
+struct TcsIp6Address
+{
+    uint8_t bytes[16];
+};
+
+/**
  * @brief Network Address
  */
 struct TcsAddress
@@ -213,6 +223,7 @@ struct TcsAddress
     TcsAddressFamily family;
     union
     {
+        char _storage[24]; /**< Ensures full zero-initialization when copied from TCS_ADDRESS_NONE */
         struct
         {
             uint32_t address; /**< Same byte order as the host */
@@ -221,7 +232,7 @@ struct TcsAddress
         } ip4;
         struct
         {
-            uint8_t address[16]; /**< Same byte order as the host */
+            struct TcsIp6Address address; /**< Network byte order */
             TcsInterfaceId
                 scope_id;  /**< Native type. Only valid for local link addresses. See ::tcs_interface_list(). */
             uint16_t port; /**< Same byte order as the host */
@@ -251,12 +262,14 @@ struct TcsInterfaceAddress
     struct TcsAddress address;
 };
 
+tcs_static_assert(address_storage_size, sizeof(((struct TcsAddress*)0)->data) <= 24);
+
 // gcc may trigger bug #53119
 #ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-braces"
 #endif
-static const struct TcsAddress TCS_ADDRESS_NONE = {TCS_AF_ANY, {0, 0}};
+static const struct TcsAddress TCS_ADDRESS_NONE = {(TcsAddressFamily)0, {{0}}};
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
@@ -265,6 +278,9 @@ extern const uint32_t TCS_ADDRESS_ANY_IP4;
 extern const uint32_t TCS_ADDRESS_LOOPBACK_IP4;
 extern const uint32_t TCS_ADDRESS_BROADCAST_IP4;
 extern const uint32_t TCS_ADDRESS_NONE_IP4;
+
+extern const struct TcsIp6Address TCS_ADDRESS_ANY_IP6;
+extern const struct TcsIp6Address TCS_ADDRESS_LOOPBACK_IP6;
 
 /**
  * @brief Used when sending/receiving an array of buffers.
@@ -2189,17 +2205,24 @@ TcsResult tcs_address_socket_remote(TcsSocket socket_ctx, struct TcsAddress* rem
 TcsResult tcs_address_socket_family(TcsSocket socket_ctx, TcsAddressFamily* out_family);
 
 /**
- * @brief Get an address from a string.
+ * @brief Parse a network address from a string.
  *
- * For example:
+ * Supports IPv4, IPv6 (RFC 4291 all three forms), MAC, and bracket/port notation (RFC 3986).
+ * IPv6 zone IDs are limited to numeric values per the minimum requirement of RFC 4007.
+ * String-based zone IDs (e.g. "%%eth0") are not supported.
+ *
+ * Examples:
  * - "192.168.0.1:1212"
- * - "localhost:80"
- * - "[::1]:443".
+ * - "::1"
+ * - "[::1]:443"
+ * - "fe80::1%%3"
+ * - "::ffff:192.168.1.1"
+ * - "91:E0:F0:00:FE:00"
  *
  * Note that this function will not perform DNS resolution. Use ::tcs_address_resolve() for that.
  *
- * @param str
- * @param out_address
+ * @param str The string to parse.
+ * @param out_address The parsed address.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  */
 TcsResult tcs_address_parse(const char str[], struct TcsAddress* out_address);
