@@ -141,6 +141,7 @@ const int TCS_SO_BROADCAST = SO_BROADCAST;
 const int TCS_SO_KEEPALIVE = SO_KEEPALIVE;
 const int TCS_SO_LINGER = SO_LINGER;
 const int TCS_SO_REUSEADDR = SO_REUSEADDR;
+const int TCS_SO_REUSEPORT = -1;
 const int TCS_SO_RCVBUF = SO_RCVBUF;
 const int TCS_SO_RCVTIMEO = SO_RCVTIMEO;
 const int TCS_SO_SNDBUF = SO_SNDBUF;
@@ -1118,8 +1119,50 @@ TcsResult tcs_opt_get(TcsSocket socket_ctx, int32_t level, int32_t option_name, 
 // tcs_opt_broadcast_get() is defined in tinycsocket_common.c
 // tcs_opt_keep_alive_set() is defined in tinycsocket_common.c
 // tcs_opt_keep_alive_get() is defined in tinycsocket_common.c
-// tcs_opt_reuse_address_set() is defined in tinycsocket_common.c
-// tcs_opt_reuse_address_get() is defined in tinycsocket_common.c
+TcsResult tcs_opt_reuse_address_set(TcsSocket socket_ctx, bool do_allow_reuse_address)
+{
+    if (socket_ctx == TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    int b = do_allow_reuse_address ? 1 : 0;
+    TcsResult sts = tcs_opt_set(socket_ctx, TCS_SOL_SOCKET, TCS_SO_REUSEADDR, &b, sizeof(b));
+    if (sts != TCS_SUCCESS)
+        return sts;
+
+#if _WIN32_WINNT >= 0x0502
+    int sock_type = 0;
+    if (tcs_opt_type_get(socket_ctx, &sock_type) == TCS_SUCCESS && sock_type == TCS_SOCK_STREAM)
+        tcs_opt_set(socket_ctx, TCS_SOL_SOCKET, SO_EXCLUSIVEADDRUSE, &b, sizeof(b));
+#endif
+
+    return TCS_SUCCESS;
+}
+
+TcsResult tcs_opt_reuse_address_get(TcsSocket socket_ctx, bool* is_reuse_address_allowed)
+{
+    if (socket_ctx == TCS_SOCKET_INVALID || is_reuse_address_allowed == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    int b = 0;
+    size_t s = sizeof(b);
+    TcsResult sts = tcs_opt_get(socket_ctx, TCS_SOL_SOCKET, TCS_SO_REUSEADDR, &b, &s);
+    *is_reuse_address_allowed = b;
+    return sts;
+}
+
+TcsResult tcs_opt_reuse_port_set(TcsSocket socket_ctx, bool do_allow_reuse_port)
+{
+    (void)socket_ctx;
+    (void)do_allow_reuse_port;
+    return TCS_ERROR_NOT_SUPPORTED;
+}
+
+TcsResult tcs_opt_reuse_port_get(TcsSocket socket_ctx, bool* is_reuse_port_allowed)
+{
+    (void)socket_ctx;
+    (void)is_reuse_port_allowed;
+    return TCS_ERROR_NOT_SUPPORTED;
+}
+
 // tcs_opt_send_buffer_size_set() is defined in tinycsocket_common.c
 // tcs_opt_send_buffer_size_get() is defined in tinycsocket_common.c
 // tcs_opt_receive_buffer_size_set() is defined in tinycsocket_common.c

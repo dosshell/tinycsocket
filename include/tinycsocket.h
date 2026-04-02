@@ -124,6 +124,8 @@ static const char* const TCS_LICENSE_TXT =
 * - TcsResult tcs_opt_keep_alive_get(TcsSocket socket_ctx, bool* is_keep_alive_enabled);
 * - TcsResult tcs_opt_reuse_address_set(TcsSocket socket_ctx, bool do_allow_reuse_address);
 * - TcsResult tcs_opt_reuse_address_get(TcsSocket socket_ctx, bool* is_reuse_address_allowed);
+* - TcsResult tcs_opt_reuse_port_set(TcsSocket socket_ctx, bool do_allow_reuse_port);
+* - TcsResult tcs_opt_reuse_port_get(TcsSocket socket_ctx, bool* is_reuse_port_allowed);
 * - TcsResult tcs_opt_send_buffer_size_set(TcsSocket socket_ctx, size_t send_buffer_size);
 * - TcsResult tcs_opt_send_buffer_size_get(TcsSocket socket_ctx, size_t* send_buffer_size);
 * - TcsResult tcs_opt_receive_buffer_size_set(TcsSocket socket_ctx, size_t receive_buffer_size);
@@ -339,8 +341,9 @@ extern const int TCS_SO_TYPE;
 extern const int TCS_SO_BROADCAST;
 extern const int TCS_SO_KEEPALIVE;
 extern const int TCS_SO_LINGER;
-extern const int TCS_SO_REUSEADDR; /**< This is a tricky one for crossplatform independency! */
-extern const int TCS_SO_RCVBUF;    /**< Byte size of receiving buffer */
+extern const int TCS_SO_REUSEADDR;
+extern const int TCS_SO_REUSEPORT;
+extern const int TCS_SO_RCVBUF; /**< Byte size of receiving buffer */
 extern const int TCS_SO_RCVTIMEO;
 extern const int TCS_SO_SNDBUF; /**< Byte size of receiving buffer */
 extern const int TCS_SO_OOBINLINE;
@@ -1860,21 +1863,28 @@ TcsResult tcs_opt_keep_alive_get(TcsSocket socket_ctx, bool* is_keep_alive_enabl
 /**
 * @brief Allow or disallow address reuse on a socket.
 *
-* For TCP sockets, this allows binding to a port that is in the TIME_WAIT state.
-* When a TCP connection is closed, the port remains reserved for up to 2 minutes
-* (2x Maximum Segment Lifetime) to ensure delayed packets from the old connection
-* are not misinterpreted by a new one. This option bypasses that restriction, which
-* is useful for server sockets that need to restart quickly.
+* **TCP:**
+* Allows binding to a port that is in the TIME_WAIT state. When a TCP connection
+* is closed, the port remains reserved for up to 2 minutes (2x Maximum Segment
+* Lifetime) to ensure delayed packets from the old connection are not misinterpreted
+* by a new one. This option bypasses that restriction, which is useful for server
+* sockets that need to restart quickly.
+* On POSIX, it also allows overlapping wildcard and specific address binds on the same
+* port (e.g. both 0.0.0.0:8080 and 192.168.1.1:8080). The most specific address wins.
 *
-* For UDP sockets, TIME_WAIT does not apply (UDP is connectionless). Instead, this
-* option allows overlapping wildcard and specific address binds on the same port
-* (e.g. binding both 0.0.0.0:8080 and 192.168.1.1:8080), and allows multiple
-* sockets to receive multicast traffic on the same port.
+* **UDP:**
+* Allows multiple sockets to bind to the same address and port. The behavior for
+* unicast datagrams is OS-specific, but on most implementations only the most
+* recently bound socket receives them.
+* This is primarily useful for multicast, where several sockets need to receive the
+* same group traffic.
 *
-* @note Behavior differs between platforms. On Windows, this option is more
-* permissive and allows multiple sockets to bind to the exact same address and
-* port, which can be a security concern. On POSIX systems, this is not allowed
-* unless using SO_REUSEPORT.
+* For load-balancing multiple sockets on the same port, see ::tcs_opt_reuse_port_set().
+*
+* @note On Windows, this library sets SO_EXCLUSIVEADDRUSE alongside SO_REUSEADDR
+* for TCP sockets to prevent port hijacking, matching the security guarantees of
+* POSIX. For UDP sockets, only SO_REUSEADDR is set, preserving multicast and
+* same-port binding behavior. I.e. it mimics POSIX behaviour.
 *
 * @param socket_ctx socket to configure.
 * @param do_allow_reuse_address set to true to allow, false to disallow.
@@ -1892,6 +1902,38 @@ TcsResult tcs_opt_reuse_address_set(TcsSocket socket_ctx, bool do_allow_reuse_ad
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
 TcsResult tcs_opt_reuse_address_get(TcsSocket socket_ctx, bool* is_reuse_address_allowed);
+
+/**
+* @brief Allow or disallow multiple sockets to bind to the same address and port.
+*
+* When enabled, the kernel distributes incoming traffic across all sockets bound to
+* the same address and port. All participating sockets must set this option, and on
+* POSIX systems they must belong to the same effective UID.
+*
+* This is useful for multi-threaded or multi-process servers that want to load-balance
+* incoming connections or datagrams across workers without application-level dispatching.
+*
+* @note Only supported on POSIX (Linux 3.9+). Returns #TCS_ERROR_NOT_SUPPORTED on Windows,
+* which has no equivalent with the same semantics.
+*
+* @param socket_ctx socket to configure.
+* @param do_allow_reuse_port set to true to allow, false to disallow.
+* @return #TCS_SUCCESS if successful, otherwise the error code.
+*/
+TcsResult tcs_opt_reuse_port_set(TcsSocket socket_ctx, bool do_allow_reuse_port);
+
+/**
+* @brief Query whether port reuse is enabled on a socket.
+*
+* See tcs_opt_reuse_port_set() for details.
+*
+* @note Returns #TCS_ERROR_NOT_SUPPORTED on Windows.
+*
+* @param socket_ctx socket to query.
+* @param is_reuse_port_allowed pointer to receive the current setting.
+* @return #TCS_SUCCESS if successful, otherwise the error code.
+*/
+TcsResult tcs_opt_reuse_port_get(TcsSocket socket_ctx, bool* is_reuse_port_allowed);
 
 /**
 * @brief Set the send buffer size of a socket.
@@ -2697,6 +2739,7 @@ const int TCS_SO_BROADCAST = SO_BROADCAST;
 const int TCS_SO_KEEPALIVE = SO_KEEPALIVE;
 const int TCS_SO_LINGER = SO_LINGER;
 const int TCS_SO_REUSEADDR = SO_REUSEADDR;
+const int TCS_SO_REUSEPORT = SO_REUSEPORT;
 const int TCS_SO_RCVBUF = SO_RCVBUF;
 const int TCS_SO_RCVTIMEO = SO_RCVTIMEO;
 const int TCS_SO_SNDBUF = SO_SNDBUF;
@@ -3553,7 +3596,46 @@ TcsResult tcs_opt_get(TcsSocket socket_ctx, int32_t level, int32_t option_name, 
 // tcs_opt_keep_alive_set() is defined in tinycsocket_common.c
 // tcs_opt_keep_alive_get() is defined in tinycsocket_common.c
 // tcs_opt_reuse_address_set() is defined in tinycsocket_common.c
-// tcs_opt_reuse_address_get() is defined in tinycsocket_common.c
+TcsResult tcs_opt_reuse_address_set(TcsSocket socket_ctx, bool do_allow_reuse_address)
+{
+    if (socket_ctx == TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    int b = do_allow_reuse_address ? 1 : 0;
+    return tcs_opt_set(socket_ctx, TCS_SOL_SOCKET, TCS_SO_REUSEADDR, &b, sizeof(b));
+}
+
+TcsResult tcs_opt_reuse_address_get(TcsSocket socket_ctx, bool* is_reuse_address_allowed)
+{
+    if (socket_ctx == TCS_SOCKET_INVALID || is_reuse_address_allowed == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    int b = 0;
+    size_t s = sizeof(b);
+    TcsResult sts = tcs_opt_get(socket_ctx, TCS_SOL_SOCKET, TCS_SO_REUSEADDR, &b, &s);
+    *is_reuse_address_allowed = b;
+    return sts;
+}
+
+TcsResult tcs_opt_reuse_port_set(TcsSocket socket_ctx, bool do_allow_reuse_port)
+{
+    if (socket_ctx == TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    int b = do_allow_reuse_port ? 1 : 0;
+    return tcs_opt_set(socket_ctx, TCS_SOL_SOCKET, TCS_SO_REUSEPORT, &b, sizeof(b));
+}
+
+TcsResult tcs_opt_reuse_port_get(TcsSocket socket_ctx, bool* is_reuse_port_allowed)
+{
+    if (socket_ctx == TCS_SOCKET_INVALID || is_reuse_port_allowed == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    int b = 0;
+    size_t s = sizeof(b);
+    TcsResult sts = tcs_opt_get(socket_ctx, TCS_SOL_SOCKET, TCS_SO_REUSEPORT, &b, &s);
+    *is_reuse_port_allowed = b;
+    return sts;
+}
+
 // tcs_opt_send_buffer_size_set() is defined in tinycsocket_common.c
 // tcs_opt_send_buffer_size_get() is defined in tinycsocket_common.c
 // tcs_opt_receive_buffer_size_set() is defined in tinycsocket_common.c
@@ -4289,6 +4371,7 @@ const int TCS_SO_BROADCAST = SO_BROADCAST;
 const int TCS_SO_KEEPALIVE = SO_KEEPALIVE;
 const int TCS_SO_LINGER = SO_LINGER;
 const int TCS_SO_REUSEADDR = SO_REUSEADDR;
+const int TCS_SO_REUSEPORT = -1;
 const int TCS_SO_RCVBUF = SO_RCVBUF;
 const int TCS_SO_RCVTIMEO = SO_RCVTIMEO;
 const int TCS_SO_SNDBUF = SO_SNDBUF;
@@ -5266,8 +5349,50 @@ TcsResult tcs_opt_get(TcsSocket socket_ctx, int32_t level, int32_t option_name, 
 // tcs_opt_broadcast_get() is defined in tinycsocket_common.c
 // tcs_opt_keep_alive_set() is defined in tinycsocket_common.c
 // tcs_opt_keep_alive_get() is defined in tinycsocket_common.c
-// tcs_opt_reuse_address_set() is defined in tinycsocket_common.c
-// tcs_opt_reuse_address_get() is defined in tinycsocket_common.c
+TcsResult tcs_opt_reuse_address_set(TcsSocket socket_ctx, bool do_allow_reuse_address)
+{
+    if (socket_ctx == TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    int b = do_allow_reuse_address ? 1 : 0;
+    TcsResult sts = tcs_opt_set(socket_ctx, TCS_SOL_SOCKET, TCS_SO_REUSEADDR, &b, sizeof(b));
+    if (sts != TCS_SUCCESS)
+        return sts;
+
+#if _WIN32_WINNT >= 0x0502
+    int sock_type = 0;
+    if (tcs_opt_type_get(socket_ctx, &sock_type) == TCS_SUCCESS && sock_type == TCS_SOCK_STREAM)
+        tcs_opt_set(socket_ctx, TCS_SOL_SOCKET, SO_EXCLUSIVEADDRUSE, &b, sizeof(b));
+#endif
+
+    return TCS_SUCCESS;
+}
+
+TcsResult tcs_opt_reuse_address_get(TcsSocket socket_ctx, bool* is_reuse_address_allowed)
+{
+    if (socket_ctx == TCS_SOCKET_INVALID || is_reuse_address_allowed == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    int b = 0;
+    size_t s = sizeof(b);
+    TcsResult sts = tcs_opt_get(socket_ctx, TCS_SOL_SOCKET, TCS_SO_REUSEADDR, &b, &s);
+    *is_reuse_address_allowed = b;
+    return sts;
+}
+
+TcsResult tcs_opt_reuse_port_set(TcsSocket socket_ctx, bool do_allow_reuse_port)
+{
+    (void)socket_ctx;
+    (void)do_allow_reuse_port;
+    return TCS_ERROR_NOT_SUPPORTED;
+}
+
+TcsResult tcs_opt_reuse_port_get(TcsSocket socket_ctx, bool* is_reuse_port_allowed)
+{
+    (void)socket_ctx;
+    (void)is_reuse_port_allowed;
+    return TCS_ERROR_NOT_SUPPORTED;
+}
+
 // tcs_opt_send_buffer_size_set() is defined in tinycsocket_common.c
 // tcs_opt_send_buffer_size_get() is defined in tinycsocket_common.c
 // tcs_opt_receive_buffer_size_set() is defined in tinycsocket_common.c
@@ -6791,25 +6916,8 @@ TcsResult tcs_opt_keep_alive_get(TcsSocket socket_ctx, bool* is_keep_alive_enabl
     return sts;
 }
 
-TcsResult tcs_opt_reuse_address_set(TcsSocket socket_ctx, bool do_allow_reuse_address)
-{
-    if (socket_ctx == TCS_SOCKET_INVALID)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    int b = do_allow_reuse_address ? 1 : 0;
-    return tcs_opt_set(socket_ctx, TCS_SOL_SOCKET, TCS_SO_REUSEADDR, &b, sizeof(b));
-}
-
-TcsResult tcs_opt_reuse_address_get(TcsSocket socket_ctx, bool* is_reuse_address_allowed)
-{
-    if (socket_ctx == TCS_SOCKET_INVALID || is_reuse_address_allowed == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    int b = 0;
-    size_t s = sizeof(b);
-    TcsResult sts = tcs_opt_get(socket_ctx, TCS_SOL_SOCKET, TCS_SO_REUSEADDR, &b, &s);
-    *is_reuse_address_allowed = b;
-    return sts;
-}
+// tcs_opt_reuse_address_set() is defined in platform-specific files
+// tcs_opt_reuse_address_get() is defined in platform-specific files
 
 TcsResult tcs_opt_send_buffer_size_set(TcsSocket socket_ctx, size_t send_buffer_size)
 {
