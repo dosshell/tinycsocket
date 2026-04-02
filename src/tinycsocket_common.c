@@ -909,25 +909,8 @@ TcsResult tcs_opt_keep_alive_get(TcsSocket socket_ctx, bool* is_keep_alive_enabl
     return sts;
 }
 
-TcsResult tcs_opt_reuse_address_set(TcsSocket socket_ctx, bool do_allow_reuse_address)
-{
-    if (socket_ctx == TCS_SOCKET_INVALID)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    int b = do_allow_reuse_address ? 1 : 0;
-    return tcs_opt_set(socket_ctx, TCS_SOL_SOCKET, TCS_SO_REUSEADDR, &b, sizeof(b));
-}
-
-TcsResult tcs_opt_reuse_address_get(TcsSocket socket_ctx, bool* is_reuse_address_allowed)
-{
-    if (socket_ctx == TCS_SOCKET_INVALID || is_reuse_address_allowed == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    int b = 0;
-    size_t s = sizeof(b);
-    TcsResult sts = tcs_opt_get(socket_ctx, TCS_SOL_SOCKET, TCS_SO_REUSEADDR, &b, &s);
-    *is_reuse_address_allowed = b;
-    return sts;
-}
+// tcs_opt_reuse_address_set() is defined in platform-specific files
+// tcs_opt_reuse_address_get() is defined in platform-specific files
 
 TcsResult tcs_opt_send_buffer_size_set(TcsSocket socket_ctx, size_t send_buffer_size)
 {
