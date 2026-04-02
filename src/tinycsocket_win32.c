@@ -598,13 +598,18 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
 
     free(heap_buffers);
 
-    if (bytes_sent != NULL)
-        *bytes_sent = (size_t)sent;
-
     if (wsasend_status != SOCKET_ERROR)
+    {
+        if (bytes_sent != NULL)
+            *bytes_sent = (size_t)sent;
         return TCS_SUCCESS;
+    }
     else
+    {
+        if (bytes_sent != NULL)
+            *bytes_sent = 0;
         return socketstatus2retcode(wsasend_status);
+    }
 }
 
 TcsResult tcs_receive(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* bytes_received)
