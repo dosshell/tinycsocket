@@ -2942,7 +2942,10 @@ TcsResult tcs_receive(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size,
     {
         if (bytes_received != NULL)
             *bytes_received = 0;
-        return TCS_SHUTDOWN;
+        int sock_type = 0;
+        if (tcs_opt_type_get(socket_ctx, &sock_type) == TCS_SUCCESS && sock_type == TCS_SOCK_STREAM)
+            return TCS_SHUTDOWN;
+        return TCS_SUCCESS;
     }
     else
     {
@@ -3002,7 +3005,10 @@ TcsResult tcs_receive_from(TcsSocket socket_ctx,
     {
         if (bytes_received != NULL)
             *bytes_received = 0;
-        return TCS_ERROR_SOCKET_CLOSED; // TODO: think about this
+        int sock_type = 0;
+        if (tcs_opt_type_get(socket_ctx, &sock_type) == TCS_SUCCESS && sock_type == TCS_SOCK_STREAM)
+            return TCS_SHUTDOWN;
+        return TCS_SUCCESS;
     }
     else
     {
@@ -4462,7 +4468,10 @@ TcsResult tcs_receive(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size,
     {
         if (bytes_received != NULL)
             *bytes_received = 0;
-        return TCS_ERROR_SOCKET_CLOSED;
+        int sock_type = 0;
+        if (tcs_opt_type_get(socket_ctx, &sock_type) == TCS_SUCCESS && sock_type == TCS_SOCK_STREAM)
+            return TCS_SHUTDOWN;
+        return TCS_SUCCESS;
     }
     else if (recv_status != SOCKET_ERROR)
     {
@@ -4502,7 +4511,12 @@ TcsResult tcs_receive_from(TcsSocket socket_ctx,
 
     if (recvfrom_status == 0)
     {
-        return TCS_ERROR_SOCKET_CLOSED;
+        if (bytes_received != NULL)
+            *bytes_received = 0;
+        int sock_type = 0;
+        if (tcs_opt_type_get(socket_ctx, &sock_type) == TCS_SUCCESS && sock_type == TCS_SOCK_STREAM)
+            return TCS_SHUTDOWN;
+        return TCS_SUCCESS;
     }
     else if (recvfrom_status != SOCKET_ERROR)
     {
