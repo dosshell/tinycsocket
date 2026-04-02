@@ -43,7 +43,7 @@ int main(void)
 
     struct TcsAddress remote_address = {0};
     uint8_t recv_buffer[1024];
-    size_t recv_size = sizeof(recv_buffer) - sizeof('\0');
+    size_t recv_size = sizeof(recv_buffer) - 1;
     size_t bytes_received = 0;
     if (tcs_receive_from(socket, recv_buffer, recv_size, TCS_FLAG_NONE, &remote_address, &bytes_received) !=
         TCS_SUCCESS)

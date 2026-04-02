@@ -50,7 +50,7 @@ int main(void)
         return show_error("Could not send message");
 
     uint8_t recv_buffer[1024];
-    size_t recv_size = sizeof(recv_buffer) - sizeof('\0');
+    size_t recv_size = sizeof(recv_buffer) - 1;
     size_t bytes_received = 0;
     if (tcs_receive_from(socket, recv_buffer, recv_size, TCS_FLAG_NONE, NULL, &bytes_received) != TCS_SUCCESS)
         return show_error("Could not receive data");
