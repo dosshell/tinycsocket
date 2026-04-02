@@ -4475,6 +4475,8 @@ TcsResult tcs_receive_from(TcsSocket socket_ctx,
         return TCS_ERROR_INVALID_ARGUMENT;
     if (buffer == NULL && buffer_size > 0)
         return TCS_ERROR_INVALID_ARGUMENT;
+    if (bytes_received != NULL)
+        *bytes_received = 0;
 
     SOCKADDR_STORAGE native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
