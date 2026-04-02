@@ -806,12 +806,16 @@ TcsResult tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
 {
     if (pool == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
+    if (socket_ctx == TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
+    bool found = false;
     for (size_t i = 0; i < pool->read_sockets.count; ++i)
     {
         if (pool->read_sockets.data[i] == socket_ctx)
         {
             tds_ulist_soc_remove(&pool->read_sockets, i, 1);
+            found = true;
             break;
         }
     }
@@ -820,6 +824,7 @@ TcsResult tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
         if (pool->write_sockets.data[i] == socket_ctx)
         {
             tds_ulist_soc_remove(&pool->write_sockets, i, 1);
+            found = true;
             break;
         }
     }
@@ -828,6 +833,7 @@ TcsResult tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
         if (pool->error_sockets.data[i] == socket_ctx)
         {
             tds_ulist_soc_remove(&pool->error_sockets, i, 1);
+            found = true;
             break;
         }
     }
@@ -836,9 +842,13 @@ TcsResult tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
         if (pool->user_data.keys[i] == socket_ctx)
         {
             tds_map_socket_user_remove(&pool->user_data, i);
+            found = true;
             break;
         }
     }
+
+    if (!found)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     return TCS_SUCCESS;
 }
