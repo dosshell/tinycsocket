@@ -3370,14 +3370,14 @@ TcsResult tcs_opt_membership_add_to(TcsSocket socket_ctx,
 
     struct sockaddr_storage local_address_native;
     memset(&local_address_native, 0, sizeof(struct sockaddr_storage));
-    socklen_t local_address_native_size = sizeof(struct sockaddr_storage);
+    socklen_t local_address_native_size = 0;
     TcsResult sts_la2n = sockaddr2native(local_address, &local_address_native, &local_address_native_size);
     if (sts_la2n != TCS_SUCCESS)
         return sts_la2n;
 
     struct sockaddr_storage multicast_address_native;
     memset(&multicast_address_native, 0, sizeof(struct sockaddr_storage));
-    socklen_t multicast_address_native_size = sizeof(struct sockaddr_storage);
+    socklen_t multicast_address_native_size = 0;
     TcsResult sts_ma2n = sockaddr2native(multicast_address, &multicast_address_native, &multicast_address_native_size);
     if (sts_ma2n != TCS_SUCCESS)
         return sts_ma2n;
