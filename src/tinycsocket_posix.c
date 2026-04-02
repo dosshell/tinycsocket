@@ -920,8 +920,10 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
             {
                 int so_error = 0;
                 socklen_t so_error_size = sizeof(so_error);
-                getsockopt(map->keys[i].fd, SOL_SOCKET, SO_ERROR, &so_error, &so_error_size);
-                events[filled].error = so_error != 0 ? errno2retcode(so_error) : TCS_ERROR_UNKNOWN;
+                if (getsockopt(map->keys[i].fd, SOL_SOCKET, SO_ERROR, &so_error, &so_error_size) != 0)
+                    events[filled].error = errno2retcode(errno);
+                else
+                    events[filled].error = so_error != 0 ? errno2retcode(so_error) : TCS_ERROR_UNKNOWN;
             }
             else
             {
