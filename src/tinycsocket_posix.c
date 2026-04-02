@@ -195,6 +195,9 @@ static TcsResult errno2retcode(int error_code)
 
 static TcsResult family2native(const TcsAddressFamily family, sa_family_t* native_family)
 {
+    if (native_family == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
     switch (family)
     {
         case TCS_AF_ANY:
@@ -270,6 +273,9 @@ static TcsResult sockaddr2native(const struct TcsAddress* tcs_address,
 
 static TcsResult native2family(const sa_family_t native_family, TcsAddressFamily* family)
 {
+    if (family == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
     switch (native_family)
     {
         case AF_UNSPEC:
@@ -577,6 +583,10 @@ TcsResult tcs_send_to(TcsSocket socket_ctx,
 {
     if (socket_ctx == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
+    if (buffer == NULL && buffer_size > 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (destination_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     if (flags & TCS_MSG_SENDALL)
         return TCS_ERROR_NOT_IMPLEMENTED;
@@ -686,6 +696,8 @@ TcsResult tcs_receive(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size,
 {
     if (socket_ctx == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
+    if (buffer == NULL && buffer_size > 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     ssize_t recv_status = recv(socket_ctx, (char*)buffer, buffer_size, TCS_DEFAULT_RECV_FLAGS | (int)flags);
 
@@ -732,6 +744,8 @@ TcsResult tcs_receive_from(TcsSocket socket_ctx,
                            size_t* bytes_received)
 {
     if (socket_ctx == TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (buffer == NULL && buffer_size > 0)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     struct sockaddr_storage native_sockaddr;
@@ -873,9 +887,7 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
                         size_t* events_populated,
                         int timeout_ms)
 {
-    if (pool == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (events_populated == NULL)
+    if (pool == NULL || events == NULL || events_populated == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     struct TdsMap_poll* map = &pool->backend.poll.map;
@@ -1391,6 +1403,8 @@ TcsResult tcs_address_resolve(const char* hostname,
         for (struct addrinfo* iter = native_addrinfo_list; iter != NULL && i < found_addresses_length;
              iter = iter->ai_next)
         {
+            if (iter->ai_addr == NULL)
+                continue;
             TcsResult convert_address_status = native2sockaddr(iter->ai_addr, &found_addresses[i]);
             if (convert_address_status != TCS_SUCCESS)
                 continue;
@@ -1518,11 +1532,22 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
 
 TcsResult tcs_address_socket_local(TcsSocket socket_ctx, struct TcsAddress* local_address)
 {
+    if (socket_ctx == TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    if (local_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
     return TCS_ERROR_NOT_IMPLEMENTED;
 }
 
 TcsResult tcs_address_socket_remote(TcsSocket socket_ctx, struct TcsAddress* remote_address)
 {
+    if (socket_ctx == TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (remote_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
     return TCS_ERROR_NOT_IMPLEMENTED;
 }
 
