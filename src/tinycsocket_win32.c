@@ -377,6 +377,8 @@ TcsResult tcs_bind(TcsSocket socket_ctx, const struct TcsAddress* address)
 {
     if (socket_ctx == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
+    if (address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     SOCKADDR_STORAGE native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
