@@ -506,6 +506,41 @@ TEST_CASE("Netstring with multi-digit length")
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 
+TEST_CASE("Netstring with overflowing length is rejected")
+{
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    TcsSocket listen_socket = TCS_SOCKET_INVALID;
+    TcsSocket accept_socket = TCS_SOCKET_INVALID;
+    TcsSocket client_socket = TCS_SOCKET_INVALID;
+
+    REQUIRE(tcs_socket_preset(&listen_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
+    REQUIRE(tcs_socket_preset(&client_socket, TCS_PRESET_TCP_IP4) == TCS_SUCCESS);
+
+    CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
+    TcsAddress local_address = TCS_ADDRESS_NONE;
+    local_address.family = TCS_AF_IP4;
+    local_address.data.ip4.address = TCS_ADDRESS_ANY_IP4;
+    local_address.data.ip4.port = 1214;
+    CHECK(tcs_bind(listen_socket, &local_address) == TCS_SUCCESS);
+    CHECK(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
+    REQUIRE(tcs_connect_str(client_socket, "localhost", 1214) == TCS_SUCCESS);
+
+    CHECK(tcs_accept(listen_socket, &accept_socket, NULL) == TCS_SUCCESS);
+    CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
+
+    // Send a raw netstring header with a length that would overflow size_t
+    const uint8_t overflow_header[] = "99999999999999999999:";
+    CHECK(tcs_send(client_socket, overflow_header, sizeof(overflow_header) - 1, TCS_MSG_SENDALL, NULL) == TCS_SUCCESS);
+
+    uint8_t recv_buffer[32] = {0};
+    CHECK(tcs_receive_netstring(accept_socket, recv_buffer, sizeof(recv_buffer), NULL) == TCS_ERROR_ILL_FORMED_MESSAGE);
+
+    CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
+    CHECK(tcs_close(&accept_socket) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
 // TODO(markusl): Broken on Windows (use nonblocking behind the curton?)
 #ifdef CROSS_ISSUE
 TEST_CASE("shutdown")

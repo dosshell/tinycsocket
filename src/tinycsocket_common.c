@@ -816,7 +816,10 @@ TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t bu
         if (is_end)
             break;
 
-        expected_length = expected_length * 10 + ((size_t)t - '0');
+        size_t digit = (size_t)t - '0';
+        if (expected_length > (SIZE_MAX - digit) / 10)
+            return TCS_ERROR_ILL_FORMED_MESSAGE;
+        expected_length = expected_length * 10 + digit;
     }
 
     if (parsed >= max_header)
