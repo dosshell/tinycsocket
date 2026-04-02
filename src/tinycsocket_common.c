@@ -1050,7 +1050,7 @@ TcsResult tcs_address_parse(const char str[], struct TcsAddress* out_address)
     int n_dots = 0;
     int double_colons = 0;
 
-    for (int i = 0; i < 21 && str[i] != '\0'; ++i) // max ipv4 string length with port colon
+    for (int i = 0; str[i] != '\0' && i < 70; ++i)
     {
         if (str[i] == '.')
         {
@@ -1069,9 +1069,6 @@ TcsResult tcs_address_parse(const char str[], struct TcsAddress* out_address)
 
     if (is_ipv4 + is_mac + is_ipv6 != 1)
         return TCS_ERROR_INVALID_ARGUMENT;
-
-    // AVTP Multicast address format:
-    // 91:E0:F0:00:FE:00 - 91:E0:F0:00:FE:FF
 
     if (is_ipv4)
     {
@@ -1097,7 +1094,286 @@ TcsResult tcs_address_parse(const char str[], struct TcsAddress* out_address)
     }
     else if (is_ipv6)
     {
-        return TCS_ERROR_NOT_IMPLEMENTED;
+        // Table-driven DFA transducer (RFC 4291 + RFC 3986 + RFC 4007 + RFC 5952)
+
+        // Character classes (CC_OTHER = 0 so uninitialized LUT entries default to it)
+        enum
+        {
+            CC_OTHER = 0,
+            CC_DIGIT,
+            CC_HEX,
+            CC_COLON,
+            CC_DOT,
+            CC_PERCENT,
+            CC_LBRACKET,
+            CC_RBRACKET,
+            CC_NUL,
+            CC_COUNT
+        };
+
+        // clang-format off
+        static const uint8_t cc_lut[256] = {
+        /* 0x00     NUL                                                                                                                                                                                   */
+                    CC_NUL,     0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,
+
+        /* 0x10                                                                                                                                                                                           */
+                    0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,
+
+        /* 0x20     SPACE       !           "           #           $           %           &           '           (           )           *           +           ,           -           .           / */
+                    0,          0,          0,          0,          0,          CC_PERCENT, 0,          0,          0,          0,          0,          0,          0,          0,          CC_DOT,     0,
+
+        /* 0x30     0           1           2           3           4           5           6           7           8           9           :           ;           <           =           >           ? */
+                    CC_DIGIT,   CC_DIGIT,   CC_DIGIT,   CC_DIGIT,   CC_DIGIT,   CC_DIGIT,   CC_DIGIT,   CC_DIGIT,   CC_DIGIT,   CC_DIGIT,   CC_COLON,   0,          0,          0,          0,          0,
+
+        /* 0x40     @           A           B           C           D           E           F           G           H           I           J           K           L           M           N           O */
+                    0,          CC_HEX,     CC_HEX,     CC_HEX,     CC_HEX,     CC_HEX,     CC_HEX,     0,          0,          0,          0,          0,          0,          0,          0,          0,
+
+        /* 0x50     P           Q           R           S           T           U           V           W           X           Y           Z           [           \           ]           ^           _ */
+                    0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          0,          CC_LBRACKET,0,          CC_RBRACKET,0,          0,
+
+        /* 0x60     `           a           b           c           d           e           f                         */
+                    0,          CC_HEX,     CC_HEX,     CC_HEX,     CC_HEX,     CC_HEX,     CC_HEX, /*  ... zeros ... */
+        };
+        // clang-format on
+
+        // DFA states
+        enum
+        {
+            S_START,
+            S_BRACKET,
+            S_HEX,
+            S_HEX_DEC,
+            S_COLON,
+            S_DCOLON,
+            S_DOT,
+            S_IPV4,
+            S_RBRACKET,
+            S_PORT_COLON,
+            S_PORT,
+            S_PERCENT,
+            S_SCOPE,
+            S_ACCEPT,
+            S_REJECT,
+            S_COUNT
+        };
+
+        // Actions
+        enum
+        {
+            A_NONE,
+            A_OPEN_BRACKET,
+            A_HEX_ACCUM,
+            A_HEX_DEC_ACCUM,
+            A_COMMIT,
+            A_COMMIT_BRACKET,
+            A_SET_GAP,
+            A_CHECK_BRACKET,
+            A_START_IPV4,
+            A_IPV4_ACCUM,
+            A_IPV4_DOT,
+            A_IPV4_DONE,
+            A_IPV4_DONE_BRACKET,
+            A_PORT_ACCUM,
+            A_SCOPE_ACCUM,
+            A_SCOPE_BRACKET
+        };
+
+        // clang-format off
+        static const struct
+        {
+            /* StateType  */ uint8_t next;
+            /* ActionType */ uint8_t action;
+        } dfa_table[S_COUNT][CC_COUNT] /* States x Characters */ = {
+            /*                   CC_OTHER              CC_DIGIT                    CC_HEX                CC_COLON                 CC_DOT               CC_PERCENT               CC_LBRACKET                CC_RBRACKET                         CC_NUL       */
+            /* S_START     */ {{S_REJECT,A_NONE}, {S_HEX_DEC,A_HEX_DEC_ACCUM}, {S_HEX,A_HEX_ACCUM},   {S_COLON,A_NONE},       {S_REJECT,A_NONE},     {S_REJECT,A_NONE},      {S_BRACKET,A_OPEN_BRACKET}, {S_REJECT,A_NONE},               {S_REJECT,A_NONE}},
+            /* S_BRACKET   */ {{S_REJECT,A_NONE}, {S_HEX_DEC,A_HEX_DEC_ACCUM}, {S_HEX,A_HEX_ACCUM},   {S_COLON,A_NONE},       {S_REJECT,A_NONE},     {S_REJECT,A_NONE},      {S_REJECT,A_NONE},          {S_REJECT,A_NONE},               {S_REJECT,A_NONE}},
+            /* S_HEX       */ {{S_REJECT,A_NONE}, {S_HEX,A_HEX_ACCUM},         {S_HEX,A_HEX_ACCUM},   {S_COLON,A_COMMIT},     {S_REJECT,A_NONE},     {S_PERCENT,A_COMMIT},   {S_REJECT,A_NONE},          {S_RBRACKET,A_COMMIT_BRACKET},   {S_ACCEPT,A_COMMIT}},
+            /* S_HEX_DEC   */ {{S_REJECT,A_NONE}, {S_HEX_DEC,A_HEX_DEC_ACCUM}, {S_HEX,A_HEX_ACCUM},   {S_COLON,A_COMMIT},     {S_DOT,A_START_IPV4},  {S_PERCENT,A_COMMIT},   {S_REJECT,A_NONE},          {S_RBRACKET,A_COMMIT_BRACKET},   {S_ACCEPT,A_COMMIT}},
+            /* S_COLON     */ {{S_REJECT,A_NONE}, {S_HEX_DEC,A_HEX_DEC_ACCUM}, {S_HEX,A_HEX_ACCUM},   {S_DCOLON,A_SET_GAP},   {S_REJECT,A_NONE},     {S_REJECT,A_NONE},      {S_REJECT,A_NONE},          {S_REJECT,A_NONE},               {S_REJECT,A_NONE}},
+            /* S_DCOLON    */ {{S_REJECT,A_NONE}, {S_HEX_DEC,A_HEX_DEC_ACCUM}, {S_HEX,A_HEX_ACCUM},   {S_REJECT,A_NONE},      {S_REJECT,A_NONE},     {S_REJECT,A_NONE},      {S_REJECT,A_NONE},          {S_RBRACKET,A_CHECK_BRACKET},    {S_ACCEPT,A_NONE}},
+            /* S_DOT       */ {{S_REJECT,A_NONE}, {S_IPV4,A_IPV4_ACCUM},       {S_REJECT,A_NONE},     {S_REJECT,A_NONE},      {S_REJECT,A_NONE},     {S_REJECT,A_NONE},      {S_REJECT,A_NONE},          {S_REJECT,A_NONE},               {S_REJECT,A_NONE}},
+            /* S_IPV4      */ {{S_REJECT,A_NONE}, {S_IPV4,A_IPV4_ACCUM},       {S_REJECT,A_NONE},     {S_REJECT,A_NONE},      {S_DOT,A_IPV4_DOT},    {S_PERCENT,A_IPV4_DONE},{S_REJECT,A_NONE},          {S_RBRACKET,A_IPV4_DONE_BRACKET},{S_ACCEPT,A_IPV4_DONE}},
+            /* S_RBRACKET  */ {{S_REJECT,A_NONE}, {S_REJECT,A_NONE},           {S_REJECT,A_NONE},     {S_PORT_COLON,A_NONE},  {S_REJECT,A_NONE},     {S_REJECT,A_NONE},      {S_REJECT,A_NONE},          {S_REJECT,A_NONE},               {S_ACCEPT,A_NONE}},
+            /* S_PORT_COLON*/ {{S_REJECT,A_NONE}, {S_PORT,A_PORT_ACCUM},       {S_REJECT,A_NONE},     {S_REJECT,A_NONE},      {S_REJECT,A_NONE},     {S_REJECT,A_NONE},      {S_REJECT,A_NONE},          {S_REJECT,A_NONE},               {S_REJECT,A_NONE}},
+            /* S_PORT      */ {{S_REJECT,A_NONE}, {S_PORT,A_PORT_ACCUM},       {S_REJECT,A_NONE},     {S_REJECT,A_NONE},      {S_REJECT,A_NONE},     {S_REJECT,A_NONE},      {S_REJECT,A_NONE},          {S_REJECT,A_NONE},               {S_ACCEPT,A_NONE}},
+            /* S_PERCENT   */ {{S_REJECT,A_NONE}, {S_SCOPE,A_SCOPE_ACCUM},     {S_REJECT,A_NONE},     {S_REJECT,A_NONE},      {S_REJECT,A_NONE},     {S_REJECT,A_NONE},      {S_REJECT,A_NONE},          {S_REJECT,A_NONE},               {S_REJECT,A_NONE}},
+            /* S_SCOPE     */ {{S_REJECT,A_NONE}, {S_SCOPE,A_SCOPE_ACCUM},     {S_REJECT,A_NONE},     {S_REJECT,A_NONE},      {S_REJECT,A_NONE},     {S_REJECT,A_NONE},      {S_REJECT,A_NONE},          {S_RBRACKET,A_SCOPE_BRACKET},    {S_ACCEPT,A_NONE}},
+            /* S_ACCEPT    */ {{S_REJECT,A_NONE}, {S_REJECT,A_NONE},           {S_REJECT,A_NONE},     {S_REJECT,A_NONE},      {S_REJECT,A_NONE},     {S_REJECT,A_NONE},      {S_REJECT,A_NONE},          {S_REJECT,A_NONE},               {S_REJECT,A_NONE}},
+            /* S_REJECT    */ {{S_REJECT,A_NONE}, {S_REJECT,A_NONE},           {S_REJECT,A_NONE},     {S_REJECT,A_NONE},      {S_REJECT,A_NONE},     {S_REJECT,A_NONE},      {S_REJECT,A_NONE},          {S_REJECT,A_NONE},               {S_REJECT,A_NONE}},
+        };
+        // clang-format on
+
+        struct
+        {
+            uint16_t groups[8];
+            int group_count;
+            int gap_pos;
+            int32_t hex_val;
+            int32_t dec_val;
+            int digits;
+            int32_t port_val;
+            int64_t scope_id;
+            int32_t ipv4_octets[4];
+            int ipv4_index;
+            uint8_t state;
+            bool in_bracket;
+        } ctx = {{0}, 0, -1, 0, 0, 0, 0, 0, {0}, 0, S_START, false};
+
+        const char* c = str;
+
+        while (ctx.state != S_ACCEPT && ctx.state != S_REJECT)
+        {
+            int cc = cc_lut[(unsigned char)*c];
+
+            int next = dfa_table[ctx.state][cc].next;
+            int action = dfa_table[ctx.state][cc].action;
+
+            // Execute action
+            switch (action)
+            {
+                case A_NONE:
+                    break;
+                case A_OPEN_BRACKET:
+                    ctx.in_bracket = true;
+                    break;
+                case A_HEX_ACCUM: {
+                    int32_t d = (*c >= '0' && *c <= '9')   ? (*c - '0')
+                                : (*c >= 'a' && *c <= 'f') ? (*c - 'a' + 10)
+                                                           : (*c - 'A' + 10);
+                    ctx.hex_val = (ctx.hex_val << 4) | d;
+                    ctx.digits++;
+                    if (ctx.digits > 4)
+                        return TCS_ERROR_INVALID_ARGUMENT;
+                    break;
+                }
+                case A_HEX_DEC_ACCUM: {
+                    int32_t d = *c - '0';
+                    ctx.hex_val = (ctx.hex_val << 4) | d;
+                    ctx.dec_val = ctx.dec_val * 10 + d;
+                    ctx.digits++;
+                    if (ctx.digits > 4)
+                        return TCS_ERROR_INVALID_ARGUMENT;
+                    break;
+                }
+                case A_COMMIT:
+                    if (ctx.group_count >= 8)
+                        return TCS_ERROR_INVALID_ARGUMENT;
+                    ctx.groups[ctx.group_count++] = (uint16_t)ctx.hex_val;
+                    ctx.hex_val = 0;
+                    ctx.dec_val = 0;
+                    ctx.digits = 0;
+                    break;
+                case A_COMMIT_BRACKET:
+                    if (!ctx.in_bracket)
+                        return TCS_ERROR_INVALID_ARGUMENT;
+                    if (ctx.group_count >= 8)
+                        return TCS_ERROR_INVALID_ARGUMENT;
+                    ctx.groups[ctx.group_count++] = (uint16_t)ctx.hex_val;
+                    ctx.hex_val = 0;
+                    ctx.dec_val = 0;
+                    ctx.digits = 0;
+                    ctx.in_bracket = false;
+                    break;
+                case A_SET_GAP:
+                    if (ctx.gap_pos >= 0)
+                        return TCS_ERROR_INVALID_ARGUMENT;
+                    ctx.gap_pos = ctx.group_count;
+                    break;
+                case A_CHECK_BRACKET:
+                    if (!ctx.in_bracket)
+                        return TCS_ERROR_INVALID_ARGUMENT;
+                    ctx.in_bracket = false;
+                    break;
+                case A_START_IPV4:
+                    if (ctx.dec_val > 255)
+                        return TCS_ERROR_INVALID_ARGUMENT;
+                    ctx.ipv4_octets[0] = ctx.dec_val;
+                    ctx.ipv4_index = 1;
+                    ctx.dec_val = 0;
+                    ctx.hex_val = 0;
+                    ctx.digits = 0;
+                    break;
+                case A_IPV4_ACCUM:
+                    ctx.dec_val = ctx.dec_val * 10 + (*c - '0');
+                    if (ctx.dec_val > 255)
+                        return TCS_ERROR_INVALID_ARGUMENT;
+                    break;
+                case A_IPV4_DOT:
+                    if (ctx.ipv4_index >= 4)
+                        return TCS_ERROR_INVALID_ARGUMENT;
+                    ctx.ipv4_octets[ctx.ipv4_index++] = ctx.dec_val;
+                    ctx.dec_val = 0;
+                    break;
+                case A_IPV4_DONE:
+                case A_IPV4_DONE_BRACKET:
+                    if (action == A_IPV4_DONE_BRACKET)
+                    {
+                        if (!ctx.in_bracket)
+                            return TCS_ERROR_INVALID_ARGUMENT;
+                        ctx.in_bracket = false;
+                    }
+                    if (ctx.ipv4_index != 3)
+                        return TCS_ERROR_INVALID_ARGUMENT;
+                    ctx.ipv4_octets[3] = ctx.dec_val;
+                    if (ctx.group_count + 2 > 8)
+                        return TCS_ERROR_INVALID_ARGUMENT;
+                    ctx.groups[ctx.group_count++] = (uint16_t)(ctx.ipv4_octets[0] << 8 | ctx.ipv4_octets[1]);
+                    ctx.groups[ctx.group_count++] = (uint16_t)(ctx.ipv4_octets[2] << 8 | ctx.ipv4_octets[3]);
+                    break;
+                case A_PORT_ACCUM:
+                    ctx.port_val = ctx.port_val * 10 + (*c - '0');
+                    if (ctx.port_val > UINT16_MAX)
+                        return TCS_ERROR_INVALID_ARGUMENT;
+                    break;
+                case A_SCOPE_ACCUM:
+                    ctx.scope_id = ctx.scope_id * 10 + (*c - '0');
+                    if (ctx.scope_id > UINT32_MAX)
+                        return TCS_ERROR_INVALID_ARGUMENT;
+                    break;
+                case A_SCOPE_BRACKET:
+                    if (!ctx.in_bracket)
+                        return TCS_ERROR_INVALID_ARGUMENT;
+                    ctx.in_bracket = false;
+                    break;
+            }
+
+            ctx.state = next;
+            if (*c != '\0')
+                c++;
+        }
+
+        if (ctx.state == S_REJECT)
+            return TCS_ERROR_INVALID_ARGUMENT;
+
+        // Unclosed bracket
+        if (ctx.in_bracket)
+            return TCS_ERROR_INVALID_ARGUMENT;
+
+        // Expand :: gap into zero groups
+        if (ctx.gap_pos >= 0)
+        {
+            int32_t gap_size = 8 - ctx.group_count;
+            if (gap_size < 1)
+                return TCS_ERROR_INVALID_ARGUMENT;
+            int32_t after_gap = ctx.group_count - ctx.gap_pos;
+            for (int32_t i = after_gap - 1; i >= 0; i--)
+                ctx.groups[ctx.gap_pos + gap_size + i] = ctx.groups[ctx.gap_pos + i];
+            for (int32_t i = 0; i < gap_size; i++)
+                ctx.groups[ctx.gap_pos + i] = 0;
+        }
+        else if (ctx.group_count != 8)
+        {
+            return TCS_ERROR_INVALID_ARGUMENT;
+        }
+
+        out_address->family = TCS_AF_IP6;
+        for (int i = 0; i < 8; i++)
+        {
+            out_address->data.ip6.address.bytes[i * 2] = (uint8_t)(ctx.groups[i] >> 8);
+            out_address->data.ip6.address.bytes[i * 2 + 1] = (uint8_t)(ctx.groups[i] & 0xFF);
+        }
+        out_address->data.ip6.port = (uint16_t)ctx.port_val;
+        out_address->data.ip6.scope_id = (TcsInterfaceId)ctx.scope_id;
     }
     else if (is_mac)
     {
@@ -1157,7 +1433,64 @@ TcsResult tcs_address_to_str(const struct TcsAddress* address, char str[70])
     }
     else if (address->family == TCS_AF_IP6)
     {
-        return TCS_ERROR_NOT_IMPLEMENTED;
+        uint16_t groups[8];
+        for (int i = 0; i < 8; i++)
+            groups[i] = (uint16_t)((unsigned int)address->data.ip6.address.bytes[i * 2] << 8 |
+                                   address->data.ip6.address.bytes[i * 2 + 1]);
+
+        // Find longest run of consecutive zero groups for :: compression (RFC 5952)
+        int best_start = -1;
+        int best_len = 0;
+        int cur_start = -1;
+        int cur_len = 0;
+        for (int i = 0; i < 8; i++)
+        {
+            if (groups[i] == 0)
+            {
+                if (cur_start < 0)
+                    cur_start = i;
+                cur_len++;
+                if (cur_len > best_len)
+                {
+                    best_start = cur_start;
+                    best_len = cur_len;
+                }
+            }
+            else
+            {
+                cur_start = -1;
+                cur_len = 0;
+            }
+        }
+        if (best_len < 2)
+            best_start = -1;
+
+        char addr_str[46];
+        int pos = 0;
+        for (int i = 0; i < 8; i++)
+        {
+            if (i == best_start)
+            {
+                pos += snprintf(addr_str + pos, sizeof addr_str - (size_t)pos, "::");
+                i += best_len - 1;
+                continue;
+            }
+            if (i > 0 && (best_start < 0 || i != best_start + best_len))
+                addr_str[pos++] = ':';
+            pos += snprintf(addr_str + pos, sizeof addr_str - (size_t)pos, "%x", (unsigned int)groups[i]);
+        }
+        addr_str[pos] = '\0';
+
+        uint16_t p = address->data.ip6.port;
+        TcsInterfaceId sc = address->data.ip6.scope_id;
+        if (p != 0 && sc != 0)
+            snprintf(str, 70, "[%s%%%u]:%u", addr_str, (unsigned int)sc, (unsigned int)p);
+        else if (p != 0)
+            snprintf(str, 70, "[%s]:%u", addr_str, (unsigned int)p);
+        else if (sc != 0)
+            snprintf(str, 70, "%s%%%u", addr_str, (unsigned int)sc);
+        else
+            snprintf(str, 70, "%s", addr_str);
     }
     else if (address->family == TCS_AF_PACKET)
     {
@@ -1195,7 +1528,8 @@ bool tcs_address_is_equal(const struct TcsAddress* l, const struct TcsAddress* r
         case TCS_AF_IP4:
             return l->data.ip4.address == r->data.ip4.address && l->data.ip4.port == r->data.ip4.port;
         case TCS_AF_IP6:
-            return memcmp(l->data.ip6.address, r->data.ip6.address, 16) == 0 && l->data.ip6.port == r->data.ip6.port;
+            return memcmp(l->data.ip6.address.bytes, r->data.ip6.address.bytes, 16) == 0 &&
+                   l->data.ip6.port == r->data.ip6.port;
         case TCS_AF_PACKET:
             return memcmp(l->data.packet.mac, r->data.packet.mac, 6) == 0 &&
                    l->data.packet.protocol == r->data.packet.protocol &&
@@ -1215,7 +1549,7 @@ bool tcs_address_is_any(const struct TcsAddress* addr)
             return addr->data.ip4.address == TCS_ADDRESS_ANY_IP4;
         case TCS_AF_IP6: {
             static const uint8_t any6[16] = {0};
-            return memcmp(addr->data.ip6.address, any6, 16) == 0;
+            return memcmp(addr->data.ip6.address.bytes, any6, 16) == 0;
         }
         default:
             return false;
@@ -1231,7 +1565,8 @@ bool tcs_address_is_local(const struct TcsAddress* addr)
         case TCS_AF_IP4:
             return (addr->data.ip4.address >> 16) == 0xA9FE; // 169.254.0.0/16
         case TCS_AF_IP6:
-            return addr->data.ip6.address[0] == 0xFE && (addr->data.ip6.address[1] & 0xC0) == 0x80; // fe80::/10
+            return addr->data.ip6.address.bytes[0] == 0xFE &&
+                   (addr->data.ip6.address.bytes[1] & 0xC0) == 0x80; // fe80::/10
         default:
             return false;
     }
@@ -1246,13 +1581,14 @@ bool tcs_address_is_loopback(const struct TcsAddress* addr)
         case TCS_AF_IP4:
             return addr->data.ip4.address == TCS_ADDRESS_LOOPBACK_IP4;
         case TCS_AF_IP6:
-            return addr->data.ip6.address[0] == 0 && addr->data.ip6.address[1] == 0 && addr->data.ip6.address[2] == 0 &&
-                   addr->data.ip6.address[3] == 0 && addr->data.ip6.address[4] == 0 && addr->data.ip6.address[5] == 0 &&
-                   addr->data.ip6.address[6] == 0 && addr->data.ip6.address[7] == 0 && addr->data.ip6.address[8] == 0 &&
-                   addr->data.ip6.address[9] == 0 && addr->data.ip6.address[10] == 0 &&
-                   addr->data.ip6.address[11] == 0 && addr->data.ip6.address[12] == 0 &&
-                   addr->data.ip6.address[13] == 0 && addr->data.ip6.address[14] == 0 &&
-                   addr->data.ip6.address[15] == 1;
+            return addr->data.ip6.address.bytes[0] == 0 && addr->data.ip6.address.bytes[1] == 0 &&
+                   addr->data.ip6.address.bytes[2] == 0 && addr->data.ip6.address.bytes[3] == 0 &&
+                   addr->data.ip6.address.bytes[4] == 0 && addr->data.ip6.address.bytes[5] == 0 &&
+                   addr->data.ip6.address.bytes[6] == 0 && addr->data.ip6.address.bytes[7] == 0 &&
+                   addr->data.ip6.address.bytes[8] == 0 && addr->data.ip6.address.bytes[9] == 0 &&
+                   addr->data.ip6.address.bytes[10] == 0 && addr->data.ip6.address.bytes[11] == 0 &&
+                   addr->data.ip6.address.bytes[12] == 0 && addr->data.ip6.address.bytes[13] == 0 &&
+                   addr->data.ip6.address.bytes[14] == 0 && addr->data.ip6.address.bytes[15] == 1;
         case TCS_AF_PACKET: {
             static const uint8_t zero_mac[6] = {0};
             return memcmp(addr->data.packet.mac, zero_mac, 6) == 0;
@@ -1271,7 +1607,7 @@ bool tcs_address_is_multicast(const struct TcsAddress* addr)
         case TCS_AF_IP4:
             return (addr->data.ip4.address >> 24) >= 224 && (addr->data.ip4.address >> 24) <= 239;
         case TCS_AF_IP6:
-            return addr->data.ip6.address[0] == 0xFF;
+            return addr->data.ip6.address.bytes[0] == 0xFF;
         case TCS_AF_PACKET:
             return (addr->data.packet.mac[0] & 0x01) != 0;
         default:
