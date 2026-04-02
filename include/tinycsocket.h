@@ -3336,15 +3336,8 @@ TcsResult tcs_opt_membership_add(TcsSocket socket_ctx, const struct TcsAddress* 
     if (multicast_address == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    // Todo: Replace with tcs_address_socket() when implemented
-    struct sockaddr_storage address_native_local;
-    memset(&address_native_local, 0, sizeof(struct sockaddr_storage));
-    socklen_t address_native_local_size = sizeof(struct sockaddr_storage);
-    if (getsockname(socket_ctx, (struct sockaddr*)&address_native_local, &address_native_local_size) != 0)
-        return errno2retcode(errno);
-
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
-    TcsResult sts = native2sockaddr((struct sockaddr*)&address_native_local, &local_address);
+    TcsResult sts = tcs_address_socket_local(socket_ctx, &local_address);
     if (sts != TCS_SUCCESS)
         return sts;
 
@@ -3436,15 +3429,8 @@ TcsResult tcs_opt_membership_drop(TcsSocket socket_ctx, const struct TcsAddress*
     if (multicast_address == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    // Todo: Replace with tcs_address_socket() when implemented
-    struct sockaddr_storage address_native_local;
-    memset(&address_native_local, 0, sizeof address_native_local);
-    socklen_t address_native_local_size = sizeof(struct sockaddr_storage);
-    if (getsockname(socket_ctx, (struct sockaddr*)&address_native_local, &address_native_local_size) != 0)
-        return errno2retcode(errno);
-
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
-    TcsResult sts = native2sockaddr((struct sockaddr*)&address_native_local, &local_address);
+    TcsResult sts = tcs_address_socket_local(socket_ctx, &local_address);
     if (sts != TCS_SUCCESS)
         return sts;
 
