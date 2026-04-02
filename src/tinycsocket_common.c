@@ -864,6 +864,17 @@ TcsResult tcs_opt_broadcast_set(TcsSocket socket_ctx, bool do_allow_broadcast)
     return tcs_opt_set(socket_ctx, TCS_SOL_SOCKET, TCS_SO_BROADCAST, &b, sizeof(b));
 }
 
+TcsResult tcs_opt_type_get(TcsSocket socket_ctx, int* type)
+{
+    if (socket_ctx == TCS_SOCKET_INVALID || type == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    int t = 0;
+    size_t s = sizeof(t);
+    TcsResult sts = tcs_opt_get(socket_ctx, TCS_SOL_SOCKET, TCS_SO_TYPE, &t, &s);
+    *type = t;
+    return sts;
+}
+
 TcsResult tcs_opt_broadcast_get(TcsSocket socket_ctx, bool* is_broadcast_allowed)
 {
     if (socket_ctx == TCS_SOCKET_INVALID || is_broadcast_allowed == NULL)

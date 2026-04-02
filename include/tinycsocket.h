@@ -117,6 +117,7 @@ static const char* const TCS_LICENSE_TXT =
 * Socket Options:
 * - TcsResult tcs_opt_set(TcsSocket socket_ctx, int32_t level, int32_t option_name, const void* option_value, size_t option_size);
 * - TcsResult tcs_opt_get(TcsSocket socket_ctx, int32_t level, int32_t option_name, void* option_value, size_t* option_size);
+* - TcsResult tcs_opt_type_get(TcsSocket socket_ctx, int* type);
 * - TcsResult tcs_opt_broadcast_set(TcsSocket socket_ctx, bool do_allow_broadcast);
 * - TcsResult tcs_opt_broadcast_get(TcsSocket socket_ctx, bool* is_broadcast_allowed);
 * - TcsResult tcs_opt_keep_alive_set(TcsSocket socket_ctx, bool do_keep_alive);
@@ -334,6 +335,7 @@ extern const int TCS_SOL_SOCKET; /**< Socket option level for socket options */
 extern const int TCS_SOL_IP;     /**< IP option level for socket options */
 
 // Socket options
+extern const int TCS_SO_TYPE;
 extern const int TCS_SO_BROADCAST;
 extern const int TCS_SO_KEEPALIVE;
 extern const int TCS_SO_LINGER;
@@ -1754,6 +1756,15 @@ TcsResult tcs_opt_get(TcsSocket socket_ctx,
                       size_t* option_size);
 
 /**
+* @brief Query the socket type (e.g. ::TCS_SOCK_STREAM or ::TCS_SOCK_DGRAM).
+*
+* @param socket_ctx socket to query.
+* @param type pointer to receive the socket type.
+* @return #TCS_SUCCESS if successful, otherwise the error code.
+*/
+TcsResult tcs_opt_type_get(TcsSocket socket_ctx, int* type);
+
+/**
 * @brief Enable the socket to be allowed to use broadcast.
 *
 * Only valid for protocols that support broadcast, for example UDP. Default is false.
@@ -2356,6 +2367,7 @@ const int TCS_SOL_SOCKET = SOL_SOCKET;
 const int TCS_SOL_IP = IPPROTO_IP; // Same as SOL_IP but crossplatform (BSD)
 
 // Socket options
+const int TCS_SO_TYPE = SO_TYPE;
 const int TCS_SO_BROADCAST = SO_BROADCAST;
 const int TCS_SO_KEEPALIVE = SO_KEEPALIVE;
 const int TCS_SO_LINGER = SO_LINGER;
@@ -3943,6 +3955,7 @@ const int TCS_SOL_SOCKET = SOL_SOCKET;
 const int TCS_SOL_IP = IPPROTO_IP;
 
 // Socket options
+const int TCS_SO_TYPE = SO_TYPE;
 const int TCS_SO_BROADCAST = SO_BROADCAST;
 const int TCS_SO_KEEPALIVE = SO_KEEPALIVE;
 const int TCS_SO_LINGER = SO_LINGER;
@@ -6378,6 +6391,17 @@ TcsResult tcs_opt_broadcast_set(TcsSocket socket_ctx, bool do_allow_broadcast)
 
     int b = do_allow_broadcast ? 1 : 0;
     return tcs_opt_set(socket_ctx, TCS_SOL_SOCKET, TCS_SO_BROADCAST, &b, sizeof(b));
+}
+
+TcsResult tcs_opt_type_get(TcsSocket socket_ctx, int* type)
+{
+    if (socket_ctx == TCS_SOCKET_INVALID || type == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    int t = 0;
+    size_t s = sizeof(t);
+    TcsResult sts = tcs_opt_get(socket_ctx, TCS_SOL_SOCKET, TCS_SO_TYPE, &t, &s);
+    *type = t;
+    return sts;
 }
 
 TcsResult tcs_opt_broadcast_get(TcsSocket socket_ctx, bool* is_broadcast_allowed)

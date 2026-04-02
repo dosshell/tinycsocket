@@ -137,6 +137,7 @@ const int TCS_SOL_SOCKET = SOL_SOCKET;
 const int TCS_SOL_IP = IPPROTO_IP; // Same as SOL_IP but crossplatform (BSD)
 
 // Socket options
+const int TCS_SO_TYPE = SO_TYPE;
 const int TCS_SO_BROADCAST = SO_BROADCAST;
 const int TCS_SO_KEEPALIVE = SO_KEEPALIVE;
 const int TCS_SO_LINGER = SO_LINGER;
