@@ -609,7 +609,15 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
             free(heap_buffers);
             return TCS_ERROR_INVALID_ARGUMENT;
         }
+        // WSABUF.buf is non-const by Windows API design, but WSASend does not modify the data.
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
+#endif
         native_buffers[i].buf = (CHAR*)buffers[i].data;
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
         native_buffers[i].len = (ULONG)buffers[i].size;
     }
 
