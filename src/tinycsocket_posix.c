@@ -108,6 +108,9 @@ const uint32_t TCS_ADDRESS_LOOPBACK_IP4 = INADDR_LOOPBACK;
 const uint32_t TCS_ADDRESS_BROADCAST_IP4 = INADDR_BROADCAST;
 const uint32_t TCS_ADDRESS_NONE_IP4 = INADDR_NONE;
 
+const struct TcsIp6Address TCS_ADDRESS_ANY_IP6 = {{0}};
+const struct TcsIp6Address TCS_ADDRESS_LOOPBACK_IP6 = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}};
+
 // Type
 const int TCS_SOCK_STREAM = SOCK_STREAM;
 const int TCS_SOCK_DGRAM = SOCK_DGRAM;
@@ -251,7 +254,14 @@ static TcsResult sockaddr2native(const struct TcsAddress* tcs_address,
     }
     else if (tcs_address->family == TCS_AF_IP6)
     {
-        return TCS_ERROR_NOT_IMPLEMENTED;
+        struct sockaddr_in6* addr = (struct sockaddr_in6*)out_address;
+        addr->sin6_family = (sa_family_t)AF_INET6;
+        addr->sin6_port = (in_port_t)htons(tcs_address->data.ip6.port);
+        memcpy(&addr->sin6_addr, tcs_address->data.ip6.address.bytes, 16);
+        addr->sin6_scope_id = (uint32_t)tcs_address->data.ip6.scope_id;
+        if (out_address_size != NULL)
+            *out_address_size = sizeof(struct sockaddr_in6);
+        return TCS_SUCCESS;
     }
     else if (tcs_address->family == TCS_AF_PACKET)
     {
@@ -314,7 +324,11 @@ static TcsResult native2sockaddr(const struct sockaddr* in_addr, struct TcsAddre
     }
     else if (in_addr->sa_family == AF_INET6)
     {
-        return TCS_ERROR_NOT_IMPLEMENTED;
+        struct sockaddr_in6 const* addr = (struct sockaddr_in6 const*)(const void*)in_addr;
+        out_addr->family = TCS_AF_IP6;
+        out_addr->data.ip6.port = ntohs((uint16_t)addr->sin6_port);
+        memcpy(out_addr->data.ip6.address.bytes, &addr->sin6_addr, 16);
+        out_addr->data.ip6.scope_id = (TcsInterfaceId)addr->sin6_scope_id;
     }
 #if TCS_AVAILABLE_AF_PACKET
     else if (in_addr->sa_family == AF_PACKET)
@@ -1210,7 +1224,15 @@ TcsResult tcs_opt_membership_add_to(TcsSocket socket_ctx,
     }
     else if (multicast_address->family == TCS_AF_IP6)
     {
-        return TCS_ERROR_NOT_IMPLEMENTED;
+        struct ipv6_mreq mreq6;
+        memset(&mreq6, 0, sizeof mreq6);
+        memcpy(&mreq6.ipv6mr_multiaddr, multicast_address->data.ip6.address.bytes, 16);
+        mreq6.ipv6mr_interface = (unsigned int)local_address->data.ip6.scope_id;
+
+        TcsResult sts_opt = tcs_opt_set(socket_ctx, IPPROTO_IPV6, IPV6_JOIN_GROUP, &mreq6, sizeof(mreq6));
+        if (sts_opt != TCS_SUCCESS)
+            return sts_opt;
+        return TCS_SUCCESS;
     }
     else if (multicast_address->family == TCS_AF_PACKET)
     {
@@ -1303,7 +1325,15 @@ TcsResult tcs_opt_membership_drop_from(TcsSocket socket_ctx,
     }
     else if (multicast_address->family == TCS_AF_IP6)
     {
-        return TCS_ERROR_NOT_IMPLEMENTED;
+        struct ipv6_mreq mreq6;
+        memset(&mreq6, 0, sizeof mreq6);
+        memcpy(&mreq6.ipv6mr_multiaddr, multicast_address->data.ip6.address.bytes, 16);
+        mreq6.ipv6mr_interface = (unsigned int)local_address->data.ip6.scope_id;
+
+        TcsResult sts_opt = tcs_opt_set(socket_ctx, IPPROTO_IPV6, IPV6_LEAVE_GROUP, &mreq6, sizeof(mreq6));
+        if (sts_opt != TCS_SUCCESS)
+            return sts_opt;
+        return TCS_SUCCESS;
     }
     else if (multicast_address->family == TCS_AF_PACKET)
     {

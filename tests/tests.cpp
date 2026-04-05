@@ -1933,3 +1933,405 @@ TEST_CASE("tcs_address_socket_local and remote with invalid args")
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
+
+// ######## IPv6 Tests ########
+
+TEST_CASE("IPv6 socket preset TCP")
+{
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    TcsSocket socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_preset(&socket, TCS_PRESET_TCP_IP6) == TCS_SUCCESS);
+    CHECK(socket != TCS_SOCKET_INVALID);
+
+    CHECK(tcs_close(&socket) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
+TEST_CASE("IPv6 socket preset UDP")
+{
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    TcsSocket socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_preset(&socket, TCS_PRESET_UDP_IP6) == TCS_SUCCESS);
+    CHECK(socket != TCS_SOCKET_INVALID);
+
+    CHECK(tcs_close(&socket) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
+TEST_CASE("IPv6 Simple TCP Test")
+{
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    TcsSocket listen_socket = TCS_SOCKET_INVALID;
+    TcsSocket accept_socket = TCS_SOCKET_INVALID;
+    TcsSocket client_socket = TCS_SOCKET_INVALID;
+
+    REQUIRE(tcs_socket_preset(&listen_socket, TCS_PRESET_TCP_IP6) == TCS_SUCCESS);
+    REQUIRE(tcs_socket_preset(&client_socket, TCS_PRESET_TCP_IP6) == TCS_SUCCESS);
+
+    CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
+    struct TcsAddress local_address = TCS_ADDRESS_NONE;
+    local_address.family = TCS_AF_IP6;
+    local_address.data.ip6.address = TCS_ADDRESS_LOOPBACK_IP6;
+    local_address.data.ip6.port = 1214;
+    CHECK(tcs_bind(listen_socket, &local_address) == TCS_SUCCESS);
+    REQUIRE(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
+
+    struct TcsAddress connect_address = TCS_ADDRESS_NONE;
+    connect_address.family = TCS_AF_IP6;
+    connect_address.data.ip6.address = TCS_ADDRESS_LOOPBACK_IP6;
+    connect_address.data.ip6.port = 1214;
+    REQUIRE(tcs_connect(client_socket, &connect_address) == TCS_SUCCESS);
+
+    CHECK(tcs_accept(listen_socket, &accept_socket, NULL) == TCS_SUCCESS);
+    CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
+
+    uint8_t recv_buffer[8] = {0};
+    const uint8_t* send_buffer = (const uint8_t*)"IPv6test";
+    CHECK(tcs_send(client_socket, send_buffer, 8, TCS_MSG_SENDALL, NULL) == TCS_SUCCESS);
+    CHECK(tcs_receive(accept_socket, recv_buffer, 8, TCS_MSG_WAITALL, NULL) == TCS_SUCCESS);
+
+    CHECK(memcmp(recv_buffer, send_buffer, 8) == 0);
+
+    CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
+    CHECK(tcs_close(&accept_socket) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
+TEST_CASE("IPv6 UDP Test")
+{
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    TcsSocket socket_recv = TCS_SOCKET_INVALID;
+    TcsSocket socket_send = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket(&socket_recv, TCS_AF_IP6, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket_send, TCS_AF_IP6, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    CHECK(tcs_opt_receive_timeout_set(socket_recv, 5000) == TCS_SUCCESS);
+    CHECK(tcs_opt_reuse_address_set(socket_recv, true) == TCS_SUCCESS);
+
+    struct TcsAddress local_address = TCS_ADDRESS_NONE;
+    local_address.family = TCS_AF_IP6;
+    local_address.data.ip6.address = TCS_ADDRESS_ANY_IP6;
+    local_address.data.ip6.port = 1433;
+    CHECK(tcs_bind(socket_recv, &local_address) == TCS_SUCCESS);
+
+    uint8_t msg[] = "hello ipv6\n";
+    size_t sent = 0;
+    uint8_t recv_buffer[1024] = {0};
+    size_t bytes_received = 0;
+
+    struct TcsAddress dest = TCS_ADDRESS_NONE;
+    dest.family = TCS_AF_IP6;
+    dest.data.ip6.address = TCS_ADDRESS_LOOPBACK_IP6;
+    dest.data.ip6.port = 1433;
+
+    CHECK(tcs_send_to(socket_send, msg, sizeof(msg), TCS_FLAG_NONE, &dest, &sent) == TCS_SUCCESS);
+    CHECK(tcs_receive(socket_recv, recv_buffer, sizeof(recv_buffer), TCS_FLAG_NONE, &bytes_received) == TCS_SUCCESS);
+    recv_buffer[bytes_received] = '\0';
+
+    CHECK(sent > 0);
+    CHECK(strcmp((const char*)recv_buffer, (const char*)msg) == 0);
+
+    CHECK(tcs_close(&socket_recv) == TCS_SUCCESS);
+    CHECK(tcs_close(&socket_send) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
+TEST_CASE("IPv6 address parse loopback")
+{
+    TcsAddress addr;
+    CHECK(tcs_address_parse("::1", &addr) == TCS_SUCCESS);
+    CHECK(addr.family == TCS_AF_IP6);
+    CHECK(addr.data.ip6.port == 0);
+    CHECK(tcs_address_is_loopback(&addr));
+}
+
+TEST_CASE("IPv6 address parse all-zeros")
+{
+    TcsAddress addr;
+    CHECK(tcs_address_parse("::", &addr) == TCS_SUCCESS);
+    CHECK(addr.family == TCS_AF_IP6);
+    CHECK(tcs_address_is_any(&addr));
+}
+
+TEST_CASE("IPv6 address parse full form")
+{
+    TcsAddress addr;
+    // RFC 4291 Form 1: x:x:x:x:x:x:x:x
+    CHECK(tcs_address_parse("2001:0db8:85a3:0000:0000:8a2e:0370:7334", &addr) == TCS_SUCCESS);
+    CHECK(addr.family == TCS_AF_IP6);
+    CHECK(addr.data.ip6.address.bytes[0] == 0x20);
+    CHECK(addr.data.ip6.address.bytes[1] == 0x01);
+    CHECK(addr.data.ip6.address.bytes[2] == 0x0d);
+    CHECK(addr.data.ip6.address.bytes[3] == 0xb8);
+    CHECK(addr.data.ip6.address.bytes[14] == 0x73);
+    CHECK(addr.data.ip6.address.bytes[15] == 0x34);
+
+    CHECK(tcs_address_parse("1:2:3:4:5:6:7:8", &addr) == TCS_SUCCESS);
+    CHECK(addr.data.ip6.address.bytes[1] == 0x01);
+    CHECK(addr.data.ip6.address.bytes[15] == 0x08);
+
+    CHECK(tcs_address_parse("0:0:0:0:0:0:0:0", &addr) == TCS_SUCCESS);
+    CHECK(tcs_address_is_any(&addr));
+}
+
+TEST_CASE("IPv6 address parse compressed")
+{
+    TcsAddress addr;
+    CHECK(tcs_address_parse("fe80::1", &addr) == TCS_SUCCESS);
+    CHECK(addr.family == TCS_AF_IP6);
+    CHECK(addr.data.ip6.address.bytes[0] == 0xFE);
+    CHECK(addr.data.ip6.address.bytes[1] == 0x80);
+    CHECK(addr.data.ip6.address.bytes[15] == 0x01);
+    CHECK(tcs_address_is_local(&addr));
+
+    CHECK(tcs_address_parse("2001:db8::1", &addr) == TCS_SUCCESS);
+    CHECK(addr.data.ip6.address.bytes[0] == 0x20);
+    CHECK(addr.data.ip6.address.bytes[1] == 0x01);
+    CHECK(addr.data.ip6.address.bytes[15] == 0x01);
+
+    CHECK(tcs_address_parse("1::", &addr) == TCS_SUCCESS);
+    CHECK(addr.data.ip6.address.bytes[0] == 0x00);
+    CHECK(addr.data.ip6.address.bytes[1] == 0x01);
+    CHECK(addr.data.ip6.address.bytes[15] == 0x00);
+
+    CHECK(tcs_address_parse("1::2", &addr) == TCS_SUCCESS);
+    CHECK(addr.data.ip6.address.bytes[1] == 0x01);
+    CHECK(addr.data.ip6.address.bytes[15] == 0x02);
+
+    CHECK(tcs_address_parse("FFFF::1", &addr) == TCS_SUCCESS);
+    CHECK(addr.data.ip6.address.bytes[0] == 0xFF);
+    CHECK(addr.data.ip6.address.bytes[1] == 0xFF);
+}
+
+TEST_CASE("IPv6 address parse mixed IPv4 notation")
+{
+    // RFC 4291 Form 3: x:x:x:x:x:x:d.d.d.d
+    TcsAddress addr;
+    CHECK(tcs_address_parse("::ffff:192.168.1.1", &addr) == TCS_SUCCESS);
+    CHECK(addr.family == TCS_AF_IP6);
+    CHECK(addr.data.ip6.address.bytes[10] == 0xFF);
+    CHECK(addr.data.ip6.address.bytes[11] == 0xFF);
+    CHECK(addr.data.ip6.address.bytes[12] == 192);
+    CHECK(addr.data.ip6.address.bytes[13] == 168);
+    CHECK(addr.data.ip6.address.bytes[14] == 1);
+    CHECK(addr.data.ip6.address.bytes[15] == 1);
+
+    CHECK(tcs_address_parse("::13.1.68.3", &addr) == TCS_SUCCESS);
+    CHECK(addr.data.ip6.address.bytes[12] == 13);
+    CHECK(addr.data.ip6.address.bytes[13] == 1);
+    CHECK(addr.data.ip6.address.bytes[14] == 68);
+    CHECK(addr.data.ip6.address.bytes[15] == 3);
+
+    CHECK(tcs_address_parse("0:0:0:0:0:ffff:129.144.52.38", &addr) == TCS_SUCCESS);
+    CHECK(addr.data.ip6.address.bytes[10] == 0xFF);
+    CHECK(addr.data.ip6.address.bytes[11] == 0xFF);
+    CHECK(addr.data.ip6.address.bytes[12] == 129);
+    CHECK(addr.data.ip6.address.bytes[13] == 144);
+    CHECK(addr.data.ip6.address.bytes[14] == 52);
+    CHECK(addr.data.ip6.address.bytes[15] == 38);
+
+    CHECK(tcs_address_parse("64:ff9b::192.168.1.1", &addr) == TCS_SUCCESS);
+    CHECK(addr.data.ip6.address.bytes[0] == 0x00);
+    CHECK(addr.data.ip6.address.bytes[1] == 0x64);
+    CHECK(addr.data.ip6.address.bytes[2] == 0xFF);
+    CHECK(addr.data.ip6.address.bytes[3] == 0x9B);
+    CHECK(addr.data.ip6.address.bytes[12] == 192);
+    CHECK(addr.data.ip6.address.bytes[15] == 1);
+
+    // Invalid mixed notation
+    CHECK(tcs_address_parse("::1.2.3.256", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_parse("::1.2.3", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_parse("::1.2.3.4.5", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_parse("0:0:0:0:0:0:0:192.168.1.1", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+}
+
+TEST_CASE("IPv6 address parse with port")
+{
+    TcsAddress addr;
+    CHECK(tcs_address_parse("[::1]:8080", &addr) == TCS_SUCCESS);
+    CHECK(addr.family == TCS_AF_IP6);
+    CHECK(addr.data.ip6.port == 8080);
+    CHECK(tcs_address_is_loopback(&addr));
+
+    CHECK(tcs_address_parse("[::1]", &addr) == TCS_SUCCESS);
+    CHECK(addr.data.ip6.port == 0);
+    CHECK(tcs_address_is_loopback(&addr));
+
+    CHECK(tcs_address_parse("[fe80::1%3]:8080", &addr) == TCS_SUCCESS);
+    CHECK(addr.data.ip6.port == 8080);
+    CHECK(addr.data.ip6.scope_id == 3);
+    CHECK(tcs_address_is_local(&addr));
+
+    CHECK(tcs_address_parse("[::1]:65535", &addr) == TCS_SUCCESS);
+    CHECK(addr.data.ip6.port == 65535);
+
+    CHECK(tcs_address_parse("[::1]:65536", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+}
+
+TEST_CASE("IPv6 address parse with scope id")
+{
+    TcsAddress addr;
+    CHECK(tcs_address_parse("fe80::1%3", &addr) == TCS_SUCCESS);
+    CHECK(addr.family == TCS_AF_IP6);
+    CHECK(addr.data.ip6.scope_id == 3);
+    CHECK(tcs_address_is_local(&addr));
+}
+
+TEST_CASE("IPv6 address parse invalid")
+{
+    TcsAddress addr;
+    CHECK(tcs_address_parse(":::", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_parse("1:2:3:4:5:6:7:8:9", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_parse("1::2::3", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_parse("::1:2:3:4:5:6:7:8", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_parse("1:2:3:4:5:6:7::8", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_parse("::1:", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_parse("fe80::1:", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_parse("[::1]:", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_parse("[::1]:99999", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_parse("[::1]:8080abc", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_parse("[::1]:999999", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_parse("fe80::1%3abc", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_parse("fe80::1%99999999999", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_parse("[::1", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_parse("[]", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_parse("[::1]garbage", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_parse("fe80::1%", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_parse("10000::1", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_parse("g::1", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    // RFC 3986: port = *DIGIT, strictly decimal
+    CHECK(tcs_address_parse("[::1]:0x50", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_parse("[::1]:+80", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_parse("[::1]:-1", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_address_parse("[::1]: 80", &addr) == TCS_ERROR_INVALID_ARGUMENT);
+}
+
+TEST_CASE("IPv6 address to string loopback")
+{
+    TcsAddress addr = TCS_ADDRESS_NONE;
+    addr.family = TCS_AF_IP6;
+    addr.data.ip6.address = TCS_ADDRESS_LOOPBACK_IP6;
+    char str[70];
+    CHECK(tcs_address_to_str(&addr, str) == TCS_SUCCESS);
+    CHECK_EQ(str, "::1");
+}
+
+TEST_CASE("IPv6 address to string all-zeros")
+{
+    TcsAddress addr = TCS_ADDRESS_NONE;
+    addr.family = TCS_AF_IP6;
+    addr.data.ip6.address = TCS_ADDRESS_ANY_IP6;
+    char str[70];
+    CHECK(tcs_address_to_str(&addr, str) == TCS_SUCCESS);
+    CHECK_EQ(str, "::");
+}
+
+TEST_CASE("IPv6 address to string with port")
+{
+    TcsAddress addr = TCS_ADDRESS_NONE;
+    addr.family = TCS_AF_IP6;
+    addr.data.ip6.address = TCS_ADDRESS_LOOPBACK_IP6;
+    addr.data.ip6.port = 8080;
+    char str[70];
+    CHECK(tcs_address_to_str(&addr, str) == TCS_SUCCESS);
+    CHECK_EQ(str, "[::1]:8080");
+}
+
+TEST_CASE("IPv6 address to string RFC 5952 compliance")
+{
+    TcsAddress addr;
+    char str[70];
+
+    // Leading zeros suppressed
+    CHECK(tcs_address_parse("2001:0db8::0001", &addr) == TCS_SUCCESS);
+    CHECK(tcs_address_to_str(&addr, str) == TCS_SUCCESS);
+    CHECK_EQ(str, "2001:db8::1");
+
+    // Single zero group NOT compressed to ::
+    CHECK(tcs_address_parse("2001:db8:0:1:1:1:1:1", &addr) == TCS_SUCCESS);
+    CHECK(tcs_address_to_str(&addr, str) == TCS_SUCCESS);
+    CHECK_EQ(str, "2001:db8:0:1:1:1:1:1");
+
+    // Longest zero run compressed, first run wins on tie
+    CHECK(tcs_address_parse("1:0:0:2:0:0:0:3", &addr) == TCS_SUCCESS);
+    CHECK(tcs_address_to_str(&addr, str) == TCS_SUCCESS);
+    CHECK_EQ(str, "1:0:0:2::3");
+
+    // Equal length runs: first wins
+    CHECK(tcs_address_parse("1:0:0:2:3:0:0:4", &addr) == TCS_SUCCESS);
+    CHECK(tcs_address_to_str(&addr, str) == TCS_SUCCESS);
+    CHECK_EQ(str, "1::2:3:0:0:4");
+
+    // Lowercase hex
+    CHECK(tcs_address_parse("ABCD:EF01::1", &addr) == TCS_SUCCESS);
+    CHECK(tcs_address_to_str(&addr, str) == TCS_SUCCESS);
+    CHECK_EQ(str, "abcd:ef01::1");
+}
+
+TEST_CASE("IPv6 address roundtrip")
+{
+    const char* inputs[] = {"::1", "fe80::1", "2001:db8::1", "::", "ff02::1", "1:2:3:4:5:6:7:8", "1::2"};
+    for (size_t i = 0; i < sizeof(inputs) / sizeof(inputs[0]); i++)
+    {
+        TcsAddress addr;
+        CHECK(tcs_address_parse(inputs[i], &addr) == TCS_SUCCESS);
+        char str[70];
+        CHECK(tcs_address_to_str(&addr, str) == TCS_SUCCESS);
+        CHECK_EQ(str, inputs[i]);
+    }
+}
+
+TEST_CASE("IPv6 address utility functions")
+{
+    TcsAddress loopback = TCS_ADDRESS_NONE;
+    loopback.family = TCS_AF_IP6;
+    loopback.data.ip6.address = TCS_ADDRESS_LOOPBACK_IP6;
+    CHECK(tcs_address_is_loopback(&loopback));
+    CHECK_FALSE(tcs_address_is_any(&loopback));
+    CHECK_FALSE(tcs_address_is_multicast(&loopback));
+
+    TcsAddress any = TCS_ADDRESS_NONE;
+    any.family = TCS_AF_IP6;
+    any.data.ip6.address = TCS_ADDRESS_ANY_IP6;
+    CHECK(tcs_address_is_any(&any));
+    CHECK_FALSE(tcs_address_is_loopback(&any));
+
+    TcsAddress multicast;
+    tcs_address_parse("ff02::1", &multicast);
+    CHECK(tcs_address_is_multicast(&multicast));
+
+    TcsAddress link_local;
+    tcs_address_parse("fe80::1", &link_local);
+    CHECK(tcs_address_is_local(&link_local));
+}
+
+TEST_CASE("IPv6 address resolve loopback")
+{
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    struct TcsAddress addresses[4];
+    size_t count = 0;
+    CHECK(tcs_address_resolve("::1", TCS_AF_IP6, addresses, 4, &count) == TCS_SUCCESS);
+    CHECK(count >= 1);
+    CHECK(addresses[0].family == TCS_AF_IP6);
+    CHECK(tcs_address_is_loopback(&addresses[0]));
+
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
+TEST_CASE("IPv6 address is_equal")
+{
+    TcsAddress a = TCS_ADDRESS_NONE;
+    a.family = TCS_AF_IP6;
+    a.data.ip6.address = TCS_ADDRESS_LOOPBACK_IP6;
+    TcsAddress b = TCS_ADDRESS_NONE;
+    b.family = TCS_AF_IP6;
+    b.data.ip6.address = TCS_ADDRESS_LOOPBACK_IP6;
+    CHECK(tcs_address_is_equal(&a, &b));
+
+    b.data.ip6.port = 80;
+    CHECK_FALSE(tcs_address_is_equal(&a, &b));
+}
