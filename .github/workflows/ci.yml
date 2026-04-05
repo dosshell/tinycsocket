@@ -1,0 +1,520 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+env:
+  LC_ALL: C.UTF-8
+  LANG: C.UTF-8
+
+jobs:
+  # ---- LINTING ----
+
+  code-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check formatting
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format python3
+          clang-format --version
+          python3 ./tools/run-clang-format.py -j 1 -r --exclude tests/doctest.h src tests examples
+
+  static-linting:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run clang-tidy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-tidy
+          mkdir build && cd build
+          cmake -G "Ninja" ../ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON
+          clang-tidy ../src/*.c ../examples/*.c
+
+  header-updated:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check header is up to date
+        run: ./tools/is_header_up_to_date.sh
+
+  posix-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and generate coverage
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcovr
+          ./tools/coverage.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: ./cobertura.xml
+          retention-days: 7
+
+  # ---- BUILDS ----
+
+  msvc-build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install m4
+        run: choco install gnuwin32-m4 --version=1.4.14 -y
+      - name: Build x86
+        run: |
+          $env:PATH += ";C:\Program Files (x86)\GnuWin32\bin"
+          cmake -G "Visual Studio 17 2022" -A "win32" -B build32 -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
+          cmake --build build32 --target ALL_BUILD --config Debug
+          cmake --build build32 --target ALL_BUILD --config Release
+      - name: Build x64
+        run: |
+          $env:PATH += ";C:\Program Files (x86)\GnuWin32\bin"
+          cmake -G "Visual Studio 17 2022" -A "x64" -B build64 -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
+          cmake --build build64 --target ALL_BUILD --config Debug
+          cmake --build build64 --target ALL_BUILD --config Release
+      - name: Collect artifacts
+        run: |
+          mkdir build
+          move build32\tests\Debug\tests.exe build\tests_msvc_debug_x86.exe
+          move build32\tests\Release\tests.exe build\tests_msvc_release_x86.exe
+          move build64\tests\Debug\tests.exe build\tests_msvc_debug_x64.exe
+          move build64\tests\Release\tests.exe build\tests_msvc_release_x64.exe
+          move build32\tests\Debug\tests_header_only.exe build\tests_header_only_msvc_debug_x86.exe
+          move build32\tests\Release\tests_header_only.exe build\tests_header_only_msvc_release_x86.exe
+          move build64\tests\Debug\tests_header_only.exe build\tests_header_only_msvc_debug_x64.exe
+          move build64\tests\Release\tests_header_only.exe build\tests_header_only_msvc_release_x64.exe
+        shell: cmd
+      - uses: actions/upload-artifact@v4
+        with:
+          name: msvc-tests
+          path: build/
+
+  linux-musl-x86_64:
+    runs-on: ubuntu-latest
+    container: alpine:3.23.3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          apk add cmake g++ ninja m4 linux-headers
+          mkdir build && cd build
+          cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF -DCMAKE_EXE_LINKER_FLAGS=-static
+          cmake --build .
+          mv ./tests/tests ./tests_linux_musl_x86_64
+          mv ./tests/tests_header_only ./tests_header_only_linux_musl_x86_64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-musl-x86_64
+          path: |
+            build/tests_linux_musl_x86_64
+            build/tests_header_only_linux_musl_x86_64
+
+  linux-musl-x86:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build in i386 container
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            i386/alpine:3.23.3 sh -c '
+              apk add cmake g++ ninja m4 linux-headers &&
+              mkdir build && cd build &&
+              cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF -DCMAKE_EXE_LINKER_FLAGS=-static &&
+              cmake --build . &&
+              mv ./tests/tests ./tests_linux_musl_x86 &&
+              mv ./tests/tests_header_only ./tests_header_only_linux_musl_x86
+            '
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-musl-x86
+          path: |
+            build/tests_linux_musl_x86
+            build/tests_header_only_linux_musl_x86
+
+  linux-glibc-x86_64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          mkdir build && cd build
+          cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
+          cmake --build .
+          mv ./tests/tests ./tests_linux_glibc_x86_64
+          mv ./tests/tests_header_only ./tests_header_only_linux_glibc_x86_64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-glibc-x86_64
+          path: |
+            build/tests_linux_glibc_x86_64
+            build/tests_header_only_linux_glibc_x86_64
+
+  linux-glibc-x86:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build in i386 container
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            i386/debian:bookworm sh -c '
+              apt-get update && apt-get install -y cmake ninja-build g++ m4 &&
+              mkdir build && cd build &&
+              cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF &&
+              cmake --build . &&
+              mv ./tests/tests ./tests_linux_glibc_x86 &&
+              mv ./tests/tests_header_only ./tests_header_only_linux_glibc_x86
+            '
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-glibc-x86
+          path: |
+            build/tests_linux_glibc_x86
+            build/tests_header_only_linux_glibc_x86
+
+  mingw-x64-winxp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-x86-64-posix g++-mingw-w64-x86-64-posix
+          mkdir build && cd build
+          cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x64_winxp.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
+          cmake --build .
+          mv ./tests/tests.exe ./tests_mingw_x64_winxp.exe
+          mv ./tests/tests_header_only.exe ./tests_header_only_mingw_x64_winxp.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mingw-x64-winxp
+          path: |
+            build/tests_mingw_x64_winxp.exe
+            build/tests_header_only_mingw_x64_winxp.exe
+
+  mingw-x86-winxp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-i686-posix g++-mingw-w64-i686-posix
+          mkdir build && cd build
+          cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86_winxp.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
+          cmake --build .
+          mv ./tests/tests.exe ./tests_mingw_x86_winxp.exe
+          mv ./tests/tests_header_only.exe ./tests_header_only_mingw_x86_winxp.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mingw-x86-winxp
+          path: |
+            build/tests_mingw_x86_winxp.exe
+            build/tests_header_only_mingw_x86_winxp.exe
+
+  mingw-x64-winblue:
+    runs-on: ubuntu-latest
+    container: alpine:3.23.3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          apk add cmake mingw-w64-gcc ninja m4
+          mkdir build && cd build
+          cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x64_winblue.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
+          cmake --build .
+          mv ./tests/tests.exe ./tests_mingw_x64_winblue.exe
+          mv ./tests/tests_header_only.exe ./tests_header_only_mingw_x64_winblue.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mingw-x64-winblue
+          path: |
+            build/tests_mingw_x64_winblue.exe
+            build/tests_header_only_mingw_x64_winblue.exe
+
+  mingw-x86-winblue:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build in i386 container
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            i386/alpine:3.23.3 sh -c '
+              apk add cmake mingw-w64-gcc ninja m4 &&
+              mkdir build && cd build &&
+              cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86_winblue.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF &&
+              cmake --build . &&
+              mv ./tests/tests.exe ./tests_mingw_x86_winblue.exe &&
+              mv ./tests/tests_header_only.exe ./tests_header_only_mingw_x86_winblue.exe
+            '
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mingw-x86-winblue
+          path: |
+            build/tests_mingw_x86_winblue.exe
+            build/tests_header_only_mingw_x86_winblue.exe
+
+  mingw-x86-win2k:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-i686-posix g++-mingw-w64-i686-posix
+          mkdir build && cd build
+          cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86_win2k.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
+          cmake --build .
+          mv ./tests/tests.exe ./tests_mingw_x86_win2k.exe
+          mv ./tests/tests_header_only.exe ./tests_header_only_mingw_x86_win2k.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mingw-x86-win2k
+          path: |
+            build/tests_mingw_x86_win2k.exe
+            build/tests_header_only_mingw_x86_win2k.exe
+
+  # ---- TESTS ----
+
+  windows-tests:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    needs:
+      - msvc-build
+      - mingw-x64-winxp
+      - mingw-x86-winxp
+      - mingw-x64-winblue
+      - mingw-x86-winblue
+      - mingw-x86-win2k
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: msvc-tests
+          path: build/
+      - uses: actions/download-artifact@v4
+        with:
+          name: mingw-x64-winxp
+          path: build/
+      - uses: actions/download-artifact@v4
+        with:
+          name: mingw-x86-winxp
+          path: build/
+      - uses: actions/download-artifact@v4
+        with:
+          name: mingw-x64-winblue
+          path: build/
+      - uses: actions/download-artifact@v4
+        with:
+          name: mingw-x86-winblue
+          path: build/
+      - uses: actions/download-artifact@v4
+        with:
+          name: mingw-x86-win2k
+          path: build/
+      - name: Run tests
+        shell: bash
+        run: |
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          ./build/tests_msvc_debug_x86.exe 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          ./build/tests_msvc_release_x86.exe 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          ./build/tests_msvc_debug_x64.exe 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          ./build/tests_msvc_release_x64.exe 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          ./build/tests_mingw_x86_winxp.exe 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          ./build/tests_mingw_x64_winxp.exe 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          ./build/tests_mingw_x86_winblue.exe 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          ./build/tests_mingw_x64_winblue.exe 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          ./build/tests_mingw_x86_win2k.exe 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          ./build/tests_header_only_msvc_debug_x86.exe 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          ./build/tests_header_only_msvc_release_x86.exe 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          ./build/tests_header_only_msvc_debug_x64.exe 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          ./build/tests_header_only_msvc_release_x64.exe 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          ./build/tests_header_only_mingw_x86_winxp.exe 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          ./build/tests_header_only_mingw_x64_winxp.exe 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          ./build/tests_header_only_mingw_x86_winblue.exe 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          ./build/tests_header_only_mingw_x64_winblue.exe 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          ./build/tests_header_only_mingw_x86_win2k.exe 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  wine-test-x64:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs:
+      - msvc-build
+      - mingw-x64-winxp
+      - mingw-x64-winblue
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: msvc-tests
+          path: build/
+      - uses: actions/download-artifact@v4
+        with:
+          name: mingw-x64-winxp
+          path: build/
+      - uses: actions/download-artifact@v4
+        with:
+          name: mingw-x64-winblue
+          path: build/
+      - name: Run wine tests
+        run: |
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            -e WINEDEBUG=-all \
+            -e XDG_RUNTIME_DIR=/tmp/runtime \
+            alpine:3.23.3 sh -c '
+              apk add wine &&
+              mkdir -p /tmp/runtime &&
+              wine64 ./build/tests_msvc_release_x64.exe &&
+              wine64 ./build/tests_header_only_msvc_release_x64.exe &&
+              wine64 ./build/tests_mingw_x64_winxp.exe &&
+              wine64 ./build/tests_header_only_mingw_x64_winxp.exe &&
+              wine64 ./build/tests_mingw_x64_winblue.exe &&
+              wine64 ./build/tests_header_only_mingw_x64_winblue.exe
+            ' 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  wine-test-x86:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs:
+      - msvc-build
+      - mingw-x86-winxp
+      - mingw-x86-winblue
+      - mingw-x86-win2k
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: msvc-tests
+          path: build/
+      - uses: actions/download-artifact@v4
+        with:
+          name: mingw-x86-winxp
+          path: build/
+      - uses: actions/download-artifact@v4
+        with:
+          name: mingw-x86-winblue
+          path: build/
+      - uses: actions/download-artifact@v4
+        with:
+          name: mingw-x86-win2k
+          path: build/
+      - name: Run wine tests
+        run: |
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            -e WINEDEBUG=-all \
+            -e XDG_RUNTIME_DIR=/tmp/runtime \
+            i386/alpine:3.23.3 sh -c '
+              apk add wine &&
+              mkdir -p /tmp/runtime &&
+              wine ./build/tests_msvc_release_x86.exe &&
+              wine ./build/tests_header_only_msvc_release_x86.exe &&
+              wine ./build/tests_mingw_x86_winxp.exe &&
+              wine ./build/tests_header_only_mingw_x86_winxp.exe &&
+              wine ./build/tests_mingw_x86_winblue.exe &&
+              wine ./build/tests_header_only_mingw_x86_winblue.exe &&
+              wine ./build/tests_mingw_x86_win2k.exe &&
+              wine ./build/tests_header_only_mingw_x86_win2k.exe
+            ' 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  linux-test-musl-x86_64:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [linux-musl-x86_64]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-musl-x86_64
+          path: build/
+      - name: Run tests
+        run: |
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          chmod +x ./build/tests_linux_musl_x86_64 ./build/tests_header_only_linux_musl_x86_64
+          ./build/tests_linux_musl_x86_64 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          ./build/tests_header_only_linux_musl_x86_64 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  linux-test-musl-x86:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [linux-musl-x86]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-musl-x86
+          path: build/
+      - name: Run tests
+        run: |
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          chmod +x ./build/tests_linux_musl_x86 ./build/tests_header_only_linux_musl_x86
+          ./build/tests_linux_musl_x86 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          ./build/tests_header_only_linux_musl_x86 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  linux-test-glibc-x86_64:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [linux-glibc-x86_64]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-glibc-x86_64
+          path: build/
+      - name: Run tests
+        run: |
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          chmod +x ./build/tests_linux_glibc_x86_64 ./build/tests_header_only_linux_glibc_x86_64
+          ./build/tests_linux_glibc_x86_64 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          ./build/tests_header_only_linux_glibc_x86_64 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  linux-test-glibc-x86:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [linux-glibc-x86]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-glibc-x86
+          path: build/
+      - name: Run tests
+        run: |
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            i386/debian:bookworm sh -c '
+              chmod +x ./build/tests_linux_glibc_x86 ./build/tests_header_only_linux_glibc_x86 &&
+              ./build/tests_linux_glibc_x86 &&
+              ./build/tests_header_only_linux_glibc_x86
+            ' 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # ---- DEPLOY ----
+
+  sphinx-docs:
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build documentation
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y doxygen
+          pip3 install --break-system-packages -r docs/requirements.txt
+          cd docs
+          make html
