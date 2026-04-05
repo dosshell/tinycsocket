@@ -69,13 +69,13 @@ jobs:
       - name: Build x86
         run: |
           $env:PATH += ";C:\Program Files (x86)\GnuWin32\bin"
-          cmake -G "Visual Studio 17 2022" -A "win32" -B build32 -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
+          cmake -G "Visual Studio 17 2022" -A "win32" -B build32 -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
           cmake --build build32 --target ALL_BUILD --config Debug
           cmake --build build32 --target ALL_BUILD --config Release
       - name: Build x64
         run: |
           $env:PATH += ";C:\Program Files (x86)\GnuWin32\bin"
-          cmake -G "Visual Studio 17 2022" -A "x64" -B build64 -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
+          cmake -G "Visual Studio 17 2022" -A "x64" -B build64 -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
           cmake --build build64 --target ALL_BUILD --config Debug
           cmake --build build64 --target ALL_BUILD --config Release
       - name: Collect artifacts
@@ -104,7 +104,7 @@ jobs:
         run: |
           apk add cmake g++ ninja m4 linux-headers
           mkdir build && cd build
-          cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF -DCMAKE_EXE_LINKER_FLAGS=-static
+          cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON -DCMAKE_EXE_LINKER_FLAGS=-static
           cmake --build .
           mv ./tests/tests ./tests_linux_musl_x86_64
           mv ./tests/tests_header_only ./tests_header_only_linux_musl_x86_64
@@ -127,7 +127,7 @@ jobs:
             i386/alpine:3.23.3 sh -c '
               apk add cmake g++ ninja m4 linux-headers &&
               mkdir build && cd build &&
-              cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF -DCMAKE_EXE_LINKER_FLAGS=-static &&
+              cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON -DCMAKE_EXE_LINKER_FLAGS=-static &&
               cmake --build . &&
               mv ./tests/tests ./tests_linux_musl_x86 &&
               mv ./tests/tests_header_only ./tests_header_only_linux_musl_x86
@@ -146,7 +146,7 @@ jobs:
       - name: Build
         run: |
           mkdir build && cd build
-          cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
+          cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
           cmake --build .
           mv ./tests/tests ./tests_linux_glibc_x86_64
           mv ./tests/tests_header_only ./tests_header_only_linux_glibc_x86_64
@@ -169,7 +169,7 @@ jobs:
             i386/debian:bookworm sh -c '
               apt-get update && apt-get install -y cmake ninja-build g++ m4 &&
               mkdir build && cd build &&
-              cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF &&
+              cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON &&
               cmake --build . &&
               mv ./tests/tests ./tests_linux_glibc_x86 &&
               mv ./tests/tests_header_only ./tests_header_only_linux_glibc_x86
@@ -189,7 +189,7 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-x86-64-posix g++-mingw-w64-x86-64-posix
           mkdir build && cd build
-          cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x64_winxp.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
+          cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x64_winxp.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
           cmake --build .
           mv ./tests/tests.exe ./tests_mingw_x64_winxp.exe
           mv ./tests/tests_header_only.exe ./tests_header_only_mingw_x64_winxp.exe
@@ -208,7 +208,7 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-i686-posix g++-mingw-w64-i686-posix
           mkdir build && cd build
-          cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86_winxp.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
+          cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86_winxp.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
           cmake --build .
           mv ./tests/tests.exe ./tests_mingw_x86_winxp.exe
           mv ./tests/tests_header_only.exe ./tests_header_only_mingw_x86_winxp.exe
@@ -228,7 +228,7 @@ jobs:
         run: |
           apk add cmake mingw-w64-gcc ninja m4
           mkdir build && cd build
-          cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x64_winblue.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
+          cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x64_winblue.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
           cmake --build .
           mv ./tests/tests.exe ./tests_mingw_x64_winblue.exe
           mv ./tests/tests_header_only.exe ./tests_header_only_mingw_x64_winblue.exe
@@ -251,7 +251,7 @@ jobs:
             i386/alpine:3.23.3 sh -c '
               apk add cmake mingw-w64-gcc ninja m4 &&
               mkdir build && cd build &&
-              cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86_winblue.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF &&
+              cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86_winblue.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON &&
               cmake --build . &&
               mv ./tests/tests.exe ./tests_mingw_x86_winblue.exe &&
               mv ./tests/tests_header_only.exe ./tests_header_only_mingw_x86_winblue.exe
@@ -271,7 +271,7 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-i686-posix g++-mingw-w64-i686-posix
           mkdir build && cd build
-          cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86_win2k.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=OFF
+          cmake -G "Ninja" ../ -DCMAKE_TOOLCHAIN_FILE="../toolchain_mingw_x86_win2k.cmake" -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
           cmake --build .
           mv ./tests/tests.exe ./tests_mingw_x86_win2k.exe
           mv ./tests/tests_header_only.exe ./tests_header_only_mingw_x86_win2k.exe
