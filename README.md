@@ -1,12 +1,14 @@
 # Tinycsocket
 
+[![CI](https://github.com/dosshell/tinycsocket/actions/workflows/ci.yml/badge.svg)](https://github.com/dosshell/tinycsocket/actions/workflows/ci.yml)
+
 Crossplatform header-only low-level socket C library.
 
-Repository: https://gitlab.com/dosshell/tinycsocket/
+Repository: https://github.com/dosshell/tinycsocket
 
 Online documentation: https://tinycsocket.readthedocs.io/
 
-Download: [latest](https://gitlab.com/dosshell/tinycsocket/-/raw/master/include/tinycsocket.h) 
+Download: [latest](https://raw.githubusercontent.com/dosshell/tinycsocket/master/include/tinycsocket.h) 
 
 ```cpp
 // Put the following define in exactly one of your c/cpp files before including.
@@ -68,7 +70,7 @@ build system you do not need to define the implementation definition.
 ## Use the header only
 Download the latest header from the include directory in this repository.
 
-Download [latest](https://gitlab.com/dosshell/tinycsocket/-/raw/master/include/tinycsocket.h)
+Download [latest](https://raw.githubusercontent.com/dosshell/tinycsocket/master/include/tinycsocket.h)
 
 You need to define `TINYCSOCKET_IMPLEMENTATION` in exactly one translation unit (c/cpp file) before
 including the header file. You can put this in a separate translation unit to not pollute your namespace with OS socket symbols.
@@ -93,7 +95,7 @@ Here is an example of a CMakeLists.txt file that let you link to tinycsocket:
 include(FetchContent)
 FetchContent_Declare(
     tinycsocket
-    GIT_REPOSITORY https://gitlab.com/dosshell/tinycsocket.git
+    GIT_REPOSITORY https://github.com/dosshell/tinycsocket.git
     GIT_TAG v0.4  # Use the latest version tag, or master if you want to break your build system in the future
 )
 FetchContent_MakeAvailable(tinycsocket)
@@ -114,7 +116,7 @@ The following commands will create these include- and lib folders in a folder
 named install:
 
 ```sh
-git clone https://gitlab.com/dosshell/tinycsocket.git
+git clone https://github.com/dosshell/tinycsocket.git
 mkdir build
 cd build
 cmake -DCMAKE_INSTALL_PREFIX:Path=../install ../tinycsocket
@@ -125,21 +127,25 @@ like.
 
 # Tested platforms in CI
 
-These platforms are tested for every merge request. All configurations are tested as both static library and header-only.
+These platforms are tested for every pull request. All configurations are tested as both static library and header-only.
 
-| OS                          | Compiler                          | WINVER |
-|-----------------------------|-----------------------------------|--------|
-| Windows 2022                | MSVC v19.40 x86                   |        |
-| Windows 2022                | MSVC v19.40 x86-64                |        |
-| Windows 2022                | i686-w64-mingw32-gcc-posix v13.2  | 0x500  |
-| Windows 2022                | i686-w64-mingw32-gcc-posix v13.2  | 0x501  |
-| Windows 2022                | i686-w64-mingw32-gcc v15.2        | 0x603  |
-| Windows 2022                | x86_64-w64-mingw32-gcc-posix v13.2| 0x502  |
-| Windows 2022                | x86_64-w64-mingw32-gcc v15.2      | 0x603  |
-| Wine (Alpine)               | i686-w64-mingw32-gcc-posix v13.2  | 0x500  |
-| Wine (Alpine)               | i686-w64-mingw32-gcc-posix v13.2  | 0x501  |
-| Wine (Alpine)               | i686-w64-mingw32-gcc v15.2        | 0x603  |
-| Wine (Alpine)               | x86_64-w64-mingw32-gcc-posix v13.2| 0x502  |
-| Wine (Alpine)               | x86_64-w64-mingw32-gcc v15.2      | 0x603  |
-| Linux Alpine 3.23 x86-64    | gcc v15.2                         |        |
-| Linux Alpine 3.23 x86       | gcc v15.2                         |        |
+| OS                                | Compiler                           | WINVER |
+|-----------------------------------|------------------------------------|--------|
+| Windows Server 2025               | MSVC v19.44 x86                    |        |
+| Windows Server 2025               | MSVC v19.44 x64                    |        |
+| Windows Server 2025               | i686-w64-mingw32-gcc-posix v13     | 0x500  |
+| Windows Server 2025               | i686-w64-mingw32-gcc-posix v13     | 0x502  |
+| Windows Server 2025               | i686-w64-mingw32-gcc v15.2         | 0x603  |
+| Windows Server 2025               | x86_64-w64-mingw32-gcc-posix v13   | 0x502  |
+| Windows Server 2025               | x86_64-w64-mingw32-gcc v15.2       | 0x603  |
+| Wine (Alpine 3.23)                | MSVC v19.44 x86                    |        |
+| Wine (Alpine 3.23)                | MSVC v19.44 x64                    |        |
+| Wine (Alpine 3.23)                | i686-w64-mingw32-gcc-posix v13     | 0x500  |
+| Wine (Alpine 3.23)                | i686-w64-mingw32-gcc-posix v13     | 0x502  |
+| Wine (Alpine 3.23)                | i686-w64-mingw32-gcc v15.2         | 0x603  |
+| Wine (Alpine 3.23)                | x86_64-w64-mingw32-gcc-posix v13   | 0x502  |
+| Wine (Alpine 3.23)                | x86_64-w64-mingw32-gcc v15.2       | 0x603  |
+| Linux Alpine 3.23 x86_64 musl     | gcc v15.2                          |        |
+| Linux Alpine 3.23 x86 musl        | gcc v15.2                          |        |
+| Linux Ubuntu 24.04 x86_64 glibc   | gcc v13.3                          |        |
+| Linux Ubuntu 24.04 x86 glibc      | gcc v13.3                          |        |
