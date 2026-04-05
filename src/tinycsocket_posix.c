@@ -686,6 +686,7 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     // buffer_count is already validated against UIO_MAXIOV above.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
+#pragma GCC diagnostic ignored "-Wsign-conversion"
     msg.msg_iovlen = buffer_count;
 #pragma GCC diagnostic pop
     msg.msg_control = NULL;

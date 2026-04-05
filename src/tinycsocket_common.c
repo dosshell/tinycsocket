@@ -1337,7 +1337,7 @@ TcsResult tcs_address_parse(const char str[], struct TcsAddress* out_address)
                     break;
             }
 
-            ctx.state = next;
+            ctx.state = (uint8_t)next;
             if (*c != '\0')
                 c++;
         }

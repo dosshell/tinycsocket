@@ -1349,7 +1349,7 @@ TEST_CASE("TdsList capacity hysteresis")
     CHECK(tds_ulist_best_capacity_fit(64, 16) == 16);
 }
 
-TDS_ULIST_IMPL(int, int);
+TDS_ULIST_IMPL(int, int)
 
 TEST_CASE("TdsUList create / destroy")
 {
