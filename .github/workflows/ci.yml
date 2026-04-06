@@ -282,6 +282,24 @@ jobs:
             build/tests_mingw_x86_win2k.exe
             build/tests_header_only_mingw_x86_win2k.exe
 
+  macos-arm64-build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          mkdir build && cd build
+          cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
+          cmake --build .
+          mv ./tests/tests ./tests_macos_arm64
+          mv ./tests/tests_header_only ./tests_header_only_macos_arm64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64-tests
+          path: |
+            build/tests_macos_arm64
+            build/tests_header_only_macos_arm64
+
   # ---- TESTS ----
 
   windows-tests:
@@ -501,6 +519,23 @@ jobs:
               ./build/tests_linux_glibc_x86 &&
               ./build/tests_header_only_linux_glibc_x86
             ' 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  macos-arm64-test:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    needs: [macos-arm64-build]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos-arm64-tests
+          path: build/
+      - name: Run tests
+        run: |
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          chmod +x ./build/tests_macos_arm64 ./build/tests_header_only_macos_arm64
+          ./build/tests_macos_arm64 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          ./build/tests_header_only_macos_arm64 2>&1 | tee -a $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   # ---- DEPLOY ----
