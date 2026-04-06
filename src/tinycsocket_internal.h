@@ -223,7 +223,7 @@ struct TcsAddress
     TcsAddressFamily family;
     union
     {
-        char _storage[24]; /**< Ensures full zero-initialization when copied from TCS_ADDRESS_NONE */
+        unsigned char _storage[24]; /**< Ensures full zero-initialization when copied from TCS_ADDRESS_NONE */
         struct
         {
             uint32_t address; /**< Same byte order as the host */
