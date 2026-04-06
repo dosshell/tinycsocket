@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 # CMake fix for crosscompile (MinGW-w64)
 set(CMAKE_TRY_COMPILE_TARGET_TYPE "STATIC_LIBRARY")
 
-project(tinycsocket VERSION 0.4)
+project(tinycsocket)
 
 include(CheckSymbolExists)
 include(CheckIncludeFile)
@@ -69,6 +69,15 @@ set(TINYCSOCKET_SRC
     "src/tinycsocket_posix.c"
 )
 
+# Version generation
+add_custom_target(
+    generate_version
+    COMMAND ${CMAKE_COMMAND} -DSRC_DIR=${CMAKE_CURRENT_SOURCE_DIR}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/GenerateVersion.cmake
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+set_target_properties(generate_version PROPERTIES FOLDER tinycsocket)
+
 # Header generation
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/include/tinycsocket.h
@@ -81,6 +90,7 @@ add_custom_command(
 add_custom_target(
     generate_header
     SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/include/tinycsocket.h
+    DEPENDS generate_version
 )
 set_target_properties(generate_header PROPERTIES FOLDER tinycsocket)
 

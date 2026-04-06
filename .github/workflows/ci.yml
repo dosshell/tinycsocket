@@ -42,6 +42,15 @@ jobs:
       - name: Check header is up to date
         run: ./tools/is_header_up_to_date.sh
 
+  version-updated:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check version is up to date
+        run: ./tools/check_version.sh
+
   posix-coverage:
     runs-on: ubuntu-latest
     steps:
