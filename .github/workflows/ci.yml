@@ -323,6 +323,29 @@ jobs:
             build/tests_freebsd_x86_64
             build/tests_header_only_freebsd_x86_64
 
+  openbsd-x86_64-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: vmactions/openbsd-vm@v1
+        with:
+          usesh: true
+          prepare: |
+            pkg_add cmake ninja m4
+          run: |
+            mkdir build && cd build
+            cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
+            cmake --build .
+            mv ./tests/tests ./tests_openbsd_x86_64
+            mv ./tests/tests_header_only ./tests_header_only_openbsd_x86_64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openbsd-x86_64
+          path: |
+            build/tests_openbsd_x86_64
+            build/tests_header_only_openbsd_x86_64
+
   android-x86_64-build:
     runs-on: ubuntu-latest
     steps:
@@ -627,6 +650,29 @@ jobs:
             chmod +x ./build/tests_freebsd_x86_64 ./build/tests_header_only_freebsd_x86_64
             ./build/tests_freebsd_x86_64 2>&1 | tee ./test_output.txt
             ./build/tests_header_only_freebsd_x86_64 2>&1 | tee -a ./test_output.txt
+      - name: Write step summary
+        if: always()
+        run: |
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat ./test_output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  openbsd-x86_64-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [openbsd-x86_64-build]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: openbsd-x86_64
+          path: build/
+      - uses: vmactions/openbsd-vm@v1
+        with:
+          usesh: true
+          run: |
+            chmod +x ./build/tests_openbsd_x86_64 ./build/tests_header_only_openbsd_x86_64
+            ./build/tests_openbsd_x86_64 2>&1 | tee ./test_output.txt
+            ./build/tests_header_only_openbsd_x86_64 2>&1 | tee -a ./test_output.txt
       - name: Write step summary
         if: always()
         run: |
