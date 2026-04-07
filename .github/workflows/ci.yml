@@ -346,6 +346,31 @@ jobs:
             build/tests_openbsd_x86_64
             build/tests_header_only_openbsd_x86_64
 
+  linux-s390x-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          sudo apt-get update && sudo apt-get install -y gcc-s390x-linux-gnu g++-s390x-linux-gnu
+          mkdir build && cd build
+          cmake -G "Ninja" ../ \
+            -DCMAKE_C_COMPILER=s390x-linux-gnu-gcc \
+            -DCMAKE_CXX_COMPILER=s390x-linux-gnu-g++ \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
+            -DTCS_ENABLE_TESTS=ON \
+            -DTCS_ENABLE_EXAMPLES=ON \
+            -DTCS_WARNINGS_AS_ERRORS=ON
+          cmake --build .
+          mv ./tests/tests ./tests_linux_s390x
+          mv ./tests/tests_header_only ./tests_header_only_linux_s390x
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-s390x
+          path: |
+            build/tests_linux_s390x
+            build/tests_header_only_linux_s390x
+
   android-x86_64-build:
     runs-on: ubuntu-latest
     steps:
@@ -678,6 +703,24 @@ jobs:
         run: |
           echo '```' >> $GITHUB_STEP_SUMMARY
           cat ./test_output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  linux-s390x-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [linux-s390x-build]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-s390x
+          path: build/
+      - name: Run tests
+        run: |
+          sudo apt-get update && sudo apt-get install -y qemu-user-static gcc-s390x-linux-gnu
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          chmod +x ./build/tests_linux_s390x ./build/tests_header_only_linux_s390x
+          qemu-s390x-static -L /usr/s390x-linux-gnu/ ./build/tests_linux_s390x 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          qemu-s390x-static -L /usr/s390x-linux-gnu/ ./build/tests_header_only_linux_s390x 2>&1 | tee -a $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   android-x86_64-test:
