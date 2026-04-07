@@ -350,6 +350,29 @@ jobs:
             build/tests_android_x86_64
             build/tests_header_only_android_x86_64
 
+  cygwin-x86_64-build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: egor-tensin/setup-cygwin@v4
+        with:
+          packages: cmake gcc-g++ ninja m4
+      - name: Build
+        shell: C:\tools\cygwin\bin\bash.exe --login -eo pipefail -o igncr {0}
+        run: |
+          cd "$(cygpath "$GITHUB_WORKSPACE")"
+          mkdir build && cd build
+          cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
+          cmake --build .
+          mv ./tests/tests.exe ./tests_cygwin_x86_64.exe
+          mv ./tests/tests_header_only.exe ./tests_header_only_cygwin_x86_64.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cygwin-x86_64
+          path: |
+            build/tests_cygwin_x86_64.exe
+            build/tests_header_only_cygwin_x86_64.exe
+
   # ---- TESTS ----
 
   windows-tests:
@@ -635,6 +658,26 @@ jobs:
             adb shell chmod +x /data/local/tmp/tests /data/local/tmp/tests_header_only
             adb shell /data/local/tmp/tests
             adb shell /data/local/tmp/tests_header_only
+
+  cygwin-x86_64-test:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    needs: [cygwin-x86_64-build]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: cygwin-x86_64
+          path: build/
+      - uses: egor-tensin/setup-cygwin@v4
+      - name: Run tests
+        shell: C:\tools\cygwin\bin\bash.exe --login -eo pipefail -o igncr {0}
+        run: |
+          cd "$(cygpath "$GITHUB_WORKSPACE")"
+          SUMMARY="$(cygpath "$GITHUB_STEP_SUMMARY")"
+          echo '```' >> "$SUMMARY"
+          ./build/tests_cygwin_x86_64.exe 2>&1 | tee -a "$SUMMARY"
+          ./build/tests_header_only_cygwin_x86_64.exe 2>&1 | tee -a "$SUMMARY"
+          echo '```' >> "$SUMMARY"
 
   # ---- DEPLOY ----
 

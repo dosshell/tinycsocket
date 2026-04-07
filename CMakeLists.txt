@@ -142,7 +142,9 @@ if(TCS_ENABLE_EXAMPLES)
 endif()
 
 # Documentation
-find_package(Doxygen QUIET)
+if(NOT CYGWIN) # FindDoxygen crashes on Cygwin due to path translation issues
+    find_package(Doxygen QUIET)
+endif()
 if(DOXYGEN_FOUND)
     # Define output directory for Doxygen documentation
     set(DOXYGEN_OUTPUT_DIR "${CMAKE_BINARY_DIR}/docs")
