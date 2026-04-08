@@ -20,6 +20,9 @@
  * SOFTWARE.
  */
 
+#include "tinycsocket.h"
+#include "tinydatastructures.h"
+
 #define DOCTEST_CONFIG_IMPLEMENT
 #ifndef _MSC_VER
 #pragma GCC diagnostic push
@@ -34,9 +37,6 @@
 #include "dbg_wrap.h"
 #endif
 #include "mock.h"
-
-#include "tinycsocket.h"
-#include "tinydatastructures.h"
 
 #include <cstring>
 #include <thread>
@@ -1315,20 +1315,22 @@ TEST_CASE("Multicast Add-Drop-Add Membership")
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 
+#if defined(__linux__)
 TEST_CASE("Simple AVTP talker")
 {
     // Setup
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
 
     TcsSocket socket = TCS_SOCKET_INVALID;
-    CHECK_POSIX(tcs_socket_preset(&socket, TCS_PRESET_RAW) == TCS_SUCCESS);
+    CHECK(tcs_socket_preset(&socket, TCS_PRESET_RAW) == TCS_SUCCESS);
     TcsAddress address = TCS_ADDRESS_NONE;
     tcs_address_parse("", &address);
 
-    CHECK_POSIX(tcs_close(&socket) == TCS_SUCCESS);
+    CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
+#endif
 
 // ************* TINY DATA STRUCTURE (TDS) UNIT TESTS *************
 
@@ -1547,6 +1549,7 @@ TEST_CASE("TdsMap_int_double add and remove")
     CHECK(tds_map_mymap_destroy(&map) == 0);
 }
 
+#if defined(__linux__)
 const uint8_t AVTP_DEST_ADDR[6] = {0x91, 0xe0, 0xf0, 0x00, 0xfe, 0x00};
 
 TEST_CASE("Create packet socket")
@@ -1558,11 +1561,11 @@ TEST_CASE("Create packet socket")
     TcsSocket socket = TCS_SOCKET_INVALID;
 
     // When
-    CHECK_POSIX(tcs_socket_preset(&socket, TCS_PRESET_RAW) == TCS_SUCCESS);
+    CHECK(tcs_socket_preset(&socket, TCS_PRESET_RAW) == TCS_SUCCESS);
 
     // Then
-    CHECK_POSIX(socket != TCS_SOCKET_INVALID);
-    CHECK_POSIX(tcs_close(&socket) == TCS_SUCCESS);
+    CHECK(socket != TCS_SOCKET_INVALID);
+    CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
     // Clean up
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
@@ -1577,11 +1580,11 @@ TEST_CASE("Create AVTP socket")
     TcsSocket socket = TCS_SOCKET_INVALID;
 
     // When
-    CHECK_POSIX(tcs_socket(&socket, TCS_AF_PACKET, TCS_SOCK_DGRAM, 0x22F0) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_AF_PACKET, TCS_SOCK_DGRAM, 0x22F0) == TCS_SUCCESS);
 
     // Then
-    CHECK_POSIX(socket != TCS_SOCKET_INVALID);
-    CHECK_POSIX(tcs_close(&socket) == TCS_SUCCESS);
+    CHECK(socket != TCS_SOCKET_INVALID);
+    CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
     // Clean up
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
@@ -1596,13 +1599,13 @@ TEST_CASE("AVTP Create talker socket sendto")
     TcsSocket socket = TCS_SOCKET_INVALID;
 
     // When
-    CHECK_POSIX(tcs_socket(&socket, TCS_AF_PACKET, TCS_SOCK_DGRAM, 0x22F0) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_AF_PACKET, TCS_SOCK_DGRAM, 0x22F0) == TCS_SUCCESS);
 
-    CHECK_POSIX(tcs_opt_priority_set(socket, 6) == TCS_SUCCESS); // Set priority to 6 (VLAN priority 6)
+    CHECK(tcs_opt_priority_set(socket, 6) == TCS_SUCCESS); // Set priority to 6 (VLAN priority 6)
     struct TcsInterfaceAddress addrs[8];
     size_t addresses_found = 0;
-    CHECK_POSIX(tcs_address_list(0, TCS_AF_PACKET, addrs, 8, &addresses_found) == TCS_SUCCESS);
-    CHECK_POSIX(addresses_found > 0);
+    CHECK(tcs_address_list(0, TCS_AF_PACKET, addrs, 8, &addresses_found) == TCS_SUCCESS);
+    CHECK(addresses_found > 0);
 
     TcsAddress address = TCS_ADDRESS_NONE;
     address.family = TCS_AF_PACKET;
@@ -1612,9 +1615,9 @@ TEST_CASE("AVTP Create talker socket sendto")
 
     uint8_t msg[] = "hello world\n";
     size_t bytes_sent = 0;
-    CHECK_POSIX(tcs_send_to(socket, msg, sizeof(msg), TCS_FLAG_NONE, &address, &bytes_sent) == TCS_SUCCESS);
-    CHECK_POSIX(bytes_sent == sizeof(msg));
-    CHECK_POSIX(tcs_close(&socket) == TCS_SUCCESS);
+    CHECK(tcs_send_to(socket, msg, sizeof(msg), TCS_FLAG_NONE, &address, &bytes_sent) == TCS_SUCCESS);
+    CHECK(bytes_sent == sizeof(msg));
+    CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
     // Then
 
@@ -1631,13 +1634,13 @@ TEST_CASE("TSN Create talker socket bind")
     TcsSocket socket = TCS_SOCKET_INVALID;
 
     // When
-    CHECK_POSIX(tcs_socket_preset(&socket, TCS_PRESET_RAW) == TCS_SUCCESS);
+    CHECK(tcs_socket_preset(&socket, TCS_PRESET_RAW) == TCS_SUCCESS);
 
-    CHECK_POSIX(tcs_opt_priority_set(socket, 6) == TCS_SUCCESS); // Set priority to 6 (VLAN priority 6)
+    CHECK(tcs_opt_priority_set(socket, 6) == TCS_SUCCESS); // Set priority to 6 (VLAN priority 6)
     struct TcsInterfaceAddress addr[8];
     size_t addresses_found = 0;
-    CHECK_POSIX(tcs_address_list(0, TCS_AF_PACKET, addr, 8, &addresses_found) == TCS_SUCCESS);
-    CHECK_POSIX(addresses_found > 0);
+    CHECK(tcs_address_list(0, TCS_AF_PACKET, addr, 8, &addresses_found) == TCS_SUCCESS);
+    CHECK(addresses_found > 0);
 
     TcsAddress address = TCS_ADDRESS_NONE;
     address.family = TCS_AF_PACKET;
@@ -1645,7 +1648,7 @@ TEST_CASE("TSN Create talker socket bind")
     address.data.packet.protocol = 0x22F0; // Ethertype for AVTP
     memcpy(address.data.packet.mac, AVTP_DEST_ADDR, sizeof(AVTP_DEST_ADDR));
 
-    CHECK_POSIX(tcs_bind(socket, &address) == TCS_SUCCESS);
+    CHECK(tcs_bind(socket, &address) == TCS_SUCCESS);
 
     // SOCK_RAW requires a complete Ethernet frame: [6 dst MAC][6 src MAC][2 EtherType][payload]
     uint8_t frame[64] = {0};
@@ -1656,9 +1659,9 @@ TEST_CASE("TSN Create talker socket bind")
     memcpy(&frame[14], "hello world\n", 12);               // Payload
 
     size_t bytes_sent = 0;
-    CHECK_POSIX(tcs_send_to(socket, frame, sizeof(frame), TCS_FLAG_NONE, &address, &bytes_sent) == TCS_SUCCESS);
-    CHECK_POSIX(bytes_sent == sizeof(frame));
-    CHECK_POSIX(tcs_close(&socket) == TCS_SUCCESS);
+    CHECK(tcs_send_to(socket, frame, sizeof(frame), TCS_FLAG_NONE, &address, &bytes_sent) == TCS_SUCCESS);
+    CHECK(bytes_sent == sizeof(frame));
+    CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
     // Then
 
@@ -1675,12 +1678,12 @@ TEST_CASE("TSN Create listener")
     TcsSocket socket = TCS_SOCKET_INVALID;
 
     // When
-    CHECK_POSIX(tcs_socket_preset(&socket, TCS_PRESET_RAW) == TCS_SUCCESS);
+    CHECK(tcs_socket_preset(&socket, TCS_PRESET_RAW) == TCS_SUCCESS);
 
     struct TcsInterfaceAddress addr[8];
     size_t addresses_found = 0;
-    CHECK_POSIX(tcs_address_list(0, TCS_AF_PACKET, addr, 8, &addresses_found) == TCS_SUCCESS);
-    CHECK_POSIX(addresses_found > 0);
+    CHECK(tcs_address_list(0, TCS_AF_PACKET, addr, 8, &addresses_found) == TCS_SUCCESS);
+    CHECK(addresses_found > 0);
 
     TcsAddress address = TCS_ADDRESS_NONE;
     address.family = TCS_AF_PACKET;
@@ -1688,13 +1691,13 @@ TEST_CASE("TSN Create listener")
     memcpy(address.data.packet.mac, AVTP_DEST_ADDR, sizeof(AVTP_DEST_ADDR));
     address.data.packet.protocol = 0x22F0; // Ethertype for TSN
 
-    CHECK_POSIX(tcs_bind(socket, &address) == TCS_SUCCESS);
+    CHECK(tcs_bind(socket, &address) == TCS_SUCCESS);
 
-    CHECK_POSIX(tcs_opt_membership_add(socket, &address) == TCS_SUCCESS);
+    CHECK(tcs_opt_membership_add(socket, &address) == TCS_SUCCESS);
 
     // Then
     // tcs_receive...
-    CHECK_POSIX(tcs_close(&socket) == TCS_SUCCESS);
+    CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
     // Clean up
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
@@ -1709,11 +1712,11 @@ TEST_CASE("Create DGRAM packet socket with preset")
     TcsSocket socket = TCS_SOCKET_INVALID;
 
     // When
-    CHECK_POSIX(tcs_socket_preset(&socket, TCS_PRESET_PACKET) == TCS_SUCCESS);
+    CHECK(tcs_socket_preset(&socket, TCS_PRESET_PACKET) == TCS_SUCCESS);
 
     // Then
-    CHECK_POSIX(socket != TCS_SOCKET_INVALID);
-    CHECK_POSIX(tcs_close(&socket) == TCS_SUCCESS);
+    CHECK(socket != TCS_SOCKET_INVALID);
+    CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
     // Clean up
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
@@ -1728,8 +1731,8 @@ TEST_CASE("tcs_packet bind")
     TcsSocket socket = TCS_SOCKET_INVALID;
     struct TcsInterfaceAddress addrs[8];
     size_t addresses_found = 0;
-    CHECK_POSIX(tcs_address_list(0, TCS_AF_PACKET, addrs, 8, &addresses_found) == TCS_SUCCESS);
-    CHECK_POSIX(addresses_found > 0);
+    CHECK(tcs_address_list(0, TCS_AF_PACKET, addrs, 8, &addresses_found) == TCS_SUCCESS);
+    CHECK(addresses_found > 0);
 
     struct TcsAddress bind_address = TCS_ADDRESS_NONE;
     bind_address.family = TCS_AF_PACKET;
@@ -1737,11 +1740,11 @@ TEST_CASE("tcs_packet bind")
     bind_address.data.packet.protocol = 0x22F0;
 
     // When
-    CHECK_POSIX(tcs_packet(&socket, &bind_address) == TCS_SUCCESS);
+    CHECK(tcs_packet(&socket, &bind_address) == TCS_SUCCESS);
 
     // Then
-    CHECK_POSIX(socket != TCS_SOCKET_INVALID);
-    CHECK_POSIX(tcs_close(&socket) == TCS_SUCCESS);
+    CHECK(socket != TCS_SOCKET_INVALID);
+    CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
     // Clean up
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
@@ -1756,15 +1759,15 @@ TEST_CASE("tcs_packet sendto")
     TcsSocket socket = TCS_SOCKET_INVALID;
     struct TcsInterfaceAddress addrs[8];
     size_t addresses_found = 0;
-    CHECK_POSIX(tcs_address_list(0, TCS_AF_PACKET, addrs, 8, &addresses_found) == TCS_SUCCESS);
-    CHECK_POSIX(addresses_found > 0);
+    CHECK(tcs_address_list(0, TCS_AF_PACKET, addrs, 8, &addresses_found) == TCS_SUCCESS);
+    CHECK(addresses_found > 0);
 
     struct TcsAddress bind_address = TCS_ADDRESS_NONE;
     bind_address.family = TCS_AF_PACKET;
     bind_address.data.packet.interface_id = addrs[0].iface.id;
     bind_address.data.packet.protocol = 0x22F0;
 
-    CHECK_POSIX(tcs_packet(&socket, &bind_address) == TCS_SUCCESS);
+    CHECK(tcs_packet(&socket, &bind_address) == TCS_SUCCESS);
 
     // When - sendto with explicit destination
     struct TcsAddress dest_address = TCS_ADDRESS_NONE;
@@ -1775,11 +1778,11 @@ TEST_CASE("tcs_packet sendto")
 
     uint8_t msg[] = "hello world\n";
     size_t bytes_sent = 0;
-    CHECK_POSIX(tcs_send_to(socket, msg, sizeof(msg), TCS_FLAG_NONE, &dest_address, &bytes_sent) == TCS_SUCCESS);
-    CHECK_POSIX(bytes_sent == sizeof(msg));
+    CHECK(tcs_send_to(socket, msg, sizeof(msg), TCS_FLAG_NONE, &dest_address, &bytes_sent) == TCS_SUCCESS);
+    CHECK(bytes_sent == sizeof(msg));
 
     // Then
-    CHECK_POSIX(tcs_close(&socket) == TCS_SUCCESS);
+    CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
     // Clean up
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
@@ -1813,15 +1816,16 @@ TEST_CASE("tcs_packet_str bind")
     }
 
     // When
-    CHECK_POSIX(tcs_packet_str(&socket, iface_name, 0x22F0) == TCS_SUCCESS);
+    CHECK(tcs_packet_str(&socket, iface_name, 0x22F0) == TCS_SUCCESS);
 
     // Then
-    CHECK_POSIX(socket != TCS_SOCKET_INVALID);
-    CHECK_POSIX(tcs_close(&socket) == TCS_SUCCESS);
+    CHECK(socket != TCS_SOCKET_INVALID);
+    CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
     // Clean up
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
+#endif
 
 TEST_CASE("tcs_packet invalid arguments")
 {

@@ -23,7 +23,7 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-static const char* const TCS_VERSION_TXT = "v0.3.58";
+static const char* const TCS_VERSION_TXT = "v0.3.59";
 static const char* const TCS_LICENSE_TXT =
     "Copyright 2018 Markus Lindelöw\n"
     "\n"
@@ -271,13 +271,17 @@ struct TcsAddress
     } data;
 };
 
+#ifndef TCS_INTERFACE_NAME_SIZE
+#define TCS_INTERFACE_NAME_SIZE 64
+#endif
+
 /**
  * @brief Network Interface Information
  */
 struct TcsInterface
 {
     TcsInterfaceId id;
-    char name[32];
+    char name[TCS_INTERFACE_NAME_SIZE];
 };
 
 struct TcsInterfaceAddress

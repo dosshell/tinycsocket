@@ -4,6 +4,17 @@ include(CTest)
 add_executable(tests "tests.cpp" "mock.cpp" "mock.h")
 target_compile_options(tests PUBLIC "-DDO_WRAP")
 target_link_libraries(tests PRIVATE tinycsocket_wrapped)
+# doctest's signal handling needs POSIX feature test macros to expose
+# sigaltstack/sigaction/SA_ONSTACK/SIGSTKSZ on Cygwin and glibc with -std=c++11.
+# Set them only on test targets to avoid leaking into header-only consumers.
+if(NOT MSVC)
+    target_compile_definitions(tests PRIVATE
+        _XOPEN_SOURCE=600
+        _POSIX_C_SOURCE=200112L
+        _DEFAULT_SOURCE
+        _ISOC99_SOURCE
+    )
+endif()
 set_target_properties(tests PROPERTIES FOLDER tinycsocket/tests)
 add_definitions(-DDOCTEST_CONFIG_TREAT_CHAR_STAR_AS_STRING)
 if(MINGW)
