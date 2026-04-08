@@ -30,6 +30,9 @@ FunctionData = collections.namedtuple(
         "name",
         "refid",
         "brief",
+        "detailed",
+        "notes",
+        "retvals",
         "argsstring",
         "definition",
         "params",
@@ -41,12 +44,86 @@ FunctionData = collections.namedtuple(
 
 SymbolData = collections.namedtuple("SymbolData", ["name", "brief"])
 
+_SKIP_FUNCTIONS = {"tcs_static_assert"}
 
-def xml_to_rst(element):
+
+def _format_ref(text, linkable):
+    """Format a doxygen ref as RST. Functions get links, constants get monospace."""
+    if linkable and text.endswith("()"):
+        anchor = text.rstrip("()")
+        return f"`{text} <{anchor}_>`_"
+    return f"``{text}``"
+
+
+def xml_node_to_rst(node, linkable=True):
+    """Convert a doxygen XML node to RST text, handling refs and special elements."""
+    parts = []
+    if node.text:
+        parts.append(node.text)
+    for child in node:
+        if child.tag == "ref":
+            ref_text = xml_node_to_rst(child, linkable=False)
+            parts.append(_format_ref(ref_text, linkable))
+        elif child.tag == "sp":
+            parts.append(" ")
+        else:
+            parts.append(xml_node_to_rst(child, linkable=linkable))
+        if child.tail:
+            parts.append(child.tail)
+    return "".join(parts)
+
+
+def xml_to_rst(element, linkable=False):
+    """Convert element to RST. linkable=False for use in CSV tables etc."""
     if element is None:
         return "<documentation is not available>"
     else:
-        return "".join(element.itertext()).replace('"', '""')
+        return xml_node_to_rst(element, linkable=linkable).replace('"', '""')
+
+
+def programlisting_to_rst(element):
+    """Convert a doxygen <programlisting> to an RST code block."""
+    lines = []
+    for codeline in element.findall("codeline"):
+        line = ""
+        for child in codeline:
+            line += xml_node_to_rst(child, linkable=False)
+        lines.append(line)
+    return lines
+
+
+def para_to_rst(para):
+    """Convert a <para> element to RST, handling mixed text and code blocks."""
+    parts = []
+    if para.text and para.text.strip():
+        parts.append(para.text.strip())
+    for child in para:
+        if child.tag == "programlisting":
+            code_lines = programlisting_to_rst(child)
+            parts.append("\n\n.. code-block:: c\n\n" + "\n".join("   " + l for l in code_lines) + "\n")
+        elif child.tag == "ref":
+            ref_text = xml_node_to_rst(child, linkable=False)
+            parts.append(_format_ref(ref_text, linkable=True))
+        elif child.tag == "itemizedlist":
+            items = []
+            for li in child.findall("listitem/para"):
+                items.append(para_to_rst(li))
+            parts.append("\n\n" + "\n".join(f"* {item}" for item in items) + "\n")
+        elif child.tag in ("parameterlist", "simplesect"):
+            pass  # handled separately
+        else:
+            parts.append(xml_node_to_rst(child))
+        if child.tail and child.tail.strip():
+            parts.append(child.tail.strip())
+    return " ".join(parts) if parts else ""
+
+
+def is_plain_para(para):
+    """Check if a <para> element is a plain description paragraph (not params, returns, etc.)."""
+    for child in para:
+        if child.tag in ("parameterlist", "simplesect"):
+            return False
+    return True
 
 
 def get_function_descriptions(doxygen_folder: Path):
@@ -64,52 +141,62 @@ def get_function_descriptions(doxygen_folder: Path):
         for f in fn:
             # symbol
             name = f.find("name").text
+            if name in _SKIP_FUNCTIONS:
+                continue
             brief_node = f.find("briefdescription").find("para")
             brief = brief_node.text if brief_node is not None else ""
             refid = f.get("id")
             argsstring = f.find("argsstring").text
             definition = f.find("definition").text
 
+            # detailed description paragraphs (excluding param/return/see/note sections)
+            detailed_paras = []
+            detail_node = f.find("detaileddescription")
+            if detail_node is not None:
+                for para in detail_node.findall("para"):
+                    if is_plain_para(para):
+                        text = para_to_rst(para).strip()
+                        if text:
+                            detailed_paras.append(text)
+            detailed = "\n\n".join(detailed_paras)
+
+            # notes
+            notes = [xml_to_rst(x) for x in f.findall("./detaileddescription//simplesect[@kind='note']/para")]
+
+            # retvals
+            retvals = []
+            for item in f.findall("./detaileddescription//parameterlist[@kind='retval']/parameteritem"):
+                rv_name = xml_to_rst(item.find("parameternamelist/parametername"), linkable=True)
+                rv_desc = xml_to_rst(item.find("parameterdescription/para"), linkable=True)
+                retvals.append((rv_name, rv_desc))
+
             # parameters
             param_nodes = f.findall("param")
-            param_description_nodes = f.findall(
-                "./detaileddescription//parameteritem/parameterdescription/para"
-            )
-            param_descriptions = [xml_to_rst(x) for x in param_description_nodes]
-            param_description_name_nodes = f.findall(
-                "./detaileddescription//parameteritem/parameternamelist/parametername"
-            )
-            param_description_names = [x.text for x in param_description_name_nodes]
+            param_desc_map = {}
+            for item in f.findall("./detaileddescription//parameterlist[@kind='param']/parameteritem"):
+                pname_node = item.find("parameternamelist/parametername")
+                pdesc_node = item.find("parameterdescription/para")
+                if pname_node is not None and pname_node.text:
+                    param_desc_map[pname_node.text] = xml_to_rst(pdesc_node) if pdesc_node is not None else ""
 
-            params_symbols = []
+            params = []
             for p in param_nodes:
                 declname_node = p.find("declname")
                 declname = declname_node.text if declname_node is not None else None
                 typetext = xml_to_rst(p.find("type"))
-                params_symbols.append((typetext, declname))
-
-            params = []
-            for p in params_symbols:
-                if p[1] in param_description_names:
-                    params.append(
-                        (
-                            p[0],
-                            p[1],
-                            param_descriptions[param_description_names.index(p[1])],
-                        )
-                    )
-                else:
-                    params.append((p[0], p[1], None))
+                desc = param_desc_map.get(declname, None)
+                params.append((typetext, declname, desc))
 
             # returns
-            returns = xml_to_rst(f.find(".//*[@kind='return']/para"))
+            returns_nodes = f.findall("./detaileddescription//simplesect[@kind='return']/para")
+            returns = " ".join(xml_to_rst(x, linkable=True) for x in returns_nodes) if returns_nodes else ""
 
-            # se also
-            seealso = [xml_to_rst(x) for x in f.findall(".//*[@kind='see']/para")]
+            # see also
+            seealso = [xml_to_rst(x, linkable=True) for x in f.findall("./detaileddescription//simplesect[@kind='see']/para")]
 
             m.append(
                 FunctionData(
-                    name, refid, brief, argsstring, definition, params, returns, seealso
+                    name, refid, brief, detailed, notes, retvals, argsstring, definition, params, returns, seealso
                 )
             )
     return m
@@ -156,20 +243,46 @@ def write_function_references(m, file: Path):
             f"{'-' * len(n.name)}\n"
             f"{n.brief}\n"
             "\n"
-            f"``{n.definition}{n.argsstring}``\n"
+            ".. code-block:: c\n"
             "\n"
+            f"   {n.definition}{n.argsstring}\n"
+            "\n"
+        )
+
+        # Detailed description
+        if n.detailed:
+            f.write(f"{n.detailed}\n\n")
+
+        # Notes
+        for note in n.notes:
+            f.write(f".. note::\n\n   {note}\n\n")
+
+        # Parameters
+        f.write(
             "**Parameters:**\n"
             "\n"
             ".. csv-table::\n"
             '    :header: "type", "name", "description"\n'
-            "    :widths: auto\n"
+            "    :widths: 20, 20, 60\n"
+            "    :width: 100%\n"
             "\n"
         )
         # CSV list of parameters
         for p in n.params:
             desc = str(p[2]).replace("\n", " ") if p[2] else ""
             f.write(f"""    "{p[0]}", "{p[1]}", "{desc}"\n""")
-        f.write(f"\n" f"**Returns:**\n\n" f"{n.returns}\n\n")
+
+        # Returns
+        if n.returns:
+            f.write(f"\n**Returns:**\n\n{n.returns}\n\n")
+
+        # Retvals
+        if n.retvals:
+            f.write("**Return values:**\n\n")
+            for rv_name, rv_desc in n.retvals:
+                f.write(f"* {rv_name} -- {rv_desc}\n")
+            f.write("\n")
+
         # See Also
         if len(n.seealso) > 0:
             f.write("**See Also:**\n\n")
