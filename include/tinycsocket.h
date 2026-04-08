@@ -35,7 +35,7 @@
 
 #define tcs_static_assert(name, expr) typedef char tcs_sa_##name[(expr) ? 1 : -1]
 
-static const char* const TCS_VERSION_TXT = "v0.4-dev";
+static const char* const TCS_VERSION_TXT = "v0.3.56";
 static const char* const TCS_LICENSE_TXT =
     "Copyright 2018 Markus Lindelöw\n"
     "\n"
