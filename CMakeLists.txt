@@ -155,11 +155,16 @@ if(DOXYGEN_FOUND)
     set(DOXYGEN_OUTPUT_DIR "${CMAKE_BINARY_DIR}/docs")
     
     # Add custom target to build documentation
+    find_program(UV_EXECUTABLE uv)
     add_custom_target(
         docs
         COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/docs/Doxyfile
+        COMMAND ${UV_EXECUTABLE} run --with sphinx==6.2.1 --with pypandoc-binary==1.11
+            python3 ${CMAKE_CURRENT_SOURCE_DIR}/docs/reference_generator.py
+        COMMAND ${UV_EXECUTABLE} run --with sphinx==6.2.1 --with pypandoc-binary==1.11
+            sphinx-build -M html ${CMAKE_CURRENT_SOURCE_DIR}/docs ${CMAKE_CURRENT_SOURCE_DIR}/docs/_build
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/docs
-        COMMENT "Generating API documentation with Doxygen"
+        COMMENT "Generating documentation with Doxygen, reference generator and Sphinx"
         VERBATIM
     )
     
