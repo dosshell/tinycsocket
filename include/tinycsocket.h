@@ -29,14 +29,7 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-
-/** @internal */
-#define tcs_static_assert(name, expr) typedef char tcs_sa_##name[(expr) ? 1 : -1]
-
-static const char* const TCS_VERSION_TXT = "v0.3.57";
+static const char* const TCS_VERSION_TXT = "v0.3.58";
 static const char* const TCS_LICENSE_TXT =
     "Copyright 2018 Markus Lindelöw\n"
     "\n"
@@ -168,7 +161,8 @@ static const char* const TCS_LICENSE_TXT =
 * - bool tcs_address_is_broadcast(const struct TcsAddress* addr);
 */
 
-// First we have some code to recognize which system we are compiling against
+// Recognize which system we are compiling against
+
 #if defined(WIN32) || defined(__MINGW32__)
 #define TINYCSOCKET_USE_WIN32_IMPL
 #elif defined(__linux__) || defined(__sun) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || \
@@ -195,6 +189,26 @@ extern "C" {
 typedef UINT_PTR TcsSocket;
 typedef unsigned int TcsInterfaceId; // TODO: GUID is used for in vista at newer. Change this type.
 #elif defined(TINYCSOCKET_USE_POSIX_IMPL)
+
+#if defined(TINYCSOCKET_IMPLEMENTATION) || defined(TCS_DEFINE_POSIX_MACROS)
+// POSIX feature test macros must be set before any system header is included.
+// Without these, glibc's <features.h> (pulled in by <stdbool.h>) locks in
+// strict C99 defaults that hide AI_PASSIVE, struct addrinfo, struct timeval,
+// u_short, SO_REUSEPORT, etc.
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 600
+#endif
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200112L
+#endif
+#ifndef _ISOC99_SOURCE
+#define _ISOC99_SOURCE
+#endif
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE
+#endif
+#endif
+
 typedef int TcsSocket;
 typedef unsigned int TcsInterfaceId;
 #endif
@@ -202,6 +216,15 @@ typedef unsigned int TcsInterfaceId;
 #ifndef TCS_SENDV_STACK_MAX
 #define TCS_SENDV_STACK_MAX 112
 #endif
+
+// Declarations
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+/** @internal */
+#define tcs_static_assert(name, expr) typedef char tcs_sa_##name[(expr) ? 1 : -1]
 
 /**
  * @brief Address Family
@@ -2641,18 +2664,9 @@ static inline int tds_map_remove(void** keys,
  * SOFTWARE.
  */
 
-#ifndef _POSIX_C_SOURCE
-#define _POSIX_C_SOURCE 200112L
-#endif
-#ifndef _ISOC99_SOURCE
-#define _ISOC99_SOURCE
-#endif
-#ifndef _DEFAULT_SOURCE
-#define _DEFAULT_SOURCE
-#endif
-
 // Header only should not need other files
 #ifndef TINYCSOCKET_INTERNAL_H_
+#define TCS_DEFINE_POSIX_MACROS // Helper to not lock to strict C99
 #include "tinycsocket_internal.h"
 #endif
 #ifdef TINYCSOCKET_USE_POSIX_IMPL
@@ -2665,9 +2679,26 @@ static inline int tds_map_remove(void** keys,
 #include "dbg_wrap.h"
 #endif
 
+#ifndef TCS_HAS_AF_PACKET
+#if defined(__linux__)
+#define TCS_HAS_AF_PACKET 1
+#else
+#define TCS_HAS_AF_PACKET 0
+#endif
+#endif
+
+#ifndef TCS_HAS_GETIFADDRS
+#if defined(__ANDROID__) && (__ANDROID_API__ >= 24)
+#define TCS_HAS_GETIFADDRS 1
+#elif defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+#define TCS_HAS_GETIFADDRS 1
+#else
+#define TCS_HAS_GETIFADDRS 0
+#endif
+#endif
+
 #include <errno.h>
 #include <fcntl.h>       // fcntl() for non-blocking
-#include <ifaddrs.h>     // getifaddr()
 #include <limits.h>      // IOV_MAX
 #include <net/if.h>      // Flags for ifaddrs (?)
 #include <netdb.h>       // Protocols and custom return codes
@@ -2682,24 +2713,10 @@ static inline int tds_map_remove(void** keys,
 #include <sys/uio.h>     // UIO_MAXIOV
 #include <unistd.h>      // close()
 
-// The logic might seem a bit reversed but it is to allow header only usage without defining TCS_AVAILABLE_XXX
-// You need to disable the default if your system does not support it. (Optimized for most common usage and easy to detect)
-
-// If you no not use cmake you may need to define TCS_MISSING_AF_PACKET yourself if your system does not support it
-#if defined(__linux__) && !defined(TCS_MISSING_AF_PACKET) // __linux__ to disable default for header only no-linux users
-#define TCS_AVAILABLE_AF_PACKET 1
-#else
-#define TCS_AVAILABLE_AF_PACKET 0
+#if TCS_HAS_GETIFADDRS
+#include <ifaddrs.h> // getifaddr()
 #endif
-
-// If you no not use cmake you may need to define TCS_MISSING_IFADDRS yourself if your system does not support it
-#if !defined(TCS_MISSING_IFADDRS)
-#define TCS_AVAILABLE_IFADDRS 1
-#else
-#define TCS_AVAILABLE_IFADDRS 0
-#endif
-
-#if TCS_AVAILABLE_AF_PACKET
+#if TCS_HAS_AF_PACKET
 #include <linux/if_arp.h>    // sll_hatype (ethernet and not can or firewire etc.)
 #include <linux/if_packet.h> // struct sockaddr_ll
 #endif
@@ -2779,7 +2796,7 @@ const int TCS_SO_IP_MEMBERSHIP_ADD = IP_ADD_MEMBERSHIP;
 const int TCS_SO_IP_MEMBERSHIP_DROP = IP_DROP_MEMBERSHIP;
 const int TCS_SO_IP_MULTICAST_LOOP = IP_MULTICAST_LOOP;
 
-#if TCS_AVAILABLE_AF_PACKET
+#if TCS_HAS_AF_PACKET
 const int TCS_SO_PACKET_MEMBERSHIP_ADD = PACKET_ADD_MEMBERSHIP;
 const int TCS_SO_PACKET_MEMBERSHIP_DROP = PACKET_DROP_MEMBERSHIP;
 #else
@@ -2837,7 +2854,7 @@ static TcsResult family2native(const TcsAddressFamily family, sa_family_t* nativ
             return TCS_SUCCESS;
 
         case TCS_AF_PACKET:
-#if TCS_AVAILABLE_AF_PACKET
+#if TCS_HAS_AF_PACKET
             *native_family = AF_PACKET;
             return TCS_SUCCESS;
 #else
@@ -2886,7 +2903,7 @@ static TcsResult sockaddr2native(const struct TcsAddress* tcs_address,
     }
     else if (tcs_address->family == TCS_AF_PACKET)
     {
-#if TCS_AVAILABLE_AF_PACKET
+#if TCS_HAS_AF_PACKET
         struct sockaddr_ll* addr = (struct sockaddr_ll*)out_address;
         addr->sll_family = (sa_family_t)AF_PACKET;
         addr->sll_ifindex = (int)tcs_address->data.packet.interface_id;
@@ -2920,7 +2937,7 @@ static TcsResult native2family(const sa_family_t native_family, TcsAddressFamily
         case AF_INET6:
             *family = TCS_AF_IP6;
             return TCS_SUCCESS;
-#if TCS_AVAILABLE_AF_PACKET
+#if TCS_HAS_AF_PACKET
         case AF_PACKET:
             *family = TCS_AF_PACKET;
             return TCS_SUCCESS;
@@ -2951,7 +2968,7 @@ static TcsResult native2sockaddr(const struct sockaddr* in_addr, struct TcsAddre
         memcpy(out_addr->data.ip6.address.bytes, &addr->sin6_addr, 16);
         out_addr->data.ip6.scope_id = (TcsInterfaceId)addr->sin6_scope_id;
     }
-#if TCS_AVAILABLE_AF_PACKET
+#if TCS_HAS_AF_PACKET
     else if (in_addr->sa_family == AF_PACKET)
     {
         struct sockaddr_ll const* addr = (struct sockaddr_ll const*)(const void*)in_addr;
@@ -3858,7 +3875,7 @@ TcsResult tcs_opt_membership_add_to(TcsSocket socket_ctx,
     }
     else if (multicast_address->family == TCS_AF_PACKET)
     {
-#if TCS_AVAILABLE_AF_PACKET
+#if TCS_HAS_AF_PACKET
         const struct sockaddr_ll* address_native_local_p = (struct sockaddr_ll*)&local_address_native;
         const struct sockaddr_ll* address_native_multicast_p = (struct sockaddr_ll*)&multicast_address_native;
 
@@ -3959,7 +3976,7 @@ TcsResult tcs_opt_membership_drop_from(TcsSocket socket_ctx,
     }
     else if (multicast_address->family == TCS_AF_PACKET)
     {
-#if TCS_AVAILABLE_AF_PACKET
+#if TCS_HAS_AF_PACKET
         const struct sockaddr_ll* address_native_local_p = (struct sockaddr_ll*)&local_address_native;
         const struct sockaddr_ll* address_native_multicast_p = (struct sockaddr_ll*)&multicast_address_native;
 
@@ -4114,7 +4131,7 @@ TcsResult tcs_address_resolve(const char* hostname,
     return TCS_SUCCESS;
 }
 
-#if TCS_AVAILABLE_IFADDRS // acquired from CMake
+#if TCS_HAS_GETIFADDRS
 TcsResult tcs_address_list(unsigned int interface_id_filter,
                            TcsAddressFamily address_family_filter,
                            struct TcsInterfaceAddress interface_addresses[],

@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.10)
 # CMake fix for crosscompile (MinGW-w64)
 set(CMAKE_TRY_COMPILE_TARGET_TYPE "STATIC_LIBRARY")
 
+project(tinycsocket)
+
 include(CheckSymbolExists)
 include(CheckIncludeFile)
 
@@ -24,17 +26,11 @@ if(MSVC)
     else()
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W4")
     endif()
-    add_definitions("-D_CRT_SECURE_NO_WARNINGS")
 elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_C_FLAGS
         "${CMAKE_C_FLAGS} -Wno-unused-parameter -Wall -Wextra -Wpedantic -Walloca -Wcast-align -Wcast-qual -Wdouble-promotion -Wduplicated-cond -Wenum-conversion -Wfloat-equal -Wformat-overflow=2 -Wformat-signedness -Wformat=2 -Wframe-larger-than=2048 -Wlogical-op -Wmissing-braces -Wmultichar -Wpointer-arith -Wrestrict -Wshadow -Wjump-misses-init -Wsuggest-attribute=format -Wsuggest-attribute=malloc -Wuninitialized -Wvla -Wwrite-strings -Wsign-conversion -std=c99"
     )
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter -Wall -Wextra -Wpedantic -Walloca -Wcast-align -Wcast-qual -Wcomma-subscript -Wctor-dtor-privacy -Wdeprecated-copy-dtor -Wdouble-promotion -Wduplicated-cond -Wenum-conversion -Wextra-semi -Wfloat-equal -Wformat-overflow=2 -Wformat-signedness -Wformat=2 -Wframe-larger-than=2048 -Wlogical-op -Wmismatched-tags -Wmissing-braces -Wmultichar -Wnoexcept -Wnon-virtual-dtor -Woverloaded-virtual -Wpointer-arith -Wrange-loop-construct -Wrestrict -Wshadow -Wstrict-null-sentinel -Wsuggest-attribute=format -Wsuggest-attribute=malloc -Wuninitialized -Wvla -Wvolatile -Wwrite-strings -Wsign-conversion")
-    add_definitions(
-        -D_POSIX_C_SOURCE=200112L
-        -D_DEFAULT_SOURCE
-        -D_ISOC99_SOURCE
-    )
 else()
     message("WARNING: Unknown compiler, warning flags were not set")
 endif()
@@ -43,21 +39,6 @@ option(TCS_ENABLE_TESTS "Enable tests" OFF)
 option(TCS_ENABLE_EXAMPLES "Enable examples" OFF)
 option(TCS_WARNINGS_AS_ERRORS "Enable treat warnings as errors" OFF)
 option(TCS_GENERATE_COVERAGE "Enable for test coverage generation" OFF)
-
-# ifaddrs crossplatform define
-if (NOT MSVC)
-    check_symbol_exists(getifaddrs "sys/types.h;ifaddrs.h" TCS_IFADDRS_FOUND)
-    if(NOT TCS_IFADDRS_FOUND)
-        MESSAGE("TCS warning: Symbol getifaddrs not found. Workaround will be applied.")
-        add_definitions("-DTCS_MISSING_IFADDRS")
-    endif()
-
-    check_include_file("linux/if_packet.h" TCS_AF_PACKET_FOUND)
-    if(NOT TCS_AF_PACKET_FOUND)
-        MESSAGE("TCS warning: Header sys/types.h does not exist. AF_PACKET will not be available.")
-        add_definitions("-DTCS_MISSING_AF_PACKET")
-    endif()
-endif()
 
 set(TINYCSOCKET_SRC
     "src/tinycsocket_internal.h"

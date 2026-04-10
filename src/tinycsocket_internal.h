@@ -23,14 +23,7 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-
-/** @internal */
-#define tcs_static_assert(name, expr) typedef char tcs_sa_##name[(expr) ? 1 : -1]
-
-static const char* const TCS_VERSION_TXT = "v0.3.57";
+static const char* const TCS_VERSION_TXT = "v0.3.58";
 static const char* const TCS_LICENSE_TXT =
     "Copyright 2018 Markus Lindelöw\n"
     "\n"
@@ -162,7 +155,8 @@ static const char* const TCS_LICENSE_TXT =
 * - bool tcs_address_is_broadcast(const struct TcsAddress* addr);
 */
 
-// First we have some code to recognize which system we are compiling against
+// Recognize which system we are compiling against
+
 #if defined(WIN32) || defined(__MINGW32__)
 #define TINYCSOCKET_USE_WIN32_IMPL
 #elif defined(__linux__) || defined(__sun) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || \
@@ -189,6 +183,26 @@ extern "C" {
 typedef UINT_PTR TcsSocket;
 typedef unsigned int TcsInterfaceId; // TODO: GUID is used for in vista at newer. Change this type.
 #elif defined(TINYCSOCKET_USE_POSIX_IMPL)
+
+#if defined(TINYCSOCKET_IMPLEMENTATION) || defined(TCS_DEFINE_POSIX_MACROS)
+// POSIX feature test macros must be set before any system header is included.
+// Without these, glibc's <features.h> (pulled in by <stdbool.h>) locks in
+// strict C99 defaults that hide AI_PASSIVE, struct addrinfo, struct timeval,
+// u_short, SO_REUSEPORT, etc.
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 600
+#endif
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200112L
+#endif
+#ifndef _ISOC99_SOURCE
+#define _ISOC99_SOURCE
+#endif
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE
+#endif
+#endif
+
 typedef int TcsSocket;
 typedef unsigned int TcsInterfaceId;
 #endif
@@ -196,6 +210,15 @@ typedef unsigned int TcsInterfaceId;
 #ifndef TCS_SENDV_STACK_MAX
 #define TCS_SENDV_STACK_MAX 112
 #endif
+
+// Declarations
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+/** @internal */
+#define tcs_static_assert(name, expr) typedef char tcs_sa_##name[(expr) ? 1 : -1]
 
 /**
  * @brief Address Family
