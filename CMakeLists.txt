@@ -28,9 +28,12 @@ if(MSVC)
     endif()
 elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_C_FLAGS
-        "${CMAKE_C_FLAGS} -Wno-unused-parameter -Wall -Wextra -Wpedantic -Walloca -Wcast-align -Wcast-qual -Wdouble-promotion -Wduplicated-cond -Wenum-conversion -Wfloat-equal -Wformat-overflow=2 -Wformat-signedness -Wformat=2 -Wframe-larger-than=2048 -Wlogical-op -Wmissing-braces -Wmultichar -Wpointer-arith -Wrestrict -Wshadow -Wjump-misses-init -Wsuggest-attribute=format -Wsuggest-attribute=malloc -Wuninitialized -Wvla -Wwrite-strings -Wsign-conversion -std=c99"
+        "${CMAKE_C_FLAGS} -Wno-unused-parameter -Wall -Wextra -Wpedantic -Walloca -Wcast-align -Wcast-qual -Wdouble-promotion -Wduplicated-cond -Wenum-conversion -Wfloat-equal -Wformat-overflow=2 -Wformat-signedness -Wformat=2 -Wframe-larger-than=2048 -Wlogical-op -Wmissing-braces -Wmultichar -Wpointer-arith -Wrestrict -Wshadow -Wjump-misses-init -Wsuggest-attribute=format -Wsuggest-attribute=malloc -Wuninitialized -Wvla -Wwrite-strings -Wsign-conversion -std=gnu99"
     )
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter -Wall -Wextra -Wpedantic -Walloca -Wcast-align -Wcast-qual -Wcomma-subscript -Wctor-dtor-privacy -Wdeprecated-copy-dtor -Wdouble-promotion -Wduplicated-cond -Wenum-conversion -Wextra-semi -Wfloat-equal -Wformat-overflow=2 -Wformat-signedness -Wformat=2 -Wframe-larger-than=2048 -Wlogical-op -Wmismatched-tags -Wmissing-braces -Wmultichar -Wnoexcept -Wnon-virtual-dtor -Woverloaded-virtual -Wpointer-arith -Wrange-loop-construct -Wrestrict -Wshadow -Wstrict-null-sentinel -Wsuggest-attribute=format -Wsuggest-attribute=malloc -Wuninitialized -Wvla -Wvolatile -Wwrite-strings -Wsign-conversion")
+elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -std=gnu99")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 else()
     message("WARNING: Unknown compiler, warning flags were not set")
 endif()

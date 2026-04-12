@@ -22,7 +22,6 @@
 
 // Header only should not need other files
 #ifndef TINYCSOCKET_INTERNAL_H_
-#define TCS_DEFINE_POSIX_MACROS // Helper to not lock to strict C99
 #include "tinycsocket_internal.h"
 #endif
 #ifdef TINYCSOCKET_USE_POSIX_IMPL
@@ -54,8 +53,8 @@
 #endif
 
 #include <errno.h>
-#include <fcntl.h>       // fcntl() for non-blocking
-#include <limits.h>      // IOV_MAX
+#include <fcntl.h> // fcntl() for non-blocking
+#include <limits.h>
 #include <net/if.h>      // Flags for ifaddrs (?)
 #include <netdb.h>       // Protocols and custom return codes
 #include <netinet/in.h>  // IPPROTO_XXP
@@ -95,6 +94,8 @@ struct TcsPool
 
 const TcsSocket TCS_SOCKET_INVALID = -1;
 const int TCS_WAIT_INF = -1;
+
+static long tcs_iov_max = 1024; // Default, updated by tcs_lib_init() via sysconf(_SC_IOV_MAX)
 
 // Addresses
 const uint32_t TCS_ADDRESS_ANY_IP4 = INADDR_ANY;
@@ -368,7 +369,9 @@ static TcsResult native2sockaddr(const struct sockaddr* in_addr, struct TcsAddre
 
 TcsResult tcs_lib_init(void)
 {
-    // Not needed for posix
+    long iov_max = sysconf(_SC_IOV_MAX);
+    if (iov_max > 0)
+        tcs_iov_max = iov_max;
     return TCS_SUCCESS;
 }
 
@@ -650,7 +653,7 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     if (flags & TCS_MSG_SENDALL)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
-    if (buffer_count > IOV_MAX)
+    if (buffer_count > (size_t)tcs_iov_max)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     struct iovec stack_iovec[TCS_SENDV_STACK_MAX];
@@ -685,7 +688,7 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     msg.msg_namelen = 0;
     msg.msg_iov = my_iovec;
     // msg_iovlen type varies across platforms (int on POSIX, size_t on glibc).
-    // buffer_count is already validated against IOV_MAX above.
+    // buffer_count is already validated against tcs_iov_max above.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
 #pragma GCC diagnostic ignored "-Wsign-conversion"
