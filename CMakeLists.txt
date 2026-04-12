@@ -57,15 +57,13 @@ add_custom_target(
 )
 set_target_properties(generate_version PROPERTIES FOLDER tinycsocket)
 
-# Header generation (requires GNU m4 for undivert with filename)
-find_program(M4_EXECUTABLE gm4 m4 REQUIRED)
+# Header generation (concatenates source files into single-header via cmake)
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/include/tinycsocket.h
-    COMMAND
-        ${M4_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/src/tinycsocket.h.m4 >
-        ${CMAKE_CURRENT_SOURCE_DIR}/include/tinycsocket.h
-    DEPENDS ${TINYCSOCKET_SRC} ${CMAKE_CURRENT_SOURCE_DIR}/src/tinycsocket.h.m4
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src
+    COMMAND ${CMAKE_COMMAND} -DSRC_DIR=${CMAKE_CURRENT_SOURCE_DIR}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/GenerateHeader.cmake
+    DEPENDS ${TINYCSOCKET_SRC} ${CMAKE_CURRENT_SOURCE_DIR}/src/tinycsocket.h.in
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 add_custom_target(
     generate_header
