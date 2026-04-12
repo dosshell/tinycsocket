@@ -29,7 +29,7 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-static const char* const TCS_VERSION_TXT = "v0.3.62";
+static const char* const TCS_VERSION_TXT = "v0.3.63";
 static const char* const TCS_LICENSE_TXT =
     "Copyright 2018 Markus Lindelöw\n"
     "\n"
@@ -2831,6 +2831,7 @@ static TcsResult errno2retcode(int error_code)
         case EINPROGRESS:
             return TCS_IN_PROGRESS;
         case EPERM:
+        case EACCES:
             return TCS_ERROR_PERMISSION_DENIED;
         case ECONNREFUSED:
             return TCS_ERROR_CONNECTION_REFUSED;

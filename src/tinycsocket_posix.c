@@ -187,6 +187,7 @@ static TcsResult errno2retcode(int error_code)
         case EINPROGRESS:
             return TCS_IN_PROGRESS;
         case EPERM:
+        case EACCES:
             return TCS_ERROR_PERMISSION_DENIED;
         case ECONNREFUSED:
             return TCS_ERROR_CONNECTION_REFUSED;
