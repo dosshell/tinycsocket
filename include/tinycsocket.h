@@ -29,7 +29,7 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-static const char* const TCS_VERSION_TXT = "v0.3.59";
+static const char* const TCS_VERSION_TXT = "v0.3.60";
 static const char* const TCS_LICENSE_TXT =
     "Copyright 2018 Markus Lindelöw\n"
     "\n"
@@ -191,10 +191,9 @@ typedef unsigned int TcsInterfaceId; // TODO: GUID is used for in vista at newer
 #elif defined(TINYCSOCKET_USE_POSIX_IMPL)
 
 #if defined(TINYCSOCKET_IMPLEMENTATION) || defined(TCS_DEFINE_POSIX_MACROS)
-// POSIX feature test macros must be set before any system header is included.
-// Without these, glibc's <features.h> (pulled in by <stdbool.h>) locks in
-// strict C99 defaults that hide AI_PASSIVE, struct addrinfo, struct timeval,
-// u_short, SO_REUSEPORT, etc.
+// Only needed on glibc/Cygwin where -std=c99 restricts symbol visibility.
+// On BSD/musl, setting these RESTRICTS visibility instead of expanding it.
+#if defined(__linux__) || defined(__CYGWIN__)
 #ifndef _XOPEN_SOURCE
 #define _XOPEN_SOURCE 600
 #endif
@@ -206,6 +205,7 @@ typedef unsigned int TcsInterfaceId; // TODO: GUID is used for in vista at newer
 #endif
 #ifndef _DEFAULT_SOURCE
 #define _DEFAULT_SOURCE
+#endif
 #endif
 #endif
 
