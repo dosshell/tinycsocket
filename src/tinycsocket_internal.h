@@ -23,7 +23,7 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-static const char* const TCS_VERSION_TXT = "v0.3.61";
+static const char* const TCS_VERSION_TXT = "v0.3.62";
 static const char* const TCS_LICENSE_TXT =
     "Copyright 2018 Markus Lindelöw\n"
     "\n"
@@ -184,22 +184,12 @@ typedef UINT_PTR TcsSocket;
 typedef unsigned int TcsInterfaceId; // TODO: GUID is used for in vista at newer. Change this type.
 #elif defined(TINYCSOCKET_USE_POSIX_IMPL)
 
-#if defined(TINYCSOCKET_IMPLEMENTATION) || defined(TCS_DEFINE_POSIX_MACROS)
-// Only needed on glibc/Cygwin where -std=c99 restricts symbol visibility.
-// On BSD/musl, setting these RESTRICTS visibility instead of expanding it.
-#if defined(__linux__) || defined(__CYGWIN__)
-#ifndef _XOPEN_SOURCE
-#define _XOPEN_SOURCE 600
-#endif
-#ifndef _POSIX_C_SOURCE
-#define _POSIX_C_SOURCE 200112L
-#endif
-#ifndef _ISOC99_SOURCE
-#define _ISOC99_SOURCE
-#endif
-#ifndef _DEFAULT_SOURCE
-#define _DEFAULT_SOURCE
-#endif
+#if defined(TINYCSOCKET_IMPLEMENTATION)
+#if (defined(__linux__) || defined(__CYGWIN__)) && defined(__STRICT_ANSI__)
+#pragma message(                                                        \
+    "tinycsocket: Strict ANSI C mode detected on glibc/Cygwin. "        \
+    "POSIX symbols may be hidden. Use -std=gnu99 instead of -std=c99, " \
+    "or define _POSIX_C_SOURCE=200112L and _DEFAULT_SOURCE before including this header.")
 #endif
 #endif
 

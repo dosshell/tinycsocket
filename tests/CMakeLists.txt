@@ -4,17 +4,6 @@ include(CTest)
 add_executable(tests "tests.cpp" "mock.cpp" "mock.h")
 target_compile_options(tests PUBLIC "-DDO_WRAP")
 target_link_libraries(tests PRIVATE tinycsocket_wrapped)
-# doctest's signal handling needs POSIX feature test macros to expose
-# sigaltstack/sigaction/SA_ONSTACK/SIGSTKSZ on Cygwin and glibc with -std=c++11.
-# Set them only on test targets to avoid leaking into header-only consumers.
-if(NOT MSVC)
-    target_compile_definitions(tests PRIVATE
-        _XOPEN_SOURCE=600
-        _POSIX_C_SOURCE=200112L
-        _DEFAULT_SOURCE
-        _ISOC99_SOURCE
-    )
-endif()
 set_target_properties(tests PROPERTIES FOLDER tinycsocket/tests)
 add_definitions(-DDOCTEST_CONFIG_TREAT_CHAR_STAR_AS_STRING)
 if(MINGW)
@@ -24,7 +13,7 @@ if(MINGW)
     )
 endif()
 if(NOT MSVC)
-    target_compile_options(tests PUBLIC -std=c++11)
+    target_compile_options(tests PUBLIC -std=gnu++11)
 endif()
 # Android does not need to link to any threads. It does not follow posix.
 # MSVC does not need to link to any threads. Windows has threads built-in.
@@ -38,7 +27,7 @@ endif()
 add_executable(test_translation_units "header_only/a.c" "header_only/b.c")
 target_link_libraries(test_translation_units PRIVATE tinycsocket_header)
 if(NOT MSVC)
-    target_compile_options(test_translation_units PUBLIC -std=c99)
+    target_compile_options(test_translation_units PUBLIC -std=gnu99)
 endif()
 
 if(MINGW)
@@ -67,7 +56,7 @@ target_sources(
 )
 target_include_directories(tests_header_only PRIVATE "../src/")
 if(NOT MSVC)
-    target_compile_options(tests_header_only PUBLIC -std=c++11)
+    target_compile_options(tests_header_only PUBLIC -std=gnu++11)
 endif()
 if(MINGW)
     target_link_libraries(
