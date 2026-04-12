@@ -748,6 +748,7 @@ jobs:
           api-level: 30
           arch: x86_64
           script: |
+            adb root
             adb push build/tests_android_x86_64 /data/local/tmp/tests
             adb push build/tests_header_only_android_x86_64 /data/local/tmp/tests_header_only
             adb shell chmod +x /data/local/tmp/tests /data/local/tmp/tests_header_only
