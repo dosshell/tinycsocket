@@ -1,5 +1,9 @@
 #!/bin/sh
-# Returns 0 if up to date
+# Returns 0 if the committed header matches what would be generated
 PROJPATH="$(dirname "$(readlink -f "$0")")"/..
-cd $PROJPATH/src
-m4 tinycsocket.h.m4 | diff $PROJPATH/include/tinycsocket.h -
+TMPFILE=$(mktemp)
+trap "rm -f $TMPFILE" EXIT
+
+# Generate to temp file
+cmake -DSRC_DIR=$PROJPATH -DOUTPUT=$TMPFILE -P $PROJPATH/cmake/GenerateHeader.cmake
+diff $PROJPATH/include/tinycsocket.h $TMPFILE
