@@ -66,7 +66,7 @@
 #include <sys/ioctl.h>   // Flags for ifaddrs
 #include <sys/socket.h>  // pretty much everything
 #include <sys/types.h>   // POSIX.1 compatibility
-#include <sys/uio.h>     // UIO_MAXIOV
+#include <sys/uio.h>     // struct iovec
 #include <unistd.h>      // close()
 
 #if TCS_HAS_GETIFADDRS
@@ -139,12 +139,20 @@ const int TCS_SO_BROADCAST = SO_BROADCAST;
 const int TCS_SO_KEEPALIVE = SO_KEEPALIVE;
 const int TCS_SO_LINGER = SO_LINGER;
 const int TCS_SO_REUSEADDR = SO_REUSEADDR;
+#ifdef SO_REUSEPORT
 const int TCS_SO_REUSEPORT = SO_REUSEPORT;
+#else
+const int TCS_SO_REUSEPORT = -1;
+#endif
 const int TCS_SO_RCVBUF = SO_RCVBUF;
 const int TCS_SO_RCVTIMEO = SO_RCVTIMEO;
 const int TCS_SO_SNDBUF = SO_SNDBUF;
 const int TCS_SO_OOBINLINE = SO_OOBINLINE;
+#ifdef SO_PRIORITY
 const int TCS_SO_PRIORITY = SO_PRIORITY;
+#else
+const int TCS_SO_PRIORITY = -1;
+#endif
 
 // IP options
 const int TCS_SO_IP_NODELAY = TCP_NODELAY;
@@ -642,7 +650,7 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     if (flags & TCS_MSG_SENDALL)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
-    if (buffer_count > UIO_MAXIOV)
+    if (buffer_count > IOV_MAX)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     struct iovec stack_iovec[TCS_SENDV_STACK_MAX];
@@ -677,7 +685,7 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     msg.msg_namelen = 0;
     msg.msg_iov = my_iovec;
     // msg_iovlen type varies across platforms (int on POSIX, size_t on glibc).
-    // buffer_count is already validated against UIO_MAXIOV above.
+    // buffer_count is already validated against IOV_MAX above.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
 #pragma GCC diagnostic ignored "-Wsign-conversion"
@@ -1377,8 +1385,8 @@ TcsResult tcs_interface_list(struct TcsInterface* found_interfaces,
     {
         for (size_t i = 0; i < interfaces_length && interfaces[i].if_index != 0; ++i)
         {
-            strncpy(found_interfaces[i].name, interfaces[i].if_name, 31);
-            found_interfaces[i].name[31] = '\0';
+            strncpy(found_interfaces[i].name, interfaces[i].if_name, TCS_INTERFACE_NAME_SIZE - 1);
+            found_interfaces[i].name[TCS_INTERFACE_NAME_SIZE - 1] = '\0';
             found_interfaces[i].id = interfaces[i].if_index;
             if (interfaces_populated != NULL)
                 *interfaces_populated += 1;
@@ -1563,8 +1571,8 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
                 return errno2retcode(errno);
             }
 
-            strncpy(interface_addresses[populated].iface.name, iter->ifa_name, 31);
-            interface_addresses[populated].iface.name[31] = '\0';
+            strncpy(interface_addresses[populated].iface.name, iter->ifa_name, TCS_INTERFACE_NAME_SIZE - 1);
+            interface_addresses[populated].iface.name[TCS_INTERFACE_NAME_SIZE - 1] = '\0';
             interface_addresses[populated].iface.id = interface_id;
             interface_addresses[populated].address = address;
             populated++;

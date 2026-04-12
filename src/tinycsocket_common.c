@@ -518,9 +518,9 @@ TcsResult tcs_raw_str(TcsSocket* socket_ctx, const char* interface_name, uint16_
     if (interface_name == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    struct TcsInterface interfaces[32];
+    struct TcsInterface interfaces[16]; // TODO: use heap if more
     size_t count = 0;
-    TcsResult res = tcs_interface_list(interfaces, 32, &count);
+    TcsResult res = tcs_interface_list(interfaces, 16, &count);
     if (res != TCS_SUCCESS)
         return res;
 
@@ -569,9 +569,9 @@ TcsResult tcs_packet_str(TcsSocket* socket_ctx, const char* interface_name, uint
     if (interface_name == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    struct TcsInterface interfaces[32];
+    struct TcsInterface interfaces[16];
     size_t count = 0;
-    TcsResult res = tcs_interface_list(interfaces, 32, &count);
+    TcsResult res = tcs_interface_list(interfaces, 16, &count);
     if (res != TCS_SUCCESS)
         return res;
 

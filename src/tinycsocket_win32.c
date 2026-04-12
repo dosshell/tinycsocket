@@ -28,12 +28,13 @@
 #include "dbg_wrap.h"
 #endif
 
-#define WIN32_LEAN_AND_MEAN
 // Header only should not need other files
 #ifndef TINYDATASTRUCTURES_H_
 #include "tinydatastructures.h"
 #endif
 // before windows.h
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <winsock2.h> // sockets
 
 #include <windows.h>
@@ -63,10 +64,6 @@ typedef struct
 #pragma comment(lib, "wsock32.lib")
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "Iphlpapi.lib")
-#endif
-
-#ifdef __cplusplus
-using std::min;
 #endif
 
 #ifndef ULIST_SOC
@@ -1517,8 +1514,8 @@ TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, 
             if (!is_up)
                 continue;
 
-            memset(interfaces[i].name, '\0', 32);
-            TcsResult name_sts = adapter_get_friendly_name(iter, interfaces[i].name, 31);
+            memset(interfaces[i].name, '\0', TCS_INTERFACE_NAME_SIZE);
+            TcsResult name_sts = adapter_get_friendly_name(iter, interfaces[i].name, TCS_INTERFACE_NAME_SIZE - 1);
             if (name_sts != TCS_SUCCESS)
             {
                 free(adapters);
@@ -1727,8 +1724,9 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
 
             if (interface_addresses != NULL && populated < capacity)
             {
-                memset(interface_addresses[populated].iface.name, '\0', 32);
-                TcsResult name_sts = adapter_get_friendly_name(iter, interface_addresses[populated].iface.name, 31);
+                memset(interface_addresses[populated].iface.name, '\0', TCS_INTERFACE_NAME_SIZE);
+                TcsResult name_sts = adapter_get_friendly_name(
+                    iter, interface_addresses[populated].iface.name, TCS_INTERFACE_NAME_SIZE - 1);
                 if (name_sts != TCS_SUCCESS)
                 {
                     free(adapters);

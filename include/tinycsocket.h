@@ -29,7 +29,7 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-static const char* const TCS_VERSION_TXT = "v0.3.58";
+static const char* const TCS_VERSION_TXT = "v0.3.59";
 static const char* const TCS_LICENSE_TXT =
     "Copyright 2018 Markus Lindelöw\n"
     "\n"
@@ -277,13 +277,17 @@ struct TcsAddress
     } data;
 };
 
+#ifndef TCS_INTERFACE_NAME_SIZE
+#define TCS_INTERFACE_NAME_SIZE 64
+#endif
+
 /**
  * @brief Network Interface Information
  */
 struct TcsInterface
 {
     TcsInterfaceId id;
-    char name[32];
+    char name[TCS_INTERFACE_NAME_SIZE];
 };
 
 struct TcsInterfaceAddress
@@ -2710,7 +2714,7 @@ static inline int tds_map_remove(void** keys,
 #include <sys/ioctl.h>   // Flags for ifaddrs
 #include <sys/socket.h>  // pretty much everything
 #include <sys/types.h>   // POSIX.1 compatibility
-#include <sys/uio.h>     // UIO_MAXIOV
+#include <sys/uio.h>     // struct iovec
 #include <unistd.h>      // close()
 
 #if TCS_HAS_GETIFADDRS
@@ -2783,12 +2787,20 @@ const int TCS_SO_BROADCAST = SO_BROADCAST;
 const int TCS_SO_KEEPALIVE = SO_KEEPALIVE;
 const int TCS_SO_LINGER = SO_LINGER;
 const int TCS_SO_REUSEADDR = SO_REUSEADDR;
+#ifdef SO_REUSEPORT
 const int TCS_SO_REUSEPORT = SO_REUSEPORT;
+#else
+const int TCS_SO_REUSEPORT = -1;
+#endif
 const int TCS_SO_RCVBUF = SO_RCVBUF;
 const int TCS_SO_RCVTIMEO = SO_RCVTIMEO;
 const int TCS_SO_SNDBUF = SO_SNDBUF;
 const int TCS_SO_OOBINLINE = SO_OOBINLINE;
+#ifdef SO_PRIORITY
 const int TCS_SO_PRIORITY = SO_PRIORITY;
+#else
+const int TCS_SO_PRIORITY = -1;
+#endif
 
 // IP options
 const int TCS_SO_IP_NODELAY = TCP_NODELAY;
@@ -3286,7 +3298,7 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     if (flags & TCS_MSG_SENDALL)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
-    if (buffer_count > UIO_MAXIOV)
+    if (buffer_count > IOV_MAX)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     struct iovec stack_iovec[TCS_SENDV_STACK_MAX];
@@ -3321,7 +3333,7 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     msg.msg_namelen = 0;
     msg.msg_iov = my_iovec;
     // msg_iovlen type varies across platforms (int on POSIX, size_t on glibc).
-    // buffer_count is already validated against UIO_MAXIOV above.
+    // buffer_count is already validated against IOV_MAX above.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
 #pragma GCC diagnostic ignored "-Wsign-conversion"
@@ -4021,8 +4033,8 @@ TcsResult tcs_interface_list(struct TcsInterface* found_interfaces,
     {
         for (size_t i = 0; i < interfaces_length && interfaces[i].if_index != 0; ++i)
         {
-            strncpy(found_interfaces[i].name, interfaces[i].if_name, 31);
-            found_interfaces[i].name[31] = '\0';
+            strncpy(found_interfaces[i].name, interfaces[i].if_name, TCS_INTERFACE_NAME_SIZE - 1);
+            found_interfaces[i].name[TCS_INTERFACE_NAME_SIZE - 1] = '\0';
             found_interfaces[i].id = interfaces[i].if_index;
             if (interfaces_populated != NULL)
                 *interfaces_populated += 1;
@@ -4207,8 +4219,8 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
                 return errno2retcode(errno);
             }
 
-            strncpy(interface_addresses[populated].iface.name, iter->ifa_name, 31);
-            interface_addresses[populated].iface.name[31] = '\0';
+            strncpy(interface_addresses[populated].iface.name, iter->ifa_name, TCS_INTERFACE_NAME_SIZE - 1);
+            interface_addresses[populated].iface.name[TCS_INTERFACE_NAME_SIZE - 1] = '\0';
             interface_addresses[populated].iface.id = interface_id;
             interface_addresses[populated].address = address;
             populated++;
@@ -4330,12 +4342,13 @@ TcsResult tcs_address_socket_family(TcsSocket socket_ctx, TcsAddressFamily* out_
 #include "dbg_wrap.h"
 #endif
 
-#define WIN32_LEAN_AND_MEAN
 // Header only should not need other files
 #ifndef TINYDATASTRUCTURES_H_
 #include "tinydatastructures.h"
 #endif
 // before windows.h
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <winsock2.h> // sockets
 
 #include <windows.h>
@@ -4365,10 +4378,6 @@ typedef struct
 #pragma comment(lib, "wsock32.lib")
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "Iphlpapi.lib")
-#endif
-
-#ifdef __cplusplus
-using std::min;
 #endif
 
 #ifndef ULIST_SOC
@@ -5819,8 +5828,8 @@ TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, 
             if (!is_up)
                 continue;
 
-            memset(interfaces[i].name, '\0', 32);
-            TcsResult name_sts = adapter_get_friendly_name(iter, interfaces[i].name, 31);
+            memset(interfaces[i].name, '\0', TCS_INTERFACE_NAME_SIZE);
+            TcsResult name_sts = adapter_get_friendly_name(iter, interfaces[i].name, TCS_INTERFACE_NAME_SIZE - 1);
             if (name_sts != TCS_SUCCESS)
             {
                 free(adapters);
@@ -6029,8 +6038,9 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
 
             if (interface_addresses != NULL && populated < capacity)
             {
-                memset(interface_addresses[populated].iface.name, '\0', 32);
-                TcsResult name_sts = adapter_get_friendly_name(iter, interface_addresses[populated].iface.name, 31);
+                memset(interface_addresses[populated].iface.name, '\0', TCS_INTERFACE_NAME_SIZE);
+                TcsResult name_sts = adapter_get_friendly_name(
+                    iter, interface_addresses[populated].iface.name, TCS_INTERFACE_NAME_SIZE - 1);
                 if (name_sts != TCS_SUCCESS)
                 {
                     free(adapters);
@@ -6635,9 +6645,9 @@ TcsResult tcs_raw_str(TcsSocket* socket_ctx, const char* interface_name, uint16_
     if (interface_name == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    struct TcsInterface interfaces[32];
+    struct TcsInterface interfaces[16]; // TODO: use heap if more
     size_t count = 0;
-    TcsResult res = tcs_interface_list(interfaces, 32, &count);
+    TcsResult res = tcs_interface_list(interfaces, 16, &count);
     if (res != TCS_SUCCESS)
         return res;
 
@@ -6686,9 +6696,9 @@ TcsResult tcs_packet_str(TcsSocket* socket_ctx, const char* interface_name, uint
     if (interface_name == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    struct TcsInterface interfaces[32];
+    struct TcsInterface interfaces[16];
     size_t count = 0;
-    TcsResult res = tcs_interface_list(interfaces, 32, &count);
+    TcsResult res = tcs_interface_list(interfaces, 16, &count);
     if (res != TCS_SUCCESS)
         return res;
 
