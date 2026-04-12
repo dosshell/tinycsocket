@@ -28,12 +28,13 @@
 #include "dbg_wrap.h"
 #endif
 
-#define WIN32_LEAN_AND_MEAN
 // Header only should not need other files
 #ifndef TINYDATASTRUCTURES_H_
 #include "tinydatastructures.h"
 #endif
 // before windows.h
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <winsock2.h> // sockets
 
 #include <windows.h>
@@ -63,10 +64,6 @@ typedef struct
 #pragma comment(lib, "wsock32.lib")
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "Iphlpapi.lib")
-#endif
-
-#ifdef __cplusplus
-using std::min;
 #endif
 
 #ifndef ULIST_SOC
