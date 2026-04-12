@@ -79,7 +79,6 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "Android" AND NOT MSVC)
     find_package(Threads REQUIRED)
     target_link_libraries(tests_header_only PRIVATE Threads::Threads)
 endif()
-target_compile_options(tests_header_only PUBLIC "-DDO_WRAP")
 target_link_libraries(tests_header_only PRIVATE tinycsocket_header)
 target_include_directories(
     tests_header_only

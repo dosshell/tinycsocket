@@ -47,6 +47,15 @@
 #define CHECK_POSIX WARN
 #endif
 
+// We need to be able to run the tests without wrap due to header_only clashes
+#ifdef DO_WRAP
+#define TCS_MEM_DIFF() (MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER)
+#define CHECK_NO_LEAK(pre) CHECK(TCS_MEM_DIFF() == (pre))
+#else
+#define TCS_MEM_DIFF() 0
+#define CHECK_NO_LEAK(pre) ((void)0)
+#endif
+
 int main(int argc, char** argv)
 {
 #ifdef _MSC_VER
@@ -65,6 +74,7 @@ int main(int argc, char** argv)
     return res; // the result from doctest is propagated here as well
 }
 
+#ifdef DO_WRAP
 TEST_CASE("Check mock")
 {
     int pre_alloc = MOCK_ALLOC_COUNTER;
@@ -74,6 +84,7 @@ TEST_CASE("Check mock")
     CHECK(MOCK_ALLOC_COUNTER > pre_alloc);
     CHECK(MOCK_FREE_COUNTER > pre_free);
 }
+#endif
 
 TEST_CASE("Example from README")
 {
@@ -98,15 +109,14 @@ TEST_CASE("Example from README")
 TEST_CASE("Init Test")
 {
     // Given
-    int pre_mem_diff = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
+    int pre_mem_diff = TCS_MEM_DIFF();
 
     // When
     CHECK(tcs_lib_init() == TCS_SUCCESS);
     CHECK(tcs_lib_free() == TCS_SUCCESS);
-    int post_mem_diff = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
 
     // Then
-    CHECK(post_mem_diff == pre_mem_diff);
+    CHECK_NO_LEAK(pre_mem_diff);
 }
 
 TEST_CASE("Create socket")
@@ -116,16 +126,15 @@ TEST_CASE("Create socket")
 
     // Given
     TcsSocket socket = TCS_SOCKET_INVALID;
-    int pre_mem_diff = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
+    int pre_mem_diff = TCS_MEM_DIFF();
 
     // When
     TcsResult sts = tcs_socket_preset(&socket, TCS_PRESET_UDP_IP4);
-    int post_mem_diff = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
 
     // Then
     CHECK(sts == TCS_SUCCESS);
     CHECK(socket != TCS_SOCKET_INVALID);
-    CHECK(post_mem_diff == pre_mem_diff);
+    CHECK_NO_LEAK(pre_mem_diff);
 
     // Clean up
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
@@ -588,16 +597,15 @@ TEST_CASE("tcs_pool simple memory check")
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
 
     // Given
-    int pre_mem_diff = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
+    int pre_mem_diff = TCS_MEM_DIFF();
 
     // When
     struct TcsPool* pool = NULL;
     CHECK(tcs_pool_create(&pool) == TCS_SUCCESS);
     CHECK(tcs_pool_destroy(&pool) == TCS_SUCCESS);
-    int post_mem_diff = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
 
     // Then
-    CHECK(pre_mem_diff == post_mem_diff);
+    CHECK_NO_LEAK(pre_mem_diff);
 
     // Clean up
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
@@ -609,7 +617,7 @@ TEST_CASE("tcs_pool_poll simple write")
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
 
     // Given
-    int pre_mem_diff = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
+    int pre_mem_diff = TCS_MEM_DIFF();
     TcsSocket socket = TCS_SOCKET_INVALID;
 
     CHECK(tcs_socket_preset(&socket, TCS_PRESET_UDP_IP4) == TCS_SUCCESS);
@@ -630,7 +638,6 @@ TEST_CASE("tcs_pool_poll simple write")
     TcsPollEvent ev = TCS_POOL_EVENT_EMPTY;
     CHECK(tcs_pool_poll(pool, &ev, 1, &populated, 5000) == TCS_SUCCESS);
     CHECK(tcs_pool_destroy(&pool) == TCS_SUCCESS);
-    int post_mem_diff = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
 
     // Then
     CHECK(populated == 1);
@@ -639,7 +646,7 @@ TEST_CASE("tcs_pool_poll simple write")
     CHECK(ev.error == TCS_SUCCESS);
     CHECK(ev.user_data == &user_data);
     CHECK(*(int*)(ev.user_data) == user_data);
-    CHECK(pre_mem_diff == post_mem_diff);
+    CHECK_NO_LEAK(pre_mem_diff);
 
     // Clean up
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
@@ -655,7 +662,7 @@ TEST_CASE("tcs_pool_poll simple read")
     TcsSocket socket = TCS_SOCKET_INVALID;
 
     CHECK(tcs_socket_preset(&socket, TCS_PRESET_UDP_IP4) == TCS_SUCCESS);
-    int allocation_diff_before = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
+    int allocation_diff_before = TCS_MEM_DIFF();
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_AF_IP4;
     local_address.data.ip4.address = TCS_ADDRESS_ANY_IP4;
@@ -680,10 +687,9 @@ TEST_CASE("tcs_pool_poll simple read")
     CHECK(tcs_send_to(socket, (const uint8_t*)"hej", 4, TCS_FLAG_NONE, &receiver, NULL) == TCS_SUCCESS);
     CHECK(tcs_pool_poll(pool, &ev, 1, &populated, 10) == TCS_SUCCESS);
     CHECK(tcs_pool_destroy(&pool) == TCS_SUCCESS);
-    int allocation_diff_after = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
 
     // Then
-    CHECK(allocation_diff_before == allocation_diff_after);
+    CHECK_NO_LEAK(allocation_diff_before);
     CHECK(populated == 1);
     CHECK(ev.can_read == true);
     CHECK(ev.can_write == false);
@@ -828,7 +834,7 @@ TEST_CASE("Get loopback address")
     size_t ifaddrs_count = 0;
     struct TcsInterfaceAddress ifaddrs[8];
     bool found_loopback = false;
-    int pre_mem_diff = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
+    int pre_mem_diff = TCS_MEM_DIFF();
 
     // When
     WARN(tcs_address_list(0, TCS_AF_ANY, ifaddrs, 8, &ifaddrs_count) == TCS_SUCCESS);
@@ -844,12 +850,10 @@ TEST_CASE("Get loopback address")
         }
     }
 
-    int post_mem_diff = MOCK_ALLOC_COUNTER - MOCK_FREE_COUNTER;
-
     // Then
     WARN(ifaddrs_count > 0);
     WARN(found_loopback);
-    CHECK(post_mem_diff == pre_mem_diff);
+    CHECK_NO_LEAK(pre_mem_diff);
 
     // Clean up
     REQUIRE(tcs_lib_free() == TCS_SUCCESS); // We are in C++, we should use defer
