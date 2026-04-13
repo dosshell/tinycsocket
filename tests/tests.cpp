@@ -23,6 +23,15 @@
 #include "tinycsocket.h"
 #include "tinydatastructures.h"
 
+// illumos <cmath> lacks the C++11 required integer overload for log10 (section 26.8)
+#ifdef __sun
+#include <cmath>
+static inline double log10(unsigned int x)
+{
+    return std::log10(static_cast<double>(x));
+}
+#endif
+
 #define DOCTEST_CONFIG_IMPLEMENT
 #ifndef _MSC_VER
 #pragma GCC diagnostic push

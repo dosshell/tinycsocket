@@ -23,7 +23,7 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-static const char* const TCS_VERSION_TXT = "v0.3.64";
+static const char* const TCS_VERSION_TXT = "v0.3.65";
 static const char* const TCS_LICENSE_TXT =
     "Copyright 2018 Markus Lindelöw\n"
     "\n"
@@ -190,6 +190,11 @@ typedef unsigned int TcsInterfaceId; // TODO: GUID is used for in vista at newer
     "tinycsocket: Strict ANSI C mode detected on glibc/Cygwin. "        \
     "POSIX symbols may be hidden. Use -std=gnu99 instead of -std=c99, " \
     "or define _POSIX_C_SOURCE=200112L and _DEFAULT_SOURCE before including this header.")
+#endif
+#if defined(__sun) && !defined(__EXTENSIONS__)
+#pragma message(                                                     \
+    "tinycsocket: illumos/Solaris detected without __EXTENSIONS__. " \
+    "Define __EXTENSIONS__ and _XOPEN_SOURCE=500 before including this header.")
 #endif
 #endif
 
@@ -2158,7 +2163,7 @@ TcsResult tcs_opt_nonblocking_get(TcsSocket socket_ctx, bool* is_nonblocking);
 *
 * @param interfaces array to receive interface information, or NULL to only count.
 * @param capacity number of elements in the interfaces array.
-* @param out_count pointer to receive the number of interfaces found.
+* @param out_count pointer to receive the total number of interfaces available, which may exceed capacity.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
 TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, size_t* out_count);
@@ -2186,7 +2191,7 @@ TcsResult tcs_address_resolve(const char* hostname,
 * @param address_family_filter address family filter, or ::TCS_AF_ANY for all.
 * @param interface_addresses array to receive results, or NULL to only count.
 * @param capacity number of elements in the array.
-* @param out_count pointer to receive the number of results.
+* @param out_count pointer to receive the total number of results available, which may exceed capacity.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
 TcsResult tcs_address_list(unsigned int interface_id_filter,

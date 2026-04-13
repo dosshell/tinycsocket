@@ -352,6 +352,52 @@ jobs:
             build/tests_openbsd_x86_64
             build/tests_header_only_openbsd_x86_64
 
+  omnios-x86_64-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: vmactions/omnios-vm@v1
+        with:
+          usesh: true
+          prepare: |
+            pkg install cmake ninja gcc14
+          run: |
+            mkdir build && cd build
+            cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON
+            cmake --build .
+            mv ./tests/tests ./tests_omnios_x86_64
+            mv ./tests/tests_header_only ./tests_header_only_omnios_x86_64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: omnios-x86_64
+          path: |
+            build/tests_omnios_x86_64
+            build/tests_header_only_omnios_x86_64
+
+  omnios-x86_64-noifaddrs-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: vmactions/omnios-vm@v1
+        with:
+          usesh: true
+          prepare: |
+            pkg install cmake ninja gcc14
+          run: |
+            mkdir build && cd build
+            cmake -G "Ninja" ../ -DCMAKE_VERBOSE_MAKEFILE=ON -DTCS_ENABLE_TESTS=ON -DTCS_ENABLE_EXAMPLES=ON -DTCS_WARNINGS_AS_ERRORS=ON -DCMAKE_C_FLAGS="-DTCS_HAS_GETIFADDRS=0"
+            cmake --build .
+            mv ./tests/tests ./tests_omnios_x86_64_noifaddrs
+            mv ./tests/tests_header_only ./tests_header_only_omnios_x86_64_noifaddrs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: omnios-x86_64-noifaddrs
+          path: |
+            build/tests_omnios_x86_64_noifaddrs
+            build/tests_header_only_omnios_x86_64_noifaddrs
+
   linux-s390x-build:
     runs-on: ubuntu-latest
     steps:
@@ -403,6 +449,33 @@ jobs:
           path: |
             build/tests_android_x86_64
             build/tests_header_only_android_x86_64
+
+  android-x86_64-api21-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27
+        id: ndk
+      - name: Build
+        run: |
+          mkdir build && cd build
+          cmake -G "Ninja" ../ \
+            -DCMAKE_TOOLCHAIN_FILE=${{ steps.ndk.outputs.ndk-path }}/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=x86_64 \
+            -DANDROID_PLATFORM=android-21 \
+            -DTCS_ENABLE_TESTS=ON \
+            -DTCS_WARNINGS_AS_ERRORS=ON
+          cmake --build .
+          mv ./tests/tests ./tests_android_x86_64_api21
+          mv ./tests/tests_header_only ./tests_header_only_android_x86_64_api21
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-x86_64-api21
+          path: |
+            build/tests_android_x86_64_api21
+            build/tests_header_only_android_x86_64_api21
 
   cygwin-x86_64-build:
     runs-on: windows-latest
@@ -467,6 +540,7 @@ jobs:
       - name: Run tests
         shell: bash
         run: |
+          set -o pipefail
           echo '```' >> $GITHUB_STEP_SUMMARY
           ./build/tests_msvc_debug_x86.exe 2>&1 | tee -a $GITHUB_STEP_SUMMARY
           ./build/tests_msvc_release_x86.exe 2>&1 | tee -a $GITHUB_STEP_SUMMARY
@@ -510,6 +584,7 @@ jobs:
           path: build/
       - name: Run wine tests
         run: |
+          set -o pipefail
           echo '```' >> $GITHUB_STEP_SUMMARY
           docker run --rm \
             -v ${{ github.workspace }}:/workspace \
@@ -555,6 +630,7 @@ jobs:
           path: build/
       - name: Run wine tests
         run: |
+          set -o pipefail
           echo '```' >> $GITHUB_STEP_SUMMARY
           docker run --rm \
             -v ${{ github.workspace }}:/workspace \
@@ -586,10 +662,11 @@ jobs:
           path: build/
       - name: Run tests
         run: |
+          set -o pipefail
           echo '```' >> $GITHUB_STEP_SUMMARY
           chmod +x ./build/tests_linux_musl_x86_64 ./build/tests_header_only_linux_musl_x86_64
-          ./build/tests_linux_musl_x86_64 2>&1 | tee -a $GITHUB_STEP_SUMMARY
-          ./build/tests_header_only_linux_musl_x86_64 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          sudo capsh --caps='cap_net_raw+eip' -- -c ./build/tests_linux_musl_x86_64 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          sudo capsh --caps='cap_net_raw+eip' -- -c ./build/tests_header_only_linux_musl_x86_64 2>&1 | tee -a $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   linux-test-musl-x86:
@@ -603,10 +680,11 @@ jobs:
           path: build/
       - name: Run tests
         run: |
+          set -o pipefail
           echo '```' >> $GITHUB_STEP_SUMMARY
           chmod +x ./build/tests_linux_musl_x86 ./build/tests_header_only_linux_musl_x86
-          ./build/tests_linux_musl_x86 2>&1 | tee -a $GITHUB_STEP_SUMMARY
-          ./build/tests_header_only_linux_musl_x86 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          sudo capsh --caps='cap_net_raw+eip' -- -c ./build/tests_linux_musl_x86 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          sudo capsh --caps='cap_net_raw+eip' -- -c ./build/tests_header_only_linux_musl_x86 2>&1 | tee -a $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   linux-test-glibc-x86_64:
@@ -620,10 +698,11 @@ jobs:
           path: build/
       - name: Run tests
         run: |
+          set -o pipefail
           echo '```' >> $GITHUB_STEP_SUMMARY
           chmod +x ./build/tests_linux_glibc_x86_64 ./build/tests_header_only_linux_glibc_x86_64
-          ./build/tests_linux_glibc_x86_64 2>&1 | tee -a $GITHUB_STEP_SUMMARY
-          ./build/tests_header_only_linux_glibc_x86_64 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          sudo capsh --caps='cap_net_raw+eip' -- -c ./build/tests_linux_glibc_x86_64 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          sudo capsh --caps='cap_net_raw+eip' -- -c ./build/tests_header_only_linux_glibc_x86_64 2>&1 | tee -a $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   linux-test-glibc-x86:
@@ -637,8 +716,9 @@ jobs:
           path: build/
       - name: Run tests
         run: |
+          set -o pipefail
           echo '```' >> $GITHUB_STEP_SUMMARY
-          docker run --rm \
+          docker run --rm --cap-add=NET_RAW \
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
             i386/debian:bookworm sh -c '
@@ -659,6 +739,7 @@ jobs:
           path: build/
       - name: Run tests
         run: |
+          set -o pipefail
           echo '```' >> $GITHUB_STEP_SUMMARY
           chmod +x ./build/tests_macos_arm64 ./build/tests_header_only_macos_arm64
           ./build/tests_macos_arm64 2>&1 | tee -a $GITHUB_STEP_SUMMARY
@@ -679,8 +760,12 @@ jobs:
           usesh: true
           run: |
             chmod +x ./build/tests_freebsd_x86_64 ./build/tests_header_only_freebsd_x86_64
-            ./build/tests_freebsd_x86_64 2>&1 | tee ./test_output.txt
-            ./build/tests_header_only_freebsd_x86_64 2>&1 | tee -a ./test_output.txt
+            ./build/tests_freebsd_x86_64 > /tmp/out1.txt 2>&1; s1=$?
+            cat /tmp/out1.txt
+            ./build/tests_header_only_freebsd_x86_64 > /tmp/out2.txt 2>&1; s2=$?
+            cat /tmp/out2.txt
+            cat /tmp/out1.txt /tmp/out2.txt > ./test_output.txt
+            [ $s1 -eq 0 ] && [ $s2 -eq 0 ] || exit 1
       - name: Write step summary
         if: always()
         run: |
@@ -702,8 +787,66 @@ jobs:
           usesh: true
           run: |
             chmod +x ./build/tests_openbsd_x86_64 ./build/tests_header_only_openbsd_x86_64
-            ./build/tests_openbsd_x86_64 2>&1 | tee ./test_output.txt
-            ./build/tests_header_only_openbsd_x86_64 2>&1 | tee -a ./test_output.txt
+            ./build/tests_openbsd_x86_64 > /tmp/out1.txt 2>&1; s1=$?
+            cat /tmp/out1.txt
+            ./build/tests_header_only_openbsd_x86_64 > /tmp/out2.txt 2>&1; s2=$?
+            cat /tmp/out2.txt
+            cat /tmp/out1.txt /tmp/out2.txt > ./test_output.txt
+            [ $s1 -eq 0 ] && [ $s2 -eq 0 ] || exit 1
+      - name: Write step summary
+        if: always()
+        run: |
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat ./test_output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  omnios-x86_64-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [omnios-x86_64-build]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: omnios-x86_64
+          path: build/
+      - uses: vmactions/omnios-vm@v1
+        with:
+          usesh: true
+          run: |
+            chmod +x ./build/tests_omnios_x86_64 ./build/tests_header_only_omnios_x86_64
+            ./build/tests_omnios_x86_64 > /tmp/out1.txt 2>&1; s1=$?
+            cat /tmp/out1.txt
+            ./build/tests_header_only_omnios_x86_64 > /tmp/out2.txt 2>&1; s2=$?
+            cat /tmp/out2.txt
+            cat /tmp/out1.txt /tmp/out2.txt > ./test_output.txt
+            [ $s1 -eq 0 ] && [ $s2 -eq 0 ] || exit 1
+      - name: Write step summary
+        if: always()
+        run: |
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat ./test_output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  omnios-x86_64-noifaddrs-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [omnios-x86_64-noifaddrs-build]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: omnios-x86_64-noifaddrs
+          path: build/
+      - uses: vmactions/omnios-vm@v1
+        with:
+          usesh: true
+          run: |
+            chmod +x ./build/tests_omnios_x86_64_noifaddrs ./build/tests_header_only_omnios_x86_64_noifaddrs
+            ./build/tests_omnios_x86_64_noifaddrs > /tmp/out1.txt 2>&1; s1=$?
+            cat /tmp/out1.txt
+            ./build/tests_header_only_omnios_x86_64_noifaddrs > /tmp/out2.txt 2>&1; s2=$?
+            cat /tmp/out2.txt
+            cat /tmp/out1.txt /tmp/out2.txt > ./test_output.txt
+            [ $s1 -eq 0 ] && [ $s2 -eq 0 ] || exit 1
       - name: Write step summary
         if: always()
         run: |
@@ -722,6 +865,7 @@ jobs:
           path: build/
       - name: Run tests
         run: |
+          set -o pipefail
           sudo apt-get update && sudo apt-get install -y qemu-user-static gcc-s390x-linux-gnu
           echo '```' >> $GITHUB_STEP_SUMMARY
           chmod +x ./build/tests_linux_s390x ./build/tests_header_only_linux_s390x
@@ -751,6 +895,32 @@ jobs:
             adb root
             adb push build/tests_android_x86_64 /data/local/tmp/tests
             adb push build/tests_header_only_android_x86_64 /data/local/tmp/tests_header_only
+            adb shell chmod +x /data/local/tmp/tests /data/local/tmp/tests_header_only
+            adb shell /data/local/tmp/tests
+            adb shell /data/local/tmp/tests_header_only
+
+  android-x86_64-api21-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [android-x86_64-api21-build]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: android-x86_64-api21
+          path: build/
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86_64
+          script: |
+            adb root
+            adb push build/tests_android_x86_64_api21 /data/local/tmp/tests
+            adb push build/tests_header_only_android_x86_64_api21 /data/local/tmp/tests_header_only
             adb shell chmod +x /data/local/tmp/tests /data/local/tmp/tests_header_only
             adb shell /data/local/tmp/tests
             adb shell /data/local/tmp/tests_header_only
