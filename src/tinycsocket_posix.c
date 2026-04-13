@@ -43,9 +43,14 @@
 #endif
 
 #ifndef TCS_HAS_GETIFADDRS
-#if defined(__ANDROID__) && (__ANDROID_API__ >= 24)
+#if defined(__ANDROID__)
+#if __ANDROID_API__ >= 24
 #define TCS_HAS_GETIFADDRS 1
-#elif defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+#else
+#define TCS_HAS_GETIFADDRS 0
+#endif
+#elif defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || \
+    defined(__NetBSD__) || defined(__CYGWIN__)
 #define TCS_HAS_GETIFADDRS 1
 #else
 #define TCS_HAS_GETIFADDRS 0
@@ -63,10 +68,13 @@
 #include <stdlib.h>      // malloc()/free()
 #include <string.h>      // strcpy, memset
 #include <sys/ioctl.h>   // Flags for ifaddrs
-#include <sys/socket.h>  // pretty much everything
-#include <sys/types.h>   // POSIX.1 compatibility
-#include <sys/uio.h>     // struct iovec
-#include <unistd.h>      // close()
+#ifdef __sun
+#include <sys/sockio.h> // SIOCGIFCONF on Solaris/illumos
+#endif
+#include <sys/socket.h> // pretty much everything
+#include <sys/types.h>  // POSIX.1 compatibility
+#include <sys/uio.h>    // struct iovec
+#include <unistd.h>     // close()
 
 #if TCS_HAS_GETIFADDRS
 #include <ifaddrs.h> // getifaddr()
@@ -1368,6 +1376,7 @@ TcsResult tcs_opt_membership_drop_from(TcsSocket socket_ctx,
 
 // ######## Address and Interface Utilities ########
 
+#if TCS_HAS_GETIFADDRS
 TcsResult tcs_interface_list(struct TcsInterface* found_interfaces,
                              size_t interfaces_length,
                              size_t* interfaces_populated)
@@ -1405,6 +1414,90 @@ TcsResult tcs_interface_list(struct TcsInterface* found_interfaces,
     if_freenameindex(interfaces);
     return TCS_SUCCESS;
 }
+#else
+// Fallback using ioctl(SIOCGIFCONF) for systems without if_nameindex (e.g. Android < API 24)
+TcsResult tcs_interface_list(struct TcsInterface* found_interfaces,
+                             size_t interfaces_length,
+                             size_t* interfaces_populated)
+{
+    if (found_interfaces == NULL && interfaces_populated == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    if (found_interfaces == NULL && interfaces_length != 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    if (interfaces_populated != NULL)
+        *interfaces_populated = 0;
+
+    int fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (fd < 0)
+        return errno2retcode(errno);
+
+    // Start with stack buffer, grow on heap if truncated
+    char stack_buf[512];
+    char* buf = stack_buf;
+    int buf_len = (int)sizeof(stack_buf);
+    struct ifconf ifc;
+
+    for (;;)
+    {
+        ifc.ifc_len = buf_len;
+        ifc.ifc_buf = buf;
+        if (ioctl(fd, SIOCGIFCONF, &ifc) != 0)
+        {
+            if (buf != stack_buf)
+                free(buf);
+            close(fd);
+            return errno2retcode(errno);
+        }
+        if (ifc.ifc_len < buf_len)
+            break;
+        // If caller only wants N results (not counting), don't grow beyond what's needed
+        if (found_interfaces != NULL && interfaces_populated == NULL &&
+            (size_t)ifc.ifc_len / sizeof(struct ifreq) >= interfaces_length)
+            break;
+        buf_len *= 2;
+        if (buf != stack_buf)
+            free(buf);
+        buf = (char*)malloc((size_t)buf_len);
+        if (buf == NULL)
+        {
+            close(fd);
+            return TCS_ERROR_MEMORY;
+        }
+    }
+
+    size_t count = 0;
+    int offset = 0;
+    while (offset < ifc.ifc_len)
+    {
+        struct ifreq* ifr = (struct ifreq*)(buf + offset);
+        int entry_len = (int)sizeof(struct ifreq);
+
+        if (found_interfaces != NULL && count < interfaces_length)
+        {
+            strncpy(found_interfaces[count].name, ifr->ifr_name, TCS_INTERFACE_NAME_SIZE - 1);
+            found_interfaces[count].name[TCS_INTERFACE_NAME_SIZE - 1] = '\0';
+            found_interfaces[count].id = (unsigned int)(count + 1);
+        }
+        count++;
+
+        // Stop early if caller only wants results, not a total count
+        if (found_interfaces != NULL && interfaces_populated == NULL && count >= interfaces_length)
+            break;
+
+        offset += entry_len;
+    }
+
+    if (interfaces_populated != NULL)
+        *interfaces_populated = count;
+
+    if (buf != stack_buf)
+        free(buf);
+    close(fd);
+    return TCS_SUCCESS;
+}
+#endif
 
 TcsResult tcs_address_resolve(const char* hostname,
                               TcsAddressFamily address_family,
@@ -1594,16 +1687,117 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
     return TCS_SUCCESS;
 }
 #else
-// SunOS before 2010, HP and AIX does not support getifaddrs
-// ioctl implementation,
-// https://stackoverflow.com/questions/4139405/how-can-i-get-to-know-the-ip-address-for-interfaces-in-c/4139811#4139811
+// Fallback using ioctl(SIOCGIFCONF) for systems without getifaddrs (e.g. Android < API 24, old SunOS)
+// Limitation: SIOCGIFCONF only returns IPv4 addresses. IPv6 enumeration would require
+// platform-specific mechanisms (Linux: /proc/net/if_inet6 or netlink, Solaris: SIOCGLIFCONF).
 TcsResult tcs_address_list(unsigned int interface_id_filter,
                            TcsAddressFamily address_family_filter,
                            struct TcsInterfaceAddress interface_addresses[],
                            size_t capacity,
                            size_t* out_count)
 {
-    return TCS_ERROR_NOT_IMPLEMENTED;
+    if (interface_addresses == NULL && out_count == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (interface_addresses == NULL && capacity != 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (out_count != NULL)
+        *out_count = 0;
+
+    // ioctl SIOCGIFCONF only supports IPv4
+    if (address_family_filter != TCS_AF_ANY && address_family_filter != TCS_AF_IP4)
+        return TCS_SUCCESS;
+
+    int fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (fd < 0)
+        return errno2retcode(errno);
+
+    // Start with stack buffer, grow on heap if truncated
+    char stack_buf[512];
+    char* buf = stack_buf;
+    int buf_len = (int)sizeof(stack_buf);
+    struct ifconf ifc;
+
+    for (;;)
+    {
+        ifc.ifc_len = buf_len;
+        ifc.ifc_buf = buf;
+        if (ioctl(fd, SIOCGIFCONF, &ifc) != 0)
+        {
+            if (buf != stack_buf)
+                free(buf);
+            close(fd);
+            return errno2retcode(errno);
+        }
+        if (ifc.ifc_len < buf_len)
+            break;
+        // If caller only wants N results (not counting), don't grow beyond what's needed
+        if (interface_addresses != NULL && out_count == NULL &&
+            (size_t)ifc.ifc_len / sizeof(struct ifreq) >= capacity)
+            break;
+        buf_len *= 2;
+        if (buf != stack_buf)
+            free(buf);
+        buf = (char*)malloc((size_t)buf_len);
+        if (buf == NULL)
+        {
+            close(fd);
+            return TCS_ERROR_MEMORY;
+        }
+    }
+
+    size_t populated = 0;
+    int offset = 0;
+    unsigned int iface_index = 0;
+    while (offset < ifc.ifc_len)
+    {
+        struct ifreq* ifr = (struct ifreq*)(buf + offset);
+        int entry_len = (int)sizeof(struct ifreq);
+        iface_index++;
+
+        if (interface_id_filter != 0 && iface_index != interface_id_filter)
+        {
+            offset += entry_len;
+            continue;
+        }
+
+        struct TcsAddress address = TCS_ADDRESS_NONE;
+        TcsResult convert_status = native2sockaddr((struct sockaddr*)&ifr->ifr_addr, &address);
+        if (convert_status == TCS_ERROR_NOT_IMPLEMENTED)
+        {
+            offset += entry_len;
+            continue;
+        }
+        if (convert_status != TCS_SUCCESS)
+        {
+            if (buf != stack_buf)
+                free(buf);
+            close(fd);
+            return convert_status;
+        }
+
+        if (interface_addresses != NULL && populated < capacity)
+        {
+            strncpy(interface_addresses[populated].iface.name, ifr->ifr_name, TCS_INTERFACE_NAME_SIZE - 1);
+            interface_addresses[populated].iface.name[TCS_INTERFACE_NAME_SIZE - 1] = '\0';
+            interface_addresses[populated].iface.id = iface_index;
+            interface_addresses[populated].address = address;
+            populated++;
+        }
+
+        if (out_count != NULL)
+            (*out_count)++;
+
+        // Stop early if caller only wants results, not a total count
+        if (interface_addresses != NULL && out_count == NULL && populated >= capacity)
+            break;
+
+        offset += entry_len;
+    }
+
+    if (buf != stack_buf)
+        free(buf);
+    close(fd);
+    return TCS_SUCCESS;
 }
 #endif
 

@@ -23,7 +23,7 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-static const char* const TCS_VERSION_TXT = "v0.3.64";
+static const char* const TCS_VERSION_TXT = "v0.3.65";
 static const char* const TCS_LICENSE_TXT =
     "Copyright 2018 Markus Lindelöw\n"
     "\n"
@@ -190,6 +190,11 @@ typedef unsigned int TcsInterfaceId; // TODO: GUID is used for in vista at newer
     "tinycsocket: Strict ANSI C mode detected on glibc/Cygwin. "        \
     "POSIX symbols may be hidden. Use -std=gnu99 instead of -std=c99, " \
     "or define _POSIX_C_SOURCE=200112L and _DEFAULT_SOURCE before including this header.")
+#endif
+#if defined(__sun) && !defined(__EXTENSIONS__)
+#pragma message(                                                     \
+    "tinycsocket: illumos/Solaris detected without __EXTENSIONS__. " \
+    "Define __EXTENSIONS__ before including this header for full POSIX support.")
 #endif
 #endif
 

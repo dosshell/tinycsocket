@@ -1322,7 +1322,7 @@ TcsResult tcs_address_parse(const char str[], struct TcsAddress* out_address)
                     break;
                 case A_PORT_ACCUM:
                     ctx.port_val = ctx.port_val * 10 + (*c - '0');
-                    if (ctx.port_val > UINT16_MAX)
+                    if ((uint32_t)ctx.port_val > UINT16_MAX)
                         return TCS_ERROR_INVALID_ARGUMENT;
                     break;
                 case A_SCOPE_ACCUM:

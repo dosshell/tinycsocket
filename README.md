@@ -59,7 +59,7 @@ See the example folder for information of how to use tinycsocket.
 Currently supported platforms:
 - Windows NT 5.0 SP1 (Windows 2000 SP1) or newer.
 - POSIX.1-2001 compliant systems (Linux, FreeBSD, OpenBSD, MacOS, Solaris etc.)
-- Android (API level 24+, partial support for earlier versions)
+- Android (API level 24+ for full IPv6 interface support)
 
 # Installation instructions
 
@@ -128,29 +128,32 @@ like.
 
 These platforms are tested for every pull request. All configurations are tested as both static library and header-only.
 
-| OS                                | Compiler                           | Arch     | Notes        |
-|-----------------------------------|------------------------------------|----------|--------------|
-| Windows Server 2025               | MSVC v19.44                        | x86      |              |
-| Windows Server 2025               | MSVC v19.44                        | x64      |              |
-| Windows Server 2025               | i686-w64-mingw32-gcc-posix v13     | x86      | WINVER 0x500 |
-| Windows Server 2025               | i686-w64-mingw32-gcc-posix v13     | x86      | WINVER 0x502 |
-| Windows Server 2025               | i686-w64-mingw32-gcc v15.2         | x86      | WINVER 0x603 |
-| Windows Server 2025               | x86_64-w64-mingw32-gcc-posix v13   | x64      | WINVER 0x502 |
-| Windows Server 2025               | x86_64-w64-mingw32-gcc v15.2       | x64      | WINVER 0x603 |
-| Wine (Alpine 3.23)                | MSVC v19.44                        | x86      |              |
-| Wine (Alpine 3.23)                | MSVC v19.44                        | x64      |              |
-| Wine (Alpine 3.23)                | i686-w64-mingw32-gcc-posix v13     | x86      | WINVER 0x500 |
-| Wine (Alpine 3.23)                | i686-w64-mingw32-gcc-posix v13     | x86      | WINVER 0x502 |
-| Wine (Alpine 3.23)                | i686-w64-mingw32-gcc v15.2         | x86      | WINVER 0x603 |
-| Wine (Alpine 3.23)                | x86_64-w64-mingw32-gcc-posix v13   | x64      | WINVER 0x502 |
-| Wine (Alpine 3.23)                | x86_64-w64-mingw32-gcc v15.2       | x64      | WINVER 0x603 |
-| Linux Alpine 3.23 (musl)          | gcc v15.2                          | x86_64   |              |
-| Linux Alpine 3.23 (musl)          | gcc v15.2                          | x86      |              |
-| Linux Ubuntu 24.04 (glibc)        | gcc v13.3                          | x86_64   |              |
-| Linux Ubuntu 24.04 (glibc)        | gcc v13.3                          | x86      |              |
-| Linux Ubuntu 24.04 (glibc)        | s390x-linux-gnu-gcc                | s390x    | Big-endian   |
-| MacOS (latest)                    | Apple Clang                        | arm64    |              |
-| FreeBSD 15.0                      | Clang 19.1                         | x86_64   |              |
-| OpenBSD (latest)                  | Clang                              | x86_64   |              |
-| Android API 24 (Bionic)           | NDK Clang                          | x86_64   | Emulator     |
-| Cygwin (Windows Server 2025)      | gcc                                | x86_64   |              |
+| OS                                | Compiler                           | Arch     | Notes                    |
+|-----------------------------------|------------------------------------|----------|--------------------------|
+| Windows Server 2025               | MSVC v19.44                        | x86      |                          |
+| Windows Server 2025               | MSVC v19.44                        | x64      |                          |
+| Windows Server 2025               | i686-w64-mingw32-gcc-posix v13     | x86      | WINVER 0x500             |
+| Windows Server 2025               | i686-w64-mingw32-gcc-posix v13     | x86      | WINVER 0x502             |
+| Windows Server 2025               | i686-w64-mingw32-gcc v15.2         | x86      | WINVER 0x603             |
+| Windows Server 2025               | x86_64-w64-mingw32-gcc-posix v13   | x64      | WINVER 0x502             |
+| Windows Server 2025               | x86_64-w64-mingw32-gcc v15.2       | x64      | WINVER 0x603             |
+| Wine (Alpine 3.23)                | MSVC v19.44                        | x86      |                          |
+| Wine (Alpine 3.23)                | MSVC v19.44                        | x64      |                          |
+| Wine (Alpine 3.23)                | i686-w64-mingw32-gcc-posix v13     | x86      | WINVER 0x500             |
+| Wine (Alpine 3.23)                | i686-w64-mingw32-gcc-posix v13     | x86      | WINVER 0x502             |
+| Wine (Alpine 3.23)                | i686-w64-mingw32-gcc v15.2         | x86      | WINVER 0x603             |
+| Wine (Alpine 3.23)                | x86_64-w64-mingw32-gcc-posix v13   | x64      | WINVER 0x502             |
+| Wine (Alpine 3.23)                | x86_64-w64-mingw32-gcc v15.2       | x64      | WINVER 0x603             |
+| Linux Alpine 3.23 (musl)          | gcc v15.2                          | x86_64   |                          |
+| Linux Alpine 3.23 (musl)          | gcc v15.2                          | x86      |                          |
+| Linux Ubuntu 24.04 (glibc)        | gcc v13.3                          | x86_64   |                          |
+| Linux Ubuntu 24.04 (glibc)        | gcc v13.3                          | x86      |                          |
+| Linux Ubuntu 24.04 (glibc)        | s390x-linux-gnu-gcc                | s390x    | Big-endian               |
+| MacOS (latest)                    | Apple Clang                        | arm64    |                          |
+| FreeBSD 15.0                      | Clang 19.1                         | x86_64   |                          |
+| OpenBSD (latest)                  | Clang                              | x86_64   |                          |
+| Android API 24 (Bionic)           | NDK Clang                          | x86_64   | Emulator                 |
+| Android API 21 (Bionic)           | NDK Clang                          | x86_64   | Emulator, ioctl fallback |
+| OmniOS (illumos)                  | gcc                                | x86_64   |                          |
+| OmniOS (illumos)                  | gcc                                | x86_64   | ioctl fallback           |
+| Cygwin (Windows Server 2025)      | gcc                                | x86_64   |                          |
