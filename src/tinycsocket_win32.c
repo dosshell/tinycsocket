@@ -1499,35 +1499,6 @@ TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, 
         return TCS_ERROR_UNKNOWN;
     }
 
-    if (interfaces != NULL)
-    {
-        size_t i = 0;
-        for (PIP_ADAPTER_ADDRESSES iter = adapters; iter != NULL && i < capacity; iter = iter->Next)
-        {
-            bool is_up = false;
-            TcsResult up_sts = adapter_is_up(iter, &is_up);
-            if (up_sts != TCS_SUCCESS)
-            {
-                free(adapters);
-                return TCS_ERROR_SYSTEM;
-            }
-            if (!is_up)
-                continue;
-
-            memset(interfaces[i].name, '\0', TCS_INTERFACE_NAME_SIZE);
-            TcsResult name_sts = adapter_get_friendly_name(iter, interfaces[i].name, TCS_INTERFACE_NAME_SIZE - 1);
-            if (name_sts != TCS_SUCCESS)
-            {
-                free(adapters);
-                return TCS_ERROR_SYSTEM;
-            }
-            interfaces[i].id = iter->IfIndex;
-            if (out_count != NULL)
-                (*out_count)++;
-            ++i;
-        }
-    }
-    else
     {
         size_t i = 0;
         for (PIP_ADAPTER_ADDRESSES iter = adapters; iter != NULL; iter = iter->Next)
@@ -1541,10 +1512,22 @@ TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, 
             }
             if (!is_up)
                 continue;
+
+            if (interfaces != NULL && i < capacity)
+            {
+                memset(interfaces[i].name, '\0', TCS_INTERFACE_NAME_SIZE);
+                TcsResult name_sts = adapter_get_friendly_name(iter, interfaces[i].name, TCS_INTERFACE_NAME_SIZE - 1);
+                if (name_sts != TCS_SUCCESS)
+                {
+                    free(adapters);
+                    return TCS_ERROR_SYSTEM;
+                }
+                interfaces[i].id = iter->IfIndex;
+            }
+            if (out_count != NULL)
+                (*out_count)++;
             ++i;
         }
-        if (out_count != NULL)
-            *out_count = i;
     }
 
     free(adapters);

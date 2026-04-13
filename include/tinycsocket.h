@@ -2169,7 +2169,7 @@ TcsResult tcs_opt_nonblocking_get(TcsSocket socket_ctx, bool* is_nonblocking);
 *
 * @param interfaces array to receive interface information, or NULL to only count.
 * @param capacity number of elements in the interfaces array.
-* @param out_count pointer to receive the number of interfaces found.
+* @param out_count pointer to receive the total number of interfaces available, which may exceed capacity.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
 TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, size_t* out_count);
@@ -2197,7 +2197,7 @@ TcsResult tcs_address_resolve(const char* hostname,
 * @param address_family_filter address family filter, or ::TCS_AF_ANY for all.
 * @param interface_addresses array to receive results, or NULL to only count.
 * @param capacity number of elements in the array.
-* @param out_count pointer to receive the number of results.
+* @param out_count pointer to receive the total number of results available, which may exceed capacity.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
 TcsResult tcs_address_list(unsigned int interface_id_filter,
@@ -4043,20 +4043,15 @@ TcsResult tcs_interface_list(struct TcsInterface* found_interfaces,
     if (interfaces == NULL)
         return errno2retcode(errno);
 
-    if (found_interfaces != NULL)
+    for (size_t i = 0; interfaces[i].if_index != 0; ++i)
     {
-        for (size_t i = 0; i < interfaces_length && interfaces[i].if_index != 0; ++i)
+        if (found_interfaces != NULL && i < interfaces_length)
         {
             strncpy(found_interfaces[i].name, interfaces[i].if_name, TCS_INTERFACE_NAME_SIZE - 1);
             found_interfaces[i].name[TCS_INTERFACE_NAME_SIZE - 1] = '\0';
             found_interfaces[i].id = interfaces[i].if_index;
-            if (interfaces_populated != NULL)
-                *interfaces_populated += 1;
         }
-    }
-    else // found_interfaces == NULL && interface_populated != NULL
-    {
-        for (size_t i = 0; interfaces[i].if_index != 0; ++i)
+        if (interfaces_populated != NULL)
             *interfaces_populated += 1;
     }
 
@@ -4130,10 +4125,6 @@ TcsResult tcs_interface_list(struct TcsInterface* found_interfaces,
             found_interfaces[count].id = (unsigned int)(count + 1);
         }
         count++;
-
-        // Stop early if caller only wants results, not a total count
-        if (found_interfaces != NULL && interfaces_populated == NULL && count >= interfaces_length)
-            break;
 
         offset += entry_len;
     }
@@ -4380,8 +4371,7 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
         if (ifc.ifc_len < buf_len)
             break;
         // If caller only wants N results (not counting), don't grow beyond what's needed
-        if (interface_addresses != NULL && out_count == NULL &&
-            (size_t)ifc.ifc_len / sizeof(struct ifreq) >= capacity)
+        if (interface_addresses != NULL && out_count == NULL && (size_t)ifc.ifc_len / sizeof(struct ifreq) >= capacity)
             break;
         buf_len *= 2;
         if (buf != stack_buf)
@@ -4435,10 +4425,6 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
 
         if (out_count != NULL)
             (*out_count)++;
-
-        // Stop early if caller only wants results, not a total count
-        if (interface_addresses != NULL && out_count == NULL && populated >= capacity)
-            break;
 
         offset += entry_len;
     }
@@ -6012,35 +5998,6 @@ TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, 
         return TCS_ERROR_UNKNOWN;
     }
 
-    if (interfaces != NULL)
-    {
-        size_t i = 0;
-        for (PIP_ADAPTER_ADDRESSES iter = adapters; iter != NULL && i < capacity; iter = iter->Next)
-        {
-            bool is_up = false;
-            TcsResult up_sts = adapter_is_up(iter, &is_up);
-            if (up_sts != TCS_SUCCESS)
-            {
-                free(adapters);
-                return TCS_ERROR_SYSTEM;
-            }
-            if (!is_up)
-                continue;
-
-            memset(interfaces[i].name, '\0', TCS_INTERFACE_NAME_SIZE);
-            TcsResult name_sts = adapter_get_friendly_name(iter, interfaces[i].name, TCS_INTERFACE_NAME_SIZE - 1);
-            if (name_sts != TCS_SUCCESS)
-            {
-                free(adapters);
-                return TCS_ERROR_SYSTEM;
-            }
-            interfaces[i].id = iter->IfIndex;
-            if (out_count != NULL)
-                (*out_count)++;
-            ++i;
-        }
-    }
-    else
     {
         size_t i = 0;
         for (PIP_ADAPTER_ADDRESSES iter = adapters; iter != NULL; iter = iter->Next)
@@ -6054,10 +6011,22 @@ TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, 
             }
             if (!is_up)
                 continue;
+
+            if (interfaces != NULL && i < capacity)
+            {
+                memset(interfaces[i].name, '\0', TCS_INTERFACE_NAME_SIZE);
+                TcsResult name_sts = adapter_get_friendly_name(iter, interfaces[i].name, TCS_INTERFACE_NAME_SIZE - 1);
+                if (name_sts != TCS_SUCCESS)
+                {
+                    free(adapters);
+                    return TCS_ERROR_SYSTEM;
+                }
+                interfaces[i].id = iter->IfIndex;
+            }
+            if (out_count != NULL)
+                (*out_count)++;
             ++i;
         }
-        if (out_count != NULL)
-            *out_count = i;
     }
 
     free(adapters);

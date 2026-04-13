@@ -84,6 +84,8 @@ target_include_directories(
 )
 if(WIN32)
     target_link_libraries(tinycsocket_header INTERFACE wsock32 ws2_32 iphlpapi)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
+    target_link_libraries(tinycsocket_header INTERFACE socket nsl)
 endif()
 
 # Tinycsocket static library

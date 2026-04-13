@@ -2163,7 +2163,7 @@ TcsResult tcs_opt_nonblocking_get(TcsSocket socket_ctx, bool* is_nonblocking);
 *
 * @param interfaces array to receive interface information, or NULL to only count.
 * @param capacity number of elements in the interfaces array.
-* @param out_count pointer to receive the number of interfaces found.
+* @param out_count pointer to receive the total number of interfaces available, which may exceed capacity.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
 TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, size_t* out_count);
@@ -2191,7 +2191,7 @@ TcsResult tcs_address_resolve(const char* hostname,
 * @param address_family_filter address family filter, or ::TCS_AF_ANY for all.
 * @param interface_addresses array to receive results, or NULL to only count.
 * @param capacity number of elements in the array.
-* @param out_count pointer to receive the number of results.
+* @param out_count pointer to receive the total number of results available, which may exceed capacity.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
 TcsResult tcs_address_list(unsigned int interface_id_filter,

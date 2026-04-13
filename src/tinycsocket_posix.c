@@ -1394,20 +1394,15 @@ TcsResult tcs_interface_list(struct TcsInterface* found_interfaces,
     if (interfaces == NULL)
         return errno2retcode(errno);
 
-    if (found_interfaces != NULL)
+    for (size_t i = 0; interfaces[i].if_index != 0; ++i)
     {
-        for (size_t i = 0; i < interfaces_length && interfaces[i].if_index != 0; ++i)
+        if (found_interfaces != NULL && i < interfaces_length)
         {
             strncpy(found_interfaces[i].name, interfaces[i].if_name, TCS_INTERFACE_NAME_SIZE - 1);
             found_interfaces[i].name[TCS_INTERFACE_NAME_SIZE - 1] = '\0';
             found_interfaces[i].id = interfaces[i].if_index;
-            if (interfaces_populated != NULL)
-                *interfaces_populated += 1;
         }
-    }
-    else // found_interfaces == NULL && interface_populated != NULL
-    {
-        for (size_t i = 0; interfaces[i].if_index != 0; ++i)
+        if (interfaces_populated != NULL)
             *interfaces_populated += 1;
     }
 
@@ -1481,10 +1476,6 @@ TcsResult tcs_interface_list(struct TcsInterface* found_interfaces,
             found_interfaces[count].id = (unsigned int)(count + 1);
         }
         count++;
-
-        // Stop early if caller only wants results, not a total count
-        if (found_interfaces != NULL && interfaces_populated == NULL && count >= interfaces_length)
-            break;
 
         offset += entry_len;
     }
@@ -1731,8 +1722,7 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
         if (ifc.ifc_len < buf_len)
             break;
         // If caller only wants N results (not counting), don't grow beyond what's needed
-        if (interface_addresses != NULL && out_count == NULL &&
-            (size_t)ifc.ifc_len / sizeof(struct ifreq) >= capacity)
+        if (interface_addresses != NULL && out_count == NULL && (size_t)ifc.ifc_len / sizeof(struct ifreq) >= capacity)
             break;
         buf_len *= 2;
         if (buf != stack_buf)
@@ -1786,10 +1776,6 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
 
         if (out_count != NULL)
             (*out_count)++;
-
-        // Stop early if caller only wants results, not a total count
-        if (interface_addresses != NULL && out_count == NULL && populated >= capacity)
-            break;
 
         offset += entry_len;
     }
