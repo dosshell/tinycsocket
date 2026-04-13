@@ -1664,14 +1664,9 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
             interface_addresses[populated].iface.id = interface_id;
             interface_addresses[populated].address = address;
             populated++;
-
-            if (out_count != NULL)
-                (*out_count)++;
         }
-        else if (interface_addresses == NULL && out_count != NULL)
-        {
+        if (out_count != NULL)
             (*out_count)++;
-        }
     }
 
     freeifaddrs(ifap);
@@ -1694,8 +1689,13 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
     if (out_count != NULL)
         *out_count = 0;
 
-    // ioctl SIOCGIFCONF only supports IPv4
-    if (address_family_filter != TCS_AF_ANY && address_family_filter != TCS_AF_IP4)
+    // Check if we support the requested address family in the ioctl fallback.
+    // IPv4 is always available. AF_PACKET is available on Linux via SIOCGIFHWADDR.
+    bool supported = (address_family_filter == TCS_AF_ANY || address_family_filter == TCS_AF_IP4);
+#if TCS_HAS_AF_PACKET
+    supported = supported || (address_family_filter == TCS_AF_PACKET);
+#endif
+    if (!supported)
         return TCS_SUCCESS;
 
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -1721,7 +1721,6 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
         }
         if (ifc.ifc_len < buf_len)
             break;
-        // If caller only wants N results (not counting), don't grow beyond what's needed
         if (interface_addresses != NULL && out_count == NULL && (size_t)ifc.ifc_len / sizeof(struct ifreq) >= capacity)
             break;
         buf_len *= 2;
@@ -1737,45 +1736,69 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
 
     size_t populated = 0;
     int offset = 0;
-    unsigned int iface_index = 0;
     while (offset < ifc.ifc_len)
     {
         struct ifreq* ifr = (struct ifreq*)(buf + offset);
         int entry_len = (int)sizeof(struct ifreq);
-        iface_index++;
 
-        if (interface_id_filter != 0 && iface_index != interface_id_filter)
+        unsigned int iface_id = if_nametoindex(ifr->ifr_name);
+        if (iface_id == 0)
         {
             offset += entry_len;
             continue;
         }
 
-        struct TcsAddress address = TCS_ADDRESS_NONE;
-        TcsResult convert_status = native2sockaddr((struct sockaddr*)&ifr->ifr_addr, &address);
-        if (convert_status == TCS_ERROR_NOT_IMPLEMENTED)
+        if (interface_id_filter != 0 && iface_id != interface_id_filter)
         {
             offset += entry_len;
             continue;
         }
-        if (convert_status != TCS_SUCCESS)
+
+        // IPv4 addresses
+        if (address_family_filter == TCS_AF_ANY || address_family_filter == TCS_AF_IP4)
         {
-            if (buf != stack_buf)
-                free(buf);
-            close(fd);
-            return convert_status;
+            struct TcsAddress address = TCS_ADDRESS_NONE;
+            TcsResult convert_status = native2sockaddr((struct sockaddr*)&ifr->ifr_addr, &address);
+            if (convert_status == TCS_SUCCESS)
+            {
+                if (interface_addresses != NULL && populated < capacity)
+                {
+                    strncpy(interface_addresses[populated].iface.name, ifr->ifr_name, TCS_INTERFACE_NAME_SIZE - 1);
+                    interface_addresses[populated].iface.name[TCS_INTERFACE_NAME_SIZE - 1] = '\0';
+                    interface_addresses[populated].iface.id = iface_id;
+                    interface_addresses[populated].address = address;
+                    populated++;
+                }
+                if (out_count != NULL)
+                    (*out_count)++;
+            }
         }
 
-        if (interface_addresses != NULL && populated < capacity)
+#if TCS_HAS_AF_PACKET
+        // AF_PACKET addresses via SIOCGIFHWADDR (Ethernet only)
+        if (address_family_filter == TCS_AF_ANY || address_family_filter == TCS_AF_PACKET)
         {
-            strncpy(interface_addresses[populated].iface.name, ifr->ifr_name, TCS_INTERFACE_NAME_SIZE - 1);
-            interface_addresses[populated].iface.name[TCS_INTERFACE_NAME_SIZE - 1] = '\0';
-            interface_addresses[populated].iface.id = iface_index;
-            interface_addresses[populated].address = address;
-            populated++;
-        }
+            struct ifreq hw_req;
+            memset(&hw_req, 0, sizeof(hw_req));
+            strncpy(hw_req.ifr_name, ifr->ifr_name, IFNAMSIZ - 1);
 
-        if (out_count != NULL)
-            (*out_count)++;
+            if (ioctl(fd, SIOCGIFHWADDR, &hw_req) == 0 && hw_req.ifr_hwaddr.sa_family == ARPHRD_ETHER)
+            {
+                if (interface_addresses != NULL && populated < capacity)
+                {
+                    strncpy(interface_addresses[populated].iface.name, ifr->ifr_name, TCS_INTERFACE_NAME_SIZE - 1);
+                    interface_addresses[populated].iface.name[TCS_INTERFACE_NAME_SIZE - 1] = '\0';
+                    interface_addresses[populated].iface.id = iface_id;
+                    interface_addresses[populated].address.family = TCS_AF_PACKET;
+                    interface_addresses[populated].address.data.packet.interface_id = iface_id;
+                    memcpy(interface_addresses[populated].address.data.packet.mac, hw_req.ifr_hwaddr.sa_data, 6);
+                    populated++;
+                }
+                if (out_count != NULL)
+                    (*out_count)++;
+            }
+        }
+#endif
 
         offset += entry_len;
     }

@@ -40,6 +40,7 @@ endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
     target_compile_definitions(test_translation_units PRIVATE __EXTENSIONS__ _XOPEN_SOURCE=500)
 endif()
+
 set_target_properties(
     test_translation_units
     PROPERTIES FOLDER tinycsocket/tests/header_only

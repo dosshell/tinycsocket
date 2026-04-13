@@ -194,7 +194,7 @@ typedef unsigned int TcsInterfaceId; // TODO: GUID is used for in vista at newer
 #if defined(__sun) && !defined(__EXTENSIONS__)
 #pragma message(                                                     \
     "tinycsocket: illumos/Solaris detected without __EXTENSIONS__. " \
-    "Define __EXTENSIONS__ before including this header for full POSIX support.")
+    "Define __EXTENSIONS__ and _XOPEN_SOURCE=500 before including this header.")
 #endif
 #endif
 
