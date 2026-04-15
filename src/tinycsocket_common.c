@@ -1558,7 +1558,7 @@ bool tcs_address_is_any(const struct TcsAddress* addr)
     }
 }
 
-bool tcs_address_is_local(const struct TcsAddress* addr)
+bool tcs_address_is_link_local(const struct TcsAddress* addr)
 {
     if (addr == NULL)
         return false;

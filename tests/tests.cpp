@@ -2115,7 +2115,7 @@ TEST_CASE("IPv6 address parse compressed")
     CHECK(addr.data.ip6.address.bytes[0] == 0xFE);
     CHECK(addr.data.ip6.address.bytes[1] == 0x80);
     CHECK(addr.data.ip6.address.bytes[15] == 0x01);
-    CHECK(tcs_address_is_local(&addr));
+    CHECK(tcs_address_is_link_local(&addr));
 
     CHECK(tcs_address_parse("2001:db8::1", &addr) == TCS_SUCCESS);
     CHECK(addr.data.ip6.address.bytes[0] == 0x20);
@@ -2193,7 +2193,7 @@ TEST_CASE("IPv6 address parse with port")
     CHECK(tcs_address_parse("[fe80::1%3]:8080", &addr) == TCS_SUCCESS);
     CHECK(addr.data.ip6.port == 8080);
     CHECK(addr.data.ip6.scope_id == 3);
-    CHECK(tcs_address_is_local(&addr));
+    CHECK(tcs_address_is_link_local(&addr));
 
     CHECK(tcs_address_parse("[::1]:65535", &addr) == TCS_SUCCESS);
     CHECK(addr.data.ip6.port == 65535);
@@ -2207,7 +2207,7 @@ TEST_CASE("IPv6 address parse with scope id")
     CHECK(tcs_address_parse("fe80::1%3", &addr) == TCS_SUCCESS);
     CHECK(addr.family == TCS_AF_IP6);
     CHECK(addr.data.ip6.scope_id == 3);
-    CHECK(tcs_address_is_local(&addr));
+    CHECK(tcs_address_is_link_local(&addr));
 }
 
 TEST_CASE("IPv6 address parse invalid")
@@ -2335,7 +2335,7 @@ TEST_CASE("IPv6 address utility functions")
 
     TcsAddress link_local;
     tcs_address_parse("fe80::1", &link_local);
-    CHECK(tcs_address_is_local(&link_local));
+    CHECK(tcs_address_is_link_local(&link_local));
 }
 
 TEST_CASE("IPv6 address resolve loopback")
