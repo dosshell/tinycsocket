@@ -1842,7 +1842,7 @@ TcsResult tcs_address_socket_family(TcsSocket socket_ctx, TcsAddressFamily* out_
 // tcs_address_to_str() is defined in tinycsocket_common.c
 // tcs_address_is_equal() is defined in tinycsocket_common.c
 // tcs_address_is_any() is defined in tinycsocket_common.c
-// tcs_address_is_local() is defined in tinycsocket_common.c
+// tcs_address_is_link_local() is defined in tinycsocket_common.c
 // tcs_address_is_loopback() is defined in tinycsocket_common.c
 // tcs_address_is_multicast() is defined in tinycsocket_common.c
 // tcs_address_is_broadcast() is defined in tinycsocket_common.c

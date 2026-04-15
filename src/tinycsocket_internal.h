@@ -23,7 +23,7 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-static const char* const TCS_VERSION_TXT = "v0.3.67";
+static const char* const TCS_VERSION_TXT = "v0.3.68";
 static const char* const TCS_LICENSE_TXT =
     "Copyright 2018 Markus Lindelöw\n"
     "\n"
@@ -152,7 +152,7 @@ static const char* const TCS_LICENSE_TXT =
 * - TcsResult tcs_address_to_str(const struct TcsAddress* address, char out_str[70]);
 * - bool tcs_address_is_equal(const struct TcsAddress* l, const struct TcsAddress* r);
 * - bool tcs_address_is_any(const struct TcsAddress* addr);
-* - bool tcs_address_is_local(const struct TcsAddress* addr);
+* - bool tcs_address_is_link_local(const struct TcsAddress* addr);
 * - bool tcs_address_is_loopback(const struct TcsAddress* addr);
 * - bool tcs_address_is_multicast(const struct TcsAddress* addr);
 * - bool tcs_address_is_broadcast(const struct TcsAddress* addr);
@@ -2307,7 +2307,7 @@ bool tcs_address_is_equal(const struct TcsAddress* l, const struct TcsAddress* r
 bool tcs_address_is_any(const struct TcsAddress* addr);
 
 /** @brief Check if the address is a link-local address. */
-bool tcs_address_is_local(const struct TcsAddress* addr);
+bool tcs_address_is_link_local(const struct TcsAddress* addr);
 
 /** @brief Check if the address is a loopback address. */
 bool tcs_address_is_loopback(const struct TcsAddress* addr);
