@@ -62,7 +62,7 @@ static inline double log10(unsigned int x)
 #define CHECK_NO_LEAK(pre) CHECK(TCS_MEM_DIFF() == (pre))
 #else
 #define TCS_MEM_DIFF() 0
-#define CHECK_NO_LEAK(pre) ((void)0)
+#define CHECK_NO_LEAK(pre) ((void)(pre))
 #endif
 
 int main(int argc, char** argv)
