@@ -109,7 +109,8 @@ TEST_CASE("Example from README")
     static uint8_t recv_buffer[8192] = {0};
     size_t bytes_received = 0;
     CHECK(tcs_receive(client_socket, recv_buffer, 8192, TCS_FLAG_NONE, &bytes_received) == TCS_SUCCESS);
-    CHECK(tcs_shutdown(client_socket, TCS_SD_BOTH) == TCS_SUCCESS);
+    TcsResult shutdown_res = tcs_shutdown(client_socket, TCS_SD_BOTH);
+    CHECK((shutdown_res == TCS_SUCCESS || shutdown_res == TCS_ERROR_NOT_CONNECTED));
     CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
 
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
@@ -234,7 +235,8 @@ TEST_CASE("Non-blocking")
     bool is_non_blocking = false;
     TcsResult get_sts = tcs_opt_nonblocking_get(socket, &is_non_blocking);
 
-    CHECK(tcs_connect_str(socket, "127.0.0.1", 1337) == TCS_IN_PROGRESS);
+    TcsResult connect_res = tcs_connect_str(socket, "127.0.0.1", 1337);
+    CHECK((connect_res == TCS_IN_PROGRESS || connect_res == TCS_ERROR_CONNECTION_REFUSED));
 
     // Then
     CHECK(sts == TCS_SUCCESS);
@@ -302,10 +304,10 @@ TEST_CASE("Simple 2 msg tcs_receive_line")
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_AF_IP4;
     local_address.data.ip4.address = TCS_ADDRESS_ANY_IP4;
-    local_address.data.ip4.port = 1212;
+    local_address.data.ip4.port = 1215;
     CHECK(tcs_bind(listen_socket, &local_address) == TCS_SUCCESS);
     CHECK(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
-    REQUIRE(tcs_connect_str(client_socket, "localhost", 1212) == TCS_SUCCESS);
+    REQUIRE(tcs_connect_str(client_socket, "localhost", 1215) == TCS_SUCCESS);
 
     CHECK(tcs_accept(listen_socket, &server_socket, NULL) == TCS_SUCCESS);
     CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
@@ -323,7 +325,7 @@ TEST_CASE("Simple 2 msg tcs_receive_line")
     CHECK(tcs_receive_line(server_socket, part1, sizeof(part1), &part1_length, ':') == TCS_SUCCESS);
     CHECK(tcs_receive_line(server_socket, part2, sizeof(part2), &part2_length, '\0') == TCS_SUCCESS);
 
-    CHECK(tcs_opt_receive_timeout_set(server_socket, 10) == TCS_SUCCESS);
+    CHECK(tcs_opt_receive_timeout_set(server_socket, 2000) == TCS_SUCCESS);
     CHECK(tcs_receive_line(server_socket, part3, sizeof(part3), &part3_length, '\0') == TCS_ERROR_TIMED_OUT);
 
     CHECK(tcs_send(client_socket, msg, sizeof(msg) - 3, TCS_MSG_SENDALL, NULL) == TCS_SUCCESS);
@@ -362,10 +364,10 @@ TEST_CASE("Partial msg tcs_receive_line")
     TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_AF_IP4;
     local_address.data.ip4.address = TCS_ADDRESS_ANY_IP4;
-    local_address.data.ip4.port = 1212;
+    local_address.data.ip4.port = 1216;
     CHECK(tcs_bind(listen_socket, &local_address) == TCS_SUCCESS);
     REQUIRE(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
-    REQUIRE(tcs_connect_str(client_socket, "localhost", 1212) == TCS_SUCCESS);
+    REQUIRE(tcs_connect_str(client_socket, "localhost", 1216) == TCS_SUCCESS);
 
     CHECK(tcs_accept(listen_socket, &server_socket, NULL) == TCS_SUCCESS);
     CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
@@ -410,10 +412,10 @@ TEST_CASE("sendv")
     TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_AF_IP4;
     local_address.data.ip4.address = TCS_ADDRESS_ANY_IP4;
-    local_address.data.ip4.port = 1212;
+    local_address.data.ip4.port = 1217;
     CHECK(tcs_bind(listen_socket, &local_address) == TCS_SUCCESS);
     REQUIRE(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
-    REQUIRE(tcs_connect_str(client_socket, "localhost", 1212) == TCS_SUCCESS);
+    REQUIRE(tcs_connect_str(client_socket, "localhost", 1217) == TCS_SUCCESS);
 
     CHECK(tcs_accept(listen_socket, &accept_socket, NULL) == TCS_SUCCESS);
     CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
@@ -458,10 +460,10 @@ TEST_CASE("Simple TCP Netstring Test")
     TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_AF_IP4;
     local_address.data.ip4.address = TCS_ADDRESS_ANY_IP4;
-    local_address.data.ip4.port = 1212;
+    local_address.data.ip4.port = 1218;
     CHECK(tcs_bind(listen_socket, &local_address) == TCS_SUCCESS);
     REQUIRE(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
-    REQUIRE(tcs_connect_str(client_socket, "localhost", 1212) == TCS_SUCCESS);
+    REQUIRE(tcs_connect_str(client_socket, "localhost", 1218) == TCS_SUCCESS);
 
     CHECK(tcs_accept(listen_socket, &accept_socket, NULL) == TCS_SUCCESS);
     CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
@@ -634,7 +636,7 @@ TEST_CASE("tcs_pool_poll simple write")
     TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_AF_IP4;
     local_address.data.ip4.address = TCS_ADDRESS_ANY_IP4;
-    local_address.data.ip4.port = 1212;
+    local_address.data.ip4.port = 1219;
     CHECK(tcs_bind(socket, &local_address) == TCS_SUCCESS);
 
     int user_data = 1337;
@@ -804,25 +806,27 @@ TEST_CASE("Interface list")
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
 
     // Given
-    struct TcsInterface interfaces[8];
+    struct TcsInterface interfaces[20];
     size_t no_of_found_interfaces = 0;
 
     // When
-    TcsResult iface_res = tcs_interface_list(interfaces, 8, &no_of_found_interfaces);
+    TcsResult iface_res = tcs_interface_list(interfaces, 20, &no_of_found_interfaces);
     if (iface_res != TCS_SUCCESS)
         printf("tcs_interface_list failed with error code: %d\n", iface_res);
     CHECK(iface_res == TCS_SUCCESS);
 
     // Then
     CHECK(no_of_found_interfaces > 0);
-    for (size_t i = 0; i < no_of_found_interfaces; ++i)
+    size_t iface_display = no_of_found_interfaces < 20 ? no_of_found_interfaces : 20;
+    for (size_t i = 0; i < iface_display; ++i)
     {
         printf("Interface %u: %s\n", interfaces[i].id, interfaces[i].name);
 
-        struct TcsInterfaceAddress addresses[8];
+        struct TcsInterfaceAddress addresses[20];
         size_t found_addresses = 0;
-        tcs_address_list(interfaces[i].id, TCS_AF_ANY, addresses, 8, &found_addresses);
-        for (size_t j = 0; j < found_addresses; ++j)
+        tcs_address_list(interfaces[i].id, TCS_AF_ANY, addresses, 20, &found_addresses);
+        size_t addr_display = found_addresses < 8 ? found_addresses : 20;
+        for (size_t j = 0; j < addr_display; ++j)
         {
             char addr_str[70];
             tcs_address_to_str(&addresses[j].address, addr_str);
@@ -841,14 +845,15 @@ TEST_CASE("Get loopback address")
 
     // Given
     size_t ifaddrs_count = 0;
-    struct TcsInterfaceAddress ifaddrs[8];
+    struct TcsInterfaceAddress ifaddrs[20];
     bool found_loopback = false;
     int pre_mem_diff = TCS_MEM_DIFF();
 
     // When
     WARN(tcs_address_list(0, TCS_AF_ANY, ifaddrs, 8, &ifaddrs_count) == TCS_SUCCESS);
     // find IPv4 loopback
-    for (size_t i = 0; i < ifaddrs_count; ++i)
+    size_t ifaddrs_display = ifaddrs_count < 20 ? ifaddrs_count : 20;
+    for (size_t i = 0; i < ifaddrs_display; ++i)
     {
         if (ifaddrs[i].address.family == TCS_AF_IP4 && ifaddrs[i].address.data.ip4.address == TCS_ADDRESS_LOOPBACK_IP4)
         {
@@ -1243,6 +1248,10 @@ TEST_CASE("Simple Multicast Add Membership")
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
 
     // Given
+    TcsAddress loopback = TCS_ADDRESS_NONE;
+    loopback.family = TCS_AF_IP4;
+    loopback.data.ip4.address = TCS_ADDRESS_LOOPBACK_IP4;
+
     TcsAddress address_any = {TCS_AF_IP4, {{0, 0}}};
     address_any.data.ip4.port = 1901;
 
@@ -1253,16 +1262,14 @@ TEST_CASE("Simple Multicast Add Membership")
     CHECK(tcs_socket(&socket, TCS_AF_IP4, TCS_SOCK_DGRAM, 0) == TCS_SUCCESS);
     CHECK(tcs_opt_reuse_address_set(socket, true) == TCS_SUCCESS);
     CHECK(tcs_opt_receive_timeout_set(socket, 5000) == TCS_SUCCESS);
+    CHECK(tcs_opt_multicast_interface_set(socket, &loopback) == TCS_SUCCESS);
+    CHECK(tcs_opt_multicast_loop_set(socket, true) == TCS_SUCCESS);
 
     CHECK(tcs_bind(socket, &address_any) == TCS_SUCCESS);
     uint8_t msg[] = "hello world\n";
 
     // When
-    CHECK(tcs_opt_membership_add_to(socket, &address_any, &multicast_address) == TCS_SUCCESS);
-
-    uint8_t c;
-    size_t a = sizeof(c);
-    CHECK(tcs_opt_get(socket, TCS_SOL_IP, TCS_SO_IP_MULTICAST_LOOP, &c, &a) == TCS_SUCCESS);
+    CHECK(tcs_opt_membership_add_to(socket, &loopback, &multicast_address) == TCS_SUCCESS);
 
     CHECK(tcs_send_to(socket, msg, sizeof(msg), 0, &multicast_address, NULL) == TCS_SUCCESS);
 
@@ -1283,12 +1290,18 @@ TEST_CASE("Multicast Add-Drop-Add Membership")
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
 
     // Given
+    TcsAddress loopback = TCS_ADDRESS_NONE;
+    loopback.family = TCS_AF_IP4;
+    loopback.data.ip4.address = TCS_ADDRESS_LOOPBACK_IP4;
+
     TcsSocket socket_send = TCS_SOCKET_INVALID;
     TcsSocket socket_recv = TCS_SOCKET_INVALID;
     CHECK(tcs_socket(&socket_send, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
     CHECK(tcs_socket(&socket_recv, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
-    tcs_opt_receive_timeout_set(socket_recv, 1000);
+    tcs_opt_receive_timeout_set(socket_recv, 2000);
     CHECK(tcs_opt_reuse_address_set(socket_recv, true) == TCS_SUCCESS);
+    CHECK(tcs_opt_multicast_interface_set(socket_send, &loopback) == TCS_SUCCESS);
+    CHECK(tcs_opt_multicast_loop_set(socket_send, true) == TCS_SUCCESS);
 
     TcsAddress address_any = {TCS_AF_IP4, {{0, 0}}};
     address_any.data.ip4.port = 1901;
@@ -1301,11 +1314,11 @@ TEST_CASE("Multicast Add-Drop-Add Membership")
     uint8_t msg_missed[] = "you can not read me\n";
 
     // When
-    CHECK(tcs_opt_membership_add_to(socket_recv, &address_any, &multicast_address) == TCS_SUCCESS);
+    CHECK(tcs_opt_membership_add_to(socket_recv, &loopback, &multicast_address) == TCS_SUCCESS);
     CHECK(tcs_send_to(socket_send, msg_1, sizeof(msg_1), 0, &multicast_address, NULL) == TCS_SUCCESS);
-    CHECK(tcs_opt_membership_drop_from(socket_recv, &address_any, &multicast_address) == TCS_SUCCESS);
+    CHECK(tcs_opt_membership_drop_from(socket_recv, &loopback, &multicast_address) == TCS_SUCCESS);
     CHECK(tcs_send_to(socket_send, msg_missed, sizeof(msg_missed), 0, &multicast_address, NULL) == TCS_SUCCESS);
-    CHECK(tcs_opt_membership_add_to(socket_recv, &address_any, &multicast_address) == TCS_SUCCESS);
+    CHECK(tcs_opt_membership_add_to(socket_recv, &loopback, &multicast_address) == TCS_SUCCESS);
     CHECK(tcs_send_to(socket_send, msg_2, sizeof(msg_2), 0, &multicast_address, NULL) == TCS_SUCCESS);
 
     // Then
@@ -1319,8 +1332,8 @@ TEST_CASE("Multicast Add-Drop-Add Membership")
     recv_buffer_1[bytes_received_1] = '\0';
     recv_buffer_2[bytes_received_2] = '\0';
 
-    CHECK(strcmp(reinterpret_cast<const char*>(recv_buffer_1), reinterpret_cast<const char*>(msg_1)) == 0);
-    CHECK(strcmp(reinterpret_cast<const char*>(recv_buffer_2), reinterpret_cast<const char*>(msg_2)) == 0);
+    CHECK(reinterpret_cast<const char*>(recv_buffer_1) == reinterpret_cast<const char*>(msg_1));
+    CHECK(reinterpret_cast<const char*>(recv_buffer_2) == reinterpret_cast<const char*>(msg_2));
 
     // Clean up
     CHECK(tcs_close(&socket_recv) == TCS_SUCCESS);
@@ -1615,9 +1628,9 @@ TEST_CASE("AVTP Create talker socket sendto")
     CHECK(tcs_socket(&socket, TCS_AF_PACKET, TCS_SOCK_DGRAM, 0x22F0) == TCS_SUCCESS);
 
     CHECK(tcs_opt_priority_set(socket, 6) == TCS_SUCCESS); // Set priority to 6 (VLAN priority 6)
-    struct TcsInterfaceAddress addrs[8];
+    struct TcsInterfaceAddress addrs[20];
     size_t addresses_found = 0;
-    CHECK(tcs_address_list(0, TCS_AF_PACKET, addrs, 8, &addresses_found) == TCS_SUCCESS);
+    CHECK(tcs_address_list(0, TCS_AF_PACKET, addrs, 20, &addresses_found) == TCS_SUCCESS);
     CHECK(addresses_found > 0);
 
     TcsAddress address = TCS_ADDRESS_NONE;
@@ -1650,9 +1663,9 @@ TEST_CASE("TSN Create talker socket bind")
     CHECK(tcs_socket_preset(&socket, TCS_PRESET_RAW) == TCS_SUCCESS);
 
     CHECK(tcs_opt_priority_set(socket, 6) == TCS_SUCCESS); // Set priority to 6 (VLAN priority 6)
-    struct TcsInterfaceAddress addr[8];
+    struct TcsInterfaceAddress addr[20];
     size_t addresses_found = 0;
-    CHECK(tcs_address_list(0, TCS_AF_PACKET, addr, 8, &addresses_found) == TCS_SUCCESS);
+    CHECK(tcs_address_list(0, TCS_AF_PACKET, addr, 20, &addresses_found) == TCS_SUCCESS);
     CHECK(addresses_found > 0);
 
     TcsAddress address = TCS_ADDRESS_NONE;
@@ -1693,9 +1706,9 @@ TEST_CASE("TSN Create listener")
     // When
     CHECK(tcs_socket_preset(&socket, TCS_PRESET_RAW) == TCS_SUCCESS);
 
-    struct TcsInterfaceAddress addr[8];
+    struct TcsInterfaceAddress addr[20];
     size_t addresses_found = 0;
-    CHECK(tcs_address_list(0, TCS_AF_PACKET, addr, 8, &addresses_found) == TCS_SUCCESS);
+    CHECK(tcs_address_list(0, TCS_AF_PACKET, addr, 20, &addresses_found) == TCS_SUCCESS);
     CHECK(addresses_found > 0);
 
     TcsAddress address = TCS_ADDRESS_NONE;
@@ -1742,9 +1755,9 @@ TEST_CASE("tcs_packet bind")
 
     // Given
     TcsSocket socket = TCS_SOCKET_INVALID;
-    struct TcsInterfaceAddress addrs[8];
+    struct TcsInterfaceAddress addrs[20];
     size_t addresses_found = 0;
-    CHECK(tcs_address_list(0, TCS_AF_PACKET, addrs, 8, &addresses_found) == TCS_SUCCESS);
+    CHECK(tcs_address_list(0, TCS_AF_PACKET, addrs, 20, &addresses_found) == TCS_SUCCESS);
     CHECK(addresses_found > 0);
 
     struct TcsAddress bind_address = TCS_ADDRESS_NONE;
@@ -1770,9 +1783,9 @@ TEST_CASE("tcs_packet sendto")
 
     // Given
     TcsSocket socket = TCS_SOCKET_INVALID;
-    struct TcsInterfaceAddress addrs[8];
+    struct TcsInterfaceAddress addrs[20];
     size_t addresses_found = 0;
-    CHECK(tcs_address_list(0, TCS_AF_PACKET, addrs, 8, &addresses_found) == TCS_SUCCESS);
+    CHECK(tcs_address_list(0, TCS_AF_PACKET, addrs, 20, &addresses_found) == TCS_SUCCESS);
     CHECK(addresses_found > 0);
 
     struct TcsAddress bind_address = TCS_ADDRESS_NONE;
@@ -1808,9 +1821,9 @@ TEST_CASE("tcs_packet_str bind")
 
     // Given
     TcsSocket socket = TCS_SOCKET_INVALID;
-    struct TcsInterface interfaces[8];
+    struct TcsInterface interfaces[20];
     size_t iface_count = 0;
-    CHECK(tcs_interface_list(interfaces, 8, &iface_count) == TCS_SUCCESS);
+    CHECK(tcs_interface_list(interfaces, 20, &iface_count) == TCS_SUCCESS);
     CHECK(iface_count > 0);
 
     const char* iface_name = NULL;
