@@ -524,7 +524,8 @@ TcsResult tcs_raw_str(TcsSocket* socket_ctx, const char* interface_name, uint16_
     if (res != TCS_SUCCESS)
         return res;
 
-    for (size_t i = 0; i < count; ++i)
+    size_t iter_count = count < 16 ? count : 16;
+    for (size_t i = 0; i < iter_count; ++i)
     {
         if (strcmp(interfaces[i].name, interface_name) == 0)
         {
@@ -575,7 +576,8 @@ TcsResult tcs_packet_str(TcsSocket* socket_ctx, const char* interface_name, uint
     if (res != TCS_SUCCESS)
         return res;
 
-    for (size_t i = 0; i < count; ++i)
+    size_t iter_count = count < 16 ? count : 16;
+    for (size_t i = 0; i < iter_count; ++i)
     {
         if (strcmp(interfaces[i].name, interface_name) == 0)
         {

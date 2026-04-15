@@ -166,6 +166,22 @@ static TcsResult wsaerror2retcode(int wsa_error)
             return TCS_ERROR_WOULD_BLOCK;
         case WSAETIMEDOUT:
             return TCS_ERROR_TIMED_OUT;
+        case WSAECONNREFUSED:
+            return TCS_ERROR_CONNECTION_REFUSED;
+        case WSAECONNRESET:
+            return TCS_ERROR_CONNECTION_RESET;
+        case WSAENOTCONN:
+            return TCS_ERROR_NOT_CONNECTED;
+        case WSAENETUNREACH:
+        case WSAEHOSTUNREACH:
+        case WSAENETDOWN:
+            return TCS_ERROR_NETWORK_UNREACHABLE;
+        case WSAEACCES:
+            return TCS_ERROR_PERMISSION_DENIED;
+        case WSAEINVAL:
+            return TCS_ERROR_INVALID_ARGUMENT;
+        case WSAEADDRINUSE:
+            return TCS_ERROR_ADDRESS_IN_USE;
         default:
             return TCS_ERROR_UNKNOWN;
     }
@@ -1374,6 +1390,46 @@ TcsResult tcs_opt_membership_drop_from(TcsSocket socket_ctx,
     return TCS_ERROR_NOT_IMPLEMENTED;
 }
 
+TcsResult tcs_opt_multicast_interface_set(TcsSocket socket_ctx, const struct TcsAddress* local_address)
+{
+    if (socket_ctx == TCS_SOCKET_INVALID || local_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    if (local_address->family == TCS_AF_IP4)
+    {
+        struct in_addr iface;
+        iface.s_addr = htonl(local_address->data.ip4.address);
+        return tcs_opt_set(socket_ctx, TCS_SOL_IP, IP_MULTICAST_IF, &iface, sizeof(iface));
+    }
+    else if (local_address->family == TCS_AF_IP6)
+    {
+        unsigned long idx = (unsigned long)local_address->data.ip6.scope_id;
+        return tcs_opt_set(socket_ctx, IPPROTO_IPV6, IPV6_MULTICAST_IF, &idx, sizeof(idx));
+    }
+    return TCS_ERROR_INVALID_ARGUMENT;
+}
+
+TcsResult tcs_opt_multicast_loop_set(TcsSocket socket_ctx, bool do_loopback)
+{
+    if (socket_ctx == TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    DWORD val = do_loopback ? 1 : 0;
+    return tcs_opt_set(socket_ctx, TCS_SOL_IP, IP_MULTICAST_LOOP, &val, sizeof(val));
+}
+
+TcsResult tcs_opt_multicast_loop_get(TcsSocket socket_ctx, bool* is_loopback)
+{
+    if (socket_ctx == TCS_SOCKET_INVALID || is_loopback == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    DWORD val = 0;
+    size_t s = sizeof(val);
+    TcsResult sts = tcs_opt_get(socket_ctx, TCS_SOL_IP, IP_MULTICAST_LOOP, &val, &s);
+    *is_loopback = val;
+    return sts;
+}
+
 // ######## Address and Interface Utilities ########
 
 // Retrieves the user-visible adapter name.
@@ -1565,9 +1621,11 @@ TcsResult tcs_address_resolve(const char* hostname,
 
     ADDRINFOA native_hints;
     memset(&native_hints, 0, sizeof native_hints);
-    TcsResult sts = family2native(address_family, (short*)&native_hints.ai_family);
+    short native_family;
+    TcsResult sts = family2native(address_family, &native_family);
     if (sts != TCS_SUCCESS)
         return sts;
+    native_hints.ai_family = native_family;
 
     PADDRINFOA native_addrinfo_list = NULL;
     int getaddrinfo_status = getaddrinfo(hostname, NULL, &native_hints, &native_addrinfo_list);

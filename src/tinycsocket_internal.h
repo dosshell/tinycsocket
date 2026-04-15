@@ -23,7 +23,7 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-static const char* const TCS_VERSION_TXT = "v0.3.65";
+static const char* const TCS_VERSION_TXT = "v0.3.66";
 static const char* const TCS_LICENSE_TXT =
     "Copyright 2018 Markus Lindelöw\n"
     "\n"
@@ -136,6 +136,9 @@ static const char* const TCS_LICENSE_TXT =
 * - TcsResult tcs_opt_membership_add_to(TcsSocket socket_ctx, const struct TcsAddress* local_address, const struct TcsAddress* multicast_address);
 * - TcsResult tcs_opt_membership_drop(TcsSocket socket_ctx, const struct TcsAddress* multicast_address);
 * - TcsResult tcs_opt_membership_drop_from(TcsSocket socket_ctx, const struct TcsAddress* local_address, const struct TcsAddress* multicast_address);
+* - TcsResult tcs_opt_multicast_interface_set(TcsSocket socket_ctx, const struct TcsAddress* local_address);
+* - TcsResult tcs_opt_multicast_loop_set(TcsSocket socket_ctx, bool do_loopback);
+* - TcsResult tcs_opt_multicast_loop_get(TcsSocket socket_ctx, bool* is_loopback);
 
 *
 * Address and Interface Utilities:
@@ -236,6 +239,9 @@ struct TcsIp6Address
 
 /**
  * @brief Network Address
+ *
+ * Always host-byte-order. You will never need to use htons etc.
+
  */
 struct TcsAddress
 {
@@ -422,6 +428,9 @@ typedef enum
     TCS_ERROR_WOULD_BLOCK = -36,
     TCS_ERROR_TIMED_OUT = -37,
     TCS_ERROR_TEMPORARY_FAILURE = -38,
+    TCS_ERROR_NETWORK_UNREACHABLE = -39,
+    TCS_ERROR_CONNECTION_RESET = -40,
+    TCS_ERROR_ADDRESS_IN_USE = -41,
 
     /* -64...-95: Configuration errors */
     TCS_ERROR_LIBRARY_NOT_INITIALIZED = -64,
@@ -2141,6 +2150,36 @@ TcsResult tcs_opt_membership_add(TcsSocket socket_ctx, const struct TcsAddress* 
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
 TcsResult tcs_opt_membership_drop(TcsSocket socket_ctx, const struct TcsAddress* multicast_address);
+
+/**
+* @brief Set the outgoing interface for multicast packets.
+*
+* @param socket_ctx socket to configure.
+* @param local_address local interface address to use for outgoing multicast.
+* @return #TCS_SUCCESS if successful, otherwise the error code.
+*/
+TcsResult tcs_opt_multicast_interface_set(TcsSocket socket_ctx, const struct TcsAddress* local_address);
+
+/**
+* @brief Enable or disable multicast loopback.
+*
+* When enabled, multicast packets sent on this socket are looped back and
+* delivered to local receivers on the same host.
+*
+* @param socket_ctx socket to configure.
+* @param do_loopback set to true to enable loopback, false to disable.
+* @return #TCS_SUCCESS if successful, otherwise the error code.
+*/
+TcsResult tcs_opt_multicast_loop_set(TcsSocket socket_ctx, bool do_loopback);
+
+/**
+* @brief Get the current multicast loopback setting.
+*
+* @param socket_ctx socket to query.
+* @param is_loopback pointer to receive the current setting.
+* @return #TCS_SUCCESS if successful, otherwise the error code.
+*/
+TcsResult tcs_opt_multicast_loop_get(TcsSocket socket_ctx, bool* is_loopback);
 
 /**
 * @brief Set a socket to non-blocking or blocking mode.
