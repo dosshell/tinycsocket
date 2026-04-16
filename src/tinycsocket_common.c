@@ -239,6 +239,103 @@ TcsResult tcs_socket_tcp_str(TcsSocket* socket_ctx,
                           timeout_ms);
 }
 
+TcsResult tcs_socket_udp(TcsSocket* socket_ctx,
+                         const struct TcsAddress* local_address,
+                         const struct TcsAddress* remote_address)
+{
+    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (local_address == NULL && remote_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (local_address != NULL && remote_address != NULL && local_address->family != remote_address->family)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    TcsAddressFamily family = local_address != NULL ? local_address->family : remote_address->family;
+
+    TcsResult res = tcs_socket(socket_ctx, family, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP);
+    if (res != TCS_SUCCESS)
+        return res;
+
+    if (local_address != NULL)
+    {
+        res = tcs_opt_reuse_address_set(*socket_ctx, true);
+        if (res != TCS_SUCCESS)
+        {
+            tcs_close(socket_ctx);
+            return res;
+        }
+        res = tcs_bind(*socket_ctx, local_address);
+        if (res != TCS_SUCCESS)
+        {
+            tcs_close(socket_ctx);
+            return res;
+        }
+    }
+
+    if (remote_address != NULL)
+    {
+        bool is_multicast = tcs_address_is_multicast(remote_address);
+
+        if (is_multicast)
+        {
+            res = tcs_opt_membership_add(*socket_ctx, remote_address);
+            if (res != TCS_SUCCESS)
+            {
+                tcs_close(socket_ctx);
+                return res;
+            }
+        }
+
+        if (!is_multicast || local_address == NULL)
+        {
+            res = tcs_connect(*socket_ctx, remote_address);
+            if (res != TCS_SUCCESS)
+            {
+                tcs_close(socket_ctx);
+                return res;
+            }
+        }
+    }
+
+    return TCS_SUCCESS;
+}
+
+TcsResult tcs_socket_udp_str(TcsSocket* socket_ctx, const char* local_address, const char* remote_address)
+{
+    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (local_address == NULL && remote_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct TcsAddress local_addr = TCS_ADDRESS_NONE;
+    struct TcsAddress remote_addr = TCS_ADDRESS_NONE;
+    TcsAddressFamily family = TCS_AF_ANY;
+
+    if (local_address != NULL)
+    {
+        size_t count = 0;
+        TcsResult res = tcs_address_resolve(local_address, TCS_AF_ANY, &local_addr, 1, &count);
+        if (res != TCS_SUCCESS)
+            return res;
+        if (count == 0)
+            return TCS_ERROR_ADDRESS_LOOKUP_FAILED;
+        family = local_addr.family;
+    }
+
+    if (remote_address != NULL)
+    {
+        size_t count = 0;
+        TcsResult res = tcs_address_resolve(remote_address, family, &remote_addr, 1, &count);
+        if (res != TCS_SUCCESS)
+            return res;
+        if (count == 0)
+            return TCS_ERROR_ADDRESS_LOOKUP_FAILED;
+    }
+
+    return tcs_socket_udp(
+        socket_ctx, local_address != NULL ? &local_addr : NULL, remote_address != NULL ? &remote_addr : NULL);
+}
+
 // tcs_close() is defined in OS specific files
 
 // ######## High-level Socket Creation ########

@@ -724,6 +724,110 @@ TEST_CASE("tcs_socket_tcp_str bind and connect")
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 
+TEST_CASE("tcs_socket_udp bind and send_to")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    TcsSocket socket_recv = TCS_SOCKET_INVALID;
+    TcsSocket socket_send = TCS_SOCKET_INVALID;
+
+    struct TcsAddress local_address = TCS_ADDRESS_NONE;
+    local_address.family = TCS_AF_IP4;
+    local_address.data.ip4.address = TCS_ADDRESS_ANY_IP4;
+    local_address.data.ip4.port = 1473;
+
+    CHECK(tcs_socket_udp(&socket_recv, &local_address, NULL) == TCS_SUCCESS);
+    CHECK(tcs_opt_receive_timeout_set(socket_recv, 5000) == TCS_SUCCESS);
+
+    struct TcsAddress remote_address = TCS_ADDRESS_NONE;
+    remote_address.family = TCS_AF_IP4;
+    remote_address.data.ip4.address = TCS_ADDRESS_LOOPBACK_IP4;
+    remote_address.data.ip4.port = 1473;
+
+    CHECK(tcs_socket_udp(&socket_send, NULL, &remote_address) == TCS_SUCCESS);
+
+    // When
+    const uint8_t* send_buffer = (const uint8_t*)"hello";
+    uint8_t recv_buffer[8] = {0};
+    size_t sent = 0;
+    size_t received = 0;
+    CHECK(tcs_send(socket_send, send_buffer, 5, TCS_FLAG_NONE, &sent) == TCS_SUCCESS);
+    CHECK(tcs_receive(socket_recv, recv_buffer, 5, TCS_FLAG_NONE, &received) == TCS_SUCCESS);
+
+    // Then
+    CHECK(sent == 5);
+    CHECK(received == 5);
+    CHECK(memcmp(recv_buffer, send_buffer, 5) == 0);
+
+    // Clean up
+    CHECK(tcs_close(&socket_send) == TCS_SUCCESS);
+    CHECK(tcs_close(&socket_recv) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
+TEST_CASE("tcs_socket_udp invalid arguments")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Both NULL
+    TcsSocket socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_udp(&socket, NULL, NULL) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(socket == TCS_SOCKET_INVALID);
+
+    // Family mismatch
+    struct TcsAddress local4 = TCS_ADDRESS_NONE;
+    local4.family = TCS_AF_IP4;
+    local4.data.ip4.address = TCS_ADDRESS_LOOPBACK_IP4;
+    local4.data.ip4.port = 1473;
+
+    struct TcsAddress remote6 = TCS_ADDRESS_NONE;
+    remote6.family = TCS_AF_IP6;
+    remote6.data.ip6.port = 1473;
+
+    socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_udp(&socket, &local4, &remote6) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(socket == TCS_SOCKET_INVALID);
+
+    // Clean up
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
+TEST_CASE("tcs_socket_udp_str bind and send_to")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    TcsSocket socket_recv = TCS_SOCKET_INVALID;
+    TcsSocket socket_send = TCS_SOCKET_INVALID;
+
+    CHECK(tcs_socket_udp_str(&socket_recv, "0.0.0.0:1474", NULL) == TCS_SUCCESS);
+    CHECK(tcs_opt_receive_timeout_set(socket_recv, 5000) == TCS_SUCCESS);
+
+    CHECK(tcs_socket_udp_str(&socket_send, NULL, "127.0.0.1:1474") == TCS_SUCCESS);
+
+    // When
+    const uint8_t* send_buffer = (const uint8_t*)"world";
+    uint8_t recv_buffer[8] = {0};
+    size_t sent = 0;
+    size_t received = 0;
+    CHECK(tcs_send(socket_send, send_buffer, 5, TCS_FLAG_NONE, &sent) == TCS_SUCCESS);
+    CHECK(tcs_receive(socket_recv, recv_buffer, 5, TCS_FLAG_NONE, &received) == TCS_SUCCESS);
+
+    // Then
+    CHECK(sent == 5);
+    CHECK(received == 5);
+    CHECK(memcmp(recv_buffer, send_buffer, 5) == 0);
+
+    // Clean up
+    CHECK(tcs_close(&socket_send) == TCS_SUCCESS);
+    CHECK(tcs_close(&socket_recv) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
 TEST_CASE("tcs_pool simple memory check")
 {
     // Setup
