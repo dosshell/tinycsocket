@@ -962,14 +962,15 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
             events[filled].user_data = map->values[i];
             events[filled].can_read = map->keys[i].revents & POLLIN;
             events[filled].can_write = map->keys[i].revents & POLLOUT;
-            if (map->keys[i].revents & POLLERR)
+            if (map->keys[i].revents & (POLLERR | POLLHUP))
             {
                 int so_error = 0;
                 socklen_t so_error_size = sizeof(so_error);
+                TcsResult fallback = (map->keys[i].revents & POLLERR) ? TCS_ERROR_UNKNOWN : TCS_ERROR_SOCKET_CLOSED;
                 if (getsockopt(map->keys[i].fd, SOL_SOCKET, SO_ERROR, &so_error, &so_error_size) != 0)
                     events[filled].error = errno2retcode(errno);
                 else
-                    events[filled].error = so_error != 0 ? errno2retcode(so_error) : TCS_ERROR_UNKNOWN;
+                    events[filled].error = so_error != 0 ? errno2retcode(so_error) : fallback;
             }
             else
             {
