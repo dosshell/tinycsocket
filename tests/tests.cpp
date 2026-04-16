@@ -685,7 +685,13 @@ TEST_CASE("tcs_socket_tcp connect timeout")
 
     TcsSocket socket = TCS_SOCKET_INVALID;
     TcsResult res = tcs_socket_tcp(&socket, NULL, &remote_address, 100);
-    CHECK((res == TCS_ERROR_TIMED_OUT || res == TCS_ERROR_CONNECTION_REFUSED));
+
+    if (res != TCS_ERROR_TIMED_OUT && res != TCS_ERROR_CONNECTION_REFUSED)
+    {
+        WARN(res == TCS_ERROR_TIMED_OUT);
+        WARN(res == TCS_ERROR_CONNECTION_REFUSED);
+        CHECK((res == TCS_ERROR_TIMED_OUT || res == TCS_ERROR_CONNECTION_REFUSED));
+    }
     CHECK(socket == TCS_SOCKET_INVALID);
 
     // Clean up
@@ -2097,6 +2103,7 @@ TEST_CASE("tcs_socket_packet invalid arguments old")
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 
+#if defined(__linux__)
 TEST_CASE("tcs_socket_packet DGRAM")
 {
     // Setup
@@ -2145,6 +2152,26 @@ TEST_CASE("tcs_socket_packet RAW")
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 
+TEST_CASE("tcs_socket_packet_str DGRAM")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    TcsSocket socket = TCS_SOCKET_INVALID;
+
+    // When
+    CHECK(tcs_socket_packet_str(&socket, "lo", 0x22F0, TCS_SOCK_DGRAM) == TCS_SUCCESS);
+
+    // Then
+    CHECK(socket != TCS_SOCKET_INVALID);
+    CHECK(tcs_close(&socket) == TCS_SUCCESS);
+
+    // Clean up
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+#endif
+
 TEST_CASE("tcs_socket_packet invalid arguments")
 {
     // Setup
@@ -2170,25 +2197,6 @@ TEST_CASE("tcs_socket_packet invalid arguments")
     socket = TCS_SOCKET_INVALID;
     CHECK(tcs_socket_packet(&socket, &bind, 9999) == TCS_ERROR_INVALID_ARGUMENT);
     CHECK(socket == TCS_SOCKET_INVALID);
-
-    // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
-}
-
-TEST_CASE("tcs_socket_packet_str DGRAM")
-{
-    // Setup
-    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
-
-    // Given
-    TcsSocket socket = TCS_SOCKET_INVALID;
-
-    // When
-    CHECK(tcs_socket_packet_str(&socket, "lo", 0x22F0, TCS_SOCK_DGRAM) == TCS_SUCCESS);
-
-    // Then
-    CHECK(socket != TCS_SOCKET_INVALID);
-    CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
     // Clean up
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
