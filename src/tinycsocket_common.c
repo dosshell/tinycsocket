@@ -805,8 +805,36 @@ TcsResult tcs_opt_priority_get(TcsSocket socket_ctx, int* priority)
 // tcs_opt_nonblocking_get() is defined in OS specific files
 
 // tcs_opt_membership_add() is defined in OS specific files
+
+TcsResult tcs_opt_membership_add_str(TcsSocket socket_ctx, const char* multicast_address)
+{
+    if (multicast_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct TcsAddress addr = TCS_ADDRESS_NONE;
+    TcsResult res = tcs_address_parse(multicast_address, &addr);
+    if (res != TCS_SUCCESS)
+        return res;
+
+    return tcs_opt_membership_add(socket_ctx, &addr);
+}
+
 // tcs_opt_membership_add_to() is defined in OS specific files
 // tcs_opt_membership_drop() is defined in OS specific files
+
+TcsResult tcs_opt_membership_drop_str(TcsSocket socket_ctx, const char* multicast_address)
+{
+    if (multicast_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct TcsAddress addr = TCS_ADDRESS_NONE;
+    TcsResult res = tcs_address_parse(multicast_address, &addr);
+    if (res != TCS_SUCCESS)
+        return res;
+
+    return tcs_opt_membership_drop(socket_ctx, &addr);
+}
+
 // tcs_opt_membership_drop_from() is defined in OS specific files
 
 // ######## Address and Interface Utilities ########

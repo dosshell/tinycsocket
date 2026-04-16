@@ -1196,6 +1196,8 @@ TcsResult tcs_opt_membership_add(TcsSocket socket_ctx, const struct TcsAddress* 
     return tcs_opt_membership_add_to(socket_ctx, &local_address, multicast_address);
 }
 
+// tcs_opt_membership_add_str() is defined in tinycsocket_common.c
+
 TcsResult tcs_opt_membership_add_to(TcsSocket socket_ctx,
                                     const struct TcsAddress* local_address,
                                     const struct TcsAddress* multicast_address)
@@ -1277,6 +1279,8 @@ TcsResult tcs_opt_membership_add_to(TcsSocket socket_ctx,
     }
     return TCS_ERROR_NOT_IMPLEMENTED;
 }
+
+// tcs_opt_membership_drop_str() is defined in tinycsocket_common.c
 
 TcsResult tcs_opt_membership_drop(TcsSocket socket_ctx, const struct TcsAddress* multicast_address)
 {
