@@ -29,7 +29,7 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-static const char* const TCS_VERSION_TXT = "v0.3.68";
+static const char* const TCS_VERSION_TXT = "v0.3.69";
 static const char* const TCS_LICENSE_TXT =
     "Copyright 2018 Markus Lindelöw\n"
     "\n"
@@ -3639,6 +3639,8 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
 {
     if (pool == NULL || events == NULL || events_populated == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
+    if (timeout_ms < 0 && timeout_ms != TCS_WAIT_INF)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     struct TdsMap_poll* map = &pool->backend.poll.map;
 
@@ -5542,6 +5544,8 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
     if (pool == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
     if (events == NULL || events_populated == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (timeout_ms < 0 && timeout_ms != TCS_WAIT_INF)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     // Todo: add more modern implementation. Maybe dispatch att init?

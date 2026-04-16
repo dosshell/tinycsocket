@@ -920,6 +920,8 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
         return TCS_ERROR_INVALID_ARGUMENT;
     if (events == NULL || events_populated == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
+    if (timeout_ms < 0 && timeout_ms != TCS_WAIT_INF)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
     // Todo: add more modern implementation. Maybe dispatch att init?
     // SELECT IMPLEMENTATION
