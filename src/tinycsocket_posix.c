@@ -428,7 +428,12 @@ TcsResult tcs_socket(TcsSocket* socket_ctx, TcsAddressFamily family, int type, i
         return errno2retcode(errno);
 }
 
-// tcs_socket_preset() is defined in tinycsocket_common.c
+// tcs_socket_tcp() is defined in tinycsocket_common.c
+// tcs_socket_tcp_str() is defined in tinycsocket_common.c
+// tcs_socket_udp() is defined in tinycsocket_common.c
+// tcs_socket_udp_str() is defined in tinycsocket_common.c
+// tcs_socket_packet() is defined in tinycsocket_common.c
+// tcs_socket_packet_str() is defined in tinycsocket_common.c
 
 TcsResult tcs_close(TcsSocket* socket_ctx)
 {
@@ -445,29 +450,6 @@ TcsResult tcs_close(TcsSocket* socket_ctx)
         return errno2retcode(errno);
     }
 }
-
-// ######## High-level Socket Creation ########
-
-// tcs_tcp_server_str() is defined in tinycsocket_common.c
-// tcs_tcp_server() is defined in tinycsocket_common.c
-// tcs_tcp_client_str() is defined in tinycsocket_common.c
-// tcs_tcp_client() is defined in tinycsocket_common.c
-// tcs_udp_receiver_str() is defined in tinycsocket_common.c
-// tcs_udp_receiver() is defined in tinycsocket_common.c
-// tcs_udp_sender_str() is defined in tinycsocket_common.c
-// tcs_udp_sender() is defined in tinycsocket_common.c
-// tcs_udp_peer_str() is defined in tinycsocket_common.c
-// tcs_udp_peer() is defined in tinycsocket_common.c
-
-// ######## High-level Raw L2-Packet Sockets (Experimental) ########
-
-// tcs_raw() is defined in tinycsocket_common.c
-// tcs_raw_str() is defined in tinycsocket_common.c
-
-// ######## High-level L2-Packet DGRAM Sockets (Experimental) ########
-
-// tcs_packet() is defined in tinycsocket_common.c
-// tcs_packet_str() is defined in tinycsocket_common.c
 
 // ######## Socket Operations ########
 
@@ -980,14 +962,15 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
             events[filled].user_data = map->values[i];
             events[filled].can_read = map->keys[i].revents & POLLIN;
             events[filled].can_write = map->keys[i].revents & POLLOUT;
-            if (map->keys[i].revents & POLLERR)
+            if (map->keys[i].revents & (POLLERR | POLLHUP))
             {
                 int so_error = 0;
                 socklen_t so_error_size = sizeof(so_error);
+                TcsResult fallback = (map->keys[i].revents & POLLERR) ? TCS_ERROR_UNKNOWN : TCS_ERROR_SOCKET_CLOSED;
                 if (getsockopt(map->keys[i].fd, SOL_SOCKET, SO_ERROR, &so_error, &so_error_size) != 0)
                     events[filled].error = errno2retcode(errno);
                 else
-                    events[filled].error = so_error != 0 ? errno2retcode(so_error) : TCS_ERROR_UNKNOWN;
+                    events[filled].error = so_error != 0 ? errno2retcode(so_error) : fallback;
             }
             else
             {

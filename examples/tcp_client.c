@@ -41,7 +41,7 @@ int main(void)
 
     TcsSocket client_socket = TCS_SOCKET_INVALID;
 
-    if (tcs_tcp_client_str(&client_socket, "localhost", 1212, 1000) != TCS_SUCCESS)
+    if (tcs_socket_tcp_str(&client_socket, NULL, "localhost:1212", 1000) != TCS_SUCCESS)
         return show_error("Could not create a socket");
 
     char msg[] = "hello world\n";

@@ -38,7 +38,7 @@ int main(void)
         return show_error("Could not init tinycsocket");
 
     TcsSocket socket = TCS_SOCKET_INVALID;
-    if (tcs_udp_receiver_str(&socket, "localhost", 1212) != TCS_SUCCESS)
+    if (tcs_socket_udp_str(&socket, "localhost:1212", NULL) != TCS_SUCCESS)
         return show_error("Could not create socket");
 
     struct TcsAddress remote_address = {0};

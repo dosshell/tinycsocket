@@ -31,6 +31,7 @@
 
 #include <stdbool.h>
 #include <stdio.h>  //sprintf
+#include <stdlib.h> // malloc, free
 #include <string.h> // memset
 
 // ######## Library Management ########
@@ -42,455 +43,254 @@
 
 // tcs_socket() is defined in OS specific files
 
-TcsResult tcs_socket_preset(TcsSocket* socket_ctx, TcsPreset socket_type)
+TcsResult tcs_socket_tcp(TcsSocket* socket_ctx,
+                         const struct TcsAddress* local_address,
+                         const struct TcsAddress* remote_address,
+                         int timeout_ms)
 {
     if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
-
-    TcsAddressFamily family = TCS_AF_ANY;
-    int type = 0;
-    int protocol = 0;
-
-    switch (socket_type)
-    {
-        case TCS_PRESET_TCP_IP4:
-            family = TCS_AF_IP4;
-            type = TCS_SOCK_STREAM;
-            protocol = TCS_PROTOCOL_IP_TCP;
-            break;
-        case TCS_PRESET_UDP_IP4:
-            family = TCS_AF_IP4;
-            type = TCS_SOCK_DGRAM;
-            protocol = TCS_PROTOCOL_IP_UDP;
-            break;
-        case TCS_PRESET_RAW:
-            family = TCS_AF_PACKET;
-            type = TCS_SOCK_RAW;
-            protocol = 0; // Block all traffic, unblock with tcs_bind_addr()
-            break;
-        case TCS_PRESET_PACKET:
-            family = TCS_AF_PACKET;
-            type = TCS_SOCK_DGRAM;
-            protocol = 0; // Block all traffic, unblock with tcs_bind_addr()
-            break;
-        case TCS_PRESET_TCP_IP6:
-            family = TCS_AF_IP6;
-            type = TCS_SOCK_STREAM;
-            protocol = TCS_PROTOCOL_IP_TCP;
-            break;
-        case TCS_PRESET_UDP_IP6:
-            family = TCS_AF_IP6;
-            type = TCS_SOCK_DGRAM;
-            protocol = TCS_PROTOCOL_IP_UDP;
-            break;
-        default:
-            return TCS_ERROR_NOT_IMPLEMENTED;
-    }
-    return tcs_socket(socket_ctx, family, type, protocol);
-}
-
-// tcs_close() is defined in OS specific files
-
-// ######## High-level Socket Creation ########
-
-TcsResult tcs_tcp_server(TcsSocket* socket_ctx, const struct TcsAddress* local_address)
-{
-    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
+    if (local_address == NULL && remote_address == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
-    if (local_address == NULL)
+    if (local_address != NULL && remote_address != NULL && local_address->family != remote_address->family)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (timeout_ms < 0 && timeout_ms != TCS_WAIT_INF)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    TcsResult res = tcs_socket(socket_ctx, local_address->family, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
-    if (res != TCS_SUCCESS)
-        return res;
-    res = tcs_bind(*socket_ctx, local_address);
-    if (res != TCS_SUCCESS)
-    {
-        tcs_close(socket_ctx);
-        return res;
-    }
-    res = tcs_listen(*socket_ctx, TCS_BACKLOG_MAX);
-    if (res != TCS_SUCCESS)
-    {
-        tcs_close(socket_ctx);
-        return res;
-    }
-    return TCS_SUCCESS;
-}
+    TcsAddressFamily family = local_address != NULL ? local_address->family : remote_address->family;
 
-TcsResult tcs_tcp_server_str(TcsSocket* socket_ctx, const char* local_address, uint16_t port)
-{
-    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (local_address == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    struct TcsAddress bind_address = TCS_ADDRESS_NONE;
-    TcsResult res = tcs_address_parse(local_address, &bind_address);
-    if (res != TCS_SUCCESS)
-        return res;
-    if (bind_address.family != TCS_AF_IP4 && bind_address.family != TCS_AF_IP6)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    uint16_t* parsed_port = NULL;
-    if (bind_address.family == TCS_AF_IP4)
-    {
-        parsed_port = &bind_address.data.ip4.port;
-    }
-    else if (bind_address.family == TCS_AF_IP6)
-    {
-        parsed_port = &bind_address.data.ip6.port;
-    }
-    else
-    {
-        return TCS_ERROR_UNKNOWN;
-    }
-
-    if (port == 0 && *parsed_port == 0)
-        return TCS_ERROR_INVALID_ARGUMENT; // No port specified
-    if (port != 0 && *parsed_port != 0)
-        return TCS_ERROR_INVALID_ARGUMENT; // Port specified in both string and argument
-
-    if (port != 0 && *parsed_port == 0)
-        *parsed_port = port;
-
-    return tcs_tcp_server(socket_ctx, &bind_address);
-}
-
-TcsResult tcs_tcp_client(TcsSocket* socket_ctx, const struct TcsAddress* remote_address, int timeout_ms)
-{
-    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (timeout_ms < 0)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (remote_address == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (remote_address->family != TCS_AF_IP4 && remote_address->family != TCS_AF_IP6)
-        return TCS_ERROR_NOT_IMPLEMENTED;
-    if (remote_address->family == TCS_AF_IP4 && remote_address->data.ip4.port == 0)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (remote_address->family == TCS_AF_IP6 && remote_address->data.ip6.port == 0)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    TcsResult res = tcs_socket(socket_ctx, remote_address->family, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
+    TcsResult res = tcs_socket(socket_ctx, family, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
     if (res != TCS_SUCCESS)
         return res;
 
-    struct TcsPool* timeout_pool = NULL;
-    res = tcs_pool_create(&timeout_pool);
-    if (res != TCS_SUCCESS)
+    if (local_address != NULL)
     {
-        tcs_close(socket_ctx);
-        return res;
-    }
-
-    res = tcs_opt_nonblocking_set(*socket_ctx, true);
-    if (res != TCS_SUCCESS)
-    {
-        tcs_pool_destroy(&timeout_pool);
-        tcs_close(socket_ctx);
-        return res;
-    }
-    res = tcs_connect(*socket_ctx, remote_address);
-    if (res != TCS_IN_PROGRESS && res != TCS_SUCCESS)
-    {
-        tcs_pool_destroy(&timeout_pool);
-        tcs_close(socket_ctx);
-        return res;
-    }
-
-    if (res == TCS_IN_PROGRESS)
-    {
-        res = tcs_pool_add(timeout_pool, *socket_ctx, NULL, false, true, true);
+        res = tcs_opt_reuse_address_set(*socket_ctx, true);
         if (res != TCS_SUCCESS)
         {
-            tcs_pool_destroy(&timeout_pool);
             tcs_close(socket_ctx);
             return res;
         }
-
-        struct TcsPollEvent event = TCS_POOL_EVENT_EMPTY;
-        size_t events_populated = 0;
-        res = tcs_pool_poll(timeout_pool, &event, 1, &events_populated, timeout_ms);
-        if (res == TCS_ERROR_TIMED_OUT)
+        res = tcs_bind(*socket_ctx, local_address);
+        if (res != TCS_SUCCESS)
         {
-            tcs_pool_destroy(&timeout_pool);
             tcs_close(socket_ctx);
-            return TCS_ERROR_TIMED_OUT;
-        }
-        if (res != TCS_SUCCESS || events_populated == 0)
-        {
-            tcs_pool_destroy(&timeout_pool);
-            tcs_close(socket_ctx);
-            return res != TCS_SUCCESS ? res : TCS_ERROR_UNKNOWN;
-        }
-        if (event.error != TCS_SUCCESS)
-        {
-            tcs_pool_destroy(&timeout_pool);
-            tcs_close(socket_ctx);
-            return TCS_ERROR_CONNECTION_REFUSED;
+            return res;
         }
     }
 
-    tcs_pool_destroy(&timeout_pool);
-
-    res = tcs_opt_nonblocking_set(*socket_ctx, false);
-    if (res != TCS_SUCCESS)
+    if (remote_address != NULL)
     {
-        tcs_close(socket_ctx);
-        return res;
+        if (timeout_ms == TCS_WAIT_INF)
+        {
+            res = tcs_connect(*socket_ctx, remote_address);
+            if (res != TCS_SUCCESS)
+            {
+                tcs_close(socket_ctx);
+                return res;
+            }
+        }
+        else
+        {
+            res = tcs_opt_nonblocking_set(*socket_ctx, true);
+            if (res != TCS_SUCCESS)
+            {
+                tcs_close(socket_ctx);
+                return res;
+            }
+            res = tcs_connect(*socket_ctx, remote_address);
+            if (res != TCS_IN_PROGRESS && res != TCS_SUCCESS)
+            {
+                tcs_close(socket_ctx);
+                return res;
+            }
+            if (res == TCS_IN_PROGRESS)
+            {
+                struct TcsPool* pool = NULL;
+                res = tcs_pool_create(&pool);
+                if (res != TCS_SUCCESS)
+                {
+                    tcs_close(socket_ctx);
+                    return res;
+                }
+                res = tcs_pool_add(pool, *socket_ctx, NULL, false, true, true);
+                if (res != TCS_SUCCESS)
+                {
+                    tcs_pool_destroy(&pool);
+                    tcs_close(socket_ctx);
+                    return res;
+                }
+                struct TcsPollEvent event = TCS_POOL_EVENT_EMPTY;
+                size_t events_populated = 0;
+                res = tcs_pool_poll(pool, &event, 1, &events_populated, timeout_ms);
+                tcs_pool_destroy(&pool);
+                if (res == TCS_ERROR_TIMED_OUT)
+                {
+                    tcs_close(socket_ctx);
+                    return TCS_ERROR_TIMED_OUT;
+                }
+                if (res != TCS_SUCCESS || events_populated == 0)
+                {
+                    tcs_close(socket_ctx);
+                    return res != TCS_SUCCESS ? res : TCS_ERROR_UNKNOWN;
+                }
+                if (event.error != TCS_SUCCESS)
+                {
+                    tcs_close(socket_ctx);
+                    return TCS_ERROR_CONNECTION_REFUSED;
+                }
+            }
+            res = tcs_opt_nonblocking_set(*socket_ctx, false);
+            if (res != TCS_SUCCESS)
+            {
+                tcs_close(socket_ctx);
+                return res;
+            }
+        }
     }
 
     return TCS_SUCCESS;
 }
 
-TcsResult tcs_tcp_client_str(TcsSocket* socket_ctx, const char* remote_address, uint16_t port, int timeout_ms)
+TcsResult tcs_socket_tcp_str(TcsSocket* socket_ctx,
+                             const char* local_address,
+                             const char* remote_address,
+                             int timeout_ms)
 {
     if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
-    if (remote_address == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    struct TcsAddress address = TCS_ADDRESS_NONE;
-    TcsResult res = tcs_address_parse(remote_address, &address);
-    if (res != TCS_SUCCESS)
-        return res;
-    if (address.family != TCS_AF_IP4 && address.family != TCS_AF_IP6)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    uint16_t* parsed_port = NULL;
-    if (address.family == TCS_AF_IP4)
-    {
-        parsed_port = &address.data.ip4.port;
-    }
-    else if (address.family == TCS_AF_IP6)
-    {
-        parsed_port = &address.data.ip6.port;
-    }
-    else
-    {
-        return TCS_ERROR_UNKNOWN;
-    }
-
-    if (port == 0 && *parsed_port == 0)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (port != 0 && *parsed_port != 0)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    if (port != 0 && *parsed_port == 0)
-        *parsed_port = port;
-
-    return tcs_tcp_client(socket_ctx, &address, timeout_ms);
-}
-
-TcsResult tcs_udp_receiver(TcsSocket* socket_ctx, const struct TcsAddress* local_address)
-{
-    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (local_address == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    TcsResult res = tcs_socket(socket_ctx, local_address->family, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP);
-    if (res != TCS_SUCCESS)
-        return res;
-    res = tcs_bind(*socket_ctx, local_address);
-    if (res != TCS_SUCCESS)
-    {
-        tcs_close(socket_ctx);
-        return res;
-    }
-    return TCS_SUCCESS;
-}
-
-TcsResult tcs_udp_receiver_str(TcsSocket* socket_ctx, const char* local_address, uint16_t port)
-{
-    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (local_address == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    struct TcsAddress bind_address = TCS_ADDRESS_NONE;
-    TcsResult res = tcs_address_parse(local_address, &bind_address);
-    if (res != TCS_SUCCESS)
-        return res;
-    if (bind_address.family != TCS_AF_IP4 && bind_address.family != TCS_AF_IP6)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    uint16_t* parsed_port = NULL;
-    if (bind_address.family == TCS_AF_IP4)
-    {
-        parsed_port = &bind_address.data.ip4.port;
-    }
-    else if (bind_address.family == TCS_AF_IP6)
-    {
-        parsed_port = &bind_address.data.ip6.port;
-    }
-    else
-    {
-        return TCS_ERROR_UNKNOWN;
-    }
-
-    if (port == 0 && *parsed_port == 0)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (port != 0 && *parsed_port != 0)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    if (port != 0 && *parsed_port == 0)
-        *parsed_port = port;
-
-    return tcs_udp_receiver(socket_ctx, &bind_address);
-}
-
-TcsResult tcs_udp_sender(TcsSocket* socket_ctx, const struct TcsAddress* remote_address)
-{
-    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (remote_address == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    TcsResult res = tcs_socket(socket_ctx, remote_address->family, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP);
-    if (res != TCS_SUCCESS)
-        return res;
-    res = tcs_connect(*socket_ctx, remote_address);
-    if (res != TCS_SUCCESS)
-    {
-        tcs_close(socket_ctx);
-        return res;
-    }
-    return TCS_SUCCESS;
-}
-
-TcsResult tcs_udp_sender_str(TcsSocket* socket_ctx, const char* remote_address, uint16_t port)
-{
-    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (remote_address == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    struct TcsAddress address = TCS_ADDRESS_NONE;
-    TcsResult res = tcs_address_parse(remote_address, &address);
-    if (res != TCS_SUCCESS)
-        return res;
-    if (address.family != TCS_AF_IP4 && address.family != TCS_AF_IP6)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    uint16_t* parsed_port = NULL;
-    if (address.family == TCS_AF_IP4)
-    {
-        parsed_port = &address.data.ip4.port;
-    }
-    else if (address.family == TCS_AF_IP6)
-    {
-        parsed_port = &address.data.ip6.port;
-    }
-    else
-    {
-        return TCS_ERROR_UNKNOWN;
-    }
-
-    if (port == 0 && *parsed_port == 0)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (port != 0 && *parsed_port != 0)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    if (port != 0 && *parsed_port == 0)
-        *parsed_port = port;
-
-    return tcs_udp_sender(socket_ctx, &address);
-}
-
-TcsResult tcs_udp_peer(TcsSocket* socket_ctx,
-                       const struct TcsAddress* local_address,
-                       const struct TcsAddress* remote_address)
-{
-    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (local_address == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (remote_address == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    TcsResult res = tcs_socket(socket_ctx, local_address->family, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP);
-    if (res != TCS_SUCCESS)
-        return res;
-    res = tcs_bind(*socket_ctx, local_address);
-    if (res != TCS_SUCCESS)
-    {
-        tcs_close(socket_ctx);
-        return res;
-    }
-    res = tcs_connect(*socket_ctx, remote_address);
-    if (res != TCS_SUCCESS)
-    {
-        tcs_close(socket_ctx);
-        return res;
-    }
-    return TCS_SUCCESS;
-}
-
-TcsResult tcs_udp_peer_str(TcsSocket* socket_ctx,
-                           const char* local_address,
-                           uint16_t local_port,
-                           const char* remote_address,
-                           uint16_t remote_port)
-{
-    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (local_address == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (remote_address == NULL)
+    if (local_address == NULL && remote_address == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     struct TcsAddress local_addr = TCS_ADDRESS_NONE;
-    TcsResult res = tcs_address_parse(local_address, &local_addr);
-    if (res != TCS_SUCCESS)
-        return res;
-    if (local_addr.family != TCS_AF_IP4 && local_addr.family != TCS_AF_IP6)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
     struct TcsAddress remote_addr = TCS_ADDRESS_NONE;
-    res = tcs_address_parse(remote_address, &remote_addr);
-    if (res != TCS_SUCCESS)
-        return res;
-    if (remote_addr.family != TCS_AF_IP4 && remote_addr.family != TCS_AF_IP6)
-        return TCS_ERROR_INVALID_ARGUMENT;
+    TcsAddressFamily family = TCS_AF_ANY;
 
-    uint16_t* local_parsed_port = NULL;
-    if (local_addr.family == TCS_AF_IP4)
-        local_parsed_port = &local_addr.data.ip4.port;
-    else if (local_addr.family == TCS_AF_IP6)
-        local_parsed_port = &local_addr.data.ip6.port;
-    else
-        return TCS_ERROR_UNKNOWN;
+    if (local_address != NULL)
+    {
+        size_t count = 0;
+        TcsResult res = tcs_address_resolve(local_address, TCS_AF_ANY, &local_addr, 1, &count);
+        if (res != TCS_SUCCESS)
+            return res;
+        if (count == 0)
+            return TCS_ERROR_ADDRESS_LOOKUP_FAILED;
+        family = local_addr.family;
+    }
 
-    if (local_port == 0 && *local_parsed_port == 0)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (local_port != 0 && *local_parsed_port != 0)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (local_port != 0 && *local_parsed_port == 0)
-        *local_parsed_port = local_port;
+    if (remote_address != NULL)
+    {
+        size_t count = 0;
+        TcsResult res = tcs_address_resolve(remote_address, family, &remote_addr, 1, &count);
+        if (res != TCS_SUCCESS)
+            return res;
+        if (count == 0)
+            return TCS_ERROR_ADDRESS_LOOKUP_FAILED;
+    }
 
-    uint16_t* remote_parsed_port = NULL;
-    if (remote_addr.family == TCS_AF_IP4)
-        remote_parsed_port = &remote_addr.data.ip4.port;
-    else if (remote_addr.family == TCS_AF_IP6)
-        remote_parsed_port = &remote_addr.data.ip6.port;
-    else
-        return TCS_ERROR_UNKNOWN;
-
-    if (remote_port == 0 && *remote_parsed_port == 0)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (remote_port != 0 && *remote_parsed_port != 0)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (remote_port != 0 && *remote_parsed_port == 0)
-        *remote_parsed_port = remote_port;
-
-    return tcs_udp_peer(socket_ctx, &local_addr, &remote_addr);
+    return tcs_socket_tcp(socket_ctx,
+                          local_address != NULL ? &local_addr : NULL,
+                          remote_address != NULL ? &remote_addr : NULL,
+                          timeout_ms);
 }
 
-// ######## High-level Raw L2-Packet Sockets (Experimental) ########
+TcsResult tcs_socket_udp(TcsSocket* socket_ctx,
+                         const struct TcsAddress* local_address,
+                         const struct TcsAddress* remote_address)
+{
+    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (local_address == NULL && remote_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (local_address != NULL && remote_address != NULL && local_address->family != remote_address->family)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
-TcsResult tcs_raw(TcsSocket* socket_ctx, const struct TcsAddress* bind_address)
+    TcsAddressFamily family = local_address != NULL ? local_address->family : remote_address->family;
+
+    TcsResult res = tcs_socket(socket_ctx, family, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP);
+    if (res != TCS_SUCCESS)
+        return res;
+
+    if (local_address != NULL)
+    {
+        res = tcs_opt_reuse_address_set(*socket_ctx, true);
+        if (res != TCS_SUCCESS)
+        {
+            tcs_close(socket_ctx);
+            return res;
+        }
+        res = tcs_bind(*socket_ctx, local_address);
+        if (res != TCS_SUCCESS)
+        {
+            tcs_close(socket_ctx);
+            return res;
+        }
+    }
+
+    if (remote_address != NULL)
+    {
+        bool is_multicast = tcs_address_is_multicast(remote_address);
+
+        if (is_multicast)
+        {
+            res = tcs_opt_membership_add(*socket_ctx, remote_address);
+            if (res != TCS_SUCCESS)
+            {
+                tcs_close(socket_ctx);
+                return res;
+            }
+        }
+
+        if (!is_multicast || local_address == NULL)
+        {
+            res = tcs_connect(*socket_ctx, remote_address);
+            if (res != TCS_SUCCESS)
+            {
+                tcs_close(socket_ctx);
+                return res;
+            }
+        }
+    }
+
+    return TCS_SUCCESS;
+}
+
+TcsResult tcs_socket_udp_str(TcsSocket* socket_ctx, const char* local_address, const char* remote_address)
+{
+    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (local_address == NULL && remote_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct TcsAddress local_addr = TCS_ADDRESS_NONE;
+    struct TcsAddress remote_addr = TCS_ADDRESS_NONE;
+    TcsAddressFamily family = TCS_AF_ANY;
+
+    if (local_address != NULL)
+    {
+        size_t count = 0;
+        TcsResult res = tcs_address_resolve(local_address, TCS_AF_ANY, &local_addr, 1, &count);
+        if (res != TCS_SUCCESS)
+            return res;
+        if (count == 0)
+            return TCS_ERROR_ADDRESS_LOOKUP_FAILED;
+        family = local_addr.family;
+    }
+
+    if (remote_address != NULL)
+    {
+        size_t count = 0;
+        TcsResult res = tcs_address_resolve(remote_address, family, &remote_addr, 1, &count);
+        if (res != TCS_SUCCESS)
+            return res;
+        if (count == 0)
+            return TCS_ERROR_ADDRESS_LOOKUP_FAILED;
+    }
+
+    return tcs_socket_udp(
+        socket_ctx, local_address != NULL ? &local_addr : NULL, remote_address != NULL ? &remote_addr : NULL);
+}
+
+TcsResult tcs_socket_packet(TcsSocket* socket_ctx, const struct TcsAddress* bind_address, int type)
 {
     if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -498,34 +298,65 @@ TcsResult tcs_raw(TcsSocket* socket_ctx, const struct TcsAddress* bind_address)
         return TCS_ERROR_INVALID_ARGUMENT;
     if (bind_address->family != TCS_AF_PACKET)
         return TCS_ERROR_INVALID_ARGUMENT;
+    if (type != TCS_SOCK_RAW && type != TCS_SOCK_DGRAM)
+        return TCS_ERROR_INVALID_ARGUMENT;
 
-    TcsResult res = tcs_socket(socket_ctx, TCS_AF_PACKET, TCS_SOCK_RAW, bind_address->data.packet.protocol);
+    TcsResult res = tcs_socket(socket_ctx, TCS_AF_PACKET, type, bind_address->data.packet.protocol);
     if (res != TCS_SUCCESS)
         return res;
+
     res = tcs_bind(*socket_ctx, bind_address);
     if (res != TCS_SUCCESS)
     {
         tcs_close(socket_ctx);
         return res;
     }
+
     return TCS_SUCCESS;
 }
 
-TcsResult tcs_raw_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol)
+TcsResult tcs_socket_packet_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol, int type)
 {
     if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
     if (interface_name == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    struct TcsInterface interfaces[16]; // TODO: use heap if more
+    struct TcsInterface stack_buf[16];
+    struct TcsInterface* interfaces = stack_buf;
     size_t count = 0;
-    TcsResult res = tcs_interface_list(interfaces, 16, &count);
+
+    TcsResult res = tcs_interface_list(stack_buf, 16, &count);
     if (res != TCS_SUCCESS)
         return res;
 
-    size_t iter_count = count < 16 ? count : 16;
-    for (size_t i = 0; i < iter_count; ++i)
+    size_t search_count = count < 16 ? count : 16;
+    for (size_t i = 0; i < search_count; ++i)
+    {
+        if (strcmp(stack_buf[i].name, interface_name) == 0)
+        {
+            struct TcsAddress bind_address = TCS_ADDRESS_NONE;
+            bind_address.family = TCS_AF_PACKET;
+            bind_address.data.packet.interface_id = stack_buf[i].id;
+            bind_address.data.packet.protocol = protocol;
+            return tcs_socket_packet(socket_ctx, &bind_address, type);
+        }
+    }
+
+    if (count > 16)
+    {
+        interfaces = (struct TcsInterface*)malloc(count * sizeof(struct TcsInterface));
+        if (interfaces == NULL)
+            return TCS_ERROR_MEMORY;
+        res = tcs_interface_list(interfaces, count, &count);
+        if (res != TCS_SUCCESS)
+        {
+            free(interfaces);
+            return res;
+        }
+    }
+
+    for (size_t i = 0; i < count; ++i)
     {
         if (strcmp(interfaces[i].name, interface_name) == 0)
         {
@@ -533,64 +364,18 @@ TcsResult tcs_raw_str(TcsSocket* socket_ctx, const char* interface_name, uint16_
             bind_address.family = TCS_AF_PACKET;
             bind_address.data.packet.interface_id = interfaces[i].id;
             bind_address.data.packet.protocol = protocol;
-            return tcs_raw(socket_ctx, &bind_address);
+            if (interfaces != stack_buf)
+                free(interfaces);
+            return tcs_socket_packet(socket_ctx, &bind_address, type);
         }
     }
 
+    if (interfaces != stack_buf)
+        free(interfaces);
     return TCS_ERROR_INVALID_ARGUMENT;
 }
 
-// ######## High-level L2-Packet DGRAM Sockets (Experimental) ########
-
-TcsResult tcs_packet(TcsSocket* socket_ctx, const struct TcsAddress* bind_address)
-{
-    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (bind_address == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (bind_address->family != TCS_AF_PACKET)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    TcsResult res = tcs_socket(socket_ctx, TCS_AF_PACKET, TCS_SOCK_DGRAM, bind_address->data.packet.protocol);
-    if (res != TCS_SUCCESS)
-        return res;
-    res = tcs_bind(*socket_ctx, bind_address);
-    if (res != TCS_SUCCESS)
-    {
-        tcs_close(socket_ctx);
-        return res;
-    }
-    return TCS_SUCCESS;
-}
-
-TcsResult tcs_packet_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol)
-{
-    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (interface_name == NULL)
-        return TCS_ERROR_INVALID_ARGUMENT;
-
-    struct TcsInterface interfaces[16];
-    size_t count = 0;
-    TcsResult res = tcs_interface_list(interfaces, 16, &count);
-    if (res != TCS_SUCCESS)
-        return res;
-
-    size_t iter_count = count < 16 ? count : 16;
-    for (size_t i = 0; i < iter_count; ++i)
-    {
-        if (strcmp(interfaces[i].name, interface_name) == 0)
-        {
-            struct TcsAddress bind_address = TCS_ADDRESS_NONE;
-            bind_address.family = TCS_AF_PACKET;
-            bind_address.data.packet.interface_id = interfaces[i].id;
-            bind_address.data.packet.protocol = protocol;
-            return tcs_packet(socket_ctx, &bind_address);
-        }
-    }
-
-    return TCS_ERROR_INVALID_ARGUMENT;
-}
+// tcs_close() is defined in OS specific files
 
 // ######## Socket Operations ########
 

@@ -38,21 +38,17 @@ int main(void)
         return show_error("Could not init tinycsocket");
 
     TcsSocket socket = TCS_SOCKET_INVALID;
-    if (tcs_socket_preset(&socket, TCS_PRESET_UDP_IP4) != TCS_SUCCESS)
+    if (tcs_socket_udp_str(&socket, NULL, "localhost:1212") != TCS_SUCCESS)
         return show_error("Could not create socket");
 
-    struct TcsAddress remote_info;
-    if (tcs_address_resolve("localhost", TCS_AF_IP4, &remote_info, 1, NULL) != TCS_SUCCESS)
-        return show_error("Could not resolve localhost");
-
     char msg[] = "hello world\n";
-    if (tcs_send_to(socket, (const uint8_t*)msg, sizeof(msg), TCS_FLAG_NONE, &remote_info, NULL) != TCS_SUCCESS)
+    if (tcs_send(socket, (const uint8_t*)msg, sizeof(msg), TCS_FLAG_NONE, NULL) != TCS_SUCCESS)
         return show_error("Could not send message");
 
     uint8_t recv_buffer[1024];
     size_t recv_size = sizeof(recv_buffer) - 1;
     size_t bytes_received = 0;
-    if (tcs_receive_from(socket, recv_buffer, recv_size, TCS_FLAG_NONE, NULL, &bytes_received) != TCS_SUCCESS)
+    if (tcs_receive(socket, recv_buffer, recv_size, TCS_FLAG_NONE, &bytes_received) != TCS_SUCCESS)
         return show_error("Could not receive data");
 
     // Makes sure it is a NULL terminated string, this is why we only accept 1023 bytes in receive
