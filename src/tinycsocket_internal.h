@@ -57,7 +57,6 @@ static const char* const TCS_LICENSE_TXT =
 *
 * Socket Creation:
 * - TcsResult tcs_socket(TcsSocket* socket_ctx, TcsAddressFamily family, int type, int protocol);
-* - TcsResult tcs_socket_preset(TcsSocket* socket_ctx, TcsPreset socket_type);
 * - TcsResult tcs_socket_tcp(TcsSocket* socket_ctx, const struct TcsAddress* local_address, const struct TcsAddress* remote_address, int timeout_ms);
 * - TcsResult tcs_socket_tcp_str(TcsSocket* socket_ctx, const char* local_address, const char* remote_address, int timeout_ms);
 * - TcsResult tcs_socket_udp(TcsSocket* socket_ctx, const struct TcsAddress* local_address, const struct TcsAddress* remote_address);
@@ -65,24 +64,6 @@ static const char* const TCS_LICENSE_TXT =
 * - TcsResult tcs_socket_packet(TcsSocket* socket_ctx, const struct TcsAddress* bind_address, int type);
 * - TcsResult tcs_socket_packet_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol, int type);
 * - TcsResult tcs_close(TcsSocket* socket_ctx);
-*
-* High-level Socket Creation:
-* - TcsResult tcs_tcp_server(TcsSocket* socket_ctx, const struct TcsAddress* local_address);
-* - TcsResult tcs_tcp_server_str(TcsSocket* socket_ctx, const char* local_address, uint16_t port);
-* - TcsResult tcs_tcp_client(TcsSocket* socket_ctx, const struct TcsAddress* remote_address, int timeout_ms);
-* - TcsResult tcs_tcp_client_str(TcsSocket* socket_ctx, const char* remote_address, uint16_t port, int timeout_ms);
-* - TcsResult tcs_udp_receiver(TcsSocket* socket_ctx, const struct TcsAddress* local_address);
-* - TcsResult tcs_udp_receiver_str(TcsSocket* socket_ctx, const char* local_address, uint16_t port);
-* - TcsResult tcs_udp_sender(TcsSocket* socket_ctx, const struct TcsAddress* remote_address);
-* - TcsResult tcs_udp_sender_str(TcsSocket* socket_ctx, const char* remote_address, uint16_t port);
-* - TcsResult tcs_udp_peer(TcsSocket* socket_ctx, const struct TcsAddress* local_address, const struct TcsAddress* remote_address);
-* - TcsResult tcs_udp_peer_str(TcsSocket* socket_ctx, const char* local_address, uint16_t local_port, const char* remote_address, uint16_t remote_port);
-*
-* High-level Raw L2-Packet Sockets (Experimental):
-* - TcsResult tcs_raw(TcsSocket* socket_ctx, const struct TcsAddress* bind_address);
-* - TcsResult tcs_raw_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol);
-* - TcsResult tcs_packet(TcsSocket* socket_ctx, const struct TcsAddress* bind_address);
-* - TcsResult tcs_packet_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol);
 *
 * Socket Operations:
 * - TcsResult tcs_bind(TcsSocket socket_ctx, const struct TcsAddress* local_address);
@@ -342,17 +323,6 @@ extern const uint16_t TCS_PROTOCOL_IP_UDP; /**< Use UDP protocol (use with TCS_S
 // Ethernet protocols (host byte order)
 static const uint16_t TCS_ETH_P_ALL = 0x0003; /**< Receive all protocols. Use with TCS_AF_PACKET for capture. */
 
-// Simple socket creation
-typedef enum
-{
-    TCS_PRESET_TCP_IP4,
-    TCS_PRESET_UDP_IP4,
-    TCS_PRESET_TCP_IP6,
-    TCS_PRESET_UDP_IP6,
-    TCS_PRESET_RAW,    // Layer 2 raw, CAP_NET_RAW permission may be needed
-    TCS_PRESET_PACKET, // Layer 2 dgram, CAP_NET_RAW permission may be needed
-} TcsPreset;
-
 // Flags
 extern const uint32_t TCS_AI_PASSIVE; /**< Use this flag for pure listening sockets */
 
@@ -505,11 +475,10 @@ TcsResult tcs_lib_free(void);
  * @brief Create a new socket (BSD-style)
  *
  * This is a thin wrapper around the native socket function.
- * You may want to use ::tcs_socket_preset() instead, or one of the helper functions to create and setup a socket directly:
- *   - ::tcs_tcp_server_str()
- *   - ::tcs_tcp_client_str()
- *   - ::tcs_udp_receiver_str()
- *   - ::tcs_udp_sender_str()
+ * You may want to use one of the helper functions to create and setup a socket directly:
+ *   - ::tcs_socket_tcp_str()
+ *   - ::tcs_socket_udp_str()
+ *   - ::tcs_socket_packet_str()
  * 
  * Call ::tcs_close() to stop communication and free all resources for the socket.
  * 
@@ -549,68 +518,14 @@ TcsResult tcs_lib_free(void);
  * @retval #TCS_ERROR_NOT_IMPLEMENTED if you have provided an address family that is not supported on this platform.
  * @retval #TCS_ERROR_PERMISSION_DENIED if you do not have permission to create the socket. E.g. raw sockets often require elevated permissions.
  *
- * @see tcs_socket_preset()
- * @see tcs_tcp_server_str()
- * @see tcs_tcp_client_str()
- * @see tcs_udp_receiver_str()
- * @see tcs_udp_sender_str()
+ * @see tcs_socket_tcp_str()
+ * @see tcs_socket_udp_str()
+ * @see tcs_socket_packet_str()
  * @see tcs_close()
  * @see tcs_lib_init()
  * @see tcs_lib_free()
  */
 TcsResult tcs_socket(TcsSocket* socket_ctx, TcsAddressFamily family, int type, int protocol);
-
-/**
- * @brief Creates a new socket with simplified options.
- *
- * This is a simple wrapper around tcs_socket() to make it easier to create common socket types.
- * Consider using one of the helper functions instead to create and setup a socket directly:
- *   - ::tcs_tcp_server_str()
- *   - ::tcs_tcp_client_str()
- *   - ::tcs_udp_receiver_str()
- *   - ::tcs_udp_sender_str()
- *
- * @code
- * #include "tinycsocket.h"
- *
- * int main()
- * {
- *   TcsResult tcs_init_res = tcs_lib_init();
- *   if (tcs_init_res != TCS_SUCCESS)
- *       return -1; // Failed to initialize tinycsocket
- *
- *   TcsSocket my_socket = TCS_SOCKET_INVALID; // Always initialize TcsSocket to TCS_SOCKET_INVALID.
- *   TcsResult tcs_socket_res = tcs_socket_preset(&my_socket, TCS_PRESET_TCP_IP4);
- *   if (tcs_socket_res != TCS_SUCCESS)
- *   {
- *     tcs_lib_free();
- *     return -2; // Failed to create socket
- *   }
- *
- *   // Do stuff with my_socket here. See examples in the documentation.
- *
- *   tcs_close(&my_socket); // Safe to call even if my_socket is TCS_SOCKET_INVALID
- *   tcs_lib_free();
- * }
- * @endcode
- *
- * @param[out] socket_ctx pointer to socket context to be created, which must have been initialized to #TCS_SOCKET_INVALID before use.
- * @param[in]  socket_type Socket family / transport combination. See ::TcsPreset for supported values.
- *
- * @return #TCS_SUCCESS if successful, otherwise the error code.
- *
- * @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument. Such as a socket value that is not #TCS_SOCKET_INVALID.
- *
- * @see tcs_socket()
- * @see tcs_tcp_server_str()
- * @see tcs_tcp_client_str()
- * @see tcs_udp_receiver_str()
- * @see tcs_udp_sender_str()
- * @see tcs_close()
- * @see tcs_lib_init()
- * @see tcs_lib_free()
- */
-TcsResult tcs_socket_preset(TcsSocket* socket_ctx, TcsPreset socket_type);
 
 /**
 * @brief Create a TCP socket, optionally bind to a local address and/or connect to a remote address.
@@ -907,682 +822,13 @@ TcsResult tcs_socket_packet_str(TcsSocket* socket_ctx, const char* interface_nam
 * @retval #TCS_ERROR_SOCKET_CLOSED if the socket is already closed.
 *
 * @see tcs_socket()
-* @see tcs_socket_preset()
-* @see tcs_tcp_server_str()
-* @see tcs_tcp_client_str()
-* @see tcs_udp_receiver_str()
-* @see tcs_udp_sender_str()
+* @see tcs_socket_tcp()
+* @see tcs_socket_udp()
+* @see tcs_socket_packet()
 * @see tcs_lib_init()
 * @see tcs_lib_free()
 */
 TcsResult tcs_close(TcsSocket* socket_ctx);
-
-// ######## High-level Socket Creation ########
-
-/**
-* @brief Setup a socket to listen for incoming tcp connections given an address struct.
-*
-* @code
-* #include "tinycsocket.h"
-* int main()
-* {
-*   TcsResult tcs_init_res = tcs_lib_init();
-*   if (tcs_init_res != TCS_SUCCESS)
-*     return -1; // Failed to initialize tinycsocket
-*
-*   struct TcsAddress local_address = TCS_ADDRESS_NONE;
-*   local_address.family = TCS_AF_IP4;
-*   local_address.data.ip4.address = TCS_ADDRESS_ANY_IP4; // Bind to all IPv4 interfaces
-*   local_address.data.ip4.port = 1212;
-*   
-*   TcsSocket server_socket = TCS_SOCKET_INVALID; // Always initialize TcsSocket to TCS_SOCKET_INVALID.
-*   TcsResult tcs_server_res = tcs_tcp_server(&server_socket, &local_address);
-*   if (tcs_server_res != TCS_SUCCESS)
-*   {
-*     tcs_lib_free();
-*     return -2; // Failed to create server socket
-*   }
-*
-*   TcsSocket client_socket = TCS_SOCKET_INVALID;
-*   TcsResult accept_result = tcs_accept(&server_socket, &client_socket, NULL); // Accept incoming connections
-*   if (accept_result != TCS_SUCCESS)
-*   {
-*     tcs_close(&server_socket);
-*     tcs_lib_free();
-*     return -3; // Failed to accept incoming connection
-*   }
-*
-*   // Do stuff with client_socket here. See examples in the examples folder.
-*
-*   tcs_shutdown(&client_socket, TCS_SD_BOTH); // Shutdown the accepted socket
-*   tcs_close(&client_socket); // Close the accepted socket
-*   tcs_close(&server_socket); // Safe to call even if server_socket is TCS_SOCKET_INVALID
-*   tcs_lib_free();
-* }
-* @endcode
-* @param[out] socket_ctx is a pointer to your socket context to be created, which must have been initialized to #TCS_SOCKET_INVALID before use.
-* @param[in] local_address
-*
-* @return #TCS_SUCCESS if successful, otherwise the error code.
-* @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument. Such as a socket value that is not #TCS_SOCKET_INVALID.
-*
-* @see tcs_socket_preset()
- */
-TcsResult tcs_tcp_server(TcsSocket* socket_ctx, const struct TcsAddress* local_address);
-
-/**
-* @brief Setup a socket to listen for incoming tcp connections.
-*
-* @code
-* #include "tinycsocket.h"
-* int main()
-* {
-*   TcsResult tcs_init_res = tcs_lib_init();
-*   if (tcs_init_res != TCS_SUCCESS)
-*     return -1; // Failed to initialize tinycsocket
-*
-*   TcsSocket server_socket = TCS_SOCKET_INVALID; // Always initialize TcsSocket to TCS_SOCKET_INVALID.
-*   TcsResult tcs_server_res = tcs_tcp_server_str(&server_socket, "0.0.0.0", 1212);
-*   if (tcs_server_res != TCS_SUCCESS)
-*   {
-*     tcs_lib_free();
-*     return -2; // Failed to create server socket
-*   }
-*
-*   TcsSocket client_socket = TCS_SOCKET_INVALID;
-*   TcsResult accept_result = tcs_accept(&server_socket, &client_socket, NULL); // Accept incoming connections
-*   if (accept_result != TCS_SUCCESS)
-*   {
-*     tcs_close(&server_socket);
-*     tcs_lib_free();
-*     return -3; // Failed to accept incoming connection
-*   }
-*
-*   // Do stuff with server_socket here. See examples in the documentation.
-*
-*   tcs_shutdown(&client_socket, TCS_SD_BOTH); // Shutdown the accepted socket
-*   tcs_close(&client_socket); // Close the accepted socket
-*   tcs_close(&server_socket); // Safe to call even if server_socket is TCS_SOCKET_INVALID
-*   tcs_lib_free();
-* }
-* @endcode
-*
-* @param[out] socket_ctx is a pointer to your socket context to be created, which must have been initialized to #TCS_SOCKET_INVALID before use.
-* @param[in] local_address is the local address to bind to. Use NULL or "0.0.0.0" to bind to all interfaces. Port number in string will result in invalid argument error.
-* @param[in] port is the local port to bind to. 0 will result in a random free port being assigned.
-*
-* @return #TCS_SUCCESS if successful, otherwise the error code.
-* @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument. Such as a socket value that is not #TCS_SOCKET_INVALID.
-*
-* @see tcs_socket()
-* @see tcs_socket_preset()
-* @see tcs_tcp_client_str()
-* @see tcs_close()
-* @see tcs_lib_init()
-* @see tcs_lib_free()
-*/
-TcsResult tcs_tcp_server_str(TcsSocket* socket_ctx, const char* local_address, uint16_t port);
-
-/**
-* @brief Setup a socket to connect to a remote TCP server using a specific address structure.
-*
-* This will create a TCP client socket and attempt to connect to the specified remote address.
-* The function blocks until connected or until the specified timeout elapses.
-* Use tcs_tcp_client_str() if you want to specify the address as a hostname and port instead.
-*
-* @code
-* #include "tinycsocket.h"
-* int main()
-* {
-*   TcsResult tcs_init_res = tcs_lib_init();
-*   if (tcs_init_res != TCS_SUCCESS)
-*     return -1;
-*
-*   struct TcsAddress remote_addr = {0};
-*   remote_addr.family = TCS_AF_IP4;
-*   remote_addr.data.ip4.address = 0x7F000001; // 127.0.0.1 loopback
-*   remote_addr.data.ip4.port = 8080;
-*
-*   TcsSocket client_socket = TCS_SOCKET_INVALID;
-*   TcsResult connect_res = tcs_tcp_client(&client_socket, &remote_addr, 1000); // 1000 milliseconds timeout
-*   if (connect_res != TCS_SUCCESS)
-*   {
-*     tcs_lib_free();
-*     return -2;
-*   }
-*
-*   // Use the connected socket
-*   uint8_t buffer[] = "Hello, server!";
-*   size_t bytes_sent = 0;
-*   tcs_send(client_socket, buffer, sizeof(buffer)-1, TCS_MSG_SENDALL, &bytes_sent);
-*
-*   tcs_close(&client_socket);
-*   tcs_lib_free();
-* }
-* @endcode
-*
-* @param[out] socket_ctx is a pointer to your socket context to be created, which must have been initialized to #TCS_SOCKET_INVALID before use
-* @param[in] remote_address is the remote address structure to connect to
-* @param[in] timeout_ms is the maximum time in milliseconds to wait until connected, use #TCS_WAIT_INF to wait indefinitely
-*
-* @return #TCS_SUCCESS if successful, otherwise the error code
-* @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument, such as a socket value that is not #TCS_SOCKET_INVALID
-* @retval #TCS_ERROR_CONNECTION_REFUSED if the remote server refused the connection
-* @retval #TCS_ERROR_TIMED_OUT if the connection attempt timed out
-* @retval #TCS_ERROR_ADDRESS_LOOKUP_FAILED if the address could not be resolved
-*
-* @see tcs_tcp_client_str()
-* @see tcs_close()
-*/
-TcsResult tcs_tcp_client(TcsSocket* socket_ctx, const struct TcsAddress* remote_address, int timeout_ms);
-
-/**
-* @brief Setup a socket and connect to a remote TCP server.
-*
-* This will create a TCP client socket and attempt to connect to the specified remote address.
-* The function blocks until connected or until the specified timeout elapses.
-* Use tcs_tcp_client() if you want to specify the address as a struct TcsAddress instead.
-*
-* @code
-* #include "tinycsocket.h"
-* int main()
-* {
-*   TcsResult tcs_init_res = tcs_lib_init();
-*   if (tcs_init_res != TCS_SUCCESS)
-*     return -1;
-*
-*   TcsSocket client_socket = TCS_SOCKET_INVALID;
-*   TcsResult connect_res = tcs_tcp_client_str(&client_socket, "127.0.0.1", 8080, 1000); // 1000 milliseconds timeout
-*   if (connect_res != TCS_SUCCESS)
-*   {
-*     tcs_lib_free();
-*     return -2;
-*   }
-*
-*   // Use the connected socket
-*   uint8_t buffer[] = "Hello, server!";
-*   size_t bytes_sent = 0;
-*   tcs_send(client_socket, buffer, sizeof(buffer)-1, TCS_MSG_SENDALL, &bytes_sent);
-*
-*   tcs_close(&client_socket);
-*   tcs_lib_free();
-*   return 0;
-* }
-* @endcode
-*
-* @param[out] socket_ctx is a pointer to your socket context to be created, which must have been initialized to #TCS_SOCKET_INVALID before use
-* @param[in] remote_address is the remote address to connect to. Hostname or IP address string.
-* @param[in] port is the remote port to connect to
-* @param[in] timeout_ms is the maximum time in milliseconds to wait until connected, use #TCS_WAIT_INF to wait indefinitely
-*
-* @return #TCS_SUCCESS if successful, otherwise the error code
-* @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument, such as a socket value that is not #TCS_SOCKET_INVALID
-* @retval #TCS_ERROR_CONNECTION_REFUSED if the remote server refused the connection
-* @retval #TCS_ERROR_TIMED_OUT if the connection attempt timed out
-* @retval #TCS_ERROR_ADDRESS_LOOKUP_FAILED if the address could not be resolved
-*
-* @see tcs_tcp_client()
-* @see tcs_close()
-*/
-TcsResult tcs_tcp_client_str(TcsSocket* socket_ctx, const char* remote_address, uint16_t port, int timeout_ms);
-
-/**
-* @brief Creates a UDP socket bound to a local address structure for receiving datagrams.
-*
-* This function creates a UDP socket and binds it to the specified local address structure,
-* allowing it to receive incoming UDP datagrams sent to that address/port combination.
-* Use tcs_udp_receiver_str() if you want to specify the address as a hostname and port instead.
-*
-* @code
-* #include "tinycsocket.h"
-* int main()
-* {
-*   TcsResult tcs_init_res = tcs_lib_init();
-*   if (tcs_init_res != TCS_SUCCESS)
-*     return -1; // Failed to initialize tinycsocket
-*
-*   struct TcsAddress local_address = TCS_ADDRESS_NONE;
-*   local_address.family = TCS_AF_IP4;
-*   local_address.data.ip4.address = TCS_ADDRESS_ANY_IP4; // Bind to all interfaces
-*   local_address.data.ip4.port = 8888;
-*   
-*   TcsSocket receiver = TCS_SOCKET_INVALID; // Always initialize TcsSocket to TCS_SOCKET_INVALID
-*   TcsResult udp_res = tcs_udp_receiver(&receiver, &local_address);
-*   if (udp_res != TCS_SUCCESS)
-*   {
-*     tcs_lib_free();
-*     return -2; // Failed to create UDP receiver
-*   }
-*
-*   // Receive data
-*   uint8_t buffer[2048];
-*   size_t bytes_received = 0;
-*   struct TcsAddress sender_address;
-*   
-*   TcsResult recv_res = tcs_receive_from(receiver, buffer, sizeof(buffer), 
-*                                       TCS_FLAG_NONE, &sender_address, &bytes_received);
-*   if (recv_res == TCS_SUCCESS && bytes_received > 0)
-*   {
-*     // Process received data...
-*   }
-*
-*   tcs_close(&receiver);
-*   tcs_lib_free();
-*   return 0;
-* }
-* @endcode
-*
-* @param[out] socket_ctx is a pointer to your socket context to be created, which must have been initialized to #TCS_SOCKET_INVALID before use.
-* @param[in] local_address is the local address structure to bind to.
-*
-* @return #TCS_SUCCESS if successful, otherwise the error code.
-* @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument, such as a socket value that is not #TCS_SOCKET_INVALID.
-* @retval #TCS_ERROR_PERMISSION_DENIED if binding to the specified address/port requires elevated privileges.
-*
-* @see tcs_udp_receiver_str()
-* @see tcs_udp_sender()
-* @see tcs_udp_peer()
-* @see tcs_receive_from()
-* @see tcs_close()
-*/
-TcsResult tcs_udp_receiver(TcsSocket* socket_ctx, const struct TcsAddress* local_address);
-
-/**
-* @brief Creates a UDP socket bound to a local address for receiving datagrams.
-*
-* This function creates a UDP socket and binds it to the specified local address and port,
-* allowing it to receive incoming UDP datagrams sent to that address/port combination.
-* Use tcs_udp_receiver() if you want to specify the address as a TcsAddress structure.
-*
-* @code
-* #include "tinycsocket.h"
-* int main()
-* {
-*   TcsResult tcs_init_res = tcs_lib_init();
-*   if (tcs_init_res != TCS_SUCCESS)
-*     return -1; // Failed to initialize tinycsocket
-*
-*   TcsSocket receiver = TCS_SOCKET_INVALID; // Always initialize TcsSocket to TCS_SOCKET_INVALID
-*   TcsResult udp_res = tcs_udp_receiver_str(&receiver, "0.0.0.0", 8888);
-*   if (udp_res != TCS_SUCCESS)
-*   {
-*     tcs_lib_free();
-*     return -2; // Failed to create UDP receiver
-*   }
-*
-*   // Receive data
-*   uint8_t buffer[2048];
-*   size_t bytes_received = 0;
-*   struct TcsAddress remote_address;
-*   
-*   TcsResult recv_res = tcs_receive_from(receiver, buffer, sizeof(buffer), TCS_FLAG_NONE, &remote_address, &bytes_received);
-*   if (recv_res == TCS_SUCCESS)
-*   {
-*     // Process received data...
-*   }
-*
-*   tcs_close(&receiver);
-*   tcs_lib_free();
-*   return 0;
-* }
-* @endcode
-*
-* @param[out] socket_ctx is a pointer to your socket context to be created, which must have been initialized to #TCS_SOCKET_INVALID before use.
-* @param[in] local_address is the local address to bind to. Use NULL or "0.0.0.0" to bind to all interfaces.
-* @param[in] port is the local port to bind to. 0 will result in a random free port being assigned.
-*
-* @return #TCS_SUCCESS if successful, otherwise the error code.
-* @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument, such as a socket value that is not #TCS_SOCKET_INVALID.
-* @retval #TCS_ERROR_PERMISSION_DENIED if binding to the specified address/port requires elevated privileges.
-* @retval #TCS_ERROR_ADDRESS_LOOKUP_FAILED if the local address could not be resolved.
-*
-* @see tcs_udp_receiver()
-* @see tcs_udp_sender_str()
-* @see tcs_udp_peer_str()
-* @see tcs_receive_from()
-* @see tcs_close()
-*/
-TcsResult tcs_udp_receiver_str(TcsSocket* socket_ctx, const char* local_address, uint16_t port);
-
-/**
-* @brief Creates a UDP socket configured to send datagrams to a specific remote address structure.
-*
-* This function creates a UDP socket that's pre-configured to send datagrams to the specified
-* remote address structure. The socket is not bound to a specific local address, so the OS
-* will automatically assign a local address and port when sending data.
-* Use tcs_udp_sender_str() if you want to specify the address as a hostname and port instead.
-*
-* @code
-* #include "tinycsocket.h"
-* int main()
-* {
-*   TcsResult tcs_init_res = tcs_lib_init();
-*   if (tcs_init_res != TCS_SUCCESS)
-*     return -1; // Failed to initialize tinycsocket
-*
-*   struct TcsAddress remote_address = TCS_ADDRESS_NONE;
-*   remote_address.family = TCS_AF_IP4;
-*   remote_address.data.ip4.address = 0x7F000001; // 127.0.0.1 loopback
-*   remote_address.data.ip4.port = 8888;
-*   
-*   TcsSocket sender = TCS_SOCKET_INVALID; // Always initialize TcsSocket to TCS_SOCKET_INVALID
-*   TcsResult udp_res = tcs_udp_sender(&sender, &remote_address);
-*   if (udp_res != TCS_SUCCESS)
-*   {
-*     tcs_lib_free();
-*     return -2; // Failed to create UDP sender
-*   }
-*
-*   // Send data
-*   uint8_t buffer[] = "Hello, UDP receiver!";
-*   size_t bytes_sent = 0;
-*   
-*   TcsResult send_res = tcs_send(sender, buffer, sizeof(buffer)-1, TCS_FLAG_NONE, &bytes_sent);
-*   if (send_res == TCS_SUCCESS)
-*   {
-*     // Data sent successfully
-*   }
-*
-*   tcs_close(&sender);
-*   tcs_lib_free();
-*   return 0;
-* }
-* @endcode
-*
-* @param[out] socket_ctx is a pointer to your socket context to be created, which must have been initialized to #TCS_SOCKET_INVALID before use.
-* @param[in] remote_address is the remote address structure to send to.
-*
-* @return #TCS_SUCCESS if successful, otherwise the error code.
-* @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument, such as a socket value that is not #TCS_SOCKET_INVALID.
-*
-* @see tcs_udp_sender_str()
-* @see tcs_udp_receiver()
-* @see tcs_udp_peer()
-* @see tcs_send()
-* @see tcs_close()
-*/
-TcsResult tcs_udp_sender(TcsSocket* socket_ctx, const struct TcsAddress* remote_address);
-
-/**
-* @brief Creates a UDP socket configured to send datagrams to a specific remote address.
-*
-* This function creates a UDP socket that's pre-configured to send datagrams to the specified
-* remote address and port. The socket is not bound to a specific local address, so the OS
-* will automatically assign a local address and port when sending data.
-* Use tcs_udp_sender() if you want to specify the address as a TcsAddress structure.
-*
-* @code
-* #include "tinycsocket.h"
-* int main()
-* {
-*   TcsResult tcs_init_res = tcs_lib_init();
-*   if (tcs_init_res != TCS_SUCCESS)
-*     return -1; // Failed to initialize tinycsocket
-*
-*   TcsSocket sender = TCS_SOCKET_INVALID; // Always initialize TcsSocket to TCS_SOCKET_INVALID
-*   TcsResult udp_res = tcs_udp_sender_str(&sender, "127.0.0.1", 8888);
-*   if (udp_res != TCS_SUCCESS)
-*   {
-*     tcs_lib_free();
-*     return -2; // Failed to create UDP sender
-*   }
-*
-*   // Send data
-*   uint8_t buffer[] = "Hello, UDP receiver!";
-*   size_t bytes_sent = 0;
-*   
-*   TcsResult send_res = tcs_send(sender, buffer, sizeof(buffer)-1, TCS_FLAG_NONE, &bytes_sent);
-*   if (send_res == TCS_SUCCESS)
-*   {
-*     // Data sent successfully
-*   }
-*
-*   tcs_close(&sender);
-*   tcs_lib_free();
-*   return 0;
-* }
-* @endcode
-*
-* @param[out] socket_ctx is a pointer to your socket context to be created, which must have been initialized to #TCS_SOCKET_INVALID before use.
-* @param[in] remote_address is the remote address to send to. Hostname or IP address string.
-* @param[in] port is the remote port to send to.
-*
-* @return #TCS_SUCCESS if successful, otherwise the error code.
-* @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument, such as a socket value that is not #TCS_SOCKET_INVALID.
-* @retval #TCS_ERROR_ADDRESS_LOOKUP_FAILED if the remote address could not be resolved.
-*
-* @see tcs_udp_sender()
-* @see tcs_udp_receiver_str()
-* @see tcs_udp_peer_str()
-* @see tcs_send()
-* @see tcs_close()
-*/
-TcsResult tcs_udp_sender_str(TcsSocket* socket_ctx, const char* remote_address, uint16_t port);
-
-/**
-* @brief Creates a UDP socket bound to a local address structure that can send to a specific remote address structure.
-*
-* This function creates a UDP socket that's both bound to a local address structure for receiving
-* datagrams and pre-configured to send datagrams to a specified remote address structure. This
-* creates a complete bidirectional UDP communication channel in a single call.
-* Use tcs_udp_peer_str() if you want to specify the addresses as hostname and port pairs instead.
-*
-* @code
-* #include "tinycsocket.h"
-* int main()
-* {
-*   TcsResult tcs_init_res = tcs_lib_init();
-*   if (tcs_init_res != TCS_SUCCESS)
-*     return -1; // Failed to initialize tinycsocket
-*
-*   struct TcsAddress local_address = TCS_ADDRESS_NONE;
-*   local_address.family = TCS_AF_IP4;
-*   local_address.data.ip4.address = TCS_ADDRESS_ANY_IP4; // Bind to all interfaces
-*   local_address.data.ip4.port = 8888;
-*   
-*   struct TcsAddress remote_address = TCS_ADDRESS_NONE;
-*   remote_address.family = TCS_AF_IP4;
-*   remote_address.data.ip4.address = 0x7F000001; // 127.0.0.1 loopback
-*   remote_address.data.ip4.port = 9999;
-*   
-*   TcsSocket peer = TCS_SOCKET_INVALID; // Always initialize TcsSocket to TCS_SOCKET_INVALID
-*   TcsResult udp_res = tcs_udp_peer(&peer, &local_address, &remote_address);
-*   if (udp_res != TCS_SUCCESS)
-*   {
-*     tcs_lib_free();
-*     return -2; // Failed to create UDP peer
-*   }
-*
-*   // Send data - goes to the pre-configured remote address
-*   uint8_t send_buffer[] = "Hello, remote peer!";
-*   size_t bytes_sent = 0;
-*   tcs_send(peer, send_buffer, sizeof(send_buffer)-1, TCS_FLAG_NONE, &bytes_sent);
-*
-*   // Receive data from any sender
-*   uint8_t recv_buffer[2048];
-*   size_t bytes_received = 0;
-*   struct TcsAddress sender_address;
-*   tcs_receive_from(peer, recv_buffer, sizeof(recv_buffer), TCS_FLAG_NONE, 
-*                   &sender_address, &bytes_received);
-*
-*   tcs_close(&peer);
-*   tcs_lib_free();
-*   return 0;
-* }
-* @endcode
-*
-* @param[out] socket_ctx is a pointer to your socket context to be created, which must have been initialized to #TCS_SOCKET_INVALID before use.
-* @param[in] local_address is the local address structure to bind to.
-* @param[in] remote_address is the remote address structure to send to.
-*
-* @return #TCS_SUCCESS if successful, otherwise the error code.
-* @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument, such as a socket value that is not #TCS_SOCKET_INVALID.
-* @retval #TCS_ERROR_PERMISSION_DENIED if binding to the specified address/port requires elevated privileges.
-*
-* @see tcs_udp_peer_str()
-* @see tcs_udp_receiver()
-* @see tcs_udp_sender()
-* @see tcs_send()
-* @see tcs_receive_from()
-* @see tcs_close()
-*/
-TcsResult tcs_udp_peer(TcsSocket* socket_ctx,
-                       const struct TcsAddress* local_address,
-                       const struct TcsAddress* remote_address);
-
-/**
-* @brief Creates a UDP socket bound to a local address that can send to a specific remote address.
-*
-* This function creates a UDP socket that's both bound to a local address/port for receiving
-* datagrams and pre-configured to send datagrams to a specified remote address/port. This
-* creates a complete bidirectional UDP communication channel in a single call.
-* Use tcs_udp_peer() if you want to specify the addresses as TcsAddress structures.
-*
-* @code
-* #include "tinycsocket.h"
-* int main()
-* {
-*   TcsResult tcs_init_res = tcs_lib_init();
-*   if (tcs_init_res != TCS_SUCCESS)
-*     return -1; // Failed to initialize tinycsocket
-*
-*   TcsSocket peer = TCS_SOCKET_INVALID; // Always initialize TcsSocket to TCS_SOCKET_INVALID
-*   TcsResult udp_res = tcs_udp_peer_str(&peer, "0.0.0.0", 8888, "192.168.1.100", 9999);
-*   if (udp_res != TCS_SUCCESS)
-*   {
-*     tcs_lib_free();
-*     return -2; // Failed to create UDP peer
-*   }
-*
-*   // Send data - goes to the pre-configured remote address
-*   uint8_t send_buffer[] = "Hello, remote peer!";
-*   size_t bytes_sent = 0;
-*   tcs_send(peer, send_buffer, sizeof(send_buffer)-1, TCS_FLAG_NONE, &bytes_sent);
-*
-*   // Receive data from any sender
-*   uint8_t recv_buffer[2048];
-*   size_t bytes_received = 0;
-*   struct TcsAddress sender_address;
-*   tcs_receive_from(peer, recv_buffer, sizeof(recv_buffer), TCS_FLAG_NONE, 
-*                   &sender_address, &bytes_received);
-*
-*   tcs_close(&peer);
-*   tcs_lib_free();
-*   return 0;
-* }
-* @endcode
-*
-* @param[out] socket_ctx is a pointer to your socket context to be created, which must have been initialized to #TCS_SOCKET_INVALID before use.
-* @param[in] local_address is the local address to bind to. Use NULL or "0.0.0.0" to bind to all interfaces.
-* @param[in] local_port is the local port to bind to. 0 will result in a random free port being assigned.
-* @param[in] remote_address is the remote address to send to. Hostname or IP address string.
-* @param[in] remote_port is the remote port to send to.
-*
-* @return #TCS_SUCCESS if successful, otherwise the error code.
-* @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument, such as a socket value that is not #TCS_SOCKET_INVALID.
-* @retval #TCS_ERROR_PERMISSION_DENIED if binding to the specified address/port requires elevated privileges.
-* @retval #TCS_ERROR_ADDRESS_LOOKUP_FAILED if the local or remote address could not be resolved.
-*
-* @see tcs_udp_peer()
-* @see tcs_udp_receiver_str()
-* @see tcs_udp_sender_str()
-* @see tcs_send()
-* @see tcs_receive_from()
-* @see tcs_close()
-*/
-TcsResult tcs_udp_peer_str(TcsSocket* socket_ctx,
-                           const char* local_address,
-                           uint16_t local_port,
-                           const char* remote_address,
-                           uint16_t remote_port);
-
-// ######## High-level Raw L2-Packet Sockets (Experimental) ########
-
-/**
- * @brief Open a raw L2 packet socket bound to a specific interface and protocol filter.
- *
- * @warning This API is **experimental** and not recommended for production use.
- *
- * The socket uses SOCK_RAW, giving full control over the Ethernet frame including VLAN tags.
- * Use ::tcs_send_to() / ::tcs_receive_from() for communication.
- *
- * @param[out] socket_ctx    Pointer to a #TcsSocket handle that will be initialized on success. Must be set to
- *                           #TCS_SOCKET_INVALID before the call.
- * @param[in]  bind_address  Pointer to a ::TcsAddress with family TCS_AF_PACKET specifying interface_id and protocol.
- *                           Use #TCS_ETH_P_ALL to capture all protocols.
- *
- * @retval TCS_SUCCESS                  Socket created successfully.
- * @retval TCS_ERROR_PERMISSION_DENIED  Operation not permitted (may require CAP_NET_RAW).
- * @retval TCS_ERROR_INVALID_ARGUMENT   Invalid argument(s) provided.
- *
- * @see tcs_raw_str()
- */
-TcsResult tcs_raw(TcsSocket* socket_ctx, const struct TcsAddress* bind_address);
-
-/**
- * @brief Open a raw L2 packet socket by interface name and protocol filter.
- *
- * @warning This API is **experimental** and not recommended for production use.
- *
- * Convenience wrapper around ::tcs_raw() that resolves the interface name
- * to an interface ID via ::tcs_interface_list().
- *
- * @param[out] socket_ctx      Pointer to a #TcsSocket handle that will be initialized on success. Must be set to
- *                             #TCS_SOCKET_INVALID before the call.
- * @param[in]  interface_name  Null-terminated name of the network interface (e.g. "eth0", "wlan0").
- * @param[in]  protocol        EtherType filter in host byte order. Use #TCS_ETH_P_ALL to capture all protocols.
- *
- * @retval TCS_SUCCESS                  Socket created successfully.
- * @retval TCS_ERROR_PERMISSION_DENIED  Operation not permitted (may require CAP_NET_RAW).
- * @retval TCS_ERROR_INVALID_ARGUMENT   Invalid argument(s) or interface not found.
- *
- * @see tcs_raw()
- * @see tcs_interface_list()
- */
-TcsResult tcs_raw_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol);
-
-// ######## High-level L2-Packet DGRAM Sockets (Experimental) ########
-
-/**
- * @brief Open an L2 packet DGRAM socket bound to a specific interface and protocol filter.
- *
- * @warning This API is **experimental** and not recommended for production use.
- *
- * The socket uses SOCK_DGRAM, where the kernel handles the Ethernet header.
- * Use ::tcs_send_to() / ::tcs_receive_from() for communication.
- * Note: connect() is not supported on AF_PACKET sockets (see packet(7)).
- *
- * @param[out] socket_ctx    Pointer to a #TcsSocket handle. Must be #TCS_SOCKET_INVALID before call.
- * @param[in]  bind_address  Pointer to a ::TcsAddress with family TCS_AF_PACKET specifying interface_id and protocol.
- *
- * @retval TCS_SUCCESS                  Socket created successfully.
- * @retval TCS_ERROR_PERMISSION_DENIED  Operation not permitted (may require CAP_NET_RAW).
- * @retval TCS_ERROR_INVALID_ARGUMENT   Invalid argument(s) provided.
- *
- * @see tcs_packet_str()
- */
-TcsResult tcs_packet(TcsSocket* socket_ctx, const struct TcsAddress* bind_address);
-
-/**
- * @brief Open an L2 packet DGRAM socket by interface name and protocol filter.
- *
- * @warning This API is **experimental** and not recommended for production use.
- *
- * Convenience wrapper around ::tcs_packet() that resolves the interface name
- * to an interface ID via ::tcs_interface_list().
- *
- * @param[out] socket_ctx      Pointer to a #TcsSocket handle. Must be #TCS_SOCKET_INVALID before call.
- * @param[in]  interface_name  Null-terminated name of the network interface (e.g. "eth0").
- * @param[in]  protocol        EtherType filter in host byte order.
- *
- * @retval TCS_SUCCESS                  Socket created successfully.
- * @retval TCS_ERROR_PERMISSION_DENIED  Operation not permitted (may require CAP_NET_RAW).
- * @retval TCS_ERROR_INVALID_ARGUMENT   Invalid argument(s) or interface not found.
- *
- * @see tcs_packet()
- * @see tcs_interface_list()
- */
-TcsResult tcs_packet_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol);
 
 /**
  * @brief Binds a socket to a local address.
@@ -1601,7 +847,7 @@ TcsResult tcs_packet_str(TcsSocket* socket_ctx, const char* interface_name, uint
  *     return -1;
  *
  *   TcsSocket server_socket = TCS_SOCKET_INVALID;
- *   TcsResult socket_res = tcs_socket_preset(&server_socket, TCS_PRESET_TCP_IP4);
+ *   TcsResult socket_res = tcs_socket(&server_socket, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
  *   if (socket_res != TCS_SUCCESS)
  *   {
  *     tcs_lib_free();
@@ -1630,7 +876,7 @@ TcsResult tcs_packet_str(TcsSocket* socket_ctx, const char* interface_name, uint
  * }
  * @endcode
  *
- * @param socket_ctx The socket to bind. Must be a valid socket created with tcs_socket() or tcs_socket_preset().
+ * @param socket_ctx The socket to bind. Must be a valid socket created with tcs_socket().
  * @param local_address The local address structure to bind to. Use TCS_ADDRESS_ANY_IP4 for the address field to bind to all interfaces.
  *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
@@ -1639,8 +885,8 @@ TcsResult tcs_packet_str(TcsSocket* socket_ctx, const char* interface_name, uint
  * @retval #TCS_ERROR_SYSTEM if the address is already in use or another system error occurred.
  *
  * @see tcs_listen()
- * @see tcs_tcp_server_str()
- * @see tcs_udp_receiver_str()
+ * @see tcs_socket_tcp()
+ * @see tcs_socket_udp()
  * @see tcs_address_socket_local()
  */
 TcsResult tcs_bind(TcsSocket socket_ctx, const struct TcsAddress* local_address);
@@ -1664,7 +910,7 @@ TcsResult tcs_bind(TcsSocket socket_ctx, const struct TcsAddress* local_address)
  *     return -1;
  *
  *   TcsSocket client_socket = TCS_SOCKET_INVALID;
- *   TcsResult socket_res = tcs_socket_preset(&client_socket, TCS_PRESET_TCP_IP4);
+ *   TcsResult socket_res = tcs_socket(&client_socket, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
  *   if (socket_res != TCS_SUCCESS)
  *   {
  *     tcs_lib_free();
@@ -1695,7 +941,7 @@ TcsResult tcs_bind(TcsSocket socket_ctx, const struct TcsAddress* local_address)
  * }
  * @endcode
  *
- * @param socket_ctx The socket to connect. Must be a valid socket created with tcs_socket() or tcs_socket_preset().
+ * @param socket_ctx The socket to connect. Must be a valid socket created with tcs_socket().
  * @param address The remote address structure to connect to.
  *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
@@ -1705,7 +951,7 @@ TcsResult tcs_bind(TcsSocket socket_ctx, const struct TcsAddress* local_address)
  * @retval #TCS_ERROR_SYSTEM if another system error occurred.
  *
  * @see tcs_connect_str()
- * @see tcs_tcp_client()
+ * @see tcs_socket_tcp()
  * @see tcs_bind()
  * @see tcs_listen()
  */
@@ -1729,7 +975,7 @@ TcsResult tcs_connect(TcsSocket socket_ctx, const struct TcsAddress* address);
  *     return -1;
  *
  *   TcsSocket client_socket = TCS_SOCKET_INVALID;
- *   TcsResult socket_res = tcs_socket_preset(&client_socket, TCS_PRESET_TCP_IP4);
+ *   TcsResult socket_res = tcs_socket(&client_socket, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
  *   if (socket_res != TCS_SUCCESS)
  *   {
  *     tcs_lib_free();
@@ -1755,7 +1001,7 @@ TcsResult tcs_connect(TcsSocket socket_ctx, const struct TcsAddress* address);
  * }
  * @endcode
  *
- * @param socket_ctx The socket to connect. Must be a valid socket created with tcs_socket() or tcs_socket_preset().
+ * @param socket_ctx The socket to connect. Must be a valid socket created with tcs_socket().
  * @param remote_address The remote hostname or IP address to connect to.
  * @param port The remote port number to connect to.
  *
@@ -1767,7 +1013,7 @@ TcsResult tcs_connect(TcsSocket socket_ctx, const struct TcsAddress* address);
  * @retval #TCS_ERROR_SYSTEM if another system error occurred.
  *
  * @see tcs_connect()
- * @see tcs_tcp_client_str()
+ * @see tcs_socket_tcp_str()
  * @see tcs_bind()
  * @see tcs_listen()
  */
@@ -1794,7 +1040,7 @@ TcsResult tcs_listen(TcsSocket socket_ctx, int backlog);
  * Example usage:
  * @code
  * TcsSocket listen_socket = TCS_SOCKET_INVALID;
- * tcs_socket_preset(&listen_socket, TCS_PRESET_TCP_IP4);
+ * tcs_socket(&listen_socket, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
  * struct TcsAddress local_address = TCS_ADDRESS_NONE;
  * local_address.family = TCS_AF_IP4;
  * local_address.data.ip4.port = 1212;
@@ -1985,8 +1231,8 @@ TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t bu
 * tcs_lib_init();
 * TcsSocket socket1 = TCS_SOCKET_INVALID;
 * TcsSocket socket2 = TCS_SOCKET_INVALID;
-* tcs_socket_preset(&socket1, TCS_PRESET_UDP_IP4);
-* tcs_socket_preset(&socket2, TCS_PRESET_UDP_IP4);
+* tcs_socket(&socket1, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP);
+* tcs_socket(&socket2, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP);
 *
 * struct TcsAddress addr1 = TCS_ADDRESS_NONE;
 * addr1.family = TCS_AF_IP4;

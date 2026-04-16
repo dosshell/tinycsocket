@@ -40,8 +40,11 @@ int main(void)
     TcsSocket listen_socket = TCS_SOCKET_INVALID;
     TcsSocket child_socket = TCS_SOCKET_INVALID;
 
-    if (tcs_tcp_server_str(&listen_socket, "localhost", 1212) != TCS_SUCCESS)
+    if (tcs_socket_tcp_str(&listen_socket, "localhost:1212", NULL, 0) != TCS_SUCCESS)
         return show_error("Could not create server socket");
+
+    if (tcs_listen(listen_socket, TCS_BACKLOG_MAX) != TCS_SUCCESS)
+        return show_error("Could not listen on socket");
 
     if (tcs_accept(listen_socket, &child_socket, NULL) != TCS_SUCCESS)
         return show_error("Could not accept socket");
