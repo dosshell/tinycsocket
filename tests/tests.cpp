@@ -602,6 +602,128 @@ TEST_CASE("shutdown")
 }
 #endif
 
+TEST_CASE("tcs_socket_tcp bind and connect")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    TcsSocket listen_socket = TCS_SOCKET_INVALID;
+    TcsSocket accept_socket = TCS_SOCKET_INVALID;
+    TcsSocket client_socket = TCS_SOCKET_INVALID;
+
+    struct TcsAddress local_address = TCS_ADDRESS_NONE;
+    local_address.family = TCS_AF_IP4;
+    local_address.data.ip4.address = TCS_ADDRESS_LOOPBACK_IP4;
+    local_address.data.ip4.port = 1470;
+
+    CHECK(tcs_socket_tcp(&listen_socket, &local_address, NULL, 0) == TCS_SUCCESS);
+    REQUIRE(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
+
+    struct TcsAddress remote_address = TCS_ADDRESS_NONE;
+    remote_address.family = TCS_AF_IP4;
+    remote_address.data.ip4.address = TCS_ADDRESS_LOOPBACK_IP4;
+    remote_address.data.ip4.port = 1470;
+
+    CHECK(tcs_socket_tcp(&client_socket, NULL, &remote_address, 5000) == TCS_SUCCESS);
+    CHECK(tcs_accept(listen_socket, &accept_socket, NULL) == TCS_SUCCESS);
+
+    // When
+    const uint8_t* send_buffer = (const uint8_t*)"hello";
+    uint8_t recv_buffer[8] = {0};
+    CHECK(tcs_send(client_socket, send_buffer, 5, TCS_MSG_SENDALL, NULL) == TCS_SUCCESS);
+    CHECK(tcs_receive(accept_socket, recv_buffer, 5, TCS_MSG_WAITALL, NULL) == TCS_SUCCESS);
+
+    // Then
+    CHECK(memcmp(recv_buffer, send_buffer, 5) == 0);
+
+    // Clean up
+    CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
+    CHECK(tcs_close(&accept_socket) == TCS_SUCCESS);
+    CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
+TEST_CASE("tcs_socket_tcp invalid arguments")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Both NULL
+    TcsSocket socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_tcp(&socket, NULL, NULL, 0) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(socket == TCS_SOCKET_INVALID);
+
+    // Family mismatch
+    struct TcsAddress local4 = TCS_ADDRESS_NONE;
+    local4.family = TCS_AF_IP4;
+    local4.data.ip4.address = TCS_ADDRESS_LOOPBACK_IP4;
+    local4.data.ip4.port = 1470;
+
+    struct TcsAddress remote6 = TCS_ADDRESS_NONE;
+    remote6.family = TCS_AF_IP6;
+    remote6.data.ip6.port = 1470;
+
+    socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_tcp(&socket, &local4, &remote6, 0) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(socket == TCS_SOCKET_INVALID);
+
+    // Clean up
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
+TEST_CASE("tcs_socket_tcp connect timeout")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Connect to a non-listening port should time out
+    struct TcsAddress remote_address = TCS_ADDRESS_NONE;
+    remote_address.family = TCS_AF_IP4;
+    remote_address.data.ip4.address = TCS_ADDRESS_LOOPBACK_IP4;
+    remote_address.data.ip4.port = 1471;
+
+    TcsSocket socket = TCS_SOCKET_INVALID;
+    TcsResult res = tcs_socket_tcp(&socket, NULL, &remote_address, 100);
+    CHECK((res == TCS_ERROR_TIMED_OUT || res == TCS_ERROR_CONNECTION_REFUSED));
+    CHECK(socket == TCS_SOCKET_INVALID);
+
+    // Clean up
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
+TEST_CASE("tcs_socket_tcp_str bind and connect")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    TcsSocket listen_socket = TCS_SOCKET_INVALID;
+    TcsSocket accept_socket = TCS_SOCKET_INVALID;
+    TcsSocket client_socket = TCS_SOCKET_INVALID;
+
+    CHECK(tcs_socket_tcp_str(&listen_socket, "127.0.0.1:1472", NULL, 0) == TCS_SUCCESS);
+    REQUIRE(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
+
+    CHECK(tcs_socket_tcp_str(&client_socket, NULL, "127.0.0.1:1472", 5000) == TCS_SUCCESS);
+    CHECK(tcs_accept(listen_socket, &accept_socket, NULL) == TCS_SUCCESS);
+
+    // When
+    const uint8_t* send_buffer = (const uint8_t*)"world";
+    uint8_t recv_buffer[8] = {0};
+    CHECK(tcs_send(client_socket, send_buffer, 5, TCS_MSG_SENDALL, NULL) == TCS_SUCCESS);
+    CHECK(tcs_receive(accept_socket, recv_buffer, 5, TCS_MSG_WAITALL, NULL) == TCS_SUCCESS);
+
+    // Then
+    CHECK(memcmp(recv_buffer, send_buffer, 5) == 0);
+
+    // Clean up
+    CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
+    CHECK(tcs_close(&accept_socket) == TCS_SUCCESS);
+    CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
 TEST_CASE("tcs_pool simple memory check")
 {
     // Setup

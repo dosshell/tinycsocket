@@ -89,6 +89,156 @@ TcsResult tcs_socket_preset(TcsSocket* socket_ctx, TcsPreset socket_type)
     return tcs_socket(socket_ctx, family, type, protocol);
 }
 
+TcsResult tcs_socket_tcp(TcsSocket* socket_ctx,
+                         const struct TcsAddress* local_address,
+                         const struct TcsAddress* remote_address,
+                         int timeout_ms)
+{
+    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (local_address == NULL && remote_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (local_address != NULL && remote_address != NULL && local_address->family != remote_address->family)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (timeout_ms < 0 && timeout_ms != TCS_WAIT_INF)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    TcsAddressFamily family = local_address != NULL ? local_address->family : remote_address->family;
+
+    TcsResult res = tcs_socket(socket_ctx, family, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
+    if (res != TCS_SUCCESS)
+        return res;
+
+    if (local_address != NULL)
+    {
+        res = tcs_opt_reuse_address_set(*socket_ctx, true);
+        if (res != TCS_SUCCESS)
+        {
+            tcs_close(socket_ctx);
+            return res;
+        }
+        res = tcs_bind(*socket_ctx, local_address);
+        if (res != TCS_SUCCESS)
+        {
+            tcs_close(socket_ctx);
+            return res;
+        }
+    }
+
+    if (remote_address != NULL)
+    {
+        if (timeout_ms == TCS_WAIT_INF)
+        {
+            res = tcs_connect(*socket_ctx, remote_address);
+            if (res != TCS_SUCCESS)
+            {
+                tcs_close(socket_ctx);
+                return res;
+            }
+        }
+        else
+        {
+            res = tcs_opt_nonblocking_set(*socket_ctx, true);
+            if (res != TCS_SUCCESS)
+            {
+                tcs_close(socket_ctx);
+                return res;
+            }
+            res = tcs_connect(*socket_ctx, remote_address);
+            if (res != TCS_IN_PROGRESS && res != TCS_SUCCESS)
+            {
+                tcs_close(socket_ctx);
+                return res;
+            }
+            if (res == TCS_IN_PROGRESS)
+            {
+                struct TcsPool* pool = NULL;
+                res = tcs_pool_create(&pool);
+                if (res != TCS_SUCCESS)
+                {
+                    tcs_close(socket_ctx);
+                    return res;
+                }
+                res = tcs_pool_add(pool, *socket_ctx, NULL, false, true, true);
+                if (res != TCS_SUCCESS)
+                {
+                    tcs_pool_destroy(&pool);
+                    tcs_close(socket_ctx);
+                    return res;
+                }
+                struct TcsPollEvent event = TCS_POOL_EVENT_EMPTY;
+                size_t events_populated = 0;
+                res = tcs_pool_poll(pool, &event, 1, &events_populated, timeout_ms);
+                tcs_pool_destroy(&pool);
+                if (res == TCS_ERROR_TIMED_OUT)
+                {
+                    tcs_close(socket_ctx);
+                    return TCS_ERROR_TIMED_OUT;
+                }
+                if (res != TCS_SUCCESS || events_populated == 0)
+                {
+                    tcs_close(socket_ctx);
+                    return res != TCS_SUCCESS ? res : TCS_ERROR_UNKNOWN;
+                }
+                if (event.error != TCS_SUCCESS)
+                {
+                    tcs_close(socket_ctx);
+                    return TCS_ERROR_CONNECTION_REFUSED;
+                }
+            }
+            res = tcs_opt_nonblocking_set(*socket_ctx, false);
+            if (res != TCS_SUCCESS)
+            {
+                tcs_close(socket_ctx);
+                return res;
+            }
+        }
+    }
+
+    return TCS_SUCCESS;
+}
+
+TcsResult tcs_socket_tcp_str(TcsSocket* socket_ctx,
+                             const char* local_address,
+                             const char* remote_address,
+                             int timeout_ms)
+{
+    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (local_address == NULL && remote_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct TcsAddress local_addr = TCS_ADDRESS_NONE;
+    struct TcsAddress remote_addr = TCS_ADDRESS_NONE;
+    TcsAddressFamily family = TCS_AF_ANY;
+
+    if (local_address != NULL)
+    {
+        size_t count = 0;
+        TcsResult res = tcs_address_resolve(local_address, TCS_AF_ANY, &local_addr, 1, &count);
+        if (res != TCS_SUCCESS)
+            return res;
+        if (count == 0)
+            return TCS_ERROR_ADDRESS_LOOKUP_FAILED;
+        family = local_addr.family;
+    }
+
+    if (remote_address != NULL)
+    {
+        size_t count = 0;
+        TcsResult res = tcs_address_resolve(remote_address, family, &remote_addr, 1, &count);
+        if (res != TCS_SUCCESS)
+            return res;
+        if (count == 0)
+            return TCS_ERROR_ADDRESS_LOOKUP_FAILED;
+    }
+
+    return tcs_socket_tcp(socket_ctx,
+                          local_address != NULL ? &local_addr : NULL,
+                          remote_address != NULL ? &remote_addr : NULL,
+                          timeout_ms);
+}
+
 // tcs_close() is defined in OS specific files
 
 // ######## High-level Socket Creation ########

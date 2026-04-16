@@ -58,6 +58,8 @@ static const char* const TCS_LICENSE_TXT =
 * Socket Creation:
 * - TcsResult tcs_socket(TcsSocket* socket_ctx, TcsAddressFamily family, int type, int protocol);
 * - TcsResult tcs_socket_preset(TcsSocket* socket_ctx, TcsPreset socket_type);
+* - TcsResult tcs_socket_tcp(TcsSocket* socket_ctx, const struct TcsAddress* local_address, const struct TcsAddress* remote_address, int timeout_ms);
+* - TcsResult tcs_socket_tcp_str(TcsSocket* socket_ctx, const char* local_address, const char* remote_address, int timeout_ms);
 * - TcsResult tcs_close(TcsSocket* socket_ctx);
 *
 * High-level Socket Creation:
@@ -607,6 +609,102 @@ TcsResult tcs_socket(TcsSocket* socket_ctx, TcsAddressFamily family, int type, i
  * @see tcs_lib_free()
  */
 TcsResult tcs_socket_preset(TcsSocket* socket_ctx, TcsPreset socket_type);
+
+/**
+* @brief Create a TCP socket, optionally bind to a local address and/or connect to a remote address.
+*
+* Creates an IPv4 or IPv6 TCP socket based on the address family of the provided address(es).
+* If @p local_address is not NULL, SO_REUSEADDR is set and the socket is bound to it.
+* If @p remote_address is not NULL, the socket connects to it.
+* At least one of @p local_address or @p remote_address must be non-NULL.
+* If both are provided, they must have the same address family.
+* On failure, *socket_ctx is always set back to #TCS_SOCKET_INVALID.
+*
+* @code
+* #include "tinycsocket.h"
+* int main()
+* {
+*   tcs_lib_init();
+*
+*   struct TcsAddress local = TCS_ADDRESS_NONE;
+*   local.family = TCS_AF_IP4;
+*   local.data.ip4.address = TCS_ADDRESS_ANY_IP4;
+*   local.data.ip4.port = 8080;
+*
+*   TcsSocket server = TCS_SOCKET_INVALID;
+*   TcsResult res = tcs_socket_tcp(&server, &local, NULL, 0);
+*   if (res != TCS_SUCCESS)
+*   {
+*     tcs_lib_free();
+*     return -1;
+*   }
+*
+*   // Socket is now bound, call tcs_listen() and tcs_accept() to accept connections
+*
+*   tcs_close(&server);
+*   tcs_lib_free();
+* }
+* @endcode
+*
+* @param[out] socket_ctx pointer to socket context to be created, which must have been initialized to #TCS_SOCKET_INVALID before use.
+* @param[in] local_address address to bind to, or NULL to skip binding.
+* @param[in] remote_address address to connect to, or NULL to skip connecting.
+* @param[in] timeout_ms maximum time in milliseconds to wait for connection, or #TCS_WAIT_INF for OS default timeout. Ignored if @p remote_address is NULL.
+*
+* @return #TCS_SUCCESS if successful, otherwise the error code.
+* @retval #TCS_ERROR_INVALID_ARGUMENT if @p socket_ctx is NULL, if *socket_ctx is not #TCS_SOCKET_INVALID, if both addresses are NULL, or if both are provided with different address families.
+* @retval #TCS_ERROR_CONNECTION_REFUSED if the remote server refused the connection.
+* @retval #TCS_ERROR_TIMED_OUT if the connection attempt timed out.
+*
+* @see tcs_connect()
+* @see tcs_listen()
+* @see tcs_close()
+*/
+TcsResult tcs_socket_tcp(TcsSocket* socket_ctx, const struct TcsAddress* local_address, const struct TcsAddress* remote_address, int timeout_ms);
+
+/**
+* @brief Create a TCP socket from string addresses, optionally bind and/or connect.
+*
+* Parses the address strings with ::tcs_address_parse() and delegates to ::tcs_socket_tcp().
+* Addresses must include a port, e.g. "127.0.0.1:8080" or "[::1]:8080".
+* At least one of @p local_address or @p remote_address must be non-NULL.
+* On failure, *socket_ctx is always set back to #TCS_SOCKET_INVALID.
+*
+* @code
+* #include "tinycsocket.h"
+* int main()
+* {
+*   tcs_lib_init();
+*
+*   TcsSocket socket = TCS_SOCKET_INVALID;
+*   TcsResult res = tcs_socket_tcp_str(&socket, NULL, "127.0.0.1:8080", 5000);
+*   if (res != TCS_SUCCESS)
+*   {
+*     tcs_lib_free();
+*     return -1;
+*   }
+*
+*   // Socket is now connected and ready for communication
+*
+*   tcs_close(&socket);
+*   tcs_lib_free();
+* }
+* @endcode
+*
+* @param[out] socket_ctx pointer to socket context to be created, which must have been initialized to #TCS_SOCKET_INVALID before use.
+* @param[in] local_address address string to bind to, or NULL to skip binding.
+* @param[in] remote_address address string to connect to, or NULL to skip connecting.
+* @param[in] timeout_ms maximum time in milliseconds to wait for connection, or #TCS_WAIT_INF for OS default timeout. Ignored if @p remote_address is NULL.
+*
+* @return #TCS_SUCCESS if successful, otherwise the error code.
+* @retval #TCS_ERROR_INVALID_ARGUMENT if @p socket_ctx is NULL, if *socket_ctx is not #TCS_SOCKET_INVALID, or if both addresses are NULL.
+* @retval #TCS_ERROR_CONNECTION_REFUSED if the remote server refused the connection.
+* @retval #TCS_ERROR_TIMED_OUT if the connection attempt timed out.
+*
+* @see tcs_socket_tcp()
+* @see tcs_close()
+*/
+TcsResult tcs_socket_tcp_str(TcsSocket* socket_ctx, const char* local_address, const char* remote_address, int timeout_ms);
 
 /**
 * @brief Closes the socket, stop communication and free all resources for the socket.
