@@ -1264,6 +1264,8 @@ TcsResult tcs_opt_nonblocking_get(TcsSocket socket_ctx, bool* is_non_blocking)
     return TCS_ERROR_NOT_SUPPORTED;
 }
 
+// tcs_opt_membership_add_str() is defined in tinycsocket_common.c
+
 TcsResult tcs_opt_membership_add(TcsSocket socket_ctx, const struct TcsAddress* multicast_address)
 {
     if (socket_ctx == TCS_SOCKET_INVALID)
@@ -1318,6 +1320,8 @@ TcsResult tcs_opt_membership_add_to(TcsSocket socket_ctx,
     }
     return TCS_ERROR_NOT_IMPLEMENTED;
 }
+
+// tcs_opt_membership_drop_str() is defined in tinycsocket_common.c
 
 TcsResult tcs_opt_membership_drop(TcsSocket socket_ctx, const struct TcsAddress* multicast_address)
 {

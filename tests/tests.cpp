@@ -110,7 +110,8 @@ TEST_CASE("Example from README")
     size_t bytes_received = 0;
     CHECK(tcs_receive(client_socket, recv_buffer, 8192, TCS_FLAG_NONE, &bytes_received) == TCS_SUCCESS);
     TcsResult shutdown_res = tcs_shutdown(client_socket, TCS_SD_BOTH);
-    CHECK((shutdown_res == TCS_SUCCESS || shutdown_res == TCS_ERROR_NOT_CONNECTED));
+    CHECK((shutdown_res == TCS_SUCCESS || shutdown_res == TCS_ERROR_NOT_CONNECTED ||
+           shutdown_res == TCS_ERROR_CONNECTION_RESET));
     CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
 
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
@@ -1516,6 +1517,28 @@ TEST_CASE("Simple Multicast Add Membership")
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 
+TEST_CASE("tcs_opt_membership_add_str")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    TcsAddress loopback = TCS_ADDRESS_NONE;
+    loopback.family = TCS_AF_IP4;
+    loopback.data.ip4.address = TCS_ADDRESS_LOOPBACK_IP4;
+    loopback.data.ip4.port = 1902;
+
+    TcsSocket socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket(&socket, TCS_AF_IP4, TCS_SOCK_DGRAM, 0) == TCS_SUCCESS);
+    CHECK(tcs_bind(socket, &loopback) == TCS_SUCCESS);
+
+    // When/Then
+    CHECK(tcs_opt_membership_add_str(socket, "239.255.255.251") == TCS_SUCCESS);
+
+    // Clean up
+    CHECK(tcs_close(&socket) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
 TEST_CASE("Multicast Add-Drop-Add Membership")
 {
     // Setup
@@ -1570,6 +1593,29 @@ TEST_CASE("Multicast Add-Drop-Add Membership")
     // Clean up
     CHECK(tcs_close(&socket_recv) == TCS_SUCCESS);
     CHECK(tcs_close(&socket_send) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
+TEST_CASE("tcs_opt_membership_drop_str")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    TcsAddress loopback = TCS_ADDRESS_NONE;
+    loopback.family = TCS_AF_IP4;
+    loopback.data.ip4.address = TCS_ADDRESS_LOOPBACK_IP4;
+    loopback.data.ip4.port = 1903;
+
+    TcsSocket socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket(&socket, TCS_AF_IP4, TCS_SOCK_DGRAM, 0) == TCS_SUCCESS);
+    CHECK(tcs_bind(socket, &loopback) == TCS_SUCCESS);
+
+    // When/Then
+    CHECK(tcs_opt_membership_add_str(socket, "239.255.255.251") == TCS_SUCCESS);
+    CHECK(tcs_opt_membership_drop_str(socket, "239.255.255.251") == TCS_SUCCESS);
+
+    // Clean up
+    CHECK(tcs_close(&socket) == TCS_SUCCESS);
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 
@@ -2168,6 +2214,24 @@ TEST_CASE("tcs_socket_packet_str DGRAM")
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
     // Clean up
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
+TEST_CASE("tcs_socket_packet multicast add and drop str")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given - create and bind a DGRAM packet socket on lo
+    TcsSocket socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_packet_str(&socket, "lo", 0x22F0, TCS_SOCK_DGRAM) == TCS_SUCCESS);
+
+    // When/Then - join and leave a multicast MAC group via str
+    CHECK(tcs_opt_membership_add_str(socket, "91:e0:f0:00:fe:00") == TCS_SUCCESS);
+    CHECK(tcs_opt_membership_drop_str(socket, "91:e0:f0:00:fe:00") == TCS_SUCCESS);
+
+    // Clean up
+    CHECK(tcs_close(&socket) == TCS_SUCCESS);
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 #endif

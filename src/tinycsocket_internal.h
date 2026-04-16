@@ -23,7 +23,7 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-static const char* const TCS_VERSION_TXT = "v0.3.70";
+static const char* const TCS_VERSION_TXT = "v0.3.71";
 static const char* const TCS_LICENSE_TXT =
     "Copyright 2018 Markus Lindelöw\n"
     "\n"
@@ -119,8 +119,10 @@ static const char* const TCS_LICENSE_TXT =
 * - TcsResult tcs_opt_nonblocking_set(TcsSocket socket_ctx, bool do_nonblocking);
 * - TcsResult tcs_opt_nonblocking_get(TcsSocket socket_ctx, bool* is_nonblocking);
 * - TcsResult tcs_opt_membership_add(TcsSocket socket_ctx, const struct TcsAddress* multicast_address);
+* - TcsResult tcs_opt_membership_add_str(TcsSocket socket_ctx, const char* multicast_address);
 * - TcsResult tcs_opt_membership_add_to(TcsSocket socket_ctx, const struct TcsAddress* local_address, const struct TcsAddress* multicast_address);
 * - TcsResult tcs_opt_membership_drop(TcsSocket socket_ctx, const struct TcsAddress* multicast_address);
+* - TcsResult tcs_opt_membership_drop_str(TcsSocket socket_ctx, const char* multicast_address);
 * - TcsResult tcs_opt_membership_drop_from(TcsSocket socket_ctx, const struct TcsAddress* local_address, const struct TcsAddress* multicast_address);
 * - TcsResult tcs_opt_multicast_interface_set(TcsSocket socket_ctx, const struct TcsAddress* local_address);
 * - TcsResult tcs_opt_multicast_loop_set(TcsSocket socket_ctx, bool do_loopback);
@@ -1676,6 +1678,21 @@ TcsResult tcs_opt_membership_drop_from(TcsSocket socket_ctx,
 TcsResult tcs_opt_membership_add(TcsSocket socket_ctx, const struct TcsAddress* multicast_address);
 
 /**
+* @brief Join a multicast group by address string.
+*
+* Resolves the multicast address string and joins the group using the default local interface.
+*
+* @param socket_ctx socket to configure.
+* @param multicast_address multicast group address string (e.g. "239.1.2.3" or "ff02::1").
+* @return #TCS_SUCCESS if successful, otherwise the error code.
+* @retval #TCS_ERROR_INVALID_ARGUMENT if multicast_address is NULL.
+* @retval #TCS_ERROR_ADDRESS_LOOKUP_FAILED if the address string could not be resolved.
+* @see tcs_opt_membership_add()
+* @see tcs_opt_membership_drop_str()
+*/
+TcsResult tcs_opt_membership_add_str(TcsSocket socket_ctx, const char* multicast_address);
+
+/**
 * @brief Leave a multicast group using the default local interface.
 *
 * @param socket_ctx socket to configure.
@@ -1683,6 +1700,21 @@ TcsResult tcs_opt_membership_add(TcsSocket socket_ctx, const struct TcsAddress* 
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
 TcsResult tcs_opt_membership_drop(TcsSocket socket_ctx, const struct TcsAddress* multicast_address);
+
+/**
+* @brief Leave a multicast group by address string.
+*
+* Parses the multicast address string and leaves the group using the default local interface.
+*
+* @param socket_ctx socket to configure.
+* @param multicast_address multicast group address string (e.g. "239.1.2.3" or "ff02::1").
+* @return #TCS_SUCCESS if successful, otherwise the error code.
+* @retval #TCS_ERROR_INVALID_ARGUMENT if multicast_address is NULL.
+* @retval #TCS_ERROR_ADDRESS_LOOKUP_FAILED if the address string could not be resolved.
+* @see tcs_opt_membership_drop()
+* @see tcs_opt_membership_add_str()
+*/
+TcsResult tcs_opt_membership_drop_str(TcsSocket socket_ctx, const char* multicast_address);
 
 /**
 * @brief Set the outgoing interface for multicast packets.
