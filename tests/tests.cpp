@@ -2097,6 +2097,119 @@ TEST_CASE("tcs_packet invalid arguments")
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 
+TEST_CASE("tcs_socket_packet DGRAM")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    struct TcsAddress bind = TCS_ADDRESS_NONE;
+    bind.family = TCS_AF_PACKET;
+    bind.data.packet.interface_id = 1; // lo
+    bind.data.packet.protocol = 0x22F0;
+
+    TcsSocket socket = TCS_SOCKET_INVALID;
+
+    // When
+    CHECK(tcs_socket_packet(&socket, &bind, TCS_SOCK_DGRAM) == TCS_SUCCESS);
+
+    // Then
+    CHECK(socket != TCS_SOCKET_INVALID);
+    CHECK(tcs_close(&socket) == TCS_SUCCESS);
+
+    // Clean up
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
+TEST_CASE("tcs_socket_packet RAW")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    struct TcsAddress bind = TCS_ADDRESS_NONE;
+    bind.family = TCS_AF_PACKET;
+    bind.data.packet.interface_id = 1; // lo
+    bind.data.packet.protocol = 0x22F0;
+
+    TcsSocket socket = TCS_SOCKET_INVALID;
+
+    // When
+    CHECK(tcs_socket_packet(&socket, &bind, TCS_SOCK_RAW) == TCS_SUCCESS);
+
+    // Then
+    CHECK(socket != TCS_SOCKET_INVALID);
+    CHECK(tcs_close(&socket) == TCS_SUCCESS);
+
+    // Clean up
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
+TEST_CASE("tcs_socket_packet invalid arguments")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // NULL bind_address
+    TcsSocket socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_packet(&socket, NULL, TCS_SOCK_DGRAM) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(socket == TCS_SOCKET_INVALID);
+
+    // Wrong family
+    struct TcsAddress bad = TCS_ADDRESS_NONE;
+    bad.family = TCS_AF_IP4;
+    socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_packet(&socket, &bad, TCS_SOCK_DGRAM) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(socket == TCS_SOCKET_INVALID);
+
+    // Invalid type
+    struct TcsAddress bind = TCS_ADDRESS_NONE;
+    bind.family = TCS_AF_PACKET;
+    bind.data.packet.interface_id = 1;
+    bind.data.packet.protocol = 0x22F0;
+    socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_packet(&socket, &bind, 9999) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(socket == TCS_SOCKET_INVALID);
+
+    // Clean up
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
+TEST_CASE("tcs_socket_packet_str DGRAM")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    TcsSocket socket = TCS_SOCKET_INVALID;
+
+    // When
+    CHECK(tcs_socket_packet_str(&socket, "lo", 0x22F0, TCS_SOCK_DGRAM) == TCS_SUCCESS);
+
+    // Then
+    CHECK(socket != TCS_SOCKET_INVALID);
+    CHECK(tcs_close(&socket) == TCS_SUCCESS);
+
+    // Clean up
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
+TEST_CASE("tcs_socket_packet_str invalid interface")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    TcsSocket socket = TCS_SOCKET_INVALID;
+
+    // When/Then
+    CHECK(tcs_socket_packet_str(&socket, "nonexistent99", 0x22F0, TCS_SOCK_DGRAM) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(socket == TCS_SOCKET_INVALID);
+
+    // Clean up
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
 TEST_CASE("tcs_address_socket_local on TCP")
 {
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);

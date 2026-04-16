@@ -31,6 +31,7 @@
 
 #include <stdbool.h>
 #include <stdio.h>  //sprintf
+#include <stdlib.h> // malloc, free
 #include <string.h> // memset
 
 // ######## Library Management ########
@@ -334,6 +335,91 @@ TcsResult tcs_socket_udp_str(TcsSocket* socket_ctx, const char* local_address, c
 
     return tcs_socket_udp(
         socket_ctx, local_address != NULL ? &local_addr : NULL, remote_address != NULL ? &remote_addr : NULL);
+}
+
+TcsResult tcs_socket_packet(TcsSocket* socket_ctx, const struct TcsAddress* bind_address, int type)
+{
+    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (bind_address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (bind_address->family != TCS_AF_PACKET)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (type != TCS_SOCK_RAW && type != TCS_SOCK_DGRAM)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    TcsResult res = tcs_socket(socket_ctx, TCS_AF_PACKET, type, bind_address->data.packet.protocol);
+    if (res != TCS_SUCCESS)
+        return res;
+
+    res = tcs_bind(*socket_ctx, bind_address);
+    if (res != TCS_SUCCESS)
+    {
+        tcs_close(socket_ctx);
+        return res;
+    }
+
+    return TCS_SUCCESS;
+}
+
+TcsResult tcs_socket_packet_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol, int type)
+{
+    if (socket_ctx == NULL || *socket_ctx != TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (interface_name == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct TcsInterface stack_buf[16];
+    struct TcsInterface* interfaces = stack_buf;
+    size_t count = 0;
+
+    TcsResult res = tcs_interface_list(stack_buf, 16, &count);
+    if (res != TCS_SUCCESS)
+        return res;
+
+    size_t search_count = count < 16 ? count : 16;
+    for (size_t i = 0; i < search_count; ++i)
+    {
+        if (strcmp(stack_buf[i].name, interface_name) == 0)
+        {
+            struct TcsAddress bind_address = TCS_ADDRESS_NONE;
+            bind_address.family = TCS_AF_PACKET;
+            bind_address.data.packet.interface_id = stack_buf[i].id;
+            bind_address.data.packet.protocol = protocol;
+            return tcs_socket_packet(socket_ctx, &bind_address, type);
+        }
+    }
+
+    if (count > 16)
+    {
+        interfaces = (struct TcsInterface*)malloc(count * sizeof(struct TcsInterface));
+        if (interfaces == NULL)
+            return TCS_ERROR_MEMORY;
+        res = tcs_interface_list(interfaces, count, &count);
+        if (res != TCS_SUCCESS)
+        {
+            free(interfaces);
+            return res;
+        }
+    }
+
+    for (size_t i = 0; i < count; ++i)
+    {
+        if (strcmp(interfaces[i].name, interface_name) == 0)
+        {
+            struct TcsAddress bind_address = TCS_ADDRESS_NONE;
+            bind_address.family = TCS_AF_PACKET;
+            bind_address.data.packet.interface_id = interfaces[i].id;
+            bind_address.data.packet.protocol = protocol;
+            if (interfaces != stack_buf)
+                free(interfaces);
+            return tcs_socket_packet(socket_ctx, &bind_address, type);
+        }
+    }
+
+    if (interfaces != stack_buf)
+        free(interfaces);
+    return TCS_ERROR_INVALID_ARGUMENT;
 }
 
 // tcs_close() is defined in OS specific files

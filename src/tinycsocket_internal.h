@@ -62,6 +62,8 @@ static const char* const TCS_LICENSE_TXT =
 * - TcsResult tcs_socket_tcp_str(TcsSocket* socket_ctx, const char* local_address, const char* remote_address, int timeout_ms);
 * - TcsResult tcs_socket_udp(TcsSocket* socket_ctx, const struct TcsAddress* local_address, const struct TcsAddress* remote_address);
 * - TcsResult tcs_socket_udp_str(TcsSocket* socket_ctx, const char* local_address, const char* remote_address);
+* - TcsResult tcs_socket_packet(TcsSocket* socket_ctx, const struct TcsAddress* bind_address, int type);
+* - TcsResult tcs_socket_packet_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol, int type);
 * - TcsResult tcs_close(TcsSocket* socket_ctx);
 *
 * High-level Socket Creation:
@@ -99,7 +101,6 @@ static const char* const TCS_LICENSE_TXT =
 * - TcsResult tcs_receive_from(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, uint32_t flags, struct TcsAddress* source_address, size_t* bytes_received);
 * - TcsResult tcs_receive_line(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, size_t* bytes_received, uint8_t delimiter);
 * - TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, size_t* bytes_received);
-
 *
 * Socket Pooling:
 * - TcsResult tcs_pool_create(struct TcsPool** pool);
@@ -143,7 +144,6 @@ static const char* const TCS_LICENSE_TXT =
 * - TcsResult tcs_opt_multicast_interface_set(TcsSocket socket_ctx, const struct TcsAddress* local_address);
 * - TcsResult tcs_opt_multicast_loop_set(TcsSocket socket_ctx, bool do_loopback);
 * - TcsResult tcs_opt_multicast_loop_get(TcsSocket socket_ctx, bool* is_loopback);
-
 *
 * Address and Interface Utilities:
 * - TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, size_t* out_count);
@@ -809,6 +809,91 @@ TcsResult tcs_socket_udp(TcsSocket* socket_ctx,
 * @see tcs_close()
 */
 TcsResult tcs_socket_udp_str(TcsSocket* socket_ctx, const char* local_address, const char* remote_address);
+
+/**
+* @brief Create a packet socket bound to a network interface.
+*
+* Creates an AF_PACKET socket for sending and receiving raw L2 frames.
+* The socket is bound to the interface and protocol specified in @p bind_address.
+* On failure, *socket_ctx is always set back to #TCS_SOCKET_INVALID.
+*
+* @code
+* #include "tinycsocket.h"
+* int main()
+* {
+*   tcs_lib_init();
+*
+*   struct TcsAddress bind = TCS_ADDRESS_NONE;
+*   bind.family = TCS_AF_PACKET;
+*   bind.data.packet.interface_id = 1; // e.g. lo
+*   bind.data.packet.protocol = 0x22F0; // e.g. AVTP
+*
+*   TcsSocket socket = TCS_SOCKET_INVALID;
+*   TcsResult res = tcs_socket_packet(&socket, &bind, TCS_SOCK_DGRAM);
+*   if (res != TCS_SUCCESS)
+*   {
+*     tcs_lib_free();
+*     return -1;
+*   }
+*
+*   // Socket is now bound and ready for tcs_send_to() / tcs_receive_from()
+*
+*   tcs_close(&socket);
+*   tcs_lib_free();
+* }
+* @endcode
+*
+* @param[out] socket_ctx pointer to socket context to be created, which must have been initialized to #TCS_SOCKET_INVALID before use.
+* @param[in] bind_address address with family TCS_AF_PACKET specifying interface_id and protocol.
+* @param[in] type socket type, either #TCS_SOCK_RAW for full L2 frames or #TCS_SOCK_DGRAM for frames without the L2 header.
+*
+* @return #TCS_SUCCESS if successful, otherwise the error code.
+* @retval #TCS_ERROR_INVALID_ARGUMENT if @p socket_ctx is NULL, if *socket_ctx is not #TCS_SOCKET_INVALID, or if @p bind_address is NULL or not TCS_AF_PACKET.
+*
+* @see tcs_socket_packet_str()
+* @see tcs_close()
+*/
+TcsResult tcs_socket_packet(TcsSocket* socket_ctx, const struct TcsAddress* bind_address, int type);
+
+/**
+* @brief Create a packet socket bound to a named network interface.
+*
+* Looks up the interface by name using ::tcs_interface_list() and delegates to ::tcs_socket_packet().
+* On failure, *socket_ctx is always set back to #TCS_SOCKET_INVALID.
+*
+* @code
+* #include "tinycsocket.h"
+* int main()
+* {
+*   tcs_lib_init();
+*
+*   TcsSocket socket = TCS_SOCKET_INVALID;
+*   TcsResult res = tcs_socket_packet_str(&socket, "eth0", 0x22F0, TCS_SOCK_DGRAM);
+*   if (res != TCS_SUCCESS)
+*   {
+*     tcs_lib_free();
+*     return -1;
+*   }
+*
+*   // Socket is now bound and ready for tcs_send_to() / tcs_receive_from()
+*
+*   tcs_close(&socket);
+*   tcs_lib_free();
+* }
+* @endcode
+*
+* @param[out] socket_ctx pointer to socket context to be created, which must have been initialized to #TCS_SOCKET_INVALID before use.
+* @param[in] interface_name name of the network interface to bind to.
+* @param[in] protocol EtherType protocol in host byte order, e.g. 0x22F0 for AVTP.
+* @param[in] type socket type, either #TCS_SOCK_RAW for full L2 frames or #TCS_SOCK_DGRAM for frames without the L2 header.
+*
+* @return #TCS_SUCCESS if successful, otherwise the error code.
+* @retval #TCS_ERROR_INVALID_ARGUMENT if @p socket_ctx is NULL, if *socket_ctx is not #TCS_SOCKET_INVALID, or if @p interface_name is NULL or not found.
+*
+* @see tcs_socket_packet()
+* @see tcs_close()
+*/
+TcsResult tcs_socket_packet_str(TcsSocket* socket_ctx, const char* interface_name, uint16_t protocol, int type);
 
 /**
 * @brief Closes the socket, stop communication and free all resources for the socket.
