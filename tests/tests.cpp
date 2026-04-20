@@ -111,7 +111,7 @@ TEST_CASE("Example from README")
     CHECK(tcs_receive(client_socket, recv_buffer, 8192, TCS_FLAG_NONE, &bytes_received) == TCS_SUCCESS);
     TcsResult shutdown_res = tcs_shutdown(client_socket, TCS_SD_BOTH);
     CHECK((shutdown_res == TCS_SUCCESS || shutdown_res == TCS_ERROR_NOT_CONNECTED ||
-           shutdown_res == TCS_ERROR_CONNECTION_RESET));
+           shutdown_res == TCS_ERROR_CONNECTION_RESET || shutdown_res == TCS_ERROR_SOCKET_CLOSED));
     CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
 
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);

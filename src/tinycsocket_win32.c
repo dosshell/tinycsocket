@@ -172,6 +172,8 @@ static TcsResult wsaerror2retcode(int wsa_error)
             return TCS_ERROR_CONNECTION_RESET;
         case WSAENOTCONN:
             return TCS_ERROR_NOT_CONNECTED;
+        case WSAESHUTDOWN:
+            return TCS_ERROR_SOCKET_CLOSED;
         case WSAENETUNREACH:
         case WSAEHOSTUNREACH:
         case WSAENETDOWN:
@@ -182,6 +184,11 @@ static TcsResult wsaerror2retcode(int wsa_error)
             return TCS_ERROR_INVALID_ARGUMENT;
         case WSAEADDRINUSE:
             return TCS_ERROR_ADDRESS_IN_USE;
+        case WSAENOPROTOOPT:
+            return TCS_ERROR_NOT_SUPPORTED;
+        case WSAENOBUFS:
+        case WSA_NOT_ENOUGH_MEMORY:
+            return TCS_ERROR_MEMORY;
         default:
             return TCS_ERROR_UNKNOWN;
     }
