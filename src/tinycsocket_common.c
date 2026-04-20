@@ -106,24 +106,24 @@ TcsResult tcs_socket_tcp(TcsSocket* socket_ctx,
             }
             if (res == TCS_IN_PROGRESS)
             {
-                struct TcsPool* pool = NULL;
-                res = tcs_pool_create(&pool);
+                struct TcsPoll* poll = NULL;
+                res = tcs_poll_create(&poll);
                 if (res != TCS_SUCCESS)
                 {
                     tcs_close(socket_ctx);
                     return res;
                 }
-                res = tcs_pool_add(pool, *socket_ctx, NULL, false, true, true);
+                res = tcs_poll_add(poll, *socket_ctx, NULL, TCS_POLL_WRITE);
                 if (res != TCS_SUCCESS)
                 {
-                    tcs_pool_destroy(&pool);
+                    tcs_poll_destroy(&poll);
                     tcs_close(socket_ctx);
                     return res;
                 }
-                struct TcsPollEvent event = TCS_POOL_EVENT_EMPTY;
+                struct TcsPollEvent event = TCS_POLL_EVENT_EMPTY;
                 size_t events_populated = 0;
-                res = tcs_pool_poll(pool, &event, 1, &events_populated, timeout_ms);
-                tcs_pool_destroy(&pool);
+                res = tcs_poll_wait(poll, &event, 1, &events_populated, timeout_ms);
+                tcs_poll_destroy(&poll);
                 if (res == TCS_ERROR_TIMED_OUT)
                 {
                     tcs_close(socket_ctx);
@@ -632,13 +632,14 @@ TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t bu
     return TCS_SUCCESS;
 }
 
-// ######## Socket Pooling ########
+// ######## Socket Polling ########
 
-// tcs_pool_create() is defined in OS specific files
-// tcs_pool_destroy() is defined in OS specific files
-// tcs_pool_add() is defined in OS specific files
-// tcs_pool_remove() is defined in OS specific files
-// tcs_pool_poll() is defined in OS specific files
+// tcs_poll_create() is defined in OS specific files
+// tcs_poll_destroy() is defined in OS specific files
+// tcs_poll_add() is defined in OS specific files
+// tcs_poll_modify() is defined in OS specific files
+// tcs_poll_remove() is defined in OS specific files
+// tcs_poll_wait() is defined in OS specific files
 
 // ######## Socket Options ########
 
