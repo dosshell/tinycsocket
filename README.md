@@ -24,7 +24,7 @@ int main(int argc, const char* argv[])
     tcs_connect_str(client_socket, "example.com", 80);
 
     uint8_t send_buffer[] = "GET / HTTP/1.1\r\nHost: example.com\r\n\r\n";
-    tcs_send(client_socket, send_buffer, sizeof(send_buffer), TCS_MSG_SENDALL, NULL);
+    tcs_send(client_socket, send_buffer, sizeof(send_buffer) - 1, TCS_MSG_SENDALL, NULL);
 
     uint8_t recv_buffer[8192] = {0};
     size_t bytes_received = 0;
