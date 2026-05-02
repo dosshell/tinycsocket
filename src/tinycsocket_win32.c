@@ -88,7 +88,7 @@ struct tcs_fd_set
     SOCKET fd_array[1]; // dynamic memory hack that is compatible with Win32 API fd_set
 };
 
-struct TcsPool
+struct TcsPoll
 {
     struct TdsUList_soc read_sockets;
     struct TdsUList_soc write_sockets;
@@ -172,6 +172,8 @@ static TcsResult wsaerror2retcode(int wsa_error)
             return TCS_ERROR_CONNECTION_RESET;
         case WSAENOTCONN:
             return TCS_ERROR_NOT_CONNECTED;
+        case WSAESHUTDOWN:
+            return TCS_ERROR_SOCKET_CLOSED;
         case WSAENETUNREACH:
         case WSAEHOSTUNREACH:
         case WSAENETDOWN:
@@ -182,6 +184,11 @@ static TcsResult wsaerror2retcode(int wsa_error)
             return TCS_ERROR_INVALID_ARGUMENT;
         case WSAEADDRINUSE:
             return TCS_ERROR_ADDRESS_IN_USE;
+        case WSAENOPROTOOPT:
+            return TCS_ERROR_NOT_SUPPORTED;
+        case WSAENOBUFS:
+        case WSA_NOT_ENOUGH_MEMORY:
+            return TCS_ERROR_MEMORY;
         default:
             return TCS_ERROR_UNKNOWN;
     }
@@ -748,139 +755,171 @@ TcsResult tcs_receive_from(TcsSocket socket_ctx,
 // tcs_receive_line() is defined in tinycsocket_common.c
 // tcs_receive_netstring() is defined in tinycsocket_common.c
 
-// ######## Socket Pooling ########
+// ######## Socket Polling ########
 
-TcsResult tcs_pool_create(struct TcsPool** pool)
+TcsResult tcs_poll_create(struct TcsPoll** poll)
 {
-    if (pool == NULL || *pool != NULL)
+    if (poll == NULL || *poll != NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    *pool = (struct TcsPool*)malloc(sizeof(struct TcsPool));
-    if (*pool == NULL)
+    *poll = (struct TcsPoll*)malloc(sizeof(struct TcsPoll));
+    if (*poll == NULL)
         return TCS_ERROR_MEMORY;
-    memset(*pool, 0, sizeof(struct TcsPool)); // Just to be safe
-    int sts_read_array = tds_ulist_soc_create(&(*pool)->read_sockets);
-    int sts_write_array = tds_ulist_soc_create(&(*pool)->write_sockets);
-    int sts_error_array = tds_ulist_soc_create(&(*pool)->error_sockets);
-    int sts_user_data = tds_map_socket_user_create(&(*pool)->user_data);
+    memset(*poll, 0, sizeof(struct TcsPoll));
+    int sts_read_array = tds_ulist_soc_create(&(*poll)->read_sockets);
+    int sts_write_array = tds_ulist_soc_create(&(*poll)->write_sockets);
+    int sts_error_array = tds_ulist_soc_create(&(*poll)->error_sockets);
+    int sts_user_data = tds_map_socket_user_create(&(*poll)->user_data);
 
     if (sts_read_array != 0 || sts_write_array != 0 || sts_error_array != 0 || sts_user_data != 0)
     {
-        tcs_pool_destroy(pool);
+        tcs_poll_destroy(poll);
         return TCS_ERROR_MEMORY;
     }
     return TCS_SUCCESS;
 }
 
-TcsResult tcs_pool_destroy(struct TcsPool** pool)
+TcsResult tcs_poll_destroy(struct TcsPoll** poll)
 {
-    if (pool == NULL || *pool == NULL)
+    if (poll == NULL || *poll == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    // Free away!
-    tds_ulist_soc_destroy(&(*pool)->read_sockets);
-    tds_ulist_soc_destroy(&(*pool)->write_sockets);
-    tds_ulist_soc_destroy(&(*pool)->error_sockets);
-    tds_map_socket_user_destroy(&(*pool)->user_data);
+    tds_ulist_soc_destroy(&(*poll)->read_sockets);
+    tds_ulist_soc_destroy(&(*poll)->write_sockets);
+    tds_ulist_soc_destroy(&(*poll)->error_sockets);
+    tds_map_socket_user_destroy(&(*poll)->user_data);
 
-    free(*pool);
-    *pool = NULL;
+    free(*poll);
+    *poll = NULL;
 
     return TCS_SUCCESS;
 }
 
-TcsResult tcs_pool_add(struct TcsPool* pool,
-                       TcsSocket socket_ctx,
-                       void* user_data,
-                       bool poll_can_read,
-                       bool poll_can_write,
-                       bool poll_error)
+TcsResult tcs_poll_add(struct TcsPoll* poll, TcsSocket socket_ctx, void* user_data, uint32_t flags)
 {
-    if (pool == NULL || socket_ctx == TCS_SOCKET_INVALID)
-        return TCS_ERROR_INVALID_ARGUMENT;
-    if (!poll_can_read && !poll_can_write && !poll_error)
+    if (poll == NULL || socket_ctx == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    int map_sts = tds_map_socket_user_add(&pool->user_data, socket_ctx, user_data);
+    int map_sts = tds_map_socket_user_add(&poll->user_data, socket_ctx, user_data);
     if (map_sts != 0)
         return TCS_ERROR_MEMORY;
 
-    if (poll_can_read)
+    // Always monitor for errors
     {
-        int sts = tds_ulist_soc_add(&pool->read_sockets, &socket_ctx, 1);
+        int sts = tds_ulist_soc_add(&poll->error_sockets, &socket_ctx, 1);
         if (sts != 0)
         {
-            tds_map_socket_user_remove(&pool->user_data, pool->user_data.count - 1);
+            tds_map_socket_user_remove(&poll->user_data, poll->user_data.count - 1);
             return TCS_ERROR_MEMORY;
         }
     }
-    if (poll_can_write)
+    if (flags & TCS_POLL_READ)
     {
-        int sts = tds_ulist_soc_add(&pool->write_sockets, &socket_ctx, 1);
+        int sts = tds_ulist_soc_add(&poll->read_sockets, &socket_ctx, 1);
         if (sts != 0)
         {
-            if (poll_can_read)
-                tds_ulist_soc_remove(&pool->read_sockets, pool->read_sockets.count - 1, 1);
-            tds_map_socket_user_remove(&pool->user_data, pool->user_data.count - 1);
+            tds_ulist_soc_remove(&poll->error_sockets, poll->error_sockets.count - 1, 1);
+            tds_map_socket_user_remove(&poll->user_data, poll->user_data.count - 1);
             return TCS_ERROR_MEMORY;
         }
     }
-    if (poll_error)
+    if (flags & TCS_POLL_WRITE)
     {
-        int sts = tds_ulist_soc_add(&pool->error_sockets, &socket_ctx, 1);
+        int sts = tds_ulist_soc_add(&poll->write_sockets, &socket_ctx, 1);
         if (sts != 0)
         {
-            if (poll_can_write)
-                tds_ulist_soc_remove(&pool->write_sockets, pool->write_sockets.count - 1, 1);
-            if (poll_can_read)
-                tds_ulist_soc_remove(&pool->read_sockets, pool->read_sockets.count - 1, 1);
-            tds_map_socket_user_remove(&pool->user_data, pool->user_data.count - 1);
+            if (flags & TCS_POLL_READ)
+                tds_ulist_soc_remove(&poll->read_sockets, poll->read_sockets.count - 1, 1);
+            tds_ulist_soc_remove(&poll->error_sockets, poll->error_sockets.count - 1, 1);
+            tds_map_socket_user_remove(&poll->user_data, poll->user_data.count - 1);
             return TCS_ERROR_MEMORY;
         }
     }
     return TCS_SUCCESS;
 }
 
-TcsResult tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
+TcsResult tcs_poll_modify(struct TcsPoll* poll, TcsSocket socket_ctx, uint32_t flags)
 {
-    if (pool == NULL)
+    if (poll == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
     if (socket_ctx == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     bool found = false;
-    for (size_t i = 0; i < pool->read_sockets.count; ++i)
+    for (size_t i = 0; i < poll->user_data.count; ++i)
     {
-        if (pool->read_sockets.data[i] == socket_ctx)
+        if (poll->user_data.keys[i] == socket_ctx)
         {
-            tds_ulist_soc_remove(&pool->read_sockets, i, 1);
             found = true;
             break;
         }
     }
-    for (size_t i = 0; i < pool->write_sockets.count; ++i)
+    if (!found)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct TdsUList_soc* const lists[2] = {&poll->read_sockets, &poll->write_sockets};
+    const bool should_exist[2] = {(flags & TCS_POLL_READ) != 0, (flags & TCS_POLL_WRITE) != 0};
+    for (int k = 0; k < 2; ++k)
     {
-        if (pool->write_sockets.data[i] == socket_ctx)
+        struct TdsUList_soc* list = lists[k];
+        bool already_in_list = false;
+        for (size_t i = 0; i < list->count; ++i)
         {
-            tds_ulist_soc_remove(&pool->write_sockets, i, 1);
+            if (list->data[i] == socket_ctx)
+            {
+                if (!should_exist[k])
+                    tds_ulist_soc_remove(list, i, 1);
+                already_in_list = true;
+                break;
+            }
+        }
+        if (!already_in_list && should_exist[k])
+            tds_ulist_soc_add(list, &socket_ctx, 1);
+    }
+
+    return TCS_SUCCESS;
+}
+
+TcsResult tcs_poll_remove(struct TcsPoll* poll, TcsSocket socket_ctx)
+{
+    if (poll == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (socket_ctx == TCS_SOCKET_INVALID)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    bool found = false;
+    for (size_t i = 0; i < poll->read_sockets.count; ++i)
+    {
+        if (poll->read_sockets.data[i] == socket_ctx)
+        {
+            tds_ulist_soc_remove(&poll->read_sockets, i, 1);
             found = true;
             break;
         }
     }
-    for (size_t i = 0; i < pool->error_sockets.count; ++i)
+    for (size_t i = 0; i < poll->write_sockets.count; ++i)
     {
-        if (pool->error_sockets.data[i] == socket_ctx)
+        if (poll->write_sockets.data[i] == socket_ctx)
         {
-            tds_ulist_soc_remove(&pool->error_sockets, i, 1);
+            tds_ulist_soc_remove(&poll->write_sockets, i, 1);
             found = true;
             break;
         }
     }
-    for (size_t i = 0; i < pool->user_data.count; ++i)
+    for (size_t i = 0; i < poll->error_sockets.count; ++i)
     {
-        if (pool->user_data.keys[i] == socket_ctx)
+        if (poll->error_sockets.data[i] == socket_ctx)
         {
-            tds_map_socket_user_remove(&pool->user_data, i);
+            tds_ulist_soc_remove(&poll->error_sockets, i, 1);
+            found = true;
+            break;
+        }
+    }
+    for (size_t i = 0; i < poll->user_data.count; ++i)
+    {
+        if (poll->user_data.keys[i] == socket_ctx)
+        {
+            tds_map_socket_user_remove(&poll->user_data, i);
             found = true;
             break;
         }
@@ -892,13 +931,13 @@ TcsResult tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx)
     return TCS_SUCCESS;
 }
 
-TcsResult tcs_pool_poll(struct TcsPool* pool,
+TcsResult tcs_poll_wait(struct TcsPoll* poll,
                         struct TcsPollEvent* events,
                         size_t events_capacity,
                         size_t* events_populated,
                         int timeout_ms)
 {
-    if (pool == NULL)
+    if (poll == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
     if (events == NULL || events_populated == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -926,27 +965,27 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
     struct tcs_fd_set* wfds_cpy = NULL;
     struct tcs_fd_set* efds_cpy = NULL;
 
-    if (pool->read_sockets.count <= FD_SETSIZE)
+    if (poll->read_sockets.count <= FD_SETSIZE)
     {
         FD_ZERO(&rfds_stack);
         rfds_cpy = (struct tcs_fd_set*)&rfds_stack;
     }
     else
     {
-        rfds_heap = (struct tcs_fd_set*)malloc(data_offset + sizeof(SOCKET) * pool->read_sockets.count);
+        rfds_heap = (struct tcs_fd_set*)malloc(data_offset + sizeof(SOCKET) * poll->read_sockets.count);
         if (rfds_heap == NULL)
             return TCS_ERROR_MEMORY;
         rfds_cpy = rfds_heap;
     }
 
-    if (pool->write_sockets.count <= FD_SETSIZE)
+    if (poll->write_sockets.count <= FD_SETSIZE)
     {
         FD_ZERO(&wfds_stack);
         wfds_cpy = (struct tcs_fd_set*)&wfds_stack;
     }
     else
     {
-        wfds_heap = (struct tcs_fd_set*)malloc(data_offset + sizeof(SOCKET) * pool->write_sockets.count);
+        wfds_heap = (struct tcs_fd_set*)malloc(data_offset + sizeof(SOCKET) * poll->write_sockets.count);
         if (wfds_heap == NULL)
         {
             free(rfds_heap);
@@ -955,14 +994,14 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
         wfds_cpy = wfds_heap;
     }
 
-    if (pool->error_sockets.count <= FD_SETSIZE)
+    if (poll->error_sockets.count <= FD_SETSIZE)
     {
         FD_ZERO(&efds_stack);
         efds_cpy = (struct tcs_fd_set*)&efds_stack;
     }
     else
     {
-        efds_heap = (struct tcs_fd_set*)malloc(data_offset + sizeof(SOCKET) * pool->error_sockets.count);
+        efds_heap = (struct tcs_fd_set*)malloc(data_offset + sizeof(SOCKET) * poll->error_sockets.count);
         if (efds_heap == NULL)
         {
             free(rfds_heap);
@@ -971,13 +1010,13 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
         }
         efds_cpy = efds_heap;
     }
-    rfds_cpy->fd_count = (u_int)pool->read_sockets.count;
-    wfds_cpy->fd_count = (u_int)pool->write_sockets.count;
-    efds_cpy->fd_count = (u_int)pool->error_sockets.count;
+    rfds_cpy->fd_count = (u_int)poll->read_sockets.count;
+    wfds_cpy->fd_count = (u_int)poll->write_sockets.count;
+    efds_cpy->fd_count = (u_int)poll->error_sockets.count;
 
-    memcpy(rfds_cpy->fd_array, pool->read_sockets.data, sizeof(SOCKET) * pool->read_sockets.count);
-    memcpy(wfds_cpy->fd_array, pool->write_sockets.data, sizeof(SOCKET) * pool->write_sockets.count);
-    memcpy(efds_cpy->fd_array, pool->error_sockets.data, sizeof(SOCKET) * pool->error_sockets.count);
+    memcpy(rfds_cpy->fd_array, poll->read_sockets.data, sizeof(SOCKET) * poll->read_sockets.count);
+    memcpy(wfds_cpy->fd_array, poll->write_sockets.data, sizeof(SOCKET) * poll->write_sockets.count);
+    memcpy(efds_cpy->fd_array, poll->error_sockets.data, sizeof(SOCKET) * poll->error_sockets.count);
 
     memset(events, 0, sizeof(struct TcsPollEvent) * events_capacity);
     *events_populated = 0;
@@ -1001,11 +1040,11 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
         {
             events[events_added].socket = rfds_cpy->fd_array[n];
             events[events_added].can_read = true;
-            for (size_t i = 0; i < pool->user_data.count; ++i)
+            for (size_t i = 0; i < poll->user_data.count; ++i)
             {
-                if (events[events_added].socket == pool->user_data.keys[i])
+                if (events[events_added].socket == poll->user_data.keys[i])
                 {
-                    events[events_added].user_data = pool->user_data.values[i];
+                    events[events_added].user_data = poll->user_data.values[i];
                     break;
                 }
             }
@@ -1029,11 +1068,11 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
             {
                 events[new_n].socket = wfds_cpy->fd_array[n];
 
-                for (size_t i = 0; i < pool->user_data.count; ++i)
+                for (size_t i = 0; i < poll->user_data.count; ++i)
                 {
-                    if (events[new_n].socket == pool->user_data.keys[i])
+                    if (events[new_n].socket == poll->user_data.keys[i])
                     {
-                        events[new_n].user_data = pool->user_data.values[i];
+                        events[new_n].user_data = poll->user_data.values[i];
                         break;
                     }
                 }
@@ -1063,11 +1102,11 @@ TcsResult tcs_pool_poll(struct TcsPool* pool,
             {
                 events[new_n].socket = efds_cpy->fd_array[n];
 
-                for (size_t i = 0; i < pool->user_data.count; ++i)
+                for (size_t i = 0; i < poll->user_data.count; ++i)
                 {
-                    if (events[new_n].socket == pool->user_data.keys[i])
+                    if (events[new_n].socket == poll->user_data.keys[i])
                     {
-                        events[new_n].user_data = pool->user_data.values[i];
+                        events[new_n].user_data = poll->user_data.values[i];
                         break;
                     }
                 }
