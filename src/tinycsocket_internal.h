@@ -23,7 +23,7 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-static const char* const TCS_VERSION_TXT = "v0.3.71";
+static const char* const TCS_VERSION_TXT = "v0.3.73";
 static const char* const TCS_LICENSE_TXT =
     "Copyright 2018 Markus Lindelöw\n"
     "\n"
@@ -83,12 +83,13 @@ static const char* const TCS_LICENSE_TXT =
 * - TcsResult tcs_receive_line(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, size_t* bytes_received, uint8_t delimiter);
 * - TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, size_t* bytes_received);
 *
-* Socket Pooling:
-* - TcsResult tcs_pool_create(struct TcsPool** pool);
-* - TcsResult tcs_pool_destroy(struct TcsPool** pool);
-* - TcsResult tcs_pool_add(struct TcsPool* pool, TcsSocket socket_ctx, void* user_data, bool poll_can_read, bool poll_can_write, bool poll_error);
-* - TcsResult tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx);
-* - TcsResult tcs_pool_poll(struct TcsPool* pool, struct TcsPollEvent* events, size_t events_count, size_t* events_populated, int timeout_ms);
+* Socket Polling:
+* - TcsResult tcs_poll_create(struct TcsPoll** poll);
+* - TcsResult tcs_poll_destroy(struct TcsPoll** poll);
+* - TcsResult tcs_poll_add(struct TcsPoll* poll, TcsSocket socket_ctx, void* user_data, uint32_t flags);
+* - TcsResult tcs_poll_modify(struct TcsPoll* poll, TcsSocket socket_ctx, uint32_t flags);
+* - TcsResult tcs_poll_remove(struct TcsPoll* poll, TcsSocket socket_ctx);
+* - TcsResult tcs_poll_wait(struct TcsPoll* poll, struct TcsPollEvent* events, size_t events_count, size_t* events_populated, int timeout_ms);
 *
 * Socket Options:
 * - TcsResult tcs_opt_set(TcsSocket socket_ctx, int32_t level, int32_t option_name, const void* option_value, size_t option_size);
@@ -215,6 +216,15 @@ typedef enum
     TCS_AF_IP6,    /**< INET IPv6 interface */
     TCS_AF_PACKET, /**< Layer 2 interface */
 } TcsAddressFamily;
+
+/**
+ * @brief Flags for poll events
+ */
+typedef enum
+{
+    TCS_POLL_READ = 1,
+    TCS_POLL_WRITE = 2,
+} TcsPollFlags;
 
 /**
  * @brief IPv6 address (16 bytes), analogous to POSIX struct in6_addr.
@@ -415,7 +425,7 @@ typedef enum
     TCS_ERROR_ILL_FORMED_MESSAGE = -96,
 } TcsResult;
 
-struct TcsPool;
+struct TcsPoll;
 struct TcsPollEvent
 {
     TcsSocket socket;
@@ -424,7 +434,7 @@ struct TcsPollEvent
     bool can_write;
     TcsResult error;
 };
-static const struct TcsPollEvent TCS_POOL_EVENT_EMPTY = {0, 0, false, false, TCS_SUCCESS};
+static const struct TcsPollEvent TCS_POLL_EVENT_EMPTY = {0, 0, false, false, TCS_SUCCESS};
 
 // ######## Library Management ########
 
@@ -900,7 +910,7 @@ TcsResult tcs_bind(TcsSocket socket_ctx, const struct TcsAddress* local_address)
  * For TCP sockets, this initiates a three-way handshake. For UDP sockets, this
  * associates the socket with the remote address for subsequent send operations.
  * The function blocks indefinitely until the connection is established or fails.
- * Timeout for this function is set by OS defaults. Use TcsPool or
+ * Timeout for this function is set by OS defaults. Use TcsPoll or
  * ::tcs_opt_nonblocking_set() for non-blocking behavior.
  *
  * @code
@@ -965,7 +975,7 @@ TcsResult tcs_connect(TcsSocket socket_ctx, const struct TcsAddress* address);
  * This function establishes a connection to the specified remote address and port.
  * For TCP sockets, this initiates a three-way handshake. For UDP sockets, this
  * associates the socket with the remote address for subsequent send operations.
- * Timeout for this function is set by OS defaults. Use TcsPool or
+ * Timeout for this function is set by OS defaults. Use TcsPoll or
  * ::tcs_opt_nonblocking_set() for non-blocking behavior.
  *
  * @code
@@ -1226,8 +1236,9 @@ TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t bu
 /**
 * @brief Create a context used for waiting on several sockets.
 *
-* TcsPool can be used to monitor several sockets for events (reading, writing or error).
-* Use tcs_pool_poll() to get a list of sockets ready to interact with.
+* TcsPoll can be used to monitor several sockets for events (reading, writing or error).
+* Use tcs_poll_wait() to get a list of sockets ready to interact with.
+* Errors are always reported regardless of flags.
 *
 * @code
 * tcs_lib_init();
@@ -1246,14 +1257,14 @@ TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t bu
 * addr2.data.ip4.port = 1001;
 * tcs_bind(socket2, &addr2);
 *
-* struct TcsPool* pool = NULL;
-* tcs_pool_create(&pool);
-* tcs_pool_add(pool, socket1, NULL, true, false, false); // Only wait for incoming data
-* tcs_pool_add(pool, socket2, NULL, true, false, false);
+* struct TcsPoll* poll = NULL;
+* tcs_poll_create(&poll);
+* tcs_poll_add(poll, socket1, NULL, TCS_POLL_READ); // Only wait for incoming data
+* tcs_poll_add(poll, socket2, NULL, TCS_POLL_READ);
 *
 * size_t populated = 0;
-* struct TcsPollEvent ev[2] = {TCS_POOL_EVENT_EMPTY, TCS_POOL_EVENT_EMPTY};
-* tcs_pool_poll(pool, ev, 2, &populated, 1000); // Will wait 1000 ms for data on port 1000 or 1001
+* struct TcsPollEvent ev[2] = {TCS_POLL_EVENT_EMPTY, TCS_POLL_EVENT_EMPTY};
+* tcs_poll_wait(poll, ev, 2, &populated, 1000); // Will wait 1000 ms for data on port 1000 or 1001
 * for (size_t i = 0; i < populated; ++i)
 * {
 *     if (ev[i].can_read)
@@ -1263,70 +1274,75 @@ TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t bu
 *         tcs_receive(ev[i].socket, recv_buffer, 8191, TCS_FLAG_NONE, &bytes_received);
 *     }
 * }
-* tcs_pool_destroy(&pool);
+* tcs_poll_destroy(&poll);
 * tcs_close(&socket1);
 * tcs_close(&socket2);
 * tcs_lib_free();
 * @endcode
 *
-* @param[out] pool is your out pool context pointer. Initiate a TcsPool pointer to NULL and use the address of this pointer.
+* @param[out] poll is your out poll context pointer. Initiate a TcsPoll pointer to NULL and use the address of this pointer.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
-* @see tcs_pool_destroy()
+* @see tcs_poll_destroy()
 */
-TcsResult tcs_pool_create(struct TcsPool** pool);
+TcsResult tcs_poll_create(struct TcsPoll** poll);
 
 /**
-* @brief Frees all resources bound to the pool.
+* @brief Frees all resources bound to the poll context.
 *
-* Will set @p pool to NULL when successfully.
+* Will set @p poll to NULL when successful.
 *
-* @param[in,out] pool is your pool context pointer created with tcs_pool_create(). Will be set to NULL.
+* @param[in,out] poll is your poll context pointer created with tcs_poll_create(). Will be set to NULL.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
-* @see tcs_pool_create()
+* @see tcs_poll_create()
 */
-TcsResult tcs_pool_destroy(struct TcsPool** pool);
+TcsResult tcs_poll_destroy(struct TcsPoll** poll);
 
 /**
-* @brief Add a socket to the pool.
+* @brief Add a socket to the poll context.
 *
-* @param[in] pool is your pool context pointer created with tcs_pool_create().
-* @param socket_ctx will be added to the pool. Note that you can still use it outside of the pool.
+* @param[in] poll is your poll context pointer created with tcs_poll_create().
+* @param socket_ctx will be added to the poll context. Note that you can still use it outside of the poll context.
 * @param[in] user_data is a pointer of your choice that is associated with the socket. Use NULL if not used.
-* @param poll_can_read true if you want to poll @p socket_ctx for read events.
-* @param poll_can_write true if you want to poll @p socket_ctx for write events.
-* @param poll_error true if you want to poll if any error has happened to @p socket_ctx.
+* @param flags is a bitmask of ::TcsPollFlags (e.g. TCS_POLL_READ | TCS_POLL_WRITE). Errors are always reported.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
-* @see tcs_pool_remove()
+* @see tcs_poll_remove()
 */
-TcsResult tcs_pool_add(struct TcsPool* pool,
-                       TcsSocket socket_ctx,
-                       void* user_data,
-                       bool poll_can_read,
-                       bool poll_can_write,
-                       bool poll_error);
+TcsResult tcs_poll_add(struct TcsPoll* poll, TcsSocket socket_ctx, void* user_data, uint32_t flags);
 
 /**
-* @brief Remove a socket from the pool.
+* @brief Modify the poll flags for a socket already in the poll context.
 *
-* @param[in] pool is a context pointer created with tcs_pool_create()
-* @param socket_ctx will be removed from the pool.
+* @param[in] poll is your poll context pointer created with tcs_poll_create().
+* @param socket_ctx is the socket to modify.
+* @param flags is the new bitmask of ::TcsPollFlags. Errors are always reported.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
-* @see tcs_pool_add()
+* @retval #TCS_ERROR_INVALID_ARGUMENT if the socket is not in the poll context.
+* @see tcs_poll_add()
 */
-TcsResult tcs_pool_remove(struct TcsPool* pool, TcsSocket socket_ctx);
+TcsResult tcs_poll_modify(struct TcsPoll* poll, TcsSocket socket_ctx, uint32_t flags);
 
 /**
-* @brief Wait for events on sockets in the pool.
+* @brief Remove a socket from the poll context.
 *
-* @param[in] pool is your pool context pointer created with @p tcs_pool_create().
-* @param[in,out] events is an array with in-out events. Assign each element to #TCS_POOL_EVENT_EMPTY.
-* @param events_count number of in elements in your events array. Does not make sense to have more events than number of sockets in the pool. If too short, all events may not be returned.
+* @param[in] poll is a context pointer created with tcs_poll_create()
+* @param socket_ctx will be removed from the poll context.
+* @return #TCS_SUCCESS if successful, otherwise the error code.
+* @see tcs_poll_add()
+*/
+TcsResult tcs_poll_remove(struct TcsPoll* poll, TcsSocket socket_ctx);
+
+/**
+* @brief Wait for events on sockets in the poll context.
+*
+* @param[in] poll is your poll context pointer created with @p tcs_poll_create().
+* @param[in,out] events is an array with in-out events. Assign each element to #TCS_POLL_EVENT_EMPTY.
+* @param events_count number of in elements in your events array. Does not make sense to have more events than number of sockets in the poll context. If too short, all events may not be returned.
 * @param[out] events_populated will contain the number of events the parameter events has been populated with by the call.
 * @param timeout_ms is the maximum wait time for any event. If any event happens before this time, the call will return immediately.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
-* @see tcs_pool_remove()
+* @see tcs_poll_remove()
 */
-TcsResult tcs_pool_poll(struct TcsPool* pool,
+TcsResult tcs_poll_wait(struct TcsPoll* poll,
                         struct TcsPollEvent* events,
                         size_t events_count,
                         size_t* events_populated,

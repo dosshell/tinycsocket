@@ -111,7 +111,7 @@ TEST_CASE("Example from README")
     CHECK(tcs_receive(client_socket, recv_buffer, 8192, TCS_FLAG_NONE, &bytes_received) == TCS_SUCCESS);
     TcsResult shutdown_res = tcs_shutdown(client_socket, TCS_SD_BOTH);
     CHECK((shutdown_res == TCS_SUCCESS || shutdown_res == TCS_ERROR_NOT_CONNECTED ||
-           shutdown_res == TCS_ERROR_CONNECTION_RESET));
+           shutdown_res == TCS_ERROR_CONNECTION_RESET || shutdown_res == TCS_ERROR_SOCKET_CLOSED));
     CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
 
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
@@ -835,7 +835,7 @@ TEST_CASE("tcs_socket_udp_str bind and send_to")
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 
-TEST_CASE("tcs_pool simple memory check")
+TEST_CASE("tcs_poll simple memory check")
 {
     // Setup
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
@@ -844,9 +844,9 @@ TEST_CASE("tcs_pool simple memory check")
     int pre_mem_diff = TCS_MEM_DIFF();
 
     // When
-    struct TcsPool* pool = NULL;
-    CHECK(tcs_pool_create(&pool) == TCS_SUCCESS);
-    CHECK(tcs_pool_destroy(&pool) == TCS_SUCCESS);
+    struct TcsPoll* poll = NULL;
+    CHECK(tcs_poll_create(&poll) == TCS_SUCCESS);
+    CHECK(tcs_poll_destroy(&poll) == TCS_SUCCESS);
 
     // Then
     CHECK_NO_LEAK(pre_mem_diff);
@@ -855,7 +855,7 @@ TEST_CASE("tcs_pool simple memory check")
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 
-TEST_CASE("tcs_pool_poll simple write")
+TEST_CASE("tcs_poll_wait simple write")
 {
     // Setup
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
@@ -873,15 +873,15 @@ TEST_CASE("tcs_pool_poll simple write")
     CHECK(tcs_bind(socket, &local_address) == TCS_SUCCESS);
 
     int user_data = 1337;
-    struct TcsPool* pool = NULL;
-    CHECK(tcs_pool_create(&pool) == TCS_SUCCESS);
-    CHECK(tcs_pool_add(pool, socket, (void*)&user_data, false, true, false) == TCS_SUCCESS);
+    struct TcsPoll* poll = NULL;
+    CHECK(tcs_poll_create(&poll) == TCS_SUCCESS);
+    CHECK(tcs_poll_add(poll, socket, (void*)&user_data, TCS_POLL_WRITE) == TCS_SUCCESS);
 
     // When
     size_t populated = 0;
-    TcsPollEvent ev = TCS_POOL_EVENT_EMPTY;
-    CHECK(tcs_pool_poll(pool, &ev, 1, &populated, 5000) == TCS_SUCCESS);
-    CHECK(tcs_pool_destroy(&pool) == TCS_SUCCESS);
+    TcsPollEvent ev = TCS_POLL_EVENT_EMPTY;
+    CHECK(tcs_poll_wait(poll, &ev, 1, &populated, 5000) == TCS_SUCCESS);
+    CHECK(tcs_poll_destroy(&poll) == TCS_SUCCESS);
 
     // Then
     CHECK(populated == 1);
@@ -897,7 +897,7 @@ TEST_CASE("tcs_pool_poll simple write")
     tcs_lib_free();
 }
 
-TEST_CASE("tcs_pool_poll simple read")
+TEST_CASE("tcs_poll_wait simple read")
 {
     // Setup
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
@@ -913,14 +913,14 @@ TEST_CASE("tcs_pool_poll simple read")
     local_address.data.ip4.port = 5679;
     CHECK(tcs_bind(socket, &local_address) == TCS_SUCCESS);
     int user_data = 1337;
-    struct TcsPool* pool = NULL;
-    CHECK(tcs_pool_create(&pool) == TCS_SUCCESS);
-    CHECK(tcs_pool_add(pool, socket, (void*)&user_data, true, false, false) == TCS_SUCCESS);
+    struct TcsPoll* poll = NULL;
+    CHECK(tcs_poll_create(&poll) == TCS_SUCCESS);
+    CHECK(tcs_poll_add(poll, socket, (void*)&user_data, TCS_POLL_READ) == TCS_SUCCESS);
 
     // When
     size_t populated = 0;
-    TcsPollEvent ev = TCS_POOL_EVENT_EMPTY;
-    CHECK(tcs_pool_poll(pool, &ev, 1, &populated, 0) == TCS_ERROR_TIMED_OUT);
+    TcsPollEvent ev = TCS_POLL_EVENT_EMPTY;
+    CHECK(tcs_poll_wait(poll, &ev, 1, &populated, 0) == TCS_ERROR_TIMED_OUT);
 
     // Then
     CHECK(populated == 0);
@@ -929,8 +929,8 @@ TEST_CASE("tcs_pool_poll simple read")
     TcsAddress receiver = TCS_ADDRESS_NONE;
     CHECK(tcs_address_parse("127.0.0.1:5679", &receiver) == TCS_SUCCESS);
     CHECK(tcs_send_to(socket, (const uint8_t*)"hej", 4, TCS_FLAG_NONE, &receiver, NULL) == TCS_SUCCESS);
-    CHECK(tcs_pool_poll(pool, &ev, 1, &populated, 10) == TCS_SUCCESS);
-    CHECK(tcs_pool_destroy(&pool) == TCS_SUCCESS);
+    CHECK(tcs_poll_wait(poll, &ev, 1, &populated, 10) == TCS_SUCCESS);
+    CHECK(tcs_poll_destroy(&poll) == TCS_SUCCESS);
 
     // Then
     CHECK_NO_LEAK(allocation_diff_before);
@@ -946,14 +946,14 @@ TEST_CASE("tcs_pool_poll simple read")
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 
-TEST_CASE("tcs_pool_poll partial")
+TEST_CASE("tcs_poll_wait partial")
 {
     // Setup
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
 
     // Given
-    struct TcsPool* pool = NULL;
-    CHECK(tcs_pool_create(&pool) == TCS_SUCCESS);
+    struct TcsPoll* poll = NULL;
+    CHECK(tcs_poll_create(&poll) == TCS_SUCCESS);
 
     const int SOCKET_COUNT = 3;
     TcsSocket socket[SOCKET_COUNT];
@@ -970,13 +970,13 @@ TEST_CASE("tcs_pool_poll partial")
         local_address.data.ip4.port = (uint16_t)(5000 + i);
         CHECK(tcs_bind(socket[i], &local_address) == TCS_SUCCESS);
         user_data[i] = 5000 + i;
-        CHECK(tcs_pool_add(pool, socket[i], (void*)&user_data[i], true, false, true) == TCS_SUCCESS);
+        CHECK(tcs_poll_add(poll, socket[i], (void*)&user_data[i], TCS_POLL_READ) == TCS_SUCCESS);
     }
 
     // When
     size_t populated = 0;
-    TcsPollEvent ev = TCS_POOL_EVENT_EMPTY;
-    CHECK(tcs_pool_poll(pool, &ev, 1, &populated, 0) == TCS_ERROR_TIMED_OUT);
+    TcsPollEvent ev = TCS_POLL_EVENT_EMPTY;
+    CHECK(tcs_poll_wait(poll, &ev, 1, &populated, 0) == TCS_ERROR_TIMED_OUT);
 
     // Then
     CHECK(populated == 0);
@@ -985,15 +985,15 @@ TEST_CASE("tcs_pool_poll partial")
     TcsAddress destinaion_address = TCS_ADDRESS_NONE;
     CHECK(tcs_address_parse("127.0.0.1:5001", &destinaion_address) == TCS_SUCCESS);
     CHECK(tcs_send_to(socket[0], (const uint8_t*)"hej", 4, TCS_FLAG_NONE, &destinaion_address, NULL) == TCS_SUCCESS);
-    CHECK(tcs_pool_poll(pool, &ev, 1, &populated, 10) == TCS_SUCCESS);
+    CHECK(tcs_poll_wait(poll, &ev, 1, &populated, 10) == TCS_SUCCESS);
     CHECK(populated == 1);
     CHECK(*(int*)ev.user_data == 5001);
     CHECK(ev.can_read == true);
 
     // Then
 
-    // Check that the event and socket is still there in the pool, even after poll
-    CHECK(tcs_pool_poll(pool, &ev, 1, &populated, 10) == TCS_SUCCESS);
+    // Check that the event and socket is still there after poll
+    CHECK(tcs_poll_wait(poll, &ev, 1, &populated, 10) == TCS_SUCCESS);
     CHECK(populated == 1);
     CHECK(*(int*)ev.user_data == 5001);
     CHECK(ev.can_read == true);
@@ -1003,16 +1003,64 @@ TEST_CASE("tcs_pool_poll partial")
     CHECK(tcs_receive(socket[1], receive_buffer, 1024, TCS_FLAG_NONE, &received_bytes) == TCS_SUCCESS);
 
     // Check that the event is removed after received data
-    CHECK(tcs_pool_poll(pool, &ev, 1, &populated, 10) == TCS_ERROR_TIMED_OUT);
+    CHECK(tcs_poll_wait(poll, &ev, 1, &populated, 10) == TCS_ERROR_TIMED_OUT);
 
     CHECK(populated == 0);
 
     // Clean up
-    CHECK(tcs_pool_destroy(&pool) == TCS_SUCCESS);
+    CHECK(tcs_poll_destroy(&poll) == TCS_SUCCESS);
     for (int i = 0; i < SOCKET_COUNT; ++i)
     {
         CHECK(tcs_close(&socket[i]) == TCS_SUCCESS);
     }
+    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+}
+
+TEST_CASE("tcs_poll_modify")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    TcsSocket socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket(&socket, TCS_AF_IP4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+
+    struct TcsAddress local_address = TCS_ADDRESS_NONE;
+    local_address.family = TCS_AF_IP4;
+    local_address.data.ip4.address = TCS_ADDRESS_ANY_IP4;
+    local_address.data.ip4.port = 5680;
+    CHECK(tcs_bind(socket, &local_address) == TCS_SUCCESS);
+
+    struct TcsPoll* poll = NULL;
+    CHECK(tcs_poll_create(&poll) == TCS_SUCCESS);
+    CHECK(tcs_poll_add(poll, socket, NULL, TCS_POLL_READ) == TCS_SUCCESS);
+
+    // When — no data, READ should time out
+    size_t populated = 0;
+    TcsPollEvent ev = TCS_POLL_EVENT_EMPTY;
+    CHECK(tcs_poll_wait(poll, &ev, 1, &populated, 0) == TCS_ERROR_TIMED_OUT);
+    CHECK(populated == 0);
+
+    // Modify to WRITE — should trigger immediately
+    CHECK(tcs_poll_modify(poll, socket, TCS_POLL_WRITE) == TCS_SUCCESS);
+    ev = TCS_POLL_EVENT_EMPTY;
+    CHECK(tcs_poll_wait(poll, &ev, 1, &populated, 5000) == TCS_SUCCESS);
+    CHECK(populated == 1);
+    CHECK(ev.can_write == true);
+    CHECK(ev.can_read == false);
+
+    // Modify back to READ — should time out again
+    CHECK(tcs_poll_modify(poll, socket, TCS_POLL_READ) == TCS_SUCCESS);
+    ev = TCS_POLL_EVENT_EMPTY;
+    CHECK(tcs_poll_wait(poll, &ev, 1, &populated, 0) == TCS_ERROR_TIMED_OUT);
+    CHECK(populated == 0);
+
+    // Modify non-existent socket should fail
+    CHECK(tcs_poll_modify(poll, TCS_SOCKET_INVALID, TCS_POLL_WRITE) == TCS_ERROR_INVALID_ARGUMENT);
+
+    // Clean up
+    CHECK(tcs_poll_destroy(&poll) == TCS_SUCCESS);
+    CHECK(tcs_close(&socket) == TCS_SUCCESS);
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
 }
 
