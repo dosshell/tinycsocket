@@ -20,7 +20,7 @@ int main(int argc, const char* argv[])
     tcs_lib_init();
 
     TcsSocket client_socket = TCS_SOCKET_INVALID;
-    tcs_socket(&client_socket, TCS_AF_IP4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
+    tcs_socket(&client_socket, TCS_FAMILY_IP4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
     tcs_connect_str(client_socket, "example.com", 80);
 
     uint8_t send_buffer[] = "GET / HTTP/1.1\r\nHost: example.com\r\n\r\n";
