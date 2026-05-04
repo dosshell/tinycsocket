@@ -58,7 +58,7 @@ int main(void)
     recv_buffer[bytes_received] = '\0';
     printf("received: %s\n", recv_buffer);
 
-    if (tcs_shutdown(client_socket, TCS_SD_BOTH) != TCS_SUCCESS)
+    if (tcs_shutdown(client_socket, TCS_SHUTDOWN_BOTH) != TCS_SUCCESS)
         return show_error("Could not shutdown socket");
 
     if (tcs_close(&client_socket) != TCS_SUCCESS)

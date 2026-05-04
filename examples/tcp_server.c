@@ -65,7 +65,7 @@ int main(void)
     if (tcs_send(child_socket, (const uint8_t*)msg, sizeof(msg), TCS_MSG_SENDALL, NULL) != TCS_SUCCESS)
         return show_error("Could not send reply message");
 
-    if (tcs_shutdown(child_socket, TCS_SD_BOTH) != TCS_SUCCESS)
+    if (tcs_shutdown(child_socket, TCS_SHUTDOWN_BOTH) != TCS_SUCCESS)
         return show_error("Could not shutdown socket");
 
     if (tcs_close(&child_socket) != TCS_SUCCESS)

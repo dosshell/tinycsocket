@@ -114,7 +114,7 @@ TEST_CASE("Example from README")
     size_t bytes_received = 0;
     tcs_receive(client_socket, recv_buffer, sizeof(recv_buffer), TCS_MSG_WAITALL, &bytes_received);
     CHECK(bytes_received > 0);
-    TcsResult shutdown_res = tcs_shutdown(client_socket, TCS_SD_BOTH);
+    TcsResult shutdown_res = tcs_shutdown(client_socket, TCS_SHUTDOWN_BOTH);
     CHECK((shutdown_res == TCS_SUCCESS || shutdown_res == TCS_ERROR_NOT_CONNECTED ||
            shutdown_res == TCS_ERROR_CONNECTION_RESET || shutdown_res == TCS_ERROR_SOCKET_CLOSED));
     CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
@@ -598,7 +598,7 @@ TEST_CASE("shutdown")
 
     uint8_t buffer1[1024];
     tcs_receive(peer1, buffer1, 1024, TCS_NO_FLAGS, NULL);
-    tcs_shutdown(peer2, TCS_SD_RECEIVE);
+    tcs_shutdown(peer2, TCS_SHUTDOWN_RECEIVE);
     tcs_close(&peer1);
 
     t1.join();
@@ -1680,7 +1680,7 @@ TEST_CASE("Simple AVTP talker")
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
 
     TcsSocket socket = TCS_SOCKET_INVALID;
-    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCK_RAW, TCS_ETH_P_ALL) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCK_RAW, TCS_PROTOCOL_ETH_ALL) == TCS_SUCCESS);
     TcsAddress address = TCS_ADDRESS_NONE;
     tcs_address_parse("", &address);
 
@@ -1919,7 +1919,7 @@ TEST_CASE("Create packet socket")
     TcsSocket socket = TCS_SOCKET_INVALID;
 
     // When
-    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCK_RAW, TCS_ETH_P_ALL) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCK_RAW, TCS_PROTOCOL_ETH_ALL) == TCS_SUCCESS);
 
     // Then
     CHECK(socket != TCS_SOCKET_INVALID);
@@ -1992,7 +1992,7 @@ TEST_CASE("TSN Create talker socket bind")
     TcsSocket socket = TCS_SOCKET_INVALID;
 
     // When
-    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCK_RAW, TCS_ETH_P_ALL) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCK_RAW, TCS_PROTOCOL_ETH_ALL) == TCS_SUCCESS);
 
     CHECK(tcs_opt_priority_set(socket, 6) == TCS_SUCCESS); // Set priority to 6 (VLAN priority 6)
     struct TcsInterfaceAddress addr[20];
@@ -2036,7 +2036,7 @@ TEST_CASE("TSN Create listener")
     TcsSocket socket = TCS_SOCKET_INVALID;
 
     // When
-    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCK_RAW, TCS_ETH_P_ALL) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCK_RAW, TCS_PROTOCOL_ETH_ALL) == TCS_SUCCESS);
 
     struct TcsInterfaceAddress addr[20];
     size_t addresses_found = 0;
@@ -2070,7 +2070,7 @@ TEST_CASE("Create DGRAM packet socket with preset")
     TcsSocket socket = TCS_SOCKET_INVALID;
 
     // When
-    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCK_DGRAM, TCS_ETH_P_ALL) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCK_DGRAM, TCS_PROTOCOL_ETH_ALL) == TCS_SUCCESS);
 
     // Then
     CHECK(socket != TCS_SOCKET_INVALID);
@@ -2345,7 +2345,7 @@ TEST_CASE("Sentinel handling: TCS_FAMILY_PACKET on unsupported platform")
 
     // Probe whether this platform supports AF_PACKET by trying to create one.
     TcsSocket probe = TCS_SOCKET_INVALID;
-    TcsResult probe_res = tcs_socket(&probe, TCS_FAMILY_PACKET, TCS_SOCK_RAW, TCS_ETH_P_ALL);
+    TcsResult probe_res = tcs_socket(&probe, TCS_FAMILY_PACKET, TCS_SOCK_RAW, TCS_PROTOCOL_ETH_ALL);
 
     if (probe_res == TCS_ERROR_NOT_SUPPORTED)
     {
