@@ -119,9 +119,6 @@ const TcsSockType TCS_SOCK_STREAM = {SOCK_STREAM};
 const TcsSockType TCS_SOCK_DGRAM = {SOCK_DGRAM};
 const TcsSockType TCS_SOCK_RAW = {SOCK_RAW};
 
-// Flags
-const uint32_t TCS_AI_PASSIVE = AI_PASSIVE;
-
 // Recv flags
 const uint32_t TCS_MSG_PEEK = MSG_PEEK;
 const uint32_t TCS_MSG_OOB = MSG_OOB;
@@ -151,10 +148,10 @@ const int TCS_SO_OOBINLINE = SO_OOBINLINE;
 const int TCS_SO_PRIORITY = -1;
 
 // IP options
-const int TCS_SO_IP_NODELAY = TCP_NODELAY;
-const int TCS_SO_IP_MEMBERSHIP_ADD = IP_ADD_MEMBERSHIP;
-const int TCS_SO_IP_MEMBERSHIP_DROP = IP_DROP_MEMBERSHIP;
-const int TCS_SO_IP_MULTICAST_LOOP = IP_MULTICAST_LOOP;
+const int TCS_TCP_NODELAY = TCP_NODELAY;
+const int TCS_IP_MEMBERSHIP_ADD = IP_ADD_MEMBERSHIP;
+const int TCS_IP_MEMBERSHIP_DROP = IP_DROP_MEMBERSHIP;
+const int TCS_IP_MULTICAST_LOOP = IP_MULTICAST_LOOP;
 
 // ######## Internal Helpers ########
 
@@ -434,7 +431,7 @@ TcsResult tcs_accept(TcsSocket socket_ctx, TcsSocket* out_child_socket, struct T
     }
 }
 
-TcsResult tcs_shutdown(TcsSocket socket_ctx, TcsSocketDirection direction)
+TcsResult tcs_shutdown(TcsSocket socket_ctx, TcsShutdownDirection direction)
 {
     const int LUT[] = {SD_RECEIVE, SD_SEND, SD_BOTH};
 
@@ -1308,7 +1305,7 @@ TcsResult tcs_opt_membership_add_to(TcsSocket socket_ctx,
         imr.imr_multiaddr.s_addr = htonl(multicast_address->data.ip4.address);
         if (local_address != NULL)
             imr.imr_interface.s_addr = htonl(local_address->data.ip4.address);
-        return tcs_opt_set(socket_ctx, TCS_SOL_IP, TCS_SO_IP_MEMBERSHIP_ADD, &imr, sizeof(imr));
+        return tcs_opt_set(socket_ctx, TCS_SOL_IP, TCS_IP_MEMBERSHIP_ADD, &imr, sizeof(imr));
     }
     else if (multicast_address->family.native == TCS_FAMILY_IP6.native)
     {
@@ -1365,7 +1362,7 @@ TcsResult tcs_opt_membership_drop_from(TcsSocket socket_ctx,
         imr.imr_multiaddr.s_addr = htonl(multicast_address->data.ip4.address);
         if (local_address != NULL)
             imr.imr_interface.s_addr = htonl(local_address->data.ip4.address);
-        return tcs_opt_set(socket_ctx, TCS_SOL_IP, TCS_SO_IP_MEMBERSHIP_DROP, &imr, sizeof(imr));
+        return tcs_opt_set(socket_ctx, TCS_SOL_IP, TCS_IP_MEMBERSHIP_DROP, &imr, sizeof(imr));
     }
     else if (multicast_address->family.native == TCS_FAMILY_IP6.native)
     {

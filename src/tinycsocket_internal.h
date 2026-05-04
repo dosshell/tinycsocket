@@ -23,7 +23,7 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-static const char* const TCS_VERSION_TXT = "v0.3.75";
+static const char* const TCS_VERSION_TXT = "v0.3.76";
 static const char* const TCS_LICENSE_TXT =
     "Copyright 2018 Markus Lindelöw\n"
     "\n"
@@ -71,7 +71,7 @@ static const char* const TCS_LICENSE_TXT =
 * - TcsResult tcs_connect_str(TcsSocket socket_ctx, const char* remote_address, uint16_t port);
 * - TcsResult tcs_listen(TcsSocket socket_ctx, int backlog);
 * - TcsResult tcs_accept(TcsSocket socket_ctx, TcsSocket* out_child_socket, struct TcsAddress* address);
-* - TcsResult tcs_shutdown(TcsSocket socket_ctx, TcsSocketDirection direction);
+* - TcsResult tcs_shutdown(TcsSocket socket_ctx, TcsShutdownDirection direction);
 *
 * Data Transfer:
 * - TcsResult tcs_send(TcsSocket socket_ctx, const uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* bytes_sent);
@@ -268,8 +268,9 @@ struct TcsAddress
         {
             TcsInterfaceId
                 interface_id; /**< Local interface index, use tcs_interface_list() to find valid interfaces. Native type. */
-            uint16_t protocol; /**< Host byte order. E.i. TCS_ETH_P_ALL, 0 (block all until bind), ETH_P_TSN etc. */
-            uint8_t mac[6];    /**< Typical destination mac address or local mac address when joining groups */
+            uint16_t
+                protocol;   /**< Host byte order. E.g. TCS_PROTOCOL_ETH_ALL, 0 (block all until bind), ETH_P_TSN etc. */
+            uint8_t mac[6]; /**< Typical destination mac address or local mac address when joining groups */
         } packet;
     } data;
 };
@@ -352,12 +353,7 @@ typedef uint16_t TcsProtocol;
 
 static const TcsProtocol TCS_PROTOCOL_IP_TCP = 6;  /**< TCP, IANA-assigned (RFC 9293). Use with TCS_SOCK_STREAM. */
 static const TcsProtocol TCS_PROTOCOL_IP_UDP = 17; /**< UDP, IANA-assigned (RFC 768). Use with TCS_SOCK_DGRAM. */
-
-// Ethernet protocols (host byte order)
-static const TcsProtocol TCS_ETH_P_ALL = 0x0003; /**< Receive all protocols. Use with TCS_FAMILY_PACKET for capture. */
-
-// Flags
-extern const uint32_t TCS_AI_PASSIVE; /**< Use this flag for pure listening sockets */
+static const TcsProtocol TCS_PROTOCOL_ETH_ALL = 3; /**< Receive all protocols. Use with TCS_FAMILY_PACKET. */
 
 // Recv flags
 extern const uint32_t TCS_MSG_PEEK;
@@ -373,10 +369,10 @@ extern const int TCS_BACKLOG_MAX; /**< Max number of queued sockets when listeni
 // Socket Direction
 typedef enum
 {
-    TCS_SD_RECEIVE, /**< To shutdown incoming packets for socket */
-    TCS_SD_SEND,    /**< To shutdown outgoing packets for socket */
-    TCS_SD_BOTH,    /**< To shutdown both incoming and outgoing packets for socket */
-} TcsSocketDirection;
+    TCS_SHUTDOWN_RECEIVE, /**< To shutdown incoming packets for socket */
+    TCS_SHUTDOWN_SEND,    /**< To shutdown outgoing packets for socket */
+    TCS_SHUTDOWN_BOTH,    /**< To shutdown both incoming and outgoing packets for socket */
+} TcsShutdownDirection;
 
 // Option levels
 extern const int TCS_SOL_SOCKET; /**< Socket option level for socket options */
@@ -391,19 +387,19 @@ extern const int TCS_SO_REUSEADDR;
 extern const int TCS_SO_REUSEPORT;
 extern const int TCS_SO_RCVBUF; /**< Byte size of receiving buffer */
 extern const int TCS_SO_RCVTIMEO;
-extern const int TCS_SO_SNDBUF; /**< Byte size of receiving buffer */
+extern const int TCS_SO_SNDBUF; /**< Byte size of sending buffer */
 extern const int TCS_SO_OOBINLINE;
 extern const int TCS_SO_PRIORITY;
 
 // IP options
-extern const int TCS_SO_IP_NODELAY;
-extern const int TCS_SO_IP_MEMBERSHIP_ADD;
-extern const int TCS_SO_IP_MEMBERSHIP_DROP;
-extern const int TCS_SO_IP_MULTICAST_LOOP;
+extern const int TCS_TCP_NODELAY;
+extern const int TCS_IP_MEMBERSHIP_ADD;
+extern const int TCS_IP_MEMBERSHIP_DROP;
+extern const int TCS_IP_MULTICAST_LOOP;
 
 // Packet options
-extern const int TCS_SO_PACKET_MEMBERSHIP_ADD;
-extern const int TCS_SO_PACKET_MEMBERSHIP_DROP;
+extern const int TCS_PACKET_MEMBERSHIP_ADD;
+extern const int TCS_PACKET_MEMBERSHIP_DROP;
 
 // Use for timeout to wait until infinity happens
 extern const int TCS_WAIT_INF;
@@ -1108,7 +1104,7 @@ TcsResult tcs_accept(TcsSocket socket_ctx, TcsSocket* out_child_socket, struct T
 * @param direction defines in which direction you want to turn off the communication.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_shutdown(TcsSocket socket_ctx, TcsSocketDirection direction);
+TcsResult tcs_shutdown(TcsSocket socket_ctx, TcsShutdownDirection direction);
 
 /**
  * @brief Sends data on a socket, blocking
@@ -1394,7 +1390,7 @@ TcsResult tcs_opt_set(TcsSocket socket_ctx,
 * @code
 * uint8_t c;
 * size_t a = sizeof(c);
-* tcs_opt_get(socket, TCS_SOL_IP, TCS_SO_IP_MULTICAST_LOOP, &c, &a);
+* tcs_opt_get(socket, TCS_SOL_IP, TCS_IP_MULTICAST_LOOP, &c, &a);
 * @endcode
 *
 * @param socket_ctx is your in-out socket context.

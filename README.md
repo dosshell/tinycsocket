@@ -34,7 +34,7 @@ int main(int argc, const char* argv[])
     size_t bytes_received = 0;
     tcs_receive(client_socket, recv_buffer, sizeof(recv_buffer), TCS_MSG_WAITALL, &bytes_received);
 
-    tcs_shutdown(client_socket, TCS_SD_BOTH);
+    tcs_shutdown(client_socket, TCS_SHUTDOWN_BOTH);
     tcs_close(&client_socket);
 
     tcs_lib_free();
