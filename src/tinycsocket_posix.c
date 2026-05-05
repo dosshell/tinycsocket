@@ -129,9 +129,6 @@ const TcsSockType TCS_SOCK_STREAM = {SOCK_STREAM};
 const TcsSockType TCS_SOCK_DGRAM = {SOCK_DGRAM};
 const TcsSockType TCS_SOCK_RAW = {SOCK_RAW};
 
-// Flags
-const uint32_t TCS_AI_PASSIVE = AI_PASSIVE;
-
 // Recv flags
 const uint32_t TCS_MSG_PEEK = MSG_PEEK;
 const uint32_t TCS_MSG_OOB = MSG_OOB;
@@ -169,17 +166,17 @@ const int TCS_SO_PRIORITY = -1;
 #endif
 
 // IP options
-const int TCS_SO_IP_NODELAY = TCP_NODELAY;
-const int TCS_SO_IP_MEMBERSHIP_ADD = IP_ADD_MEMBERSHIP;
-const int TCS_SO_IP_MEMBERSHIP_DROP = IP_DROP_MEMBERSHIP;
-const int TCS_SO_IP_MULTICAST_LOOP = IP_MULTICAST_LOOP;
+const int TCS_TCP_NODELAY = TCP_NODELAY;
+const int TCS_IP_MEMBERSHIP_ADD = IP_ADD_MEMBERSHIP;
+const int TCS_IP_MEMBERSHIP_DROP = IP_DROP_MEMBERSHIP;
+const int TCS_IP_MULTICAST_LOOP = IP_MULTICAST_LOOP;
 
 #if TCS_HAS_AF_PACKET
-const int TCS_SO_PACKET_MEMBERSHIP_ADD = PACKET_ADD_MEMBERSHIP;
-const int TCS_SO_PACKET_MEMBERSHIP_DROP = PACKET_DROP_MEMBERSHIP;
+const int TCS_PACKET_MEMBERSHIP_ADD = PACKET_ADD_MEMBERSHIP;
+const int TCS_PACKET_MEMBERSHIP_DROP = PACKET_DROP_MEMBERSHIP;
 #else
-const int TCS_SO_PACKET_MEMBERSHIP_ADD = -1;
-const int TCS_SO_PACKET_MEMBERSHIP_DROP = -1;
+const int TCS_PACKET_MEMBERSHIP_ADD = -1;
+const int TCS_PACKET_MEMBERSHIP_DROP = -1;
 #endif
 
 // Default flags
@@ -495,7 +492,7 @@ TcsResult tcs_accept(TcsSocket socket_ctx, TcsSocket* out_child_socket, struct T
     }
 }
 
-TcsResult tcs_shutdown(TcsSocket socket_ctx, TcsSocketDirection direction)
+TcsResult tcs_shutdown(TcsSocket socket_ctx, TcsShutdownDirection direction)
 {
     const int LUT[] = {SHUT_RD, SHUT_WR, SHUT_RDWR};
 
