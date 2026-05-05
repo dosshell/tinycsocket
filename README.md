@@ -23,12 +23,16 @@ int main(int argc, const char* argv[])
     tcs_socket(&client_socket, TCS_FAMILY_IP4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
     tcs_connect_str(client_socket, "example.com", 80);
 
-    uint8_t send_buffer[] = "GET / HTTP/1.1\r\nHost: example.com\r\n\r\n";
+    uint8_t send_buffer[] =
+        "GET / HTTP/1.1\r\n"
+        "Host: example.com\r\n"
+        "Connection: close\r\n"
+        "\r\n";
     tcs_send(client_socket, send_buffer, sizeof(send_buffer) - 1, TCS_MSG_SENDALL, NULL);
 
     uint8_t recv_buffer[8192] = {0};
     size_t bytes_received = 0;
-    tcs_receive(client_socket, recv_buffer, 8192, TCS_FLAG_NONE, &bytes_received);
+    tcs_receive(client_socket, recv_buffer, sizeof(recv_buffer), TCS_MSG_WAITALL, &bytes_received);
 
     tcs_shutdown(client_socket, TCS_SD_BOTH);
     tcs_close(&client_socket);
