@@ -302,6 +302,13 @@ typedef enum
 } TcsResult;
 
 /**
+ * @brief Convert a tinycsocket result code to a static human-readable string.
+ *
+ * The returned pointer is never NULL and must not be freed.
+ */
+const char* tcs_strerror(TcsResult result);
+
+/**
  * @brief IPv6 address (16 bytes), analogous to POSIX struct in6_addr.
  */
 struct TcsIp6Address
@@ -6042,6 +6049,60 @@ TcsResult tcs_address_socket_family(TcsSocket socket_ctx, TcsFamily* out_family)
 
 // tcs_lib_init() is defined in OS specific files
 // tcs_lib_free() is defined in OS specific files
+
+const char* tcs_strerror(TcsResult result)
+{
+    switch (result)
+    {
+    case TCS_SUCCESS:
+        return "Success";
+    case TCS_AGAIN:
+        return "Try again";
+    case TCS_IN_PROGRESS:
+        return "Operation in progress";
+    case TCS_SHUTDOWN:
+        return "Socket shutdown";
+    case TCS_ERROR_UNKNOWN:
+        return "Unknown error";
+    case TCS_ERROR_MEMORY:
+        return "Out of memory";
+    case TCS_ERROR_INVALID_ARGUMENT:
+        return "Invalid argument";
+    case TCS_ERROR_SYSTEM:
+        return "System error";
+    case TCS_ERROR_PERMISSION_DENIED:
+        return "Permission denied";
+    case TCS_ERROR_NOT_IMPLEMENTED:
+        return "Not implemented";
+    case TCS_ERROR_NOT_SUPPORTED:
+        return "Not supported";
+    case TCS_ERROR_ADDRESS_LOOKUP_FAILED:
+        return "Address lookup failed";
+    case TCS_ERROR_CONNECTION_REFUSED:
+        return "Connection refused";
+    case TCS_ERROR_NOT_CONNECTED:
+        return "Not connected";
+    case TCS_ERROR_SOCKET_CLOSED:
+        return "Socket closed";
+    case TCS_ERROR_WOULD_BLOCK:
+        return "Operation would block";
+    case TCS_ERROR_TIMED_OUT:
+        return "Timed out";
+    case TCS_ERROR_TEMPORARY_FAILURE:
+        return "Temporary failure";
+    case TCS_ERROR_NETWORK_UNREACHABLE:
+        return "Network unreachable";
+    case TCS_ERROR_CONNECTION_RESET:
+        return "Connection reset";
+    case TCS_ERROR_ADDRESS_IN_USE:
+        return "Address in use";
+    case TCS_ERROR_LIBRARY_NOT_INITIALIZED:
+        return "Library not initialized";
+    case TCS_ERROR_ILL_FORMED_MESSAGE:
+        return "Ill-formed message";
+    }
+    return "Unknown TcsResult";
+}
 
 // ######## Socket Creation ########
 

@@ -296,6 +296,13 @@ typedef enum
 } TcsResult;
 
 /**
+ * @brief Convert a tinycsocket result code to a static human-readable string.
+ *
+ * The returned pointer is never NULL and must not be freed.
+ */
+const char* tcs_strerror(TcsResult result);
+
+/**
  * @brief IPv6 address (16 bytes), analogous to POSIX struct in6_addr.
  */
 struct TcsIp6Address

@@ -138,6 +138,15 @@ TEST_CASE("Init Test")
     CHECK_NO_LEAK(pre_mem_diff);
 }
 
+TEST_CASE("tcs_strerror")
+{
+    CHECK(tcs_strerror(TCS_SUCCESS) == "Success");
+    CHECK(tcs_strerror(TCS_ERROR_INVALID_ARGUMENT) == "Invalid argument");
+    CHECK(tcs_strerror(TCS_ERROR_TIMED_OUT) == "Timed out");
+    CHECK(tcs_strerror(static_cast<TcsResult>(12345)) == "Unknown TcsResult");
+    CHECK(tcs_strerror(TCS_ERROR_UNKNOWN) != nullptr);
+}
+
 TEST_CASE("Create socket")
 {
     // Setup
