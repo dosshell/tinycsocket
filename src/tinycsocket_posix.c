@@ -620,11 +620,11 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     if (buffer_count > (size_t)tcs_iov_max)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    struct iovec stack_iovec[TCS_SENDV_STACK_MAX];
+    struct iovec stack_iovec[TCS_CFG_SENDV_STACK_MAX];
     struct iovec* my_iovec = stack_iovec;
     struct iovec* heap_iovec = NULL;
 
-    if (buffer_count > TCS_SENDV_STACK_MAX)
+    if (buffer_count > TCS_CFG_SENDV_STACK_MAX)
     {
         heap_iovec = (struct iovec*)malloc(sizeof(struct iovec) * buffer_count);
         if (heap_iovec == NULL)
@@ -1416,8 +1416,8 @@ TcsResult tcs_interface_list(struct TcsInterface* found_interfaces,
     {
         if (found_interfaces != NULL && i < interfaces_length)
         {
-            strncpy(found_interfaces[i].name, interfaces[i].if_name, TCS_INTERFACE_NAME_SIZE - 1);
-            found_interfaces[i].name[TCS_INTERFACE_NAME_SIZE - 1] = '\0';
+            strncpy(found_interfaces[i].name, interfaces[i].if_name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
+            found_interfaces[i].name[TCS_CFG_INTERFACE_NAME_SIZE - 1] = '\0';
             found_interfaces[i].id = interfaces[i].if_index;
         }
         if (interfaces_populated != NULL)
@@ -1489,8 +1489,8 @@ TcsResult tcs_interface_list(struct TcsInterface* found_interfaces,
 
         if (found_interfaces != NULL && count < interfaces_length)
         {
-            strncpy(found_interfaces[count].name, ifr->ifr_name, TCS_INTERFACE_NAME_SIZE - 1);
-            found_interfaces[count].name[TCS_INTERFACE_NAME_SIZE - 1] = '\0';
+            strncpy(found_interfaces[count].name, ifr->ifr_name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
+            found_interfaces[count].name[TCS_CFG_INTERFACE_NAME_SIZE - 1] = '\0';
             found_interfaces[count].id = (unsigned int)(count + 1);
         }
         count++;
@@ -1666,8 +1666,8 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
                 return errno2retcode(errno);
             }
 
-            strncpy(interface_addresses[populated].iface.name, iter->ifa_name, TCS_INTERFACE_NAME_SIZE - 1);
-            interface_addresses[populated].iface.name[TCS_INTERFACE_NAME_SIZE - 1] = '\0';
+            strncpy(interface_addresses[populated].iface.name, iter->ifa_name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
+            interface_addresses[populated].iface.name[TCS_CFG_INTERFACE_NAME_SIZE - 1] = '\0';
             interface_addresses[populated].iface.id = interface_id;
             interface_addresses[populated].address = address;
             populated++;
@@ -1772,8 +1772,8 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
             {
                 if (interface_addresses != NULL && populated < capacity)
                 {
-                    strncpy(interface_addresses[populated].iface.name, ifr->ifr_name, TCS_INTERFACE_NAME_SIZE - 1);
-                    interface_addresses[populated].iface.name[TCS_INTERFACE_NAME_SIZE - 1] = '\0';
+                    strncpy(interface_addresses[populated].iface.name, ifr->ifr_name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
+                    interface_addresses[populated].iface.name[TCS_CFG_INTERFACE_NAME_SIZE - 1] = '\0';
                     interface_addresses[populated].iface.id = iface_id;
                     interface_addresses[populated].address = address;
                     populated++;
@@ -1796,8 +1796,8 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
             {
                 if (interface_addresses != NULL && populated < capacity)
                 {
-                    strncpy(interface_addresses[populated].iface.name, ifr->ifr_name, TCS_INTERFACE_NAME_SIZE - 1);
-                    interface_addresses[populated].iface.name[TCS_INTERFACE_NAME_SIZE - 1] = '\0';
+                    strncpy(interface_addresses[populated].iface.name, ifr->ifr_name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
+                    interface_addresses[populated].iface.name[TCS_CFG_INTERFACE_NAME_SIZE - 1] = '\0';
                     interface_addresses[populated].iface.id = iface_id;
                     interface_addresses[populated].address.family = TCS_FAMILY_PACKET;
                     interface_addresses[populated].address.data.packet.interface_id = iface_id;

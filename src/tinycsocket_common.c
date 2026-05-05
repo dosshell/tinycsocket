@@ -1429,3 +1429,18 @@ bool tcs_address_is_broadcast(const struct TcsAddress* addr)
                addr->data.packet.mac[4] == 0xFF && addr->data.packet.mac[5] == 0xFF;
     return false;
 }
+
+bool tcs_address_is_supported(const struct TcsAddress* addr)
+{
+    if (addr == NULL)
+        return false;
+    if (addr->family.native == TCS_FAMILY_ANY.native)
+        return true;
+    if (addr->family.native == TCS_FAMILY_IP4.native)
+        return true;
+    if (addr->family.native == TCS_FAMILY_IP6.native)
+        return true;
+    if (addr->family.native == TCS_FAMILY_PACKET.native)
+        return addr->family.native != -1;
+    return false;
+}

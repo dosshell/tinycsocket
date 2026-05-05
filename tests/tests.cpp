@@ -65,6 +65,9 @@ static inline double log10(unsigned int x)
 #define CHECK_NO_LEAK(pre) ((void)(pre))
 #endif
 
+static constexpr size_t kInterfaceListCapacity = 128;
+static constexpr size_t kAddressListCapacity = 128;
+
 int main(int argc, char** argv)
 {
 #ifdef _MSC_VER
@@ -1092,26 +1095,27 @@ TEST_CASE("Interface list")
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
 
     // Given
-    struct TcsInterface interfaces[20];
+    static struct TcsInterface interfaces[kInterfaceListCapacity];
     size_t no_of_found_interfaces = 0;
 
     // When
-    TcsResult iface_res = tcs_interface_list(interfaces, 20, &no_of_found_interfaces);
+    TcsResult iface_res = tcs_interface_list(interfaces, kInterfaceListCapacity, &no_of_found_interfaces);
     if (iface_res != TCS_SUCCESS)
         printf("tcs_interface_list failed with error code: %d\n", iface_res);
     CHECK(iface_res == TCS_SUCCESS);
 
     // Then
     CHECK(no_of_found_interfaces > 0);
-    size_t iface_display = no_of_found_interfaces < 20 ? no_of_found_interfaces : 20;
+    size_t iface_display =
+        no_of_found_interfaces < kInterfaceListCapacity ? no_of_found_interfaces : kInterfaceListCapacity;
     for (size_t i = 0; i < iface_display; ++i)
     {
         printf("Interface %u: %s\n", interfaces[i].id, interfaces[i].name);
 
-        struct TcsInterfaceAddress addresses[20];
+        static struct TcsInterfaceAddress addresses[kAddressListCapacity];
         size_t found_addresses = 0;
-        tcs_address_list(interfaces[i].id, TCS_FAMILY_ANY, addresses, 20, &found_addresses);
-        size_t addr_display = found_addresses < 8 ? found_addresses : 20;
+        tcs_address_list(interfaces[i].id, TCS_FAMILY_ANY, addresses, kAddressListCapacity, &found_addresses);
+        size_t addr_display = found_addresses < kAddressListCapacity ? found_addresses : kAddressListCapacity;
         for (size_t j = 0; j < addr_display; ++j)
         {
             char addr_str[70];
@@ -1131,14 +1135,14 @@ TEST_CASE("Get loopback address")
 
     // Given
     size_t ifaddrs_count = 0;
-    struct TcsInterfaceAddress ifaddrs[20];
+    static struct TcsInterfaceAddress ifaddrs[kAddressListCapacity];
     bool found_loopback = false;
     int pre_mem_diff = TCS_MEM_DIFF();
 
     // When
-    WARN(tcs_address_list(0, TCS_FAMILY_ANY, ifaddrs, 8, &ifaddrs_count) == TCS_SUCCESS);
+    WARN(tcs_address_list(0, TCS_FAMILY_ANY, ifaddrs, kAddressListCapacity, &ifaddrs_count) == TCS_SUCCESS);
     // find IPv4 loopback
-    size_t ifaddrs_display = ifaddrs_count < 20 ? ifaddrs_count : 20;
+    size_t ifaddrs_display = ifaddrs_count < kAddressListCapacity ? ifaddrs_count : kAddressListCapacity;
     for (size_t i = 0; i < ifaddrs_display; ++i)
     {
         if (ifaddrs[i].address.family.native == TCS_FAMILY_IP4.native &&
@@ -1960,9 +1964,9 @@ TEST_CASE("AVTP Create talker socket sendto")
     CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCK_DGRAM, 0x22F0) == TCS_SUCCESS);
 
     CHECK(tcs_opt_priority_set(socket, 6) == TCS_SUCCESS); // Set priority to 6 (VLAN priority 6)
-    struct TcsInterfaceAddress addrs[20];
+    static struct TcsInterfaceAddress addrs[kAddressListCapacity];
     size_t addresses_found = 0;
-    CHECK(tcs_address_list(0, TCS_FAMILY_PACKET, addrs, 20, &addresses_found) == TCS_SUCCESS);
+    CHECK(tcs_address_list(0, TCS_FAMILY_PACKET, addrs, kAddressListCapacity, &addresses_found) == TCS_SUCCESS);
     CHECK(addresses_found > 0);
 
     TcsAddress address = TCS_ADDRESS_NONE;
@@ -1995,9 +1999,9 @@ TEST_CASE("TSN Create talker socket bind")
     CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCK_RAW, TCS_PROTOCOL_ETH_ALL) == TCS_SUCCESS);
 
     CHECK(tcs_opt_priority_set(socket, 6) == TCS_SUCCESS); // Set priority to 6 (VLAN priority 6)
-    struct TcsInterfaceAddress addr[20];
+    static struct TcsInterfaceAddress addr[kAddressListCapacity];
     size_t addresses_found = 0;
-    CHECK(tcs_address_list(0, TCS_FAMILY_PACKET, addr, 20, &addresses_found) == TCS_SUCCESS);
+    CHECK(tcs_address_list(0, TCS_FAMILY_PACKET, addr, kAddressListCapacity, &addresses_found) == TCS_SUCCESS);
     CHECK(addresses_found > 0);
 
     TcsAddress address = TCS_ADDRESS_NONE;
@@ -2038,9 +2042,9 @@ TEST_CASE("TSN Create listener")
     // When
     CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCK_RAW, TCS_PROTOCOL_ETH_ALL) == TCS_SUCCESS);
 
-    struct TcsInterfaceAddress addr[20];
+    static struct TcsInterfaceAddress addr[kAddressListCapacity];
     size_t addresses_found = 0;
-    CHECK(tcs_address_list(0, TCS_FAMILY_PACKET, addr, 20, &addresses_found) == TCS_SUCCESS);
+    CHECK(tcs_address_list(0, TCS_FAMILY_PACKET, addr, kAddressListCapacity, &addresses_found) == TCS_SUCCESS);
     CHECK(addresses_found > 0);
 
     TcsAddress address = TCS_ADDRESS_NONE;
@@ -2087,9 +2091,9 @@ TEST_CASE("tcs_socket_packet bind")
 
     // Given
     TcsSocket socket = TCS_SOCKET_INVALID;
-    struct TcsInterfaceAddress addrs[20];
+    static struct TcsInterfaceAddress addrs[kAddressListCapacity];
     size_t addresses_found = 0;
-    CHECK(tcs_address_list(0, TCS_FAMILY_PACKET, addrs, 20, &addresses_found) == TCS_SUCCESS);
+    CHECK(tcs_address_list(0, TCS_FAMILY_PACKET, addrs, kAddressListCapacity, &addresses_found) == TCS_SUCCESS);
     CHECK(addresses_found > 0);
 
     struct TcsAddress bind_address = TCS_ADDRESS_NONE;
@@ -2115,9 +2119,9 @@ TEST_CASE("tcs_socket_packet sendto")
 
     // Given
     TcsSocket socket = TCS_SOCKET_INVALID;
-    struct TcsInterfaceAddress addrs[20];
+    static struct TcsInterfaceAddress addrs[kAddressListCapacity];
     size_t addresses_found = 0;
-    CHECK(tcs_address_list(0, TCS_FAMILY_PACKET, addrs, 20, &addresses_found) == TCS_SUCCESS);
+    CHECK(tcs_address_list(0, TCS_FAMILY_PACKET, addrs, kAddressListCapacity, &addresses_found) == TCS_SUCCESS);
     CHECK(addresses_found > 0);
 
     struct TcsAddress bind_address = TCS_ADDRESS_NONE;
@@ -2153,9 +2157,9 @@ TEST_CASE("tcs_socket_packet_str bind")
 
     // Given
     TcsSocket socket = TCS_SOCKET_INVALID;
-    struct TcsInterface interfaces[20];
+    static struct TcsInterface interfaces[kInterfaceListCapacity];
     size_t iface_count = 0;
-    CHECK(tcs_interface_list(interfaces, 20, &iface_count) == TCS_SUCCESS);
+    CHECK(tcs_interface_list(interfaces, kInterfaceListCapacity, &iface_count) == TCS_SUCCESS);
     CHECK(iface_count > 0);
 
     const char* iface_name = NULL;
@@ -2359,9 +2363,9 @@ TEST_CASE("Sentinel handling: TCS_FAMILY_PACKET on unsupported platform")
               TCS_ERROR_NOT_SUPPORTED);
 
         // tcs_address_list() must skip the unsupported filter (no entries, no error)
-        struct TcsInterfaceAddress ifaddrs[8];
+        static struct TcsInterfaceAddress ifaddrs[kAddressListCapacity];
         size_t ifaddr_count = 0;
-        CHECK(tcs_address_list(0, TCS_FAMILY_PACKET, ifaddrs, 8, &ifaddr_count) == TCS_SUCCESS);
+        CHECK(tcs_address_list(0, TCS_FAMILY_PACKET, ifaddrs, kAddressListCapacity, &ifaddr_count) == TCS_SUCCESS);
         CHECK(ifaddr_count == 0);
 
         // sockaddr2native (via tcs_bind) must reject a sentinel address
@@ -2831,6 +2835,7 @@ TEST_CASE("IPv6 address utility functions")
     TcsAddress loopback = TCS_ADDRESS_NONE;
     loopback.family = TCS_FAMILY_IP6;
     loopback.data.ip6.address = TCS_ADDRESS_LOOPBACK_IP6;
+    CHECK(tcs_address_is_supported(&loopback));
     CHECK(tcs_address_is_loopback(&loopback));
     CHECK_FALSE(tcs_address_is_any(&loopback));
     CHECK_FALSE(tcs_address_is_multicast(&loopback));
@@ -2838,16 +2843,25 @@ TEST_CASE("IPv6 address utility functions")
     TcsAddress any = TCS_ADDRESS_NONE;
     any.family = TCS_FAMILY_IP6;
     any.data.ip6.address = TCS_ADDRESS_ANY_IP6;
+    CHECK(tcs_address_is_supported(&any));
     CHECK(tcs_address_is_any(&any));
     CHECK_FALSE(tcs_address_is_loopback(&any));
 
     TcsAddress multicast;
     tcs_address_parse("ff02::1", &multicast);
+    CHECK(tcs_address_is_supported(&multicast));
     CHECK(tcs_address_is_multicast(&multicast));
 
     TcsAddress link_local;
     tcs_address_parse("fe80::1", &link_local);
+    CHECK(tcs_address_is_supported(&link_local));
     CHECK(tcs_address_is_link_local(&link_local));
+
+    TcsAddress unsupported = TCS_ADDRESS_NONE;
+    unsupported.family.native = -12345;
+    CHECK_FALSE(tcs_address_is_supported(&unsupported));
+    CHECK_FALSE(tcs_address_is_loopback(&unsupported));
+    CHECK_FALSE(tcs_address_is_supported(NULL));
 }
 
 TEST_CASE("IPv6 address resolve loopback")

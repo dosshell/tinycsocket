@@ -551,11 +551,11 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     if (flags & TCS_MSG_SENDALL)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
-    WSABUF stack_buffers[TCS_SENDV_STACK_MAX];
+    WSABUF stack_buffers[TCS_CFG_SENDV_STACK_MAX];
     WSABUF* native_buffers = stack_buffers;
     WSABUF* heap_buffers = NULL;
 
-    if (buffer_count > TCS_SENDV_STACK_MAX)
+    if (buffer_count > TCS_CFG_SENDV_STACK_MAX)
     {
         heap_buffers = (WSABUF*)malloc(sizeof(WSABUF) * buffer_count);
         if (heap_buffers == NULL)
@@ -1557,8 +1557,9 @@ TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, 
 
             if (interfaces != NULL && i < capacity)
             {
-                memset(interfaces[i].name, '\0', TCS_INTERFACE_NAME_SIZE);
-                TcsResult name_sts = adapter_get_friendly_name(iter, interfaces[i].name, TCS_INTERFACE_NAME_SIZE - 1);
+                memset(interfaces[i].name, '\0', TCS_CFG_INTERFACE_NAME_SIZE);
+                TcsResult name_sts =
+                    adapter_get_friendly_name(iter, interfaces[i].name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
                 if (name_sts != TCS_SUCCESS)
                 {
                     free(adapters);
@@ -1738,9 +1739,9 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
 
             if (interface_addresses != NULL && populated < capacity)
             {
-                memset(interface_addresses[populated].iface.name, '\0', TCS_INTERFACE_NAME_SIZE);
+                memset(interface_addresses[populated].iface.name, '\0', TCS_CFG_INTERFACE_NAME_SIZE);
                 TcsResult name_sts = adapter_get_friendly_name(
-                    iter, interface_addresses[populated].iface.name, TCS_INTERFACE_NAME_SIZE - 1);
+                    iter, interface_addresses[populated].iface.name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
                 if (name_sts != TCS_SUCCESS)
                 {
                     free(adapters);

@@ -29,7 +29,7 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-static const char* const TCS_VERSION_TXT = "v0.3.76";
+static const char* const TCS_VERSION_TXT = "v0.3.77";
 static const char* const TCS_LICENSE_TXT =
     "Copyright 2018 Markus Lindelöw\n"
     "\n"
@@ -150,6 +150,7 @@ static const char* const TCS_LICENSE_TXT =
 * - bool tcs_address_is_loopback(const struct TcsAddress* addr);
 * - bool tcs_address_is_multicast(const struct TcsAddress* addr);
 * - bool tcs_address_is_broadcast(const struct TcsAddress* addr);
+* - bool tcs_address_is_supported(const struct TcsAddress* addr);
 */
 
 // Recognize which system we are compiling against
@@ -199,15 +200,21 @@ typedef int TcsSocket;
 typedef unsigned int TcsInterfaceId;
 #endif
 
-#ifndef TCS_SENDV_STACK_MAX
-#define TCS_SENDV_STACK_MAX 112
-#endif
-
-// Declarations
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+// Configuration
+
+#ifndef TCS_CFG_SENDV_STACK_MAX
+#define TCS_CFG_SENDV_STACK_MAX 112
+#endif
+
+#ifndef TCS_CFG_INTERFACE_NAME_SIZE
+#define TCS_CFG_INTERFACE_NAME_SIZE 64
+#endif
+
+// Declarations
 
 /** @internal */
 #define tcs_static_assert(name, expr) typedef char tcs_sa_##name[(expr) ? 1 : -1]
@@ -223,10 +230,21 @@ typedef struct TcsFamily
     int native;
 } TcsFamily;
 
-extern const TcsFamily TCS_FAMILY_ANY;    /**< Layer 4 agnostic (AF_UNSPEC) */
-extern const TcsFamily TCS_FAMILY_IP4;    /**< INET IPv4 interface (AF_INET) */
-extern const TcsFamily TCS_FAMILY_IP6;    /**< INET IPv6 interface (AF_INET6) */
-extern const TcsFamily TCS_FAMILY_PACKET; /**< Layer 2 interface (AF_PACKET on Linux; unsupported elsewhere) */
+/**
+ * @brief Socket type. Holds the native SOCK_* value in `native`.
+ * Use the TCS_SOCK_* constants below as the only valid values.
+ */
+typedef struct TcsSockType
+{
+    int native;
+} TcsSockType;
+
+/**
+ * @brief Protocol number for ::tcs_socket().
+ *
+ * Typedef'd as uint16_t since both IP protocol numbers (IANA, 8-bit) and EtherTypes (IEEE, 16-bit) fit.
+ */
+typedef uint16_t TcsProtocol;
 
 /**
  * @brief Flags for poll events
@@ -236,6 +254,52 @@ typedef enum
     TCS_POLL_READ = 1,
     TCS_POLL_WRITE = 2,
 } TcsPollFlags;
+
+// Socket Direction
+typedef enum
+{
+    TCS_SHUTDOWN_RECEIVE, /**< To shutdown incoming packets for socket */
+    TCS_SHUTDOWN_SEND,    /**< To shutdown outgoing packets for socket */
+    TCS_SHUTDOWN_BOTH,    /**< To shutdown both incoming and outgoing packets for socket */
+} TcsShutdownDirection;
+
+// Return codes
+typedef enum
+{
+    TCS_SUCCESS = 0,
+
+    /* 1–15: Non-fatal return codes */
+    TCS_AGAIN = 1,
+    TCS_IN_PROGRESS = 2,
+    TCS_SHUTDOWN = 3,
+
+    /* -1...-31: General errors */
+    TCS_ERROR_UNKNOWN = -1,
+    TCS_ERROR_MEMORY = -2,
+    TCS_ERROR_INVALID_ARGUMENT = -3,
+    TCS_ERROR_SYSTEM = -4, /* OS error not mapped below */
+    TCS_ERROR_PERMISSION_DENIED = -5,
+    TCS_ERROR_NOT_IMPLEMENTED = -6,
+    TCS_ERROR_NOT_SUPPORTED = -7, /* OS does not support this functionality */
+
+    /* -32...-63: Network and socket errors */
+    TCS_ERROR_ADDRESS_LOOKUP_FAILED = -32,
+    TCS_ERROR_CONNECTION_REFUSED = -33,
+    TCS_ERROR_NOT_CONNECTED = -34,
+    TCS_ERROR_SOCKET_CLOSED = -35,
+    TCS_ERROR_WOULD_BLOCK = -36,
+    TCS_ERROR_TIMED_OUT = -37,
+    TCS_ERROR_TEMPORARY_FAILURE = -38,
+    TCS_ERROR_NETWORK_UNREACHABLE = -39,
+    TCS_ERROR_CONNECTION_RESET = -40,
+    TCS_ERROR_ADDRESS_IN_USE = -41,
+
+    /* -64...-95: Configuration errors */
+    TCS_ERROR_LIBRARY_NOT_INITIALIZED = -64,
+
+    /* -96...-128: Protocol errors */
+    TCS_ERROR_ILL_FORMED_MESSAGE = -96,
+} TcsResult;
 
 /**
  * @brief IPv6 address (16 bytes), analogous to POSIX struct in6_addr.
@@ -281,17 +345,13 @@ struct TcsAddress
     } data;
 };
 
-#ifndef TCS_INTERFACE_NAME_SIZE
-#define TCS_INTERFACE_NAME_SIZE 64
-#endif
-
 /**
  * @brief Network Interface Information
  */
 struct TcsInterface
 {
     TcsInterfaceId id;
-    char name[TCS_INTERFACE_NAME_SIZE];
+    char name[TCS_CFG_INTERFACE_NAME_SIZE];
 };
 
 struct TcsInterfaceAddress
@@ -301,6 +361,33 @@ struct TcsInterfaceAddress
 };
 
 tcs_static_assert(address_storage_size, sizeof(((struct TcsAddress*)0)->data) <= 24);
+
+/**
+ * @brief Used when sending/receiving an array of buffers.
+ *
+ * Useful if you want to send two or more data arrays at once, for example a header and a body.
+ * Make an array of TcsBuffer and use tcs_sendv() to send them all at once.
+*/
+struct TcsBuffer
+{
+    const uint8_t* data;
+    size_t size;
+};
+
+struct TcsPoll;
+struct TcsPollEvent
+{
+    TcsSocket socket;
+    void* user_data;
+    bool can_read;
+    bool can_write;
+    TcsResult error;
+};
+
+extern const TcsFamily TCS_FAMILY_ANY;    /**< Layer 4 agnostic (AF_UNSPEC) */
+extern const TcsFamily TCS_FAMILY_IP4;    /**< INET IPv4 interface (AF_INET) */
+extern const TcsFamily TCS_FAMILY_IP6;    /**< INET IPv6 interface (AF_INET6) */
+extern const TcsFamily TCS_FAMILY_PACKET; /**< Layer 2 interface (AF_PACKET on Linux; unsupported elsewhere) */
 
 // gcc may trigger bug #53119
 #ifdef __GNUC__
@@ -320,42 +407,12 @@ extern const uint32_t TCS_ADDRESS_NONE_IP4;
 extern const struct TcsIp6Address TCS_ADDRESS_ANY_IP6;
 extern const struct TcsIp6Address TCS_ADDRESS_LOOPBACK_IP6;
 
-/**
- * @brief Used when sending/receiving an array of buffers.
- *
- * Useful if you want to send two or more data arrays at once, for example a header and a body.
- * Make an array of TcsBuffer and use tcs_sendv() to send them all at once.
-*/
-struct TcsBuffer
-{
-    const uint8_t* data;
-    size_t size;
-};
-
 extern const TcsSocket TCS_SOCKET_INVALID; /**< Define new sockets to this value, always. */
 static const uint32_t TCS_FLAG_NONE = 0;
-
-// Type
-/**
- * @brief Socket type. Holds the native SOCK_* value in `native`.
- * Use the TCS_SOCK_* constants below as the only valid values.
- */
-typedef struct TcsSockType
-{
-    int native;
-} TcsSockType;
 
 extern const TcsSockType TCS_SOCK_STREAM; /**< Use for streaming types like TCP */
 extern const TcsSockType TCS_SOCK_DGRAM;  /**< Use for datagrams types like UDP */
 extern const TcsSockType TCS_SOCK_RAW;    /**< Use for raw sockets, eg. layer 2 packet sockets */
-
-// Protocol
-/**
- * @brief Protocol number for ::tcs_socket().
- *
- * Typedef'd as uint16_t since both IP protocol numbers (IANA, 8-bit) and EtherTypes (IEEE, 16-bit) fit.
- */
-typedef uint16_t TcsProtocol;
 
 static const TcsProtocol TCS_PROTOCOL_IP_TCP = 6;  /**< TCP, IANA-assigned (RFC 9293). Use with TCS_SOCK_STREAM. */
 static const TcsProtocol TCS_PROTOCOL_IP_UDP = 17; /**< UDP, IANA-assigned (RFC 768). Use with TCS_SOCK_DGRAM. */
@@ -371,14 +428,6 @@ extern const uint32_t TCS_MSG_SENDALL;
 
 // Backlog
 extern const int TCS_BACKLOG_MAX; /**< Max number of queued sockets when listening */
-
-// Socket Direction
-typedef enum
-{
-    TCS_SHUTDOWN_RECEIVE, /**< To shutdown incoming packets for socket */
-    TCS_SHUTDOWN_SEND,    /**< To shutdown outgoing packets for socket */
-    TCS_SHUTDOWN_BOTH,    /**< To shutdown both incoming and outgoing packets for socket */
-} TcsShutdownDirection;
 
 // Option levels
 extern const int TCS_SOL_SOCKET; /**< Socket option level for socket options */
@@ -410,53 +459,6 @@ extern const int TCS_PACKET_MEMBERSHIP_DROP;
 // Use for timeout to wait until infinity happens
 extern const int TCS_WAIT_INF;
 
-// Return codes
-typedef enum
-{
-    TCS_SUCCESS = 0,
-
-    /* 1–15: Non-fatal return codes */
-    TCS_AGAIN = 1,
-    TCS_IN_PROGRESS = 2,
-    TCS_SHUTDOWN = 3,
-
-    /* -1...-31: General errors */
-    TCS_ERROR_UNKNOWN = -1,
-    TCS_ERROR_MEMORY = -2,
-    TCS_ERROR_INVALID_ARGUMENT = -3,
-    TCS_ERROR_SYSTEM = -4, /* OS error not mapped below */
-    TCS_ERROR_PERMISSION_DENIED = -5,
-    TCS_ERROR_NOT_IMPLEMENTED = -6,
-    TCS_ERROR_NOT_SUPPORTED = -7, /* OS does not support this functionality */
-
-    /* -32...-63: Network and socket errors */
-    TCS_ERROR_ADDRESS_LOOKUP_FAILED = -32,
-    TCS_ERROR_CONNECTION_REFUSED = -33,
-    TCS_ERROR_NOT_CONNECTED = -34,
-    TCS_ERROR_SOCKET_CLOSED = -35,
-    TCS_ERROR_WOULD_BLOCK = -36,
-    TCS_ERROR_TIMED_OUT = -37,
-    TCS_ERROR_TEMPORARY_FAILURE = -38,
-    TCS_ERROR_NETWORK_UNREACHABLE = -39,
-    TCS_ERROR_CONNECTION_RESET = -40,
-    TCS_ERROR_ADDRESS_IN_USE = -41,
-
-    /* -64...-95: Configuration errors */
-    TCS_ERROR_LIBRARY_NOT_INITIALIZED = -64,
-
-    /* -96...-128: Protocol errors */
-    TCS_ERROR_ILL_FORMED_MESSAGE = -96,
-} TcsResult;
-
-struct TcsPoll;
-struct TcsPollEvent
-{
-    TcsSocket socket;
-    void* user_data;
-    bool can_read;
-    bool can_write;
-    TcsResult error;
-};
 static const struct TcsPollEvent TCS_POLL_EVENT_EMPTY = {0, 0, false, false, TCS_SUCCESS};
 
 // ######## Library Management ########
@@ -1914,23 +1916,26 @@ TcsResult tcs_address_parse(const char str[], struct TcsAddress* out_address);
  */
 TcsResult tcs_address_to_str(const struct TcsAddress* address, char out_str[70]);
 
-/** @brief Check if two addresses are equal. */
+/** @brief Check if two addresses are equal. Returns false for NULL, mismatched, unknown, or unsupported address families. */
 bool tcs_address_is_equal(const struct TcsAddress* l, const struct TcsAddress* r);
 
-/** @brief Check if the address is a wildcard (any) address. */
+/** @brief Check if the address is a wildcard (any) address. Returns false for NULL, unknown, or unsupported address families. */
 bool tcs_address_is_any(const struct TcsAddress* addr);
 
-/** @brief Check if the address is a link-local address. */
+/** @brief Check if the address is a link-local address. Returns false for NULL, unknown, or unsupported address families. */
 bool tcs_address_is_link_local(const struct TcsAddress* addr);
 
-/** @brief Check if the address is a loopback address. */
+/** @brief Check if the address is a loopback address. Returns false for NULL, unknown, or unsupported address families. */
 bool tcs_address_is_loopback(const struct TcsAddress* addr);
 
-/** @brief Check if the address is a multicast address. */
+/** @brief Check if the address is a multicast address. Returns false for NULL, unknown, or unsupported address families. */
 bool tcs_address_is_multicast(const struct TcsAddress* addr);
 
-/** @brief Check if the address is a broadcast address. */
+/** @brief Check if the address is a broadcast address. Returns false for NULL, unknown, or unsupported address families. */
 bool tcs_address_is_broadcast(const struct TcsAddress* addr);
+
+/** @brief Check if the address family is known and supported by this platform. Returns false for NULL or unknown families. */
+bool tcs_address_is_supported(const struct TcsAddress* addr);
 
 #ifdef __cplusplus
 }
@@ -2916,11 +2921,11 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     if (buffer_count > (size_t)tcs_iov_max)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    struct iovec stack_iovec[TCS_SENDV_STACK_MAX];
+    struct iovec stack_iovec[TCS_CFG_SENDV_STACK_MAX];
     struct iovec* my_iovec = stack_iovec;
     struct iovec* heap_iovec = NULL;
 
-    if (buffer_count > TCS_SENDV_STACK_MAX)
+    if (buffer_count > TCS_CFG_SENDV_STACK_MAX)
     {
         heap_iovec = (struct iovec*)malloc(sizeof(struct iovec) * buffer_count);
         if (heap_iovec == NULL)
@@ -3712,8 +3717,8 @@ TcsResult tcs_interface_list(struct TcsInterface* found_interfaces,
     {
         if (found_interfaces != NULL && i < interfaces_length)
         {
-            strncpy(found_interfaces[i].name, interfaces[i].if_name, TCS_INTERFACE_NAME_SIZE - 1);
-            found_interfaces[i].name[TCS_INTERFACE_NAME_SIZE - 1] = '\0';
+            strncpy(found_interfaces[i].name, interfaces[i].if_name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
+            found_interfaces[i].name[TCS_CFG_INTERFACE_NAME_SIZE - 1] = '\0';
             found_interfaces[i].id = interfaces[i].if_index;
         }
         if (interfaces_populated != NULL)
@@ -3785,8 +3790,8 @@ TcsResult tcs_interface_list(struct TcsInterface* found_interfaces,
 
         if (found_interfaces != NULL && count < interfaces_length)
         {
-            strncpy(found_interfaces[count].name, ifr->ifr_name, TCS_INTERFACE_NAME_SIZE - 1);
-            found_interfaces[count].name[TCS_INTERFACE_NAME_SIZE - 1] = '\0';
+            strncpy(found_interfaces[count].name, ifr->ifr_name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
+            found_interfaces[count].name[TCS_CFG_INTERFACE_NAME_SIZE - 1] = '\0';
             found_interfaces[count].id = (unsigned int)(count + 1);
         }
         count++;
@@ -3962,8 +3967,8 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
                 return errno2retcode(errno);
             }
 
-            strncpy(interface_addresses[populated].iface.name, iter->ifa_name, TCS_INTERFACE_NAME_SIZE - 1);
-            interface_addresses[populated].iface.name[TCS_INTERFACE_NAME_SIZE - 1] = '\0';
+            strncpy(interface_addresses[populated].iface.name, iter->ifa_name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
+            interface_addresses[populated].iface.name[TCS_CFG_INTERFACE_NAME_SIZE - 1] = '\0';
             interface_addresses[populated].iface.id = interface_id;
             interface_addresses[populated].address = address;
             populated++;
@@ -4068,8 +4073,8 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
             {
                 if (interface_addresses != NULL && populated < capacity)
                 {
-                    strncpy(interface_addresses[populated].iface.name, ifr->ifr_name, TCS_INTERFACE_NAME_SIZE - 1);
-                    interface_addresses[populated].iface.name[TCS_INTERFACE_NAME_SIZE - 1] = '\0';
+                    strncpy(interface_addresses[populated].iface.name, ifr->ifr_name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
+                    interface_addresses[populated].iface.name[TCS_CFG_INTERFACE_NAME_SIZE - 1] = '\0';
                     interface_addresses[populated].iface.id = iface_id;
                     interface_addresses[populated].address = address;
                     populated++;
@@ -4092,8 +4097,8 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
             {
                 if (interface_addresses != NULL && populated < capacity)
                 {
-                    strncpy(interface_addresses[populated].iface.name, ifr->ifr_name, TCS_INTERFACE_NAME_SIZE - 1);
-                    interface_addresses[populated].iface.name[TCS_INTERFACE_NAME_SIZE - 1] = '\0';
+                    strncpy(interface_addresses[populated].iface.name, ifr->ifr_name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
+                    interface_addresses[populated].iface.name[TCS_CFG_INTERFACE_NAME_SIZE - 1] = '\0';
                     interface_addresses[populated].iface.id = iface_id;
                     interface_addresses[populated].address.family = TCS_FAMILY_PACKET;
                     interface_addresses[populated].address.data.packet.interface_id = iface_id;
@@ -4726,11 +4731,11 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
     if (flags & TCS_MSG_SENDALL)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
-    WSABUF stack_buffers[TCS_SENDV_STACK_MAX];
+    WSABUF stack_buffers[TCS_CFG_SENDV_STACK_MAX];
     WSABUF* native_buffers = stack_buffers;
     WSABUF* heap_buffers = NULL;
 
-    if (buffer_count > TCS_SENDV_STACK_MAX)
+    if (buffer_count > TCS_CFG_SENDV_STACK_MAX)
     {
         heap_buffers = (WSABUF*)malloc(sizeof(WSABUF) * buffer_count);
         if (heap_buffers == NULL)
@@ -5732,8 +5737,9 @@ TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, 
 
             if (interfaces != NULL && i < capacity)
             {
-                memset(interfaces[i].name, '\0', TCS_INTERFACE_NAME_SIZE);
-                TcsResult name_sts = adapter_get_friendly_name(iter, interfaces[i].name, TCS_INTERFACE_NAME_SIZE - 1);
+                memset(interfaces[i].name, '\0', TCS_CFG_INTERFACE_NAME_SIZE);
+                TcsResult name_sts =
+                    adapter_get_friendly_name(iter, interfaces[i].name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
                 if (name_sts != TCS_SUCCESS)
                 {
                     free(adapters);
@@ -5913,9 +5919,9 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
 
             if (interface_addresses != NULL && populated < capacity)
             {
-                memset(interface_addresses[populated].iface.name, '\0', TCS_INTERFACE_NAME_SIZE);
+                memset(interface_addresses[populated].iface.name, '\0', TCS_CFG_INTERFACE_NAME_SIZE);
                 TcsResult name_sts = adapter_get_friendly_name(
-                    iter, interface_addresses[populated].iface.name, TCS_INTERFACE_NAME_SIZE - 1);
+                    iter, interface_addresses[populated].iface.name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
                 if (name_sts != TCS_SUCCESS)
                 {
                     free(adapters);
@@ -7425,6 +7431,21 @@ bool tcs_address_is_broadcast(const struct TcsAddress* addr)
         return addr->data.packet.mac[0] == 0xFF && addr->data.packet.mac[1] == 0xFF &&
                addr->data.packet.mac[2] == 0xFF && addr->data.packet.mac[3] == 0xFF &&
                addr->data.packet.mac[4] == 0xFF && addr->data.packet.mac[5] == 0xFF;
+    return false;
+}
+
+bool tcs_address_is_supported(const struct TcsAddress* addr)
+{
+    if (addr == NULL)
+        return false;
+    if (addr->family.native == TCS_FAMILY_ANY.native)
+        return true;
+    if (addr->family.native == TCS_FAMILY_IP4.native)
+        return true;
+    if (addr->family.native == TCS_FAMILY_IP6.native)
+        return true;
+    if (addr->family.native == TCS_FAMILY_PACKET.native)
+        return addr->family.native != -1;
     return false;
 }
 
