@@ -862,8 +862,7 @@ TcsResult tcs_socket_packet_str(TcsSocket* out_socket, const char* interface_nam
 * @param[in,out] socket is a pointer to your socket context you have previously created with ::tcs_socket() or one of the helper functions. Will be set to #TCS_SOCKET_INVALID on success.
 *
 * @return #TCS_SUCCESS if successful, otherwise the error code.
-* @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument. Such as a NULL pointer or a socket that is already #TCS_SOCKET_INVALID.
-* @retval #TCS_ERROR_SOCKET_CLOSED if the socket is already closed.
+* @retval #TCS_ERROR_INVALID_ARGUMENT if @p socket is NULL or already #TCS_SOCKET_INVALID.
 *
 * @see tcs_socket()
 * @see tcs_socket_tcp()
