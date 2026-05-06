@@ -132,7 +132,7 @@ static const char* const TCS_LICENSE_TXT =
 * Address and Interface Utilities:
 * - TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, size_t* out_count);
 * - TcsResult tcs_address_resolve(const char* hostname, TcsFamily address_family, struct TcsAddress addresses[], size_t capacity, size_t* out_count);
-* - TcsResult tcs_address_list(unsigned int interface_id_filter, TcsFamily address_family_filter, struct TcsInterfaceAddress interface_addresses[], size_t capacity, size_t* out_count);
+* - TcsResult tcs_address_list(TcsInterfaceId interface_id_filter, TcsFamily address_family_filter, struct TcsInterfaceAddress interface_addresses[], size_t capacity, size_t* out_count);
 * - TcsResult tcs_address_socket_local(TcsSocket socket, struct TcsAddress* out_local_address);
 * - TcsResult tcs_address_socket_remote(TcsSocket socket, struct TcsAddress* out_remote_address);
 * - TcsResult tcs_address_socket_family(TcsSocket socket, TcsFamily* out_family);
@@ -1849,7 +1849,7 @@ TcsResult tcs_address_resolve(const char* hostname,
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @note If @p address_family_filter is not supported on this platform (e.g. ::TCS_FAMILY_PACKET on non-Linux), no entries match and *out_count is 0.
 */
-TcsResult tcs_address_list(unsigned int interface_id_filter,
+TcsResult tcs_address_list(TcsInterfaceId interface_id_filter,
                            TcsFamily address_family_filter,
                            struct TcsInterfaceAddress interface_addresses[],
                            size_t capacity,
