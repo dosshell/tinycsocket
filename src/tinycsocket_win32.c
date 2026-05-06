@@ -447,13 +447,13 @@ TcsResult tcs_shutdown(TcsSocket socket, TcsShutdownDirection direction)
 
 // ######## Data Transfer ########
 
-TcsResult tcs_send(TcsSocket socket, const uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* bytes_sent)
+TcsResult tcs_send(TcsSocket socket, const uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* sent_size)
 {
     if (socket == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (bytes_sent != NULL)
-        *bytes_sent = 0;
+    if (sent_size != NULL)
+        *sent_size = 0;
 
     if (buffer == NULL || buffer_size == 0)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -469,8 +469,8 @@ TcsResult tcs_send(TcsSocket socket, const uint8_t* buffer, size_t buffer_size, 
         {
             size_t sent = 0;
             TcsResult sts = tcs_send(socket, iterator, left, new_flags, &sent);
-            if (bytes_sent != NULL)
-                *bytes_sent += sent;
+            if (sent_size != NULL)
+                *sent_size += sent;
             if (sts != TCS_SUCCESS)
                 return sts;
             left -= sent;
@@ -483,14 +483,14 @@ TcsResult tcs_send(TcsSocket socket, const uint8_t* buffer, size_t buffer_size, 
         int send_status = send(socket, (const char*)buffer, (int)buffer_size, (int)flags);
         if (send_status != SOCKET_ERROR)
         {
-            if (bytes_sent != NULL)
-                *bytes_sent = (size_t)send_status;
+            if (sent_size != NULL)
+                *sent_size = (size_t)send_status;
             return TCS_SUCCESS;
         }
         else
         {
-            if (bytes_sent != NULL)
-                *bytes_sent = 0;
+            if (sent_size != NULL)
+                *sent_size = 0;
 
             return socketstatus2retcode(send_status);
         }
@@ -502,7 +502,7 @@ TcsResult tcs_send_to(TcsSocket socket,
                       size_t buffer_size,
                       uint32_t flags,
                       const struct TcsAddress* destination_address,
-                      size_t* bytes_sent)
+                      size_t* sent_size)
 {
     if (socket == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -526,26 +526,26 @@ TcsResult tcs_send_to(TcsSocket socket,
 
     if (sendto_status != SOCKET_ERROR)
     {
-        if (bytes_sent != NULL)
-            *bytes_sent = (size_t)sendto_status;
+        if (sent_size != NULL)
+            *sent_size = (size_t)sendto_status;
         return TCS_SUCCESS;
     }
     else
     {
-        if (bytes_sent != NULL)
-            *bytes_sent = 0;
+        if (sent_size != NULL)
+            *sent_size = 0;
 
         return socketstatus2retcode(sendto_status);
     }
 }
 
 TcsResult tcs_sendv(TcsSocket socket,
-                    const struct TcsBuffer* buffers,
-                    size_t buffer_count,
+                    const struct TcsIoVec* iov,
+                    size_t iov_length,
                     uint32_t flags,
-                    size_t* bytes_sent)
+                    size_t* sent_size)
 {
-    if (socket == TCS_SOCKET_INVALID || buffers == NULL || buffer_count == 0)
+    if (socket == TCS_SOCKET_INVALID || iov == NULL || iov_length == 0)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     if (flags & TCS_MSG_SENDALL)
@@ -555,17 +555,17 @@ TcsResult tcs_sendv(TcsSocket socket,
     WSABUF* native_buffers = stack_buffers;
     WSABUF* heap_buffers = NULL;
 
-    if (buffer_count > TCS_CFG_SENDV_STACK_MAX)
+    if (iov_length > TCS_CFG_SENDV_STACK_MAX)
     {
-        heap_buffers = (WSABUF*)malloc(sizeof(WSABUF) * buffer_count);
+        heap_buffers = (WSABUF*)malloc(sizeof(WSABUF) * iov_length);
         if (heap_buffers == NULL)
             return TCS_ERROR_MEMORY;
         native_buffers = heap_buffers;
     }
 
-    for (size_t i = 0; i < buffer_count; ++i)
+    for (size_t i = 0; i < iov_length; ++i)
     {
-        if (buffers[i].data == NULL && buffers[i].size > 0)
+        if (iov[i].buffer == NULL && iov[i].buffer_size > 0)
         {
             free(heap_buffers);
             return TCS_ERROR_INVALID_ARGUMENT;
@@ -575,33 +575,33 @@ TcsResult tcs_sendv(TcsSocket socket,
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
 #endif
-        native_buffers[i].buf = (CHAR*)buffers[i].data;
+        native_buffers[i].buf = (CHAR*)iov[i].buffer;
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
-        native_buffers[i].len = (ULONG)buffers[i].size;
+        native_buffers[i].len = (ULONG)iov[i].buffer_size;
     }
 
     DWORD sent = 0;
-    int wsasend_status = WSASend(socket, native_buffers, (DWORD)buffer_count, &sent, (DWORD)flags, NULL, NULL);
+    int wsasend_status = WSASend(socket, native_buffers, (DWORD)iov_length, &sent, (DWORD)flags, NULL, NULL);
 
     free(heap_buffers);
 
     if (wsasend_status != SOCKET_ERROR)
     {
-        if (bytes_sent != NULL)
-            *bytes_sent = (size_t)sent;
+        if (sent_size != NULL)
+            *sent_size = (size_t)sent;
         return TCS_SUCCESS;
     }
     else
     {
-        if (bytes_sent != NULL)
-            *bytes_sent = 0;
+        if (sent_size != NULL)
+            *sent_size = 0;
         return socketstatus2retcode(wsasend_status);
     }
 }
 
-TcsResult tcs_receive(TcsSocket socket, uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* bytes_received)
+TcsResult tcs_receive(TcsSocket socket, uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* received_size)
 {
     if (socket == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -621,14 +621,14 @@ TcsResult tcs_receive(TcsSocket socket, uint8_t* buffer, size_t buffer_size, uin
             TcsResult sts = tcs_receive(socket, cursor, left, new_flags, &received_now);
             if (sts != TCS_SUCCESS)
             {
-                if (bytes_received != NULL)
-                    *bytes_received = received_so_far;
+                if (received_size != NULL)
+                    *received_size = received_so_far;
                 return sts;
             }
             received_so_far += received_now;
         }
-        if (bytes_received != NULL)
-            *bytes_received = received_so_far;
+        if (received_size != NULL)
+            *received_size = received_so_far;
         return TCS_SUCCESS;
     }
 #endif
@@ -637,8 +637,8 @@ TcsResult tcs_receive(TcsSocket socket, uint8_t* buffer, size_t buffer_size, uin
 
     if (recv_status == 0)
     {
-        if (bytes_received != NULL)
-            *bytes_received = 0;
+        if (received_size != NULL)
+            *received_size = 0;
         TcsSockType sock_type = {0};
         if (tcs_opt_type_get(socket, &sock_type) == TCS_SUCCESS && sock_type.native == TCS_SOCK_STREAM.native)
             return TCS_SHUTDOWN;
@@ -646,14 +646,14 @@ TcsResult tcs_receive(TcsSocket socket, uint8_t* buffer, size_t buffer_size, uin
     }
     else if (recv_status != SOCKET_ERROR)
     {
-        if (bytes_received != NULL)
-            *bytes_received = (size_t)recv_status;
+        if (received_size != NULL)
+            *received_size = (size_t)recv_status;
         return TCS_SUCCESS;
     }
     else
     {
-        if (bytes_received != NULL)
-            *bytes_received = 0;
+        if (received_size != NULL)
+            *received_size = 0;
 
         return socketstatus2retcode(recv_status);
     }
@@ -664,14 +664,14 @@ TcsResult tcs_receive_from(TcsSocket socket,
                            size_t buffer_size,
                            uint32_t flags,
                            struct TcsAddress* source_address,
-                           size_t* bytes_received)
+                           size_t* received_size)
 {
     if (socket == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
     if (buffer == NULL && buffer_size > 0)
         return TCS_ERROR_INVALID_ARGUMENT;
-    if (bytes_received != NULL)
-        *bytes_received = 0;
+    if (received_size != NULL)
+        *received_size = 0;
 
     SOCKADDR_STORAGE native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
@@ -682,8 +682,8 @@ TcsResult tcs_receive_from(TcsSocket socket,
 
     if (recvfrom_status == 0)
     {
-        if (bytes_received != NULL)
-            *bytes_received = 0;
+        if (received_size != NULL)
+            *received_size = 0;
         TcsSockType sock_type = {0};
         if (tcs_opt_type_get(socket, &sock_type) == TCS_SUCCESS && sock_type.native == TCS_SOCK_STREAM.native)
             return TCS_SHUTDOWN;
@@ -691,8 +691,8 @@ TcsResult tcs_receive_from(TcsSocket socket,
     }
     else if (recvfrom_status != SOCKET_ERROR)
     {
-        if (bytes_received != NULL)
-            *bytes_received = (size_t)recvfrom_status;
+        if (received_size != NULL)
+            *received_size = (size_t)recvfrom_status;
 
         if (source_address != NULL)
         {
@@ -704,8 +704,8 @@ TcsResult tcs_receive_from(TcsSocket socket,
     }
     else
     {
-        if (bytes_received != NULL)
-            *bytes_received = 0;
+        if (received_size != NULL)
+            *received_size = 0;
 
         return socketstatus2retcode(recvfrom_status);
     }
@@ -892,13 +892,13 @@ TcsResult tcs_poll_remove(struct TcsPoll* poll, TcsSocket socket)
 
 TcsResult tcs_poll_wait(struct TcsPoll* poll,
                         struct TcsPollEvent* events,
-                        size_t events_capacity,
-                        size_t* events_populated,
+                        size_t events_length,
+                        size_t* out_events_length,
                         int timeout_ms)
 {
     if (poll == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
-    if (events == NULL || events_populated == NULL)
+    if (events == NULL || out_events_length == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
     if (timeout_ms < 0 && timeout_ms != TCS_WAIT_INF)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -977,8 +977,8 @@ TcsResult tcs_poll_wait(struct TcsPoll* poll,
     memcpy(wfds_cpy->fd_array, poll->write_sockets.data, sizeof(SOCKET) * poll->write_sockets.count);
     memcpy(efds_cpy->fd_array, poll->error_sockets.data, sizeof(SOCKET) * poll->error_sockets.count);
 
-    memset(events, 0, sizeof(struct TcsPollEvent) * events_capacity);
-    *events_populated = 0;
+    memset(events, 0, sizeof(struct TcsPollEvent) * events_length);
+    *out_events_length = 0;
 
     // Run select
     struct timeval* t_ptr = NULL;
@@ -995,7 +995,7 @@ TcsResult tcs_poll_wait(struct TcsPoll* poll,
 
     if (no > 0)
     {
-        for (u_int n = 0; n < rfds_cpy->fd_count && events_added < events_capacity; ++n)
+        for (u_int n = 0; n < rfds_cpy->fd_count && events_added < events_length; ++n)
         {
             events[events_added].socket = rfds_cpy->fd_array[n];
             events[events_added].can_read = true;
@@ -1009,7 +1009,7 @@ TcsResult tcs_poll_wait(struct TcsPoll* poll,
             }
             events_added++;
         }
-        for (u_int n = 0; n < wfds_cpy->fd_count && events_added < events_capacity; ++n)
+        for (u_int n = 0; n < wfds_cpy->fd_count && events_added < events_length; ++n)
         {
             // Check already added events
             size_t new_n = events_added;
@@ -1038,7 +1038,7 @@ TcsResult tcs_poll_wait(struct TcsPoll* poll,
                 events_added++;
             }
         }
-        for (u_int n = 0; n < efds_cpy->fd_count && events_added < events_capacity; ++n)
+        for (u_int n = 0; n < efds_cpy->fd_count && events_added < events_length; ++n)
         {
             // Check already added events
             size_t new_n = events_added;
@@ -1075,7 +1075,7 @@ TcsResult tcs_poll_wait(struct TcsPoll* poll,
         }
     }
 
-    *events_populated = events_added;
+    *out_events_length = events_added;
 
     // Clean up
     if (rfds_heap != NULL)
@@ -1491,16 +1491,16 @@ static TcsResult adapter_is_up(PIP_ADAPTER_ADDRESSES adapter, bool* out_is_up)
     return TCS_SUCCESS;
 }
 
-TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, size_t* out_count)
+TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t interfaces_length, size_t* out_length)
 {
-    if (interfaces == NULL && out_count == NULL)
+    if (interfaces == NULL && out_length == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (interfaces == NULL && capacity != 0)
+    if (interfaces == NULL && interfaces_length != 0)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (out_count != NULL)
-        *out_count = 0;
+    if (out_length != NULL)
+        *out_length = 0;
 
     const int MAX_TRIES = 5;
     ULONG buffer_size = 15000; // From msdn recommendation
@@ -1555,7 +1555,7 @@ TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, 
             if (!is_up)
                 continue;
 
-            if (interfaces != NULL && i < capacity)
+            if (interfaces != NULL && i < interfaces_length)
             {
                 memset(interfaces[i].name, '\0', TCS_CFG_INTERFACE_NAME_SIZE);
                 TcsResult name_sts =
@@ -1567,8 +1567,8 @@ TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, 
                 }
                 interfaces[i].id = iter->IfIndex;
             }
-            if (out_count != NULL)
-                (*out_count)++;
+            if (out_length != NULL)
+                (*out_length)++;
             ++i;
         }
     }
@@ -1580,17 +1580,17 @@ TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, 
 TcsResult tcs_address_resolve(const char* hostname,
                               TcsFamily address_family,
                               struct TcsAddress addresses[],
-                              size_t capacity,
-                              size_t* out_count)
+                              size_t addresses_length,
+                              size_t* out_length)
 {
     if (hostname == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (addresses == NULL && out_count == NULL)
+    if (addresses == NULL && out_length == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (out_count != NULL)
-        *out_count = 0;
+    if (out_length != NULL)
+        *out_length = 0;
 
     // Fast path: try numeric/MAC parse first to avoid DNS lookup
     struct TcsAddress parsed = TCS_ADDRESS_NONE;
@@ -1598,10 +1598,10 @@ TcsResult tcs_address_resolve(const char* hostname,
     {
         if (address_family.native == TCS_FAMILY_ANY.native || parsed.family.native == address_family.native)
         {
-            if (addresses != NULL && capacity > 0)
+            if (addresses != NULL && addresses_length > 0)
                 addresses[0] = parsed;
-            if (out_count != NULL)
-                *out_count = 1;
+            if (out_length != NULL)
+                *out_length = 1;
             return TCS_SUCCESS;
         }
     }
@@ -1629,7 +1629,7 @@ TcsResult tcs_address_resolve(const char* hostname,
     }
     else
     {
-        for (PADDRINFOA iter = native_addrinfo_list; iter != NULL && i < capacity; iter = iter->ai_next)
+        for (PADDRINFOA iter = native_addrinfo_list; iter != NULL && i < addresses_length; iter = iter->ai_next)
         {
             if (iter->ai_addr == NULL)
                 continue;
@@ -1639,8 +1639,8 @@ TcsResult tcs_address_resolve(const char* hostname,
             i++;
         }
     }
-    if (out_count != NULL)
-        *out_count = i;
+    if (out_length != NULL)
+        *out_length = i;
 
     freeaddrinfo(native_addrinfo_list);
 
@@ -1653,17 +1653,17 @@ TcsResult tcs_address_resolve(const char* hostname,
 TcsResult tcs_address_list(unsigned int interface_id_filter,
                            TcsFamily address_family_filter,
                            struct TcsInterfaceAddress interface_addresses[],
-                           size_t capacity,
-                           size_t* out_count)
+                           size_t interface_addresses_length,
+                           size_t* out_length)
 {
-    if (interface_addresses == NULL && out_count == NULL)
+    if (interface_addresses == NULL && out_length == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (interface_addresses == NULL && capacity != 0)
+    if (interface_addresses == NULL && interface_addresses_length != 0)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (out_count != NULL)
-        *out_count = 0;
+    if (out_length != NULL)
+        *out_length = 0;
 
     const int MAX_TRIES = 5;
     ULONG buffer_size = 15000;
@@ -1737,7 +1737,7 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
             if (convert_sts != TCS_SUCCESS)
                 continue; // skip entries we cannot represent (unknown family, malformed sockaddr, etc.)
 
-            if (interface_addresses != NULL && populated < capacity)
+            if (interface_addresses != NULL && populated < interface_addresses_length)
             {
                 memset(interface_addresses[populated].iface.name, '\0', TCS_CFG_INTERFACE_NAME_SIZE);
                 TcsResult name_sts = adapter_get_friendly_name(
@@ -1751,12 +1751,12 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
                 interface_addresses[populated].address = address;
                 populated++;
 
-                if (out_count != NULL)
-                    (*out_count)++;
+                if (out_length != NULL)
+                    (*out_length)++;
             }
-            else if (interface_addresses == NULL && out_count != NULL)
+            else if (interface_addresses == NULL && out_length != NULL)
             {
-                (*out_count)++;
+                (*out_length)++;
             }
         }
     }

@@ -114,9 +114,9 @@ TEST_CASE("Example from README")
     CHECK(tcs_send(client_socket, send_buffer, sizeof(send_buffer) - 1, TCS_MSG_SENDALL, NULL) == TCS_SUCCESS);
 
     static uint8_t recv_buffer[8192] = {0};
-    size_t bytes_received = 0;
-    tcs_receive(client_socket, recv_buffer, sizeof(recv_buffer), TCS_MSG_WAITALL, &bytes_received);
-    CHECK(bytes_received > 0);
+    size_t received_size = 0;
+    tcs_receive(client_socket, recv_buffer, sizeof(recv_buffer), TCS_MSG_WAITALL, &received_size);
+    CHECK(received_size > 0);
     TcsResult shutdown_res = tcs_shutdown(client_socket, TCS_SHUTDOWN_BOTH);
     CHECK((shutdown_res == TCS_SUCCESS || shutdown_res == TCS_ERROR_NOT_CONNECTED ||
            shutdown_res == TCS_ERROR_CONNECTION_RESET || shutdown_res == TCS_ERROR_SOCKET_CLOSED));
@@ -193,7 +193,7 @@ TEST_CASE("UDP Test")
     size_t sent = 0;
     uint8_t recv_buffer[1024] = {0};
     size_t recv_size = sizeof(recv_buffer) - sizeof('\0');
-    size_t bytes_received = 0;
+    size_t received_size = 0;
 
     TcsAddress address;
     address.family = TCS_FAMILY_IP4;
@@ -202,8 +202,8 @@ TEST_CASE("UDP Test")
 
     // When
     CHECK(tcs_send_to(socket_send, msg, sizeof(msg), TCS_FLAG_NONE, &address, &sent) == TCS_SUCCESS);
-    CHECK(tcs_receive(socket_recv, recv_buffer, recv_size, TCS_FLAG_NONE, &bytes_received) == TCS_SUCCESS);
-    recv_buffer[bytes_received] = '\0';
+    CHECK(tcs_receive(socket_recv, recv_buffer, recv_size, TCS_FLAG_NONE, &received_size) == TCS_SUCCESS);
+    recv_buffer[received_size] = '\0';
 
     // Then
     CHECK(sent > 0);
@@ -439,21 +439,21 @@ TEST_CASE("sendv")
     CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
 
     // When
-    TcsBuffer send_buffers[3];
-    send_buffers[0].data = (const uint8_t*)"12345678";
-    send_buffers[0].size = 8;
-    send_buffers[1].data = (const uint8_t*)"ABCDEFGH";
-    send_buffers[1].size = 8;
-    send_buffers[2].data = (const uint8_t*)"abcdefgh";
-    send_buffers[2].size = 8;
-    CHECK(tcs_sendv(client_socket, send_buffers, 3, TCS_FLAG_NONE, NULL) == TCS_SUCCESS);
+    TcsIoVec send_iov[3];
+    send_iov[0].buffer = (const uint8_t*)"12345678";
+    send_iov[0].buffer_size = 8;
+    send_iov[1].buffer = (const uint8_t*)"ABCDEFGH";
+    send_iov[1].buffer_size = 8;
+    send_iov[2].buffer = (const uint8_t*)"abcdefgh";
+    send_iov[2].buffer_size = 8;
+    CHECK(tcs_sendv(client_socket, send_iov, 3, TCS_FLAG_NONE, NULL) == TCS_SUCCESS);
 
     uint8_t recv_buffer[24] = {0};
     CHECK(tcs_receive(accept_socket, recv_buffer, 24, TCS_FLAG_NONE, NULL) == TCS_SUCCESS);
 
     // Then
     for (int i = 0; i < 3; ++i)
-        CHECK(memcmp(send_buffers[i].data, recv_buffer + i * 8, 8) == 0);
+        CHECK(memcmp(send_iov[i].buffer, recv_buffer + i * 8, 8) == 0);
 
     // Clean up
     CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
@@ -531,11 +531,11 @@ TEST_CASE("Netstring with multi-digit length")
     const uint8_t* send_buffer = (const uint8_t*)"abcdefghijkl"; // 12 bytes
     CHECK(tcs_send_netstring(client_socket, send_buffer, 12) == TCS_SUCCESS);
 
-    size_t bytes_received = 0;
-    CHECK(tcs_receive_netstring(accept_socket, recv_buffer, 64, &bytes_received) == TCS_SUCCESS);
+    size_t received_size = 0;
+    CHECK(tcs_receive_netstring(accept_socket, recv_buffer, 64, &received_size) == TCS_SUCCESS);
 
     // Then
-    CHECK(bytes_received == 12);
+    CHECK(received_size == 12);
     CHECK(memcmp(recv_buffer, send_buffer, 12) == 0);
 
     // Clean up
@@ -1575,8 +1575,8 @@ TEST_CASE("Simple Multicast Add Membership")
 
     // Then
     uint8_t recv_buffer[1024] = {0};
-    size_t bytes_received = 0;
-    CHECK(tcs_receive(socket, recv_buffer, sizeof(recv_buffer), 0, &bytes_received) == TCS_SUCCESS);
+    size_t received_size = 0;
+    CHECK(tcs_receive(socket, recv_buffer, sizeof(recv_buffer), 0, &received_size) == TCS_SUCCESS);
     CHECK(strcmp(reinterpret_cast<const char*>(recv_buffer), reinterpret_cast<const char*>(msg)) == 0);
 
     // Clean up
@@ -1985,9 +1985,9 @@ TEST_CASE("AVTP Create talker socket sendto")
     memcpy(address.data.packet.mac, AVTP_DEST_ADDR, sizeof(AVTP_DEST_ADDR));
 
     uint8_t msg[] = "hello world\n";
-    size_t bytes_sent = 0;
-    CHECK(tcs_send_to(socket, msg, sizeof(msg), TCS_FLAG_NONE, &address, &bytes_sent) == TCS_SUCCESS);
-    CHECK(bytes_sent == sizeof(msg));
+    size_t sent_size = 0;
+    CHECK(tcs_send_to(socket, msg, sizeof(msg), TCS_FLAG_NONE, &address, &sent_size) == TCS_SUCCESS);
+    CHECK(sent_size == sizeof(msg));
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
     // Then
@@ -2029,9 +2029,9 @@ TEST_CASE("TSN Create talker socket bind")
     frame[13] = 0xF0;                                      // EtherType low byte
     memcpy(&frame[14], "hello world\n", 12);               // Payload
 
-    size_t bytes_sent = 0;
-    CHECK(tcs_send_to(socket, frame, sizeof(frame), TCS_FLAG_NONE, &address, &bytes_sent) == TCS_SUCCESS);
-    CHECK(bytes_sent == sizeof(frame));
+    size_t sent_size = 0;
+    CHECK(tcs_send_to(socket, frame, sizeof(frame), TCS_FLAG_NONE, &address, &sent_size) == TCS_SUCCESS);
+    CHECK(sent_size == sizeof(frame));
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
     // Then
@@ -2148,9 +2148,9 @@ TEST_CASE("tcs_socket_packet sendto")
     memcpy(dest_address.data.packet.mac, AVTP_DEST_ADDR, sizeof(AVTP_DEST_ADDR));
 
     uint8_t msg[] = "hello world\n";
-    size_t bytes_sent = 0;
-    CHECK(tcs_send_to(socket, msg, sizeof(msg), TCS_FLAG_NONE, &dest_address, &bytes_sent) == TCS_SUCCESS);
-    CHECK(bytes_sent == sizeof(msg));
+    size_t sent_size = 0;
+    CHECK(tcs_send_to(socket, msg, sizeof(msg), TCS_FLAG_NONE, &dest_address, &sent_size) == TCS_SUCCESS);
+    CHECK(sent_size == sizeof(msg));
 
     // Then
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
@@ -2575,7 +2575,7 @@ TEST_CASE("IPv6 UDP Test")
     uint8_t msg[] = "hello ipv6\n";
     size_t sent = 0;
     uint8_t recv_buffer[1024] = {0};
-    size_t bytes_received = 0;
+    size_t received_size = 0;
 
     struct TcsAddress dest = TCS_ADDRESS_NONE;
     dest.family = TCS_FAMILY_IP6;
@@ -2583,8 +2583,8 @@ TEST_CASE("IPv6 UDP Test")
     dest.data.ip6.port = 1433;
 
     CHECK(tcs_send_to(socket_send, msg, sizeof(msg), TCS_FLAG_NONE, &dest, &sent) == TCS_SUCCESS);
-    CHECK(tcs_receive(socket_recv, recv_buffer, sizeof(recv_buffer), TCS_FLAG_NONE, &bytes_received) == TCS_SUCCESS);
-    recv_buffer[bytes_received] = '\0';
+    CHECK(tcs_receive(socket_recv, recv_buffer, sizeof(recv_buffer), TCS_FLAG_NONE, &received_size) == TCS_SUCCESS);
+    recv_buffer[received_size] = '\0';
 
     CHECK(sent > 0);
     CHECK(strcmp((const char*)recv_buffer, (const char*)msg) == 0);

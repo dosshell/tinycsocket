@@ -44,13 +44,13 @@ int main(void)
     struct TcsAddress remote_address = {0};
     uint8_t recv_buffer[1024];
     size_t recv_size = sizeof(recv_buffer) - 1;
-    size_t bytes_received = 0;
-    if (tcs_receive_from(socket, recv_buffer, recv_size, TCS_FLAG_NONE, &remote_address, &bytes_received) !=
+    size_t received_size = 0;
+    if (tcs_receive_from(socket, recv_buffer, recv_size, TCS_FLAG_NONE, &remote_address, &received_size) !=
         TCS_SUCCESS)
         return show_error("Could not receive data");
 
     // Makes sure it is a NULL terminated string, this is why we only accept 1023 bytes in receive
-    recv_buffer[bytes_received] = '\0';
+    recv_buffer[received_size] = '\0';
     printf("received: %s\n", recv_buffer);
 
     char msg[] = "I hear you loud and clear\n";

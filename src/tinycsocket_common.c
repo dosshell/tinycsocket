@@ -176,15 +176,15 @@ TcsResult tcs_socket_tcp(TcsSocket* out_socket,
                     return res;
                 }
                 struct TcsPollEvent event = TCS_POLL_EVENT_EMPTY;
-                size_t events_populated = 0;
-                res = tcs_poll_wait(poll, &event, 1, &events_populated, timeout_ms);
+                size_t out_events_length = 0;
+                res = tcs_poll_wait(poll, &event, 1, &out_events_length, timeout_ms);
                 tcs_poll_destroy(&poll);
                 if (res == TCS_ERROR_TIMED_OUT)
                 {
                     tcs_close(out_socket);
                     return TCS_ERROR_TIMED_OUT;
                 }
-                if (res != TCS_SUCCESS || events_populated == 0)
+                if (res != TCS_SUCCESS || out_events_length == 0)
                 {
                     tcs_close(out_socket);
                     return res != TCS_SUCCESS ? res : TCS_ERROR_UNKNOWN;
@@ -499,17 +499,17 @@ TcsResult tcs_connect_str(TcsSocket socket, const char* remote_address, uint16_t
 // tcs_send_to() is defined in OS specific files
 // tcs_sendv() is defined in OS specific files
 
-TcsResult tcs_send_netstring(TcsSocket socket, const uint8_t* buffer, size_t buffer_length)
+TcsResult tcs_send_netstring(TcsSocket socket, const uint8_t* buffer, size_t buffer_size)
 {
     if (socket == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (buffer == NULL || buffer_length == 0)
+    if (buffer == NULL || buffer_size == 0)
         return TCS_ERROR_INVALID_ARGUMENT;
 
 #if SIZE_MAX > 0xffffffffffffffffULL
-    // buffer_length bigger than 64 bits? (size_t can be bigger on some systems)
-    if (buffer_length > 0xffffffffffffffffULL)
+    // buffer_size bigger than 64 bits? (size_t can be bigger on some systems)
+    if (buffer_size > 0xffffffffffffffffULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 #endif
 
@@ -518,7 +518,7 @@ TcsResult tcs_send_netstring(TcsSocket socket, const uint8_t* buffer, size_t buf
     memset(netstring_header, 0, sizeof netstring_header);
 
     // %zu is not supported by all compilers, therefor we cast it to llu
-    header_length = snprintf(netstring_header, 21, "%llu:", (unsigned long long)buffer_length);
+    header_length = snprintf(netstring_header, 21, "%llu:", (unsigned long long)buffer_size);
 
     if (header_length < 0)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -528,7 +528,7 @@ TcsResult tcs_send_netstring(TcsSocket socket, const uint8_t* buffer, size_t buf
     if (sts != TCS_SUCCESS)
         return sts;
 
-    sts = tcs_send(socket, buffer, buffer_length, TCS_MSG_SENDALL, NULL);
+    sts = tcs_send(socket, buffer, buffer_size, TCS_MSG_SENDALL, NULL);
     if (sts != TCS_SUCCESS)
         return sts;
 
@@ -544,18 +544,18 @@ TcsResult tcs_send_netstring(TcsSocket socket, const uint8_t* buffer, size_t buf
 
 TcsResult tcs_receive_line(TcsSocket socket,
                            uint8_t* buffer,
-                           size_t buffer_length,
+                           size_t buffer_size,
                            uint8_t delimiter,
-                           size_t* out_bytes_received)
+                           size_t* out_received_size)
 {
-    if (socket == TCS_SOCKET_INVALID || buffer == NULL || buffer_length == 0)
+    if (socket == TCS_SOCKET_INVALID || buffer == NULL || buffer_size == 0)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     /*
     *                    data in kernel buffer
     *   |12345yyyyyyyyyyyyyyyyyyyyyyyy..............|
     *
-    *       buffer_length ----------------------------------.
+    *       buffer_size ----------------------------------.
     *       searched ----------------------.                |
     *                                      |                |
     *       bytes_peeked ------------------.                |
@@ -567,16 +567,16 @@ TcsResult tcs_receive_line(TcsSocket socket,
     size_t bytes_read = 0;
     size_t bytes_peeked = 0;
     size_t bytes_searched = 0;
-    while (bytes_read < buffer_length)
+    while (bytes_read < buffer_size)
     {
         TcsResult sts = TCS_SUCCESS;
-        size_t bytes_free_in_buffer = buffer_length - bytes_read;
+        size_t bytes_free_in_buffer = buffer_size - bytes_read;
         size_t current_peeked = 0;
         sts = tcs_receive(socket, buffer + bytes_read, bytes_free_in_buffer, TCS_MSG_PEEK, &current_peeked);
         if (sts != TCS_SUCCESS)
         {
-            if (out_bytes_received != NULL)
-                *out_bytes_received = bytes_read;
+            if (out_received_size != NULL)
+                *out_received_size = bytes_read;
             return sts;
         }
         bytes_peeked += current_peeked;
@@ -592,8 +592,8 @@ TcsResult tcs_receive_line(TcsSocket socket,
 
             if (sts != TCS_SUCCESS)
             {
-                if (out_bytes_received != NULL)
-                    *out_bytes_received = bytes_read;
+                if (out_received_size != NULL)
+                    *out_received_size = bytes_read;
                 return sts;
             }
         }
@@ -619,26 +619,26 @@ TcsResult tcs_receive_line(TcsSocket socket,
             bytes_read += bytes;
             if (sts != TCS_SUCCESS)
             {
-                if (out_bytes_received != NULL)
-                    *out_bytes_received = bytes_read;
+                if (out_received_size != NULL)
+                    *out_received_size = bytes_read;
                 return sts;
             }
         }
         if (found_delimiter)
         {
-            if (out_bytes_received != NULL)
-                *out_bytes_received = bytes_read;
+            if (out_received_size != NULL)
+                *out_received_size = bytes_read;
             return sts;
         }
     }
-    if (out_bytes_received != NULL)
-        *out_bytes_received = bytes_read;
+    if (out_received_size != NULL)
+        *out_received_size = bytes_read;
     return TCS_AGAIN;
 }
 
-TcsResult tcs_receive_netstring(TcsSocket socket, uint8_t* buffer, size_t buffer_length, size_t* out_bytes_received)
+TcsResult tcs_receive_netstring(TcsSocket socket, uint8_t* buffer, size_t buffer_size, size_t* out_received_size)
 {
-    if (socket == TCS_SOCKET_INVALID || buffer == NULL || buffer_length == 0)
+    if (socket == TCS_SOCKET_INVALID || buffer == NULL || buffer_size == 0)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     size_t expected_length = 0;
@@ -671,7 +671,7 @@ TcsResult tcs_receive_netstring(TcsSocket socket, uint8_t* buffer, size_t buffer
     if (parsed >= max_header)
         return TCS_ERROR_ILL_FORMED_MESSAGE;
 
-    if (buffer_length < expected_length)
+    if (buffer_size < expected_length)
         return TCS_ERROR_MEMORY;
 
     sts = tcs_receive(socket, buffer, expected_length, TCS_MSG_WAITALL, NULL);
@@ -685,8 +685,8 @@ TcsResult tcs_receive_netstring(TcsSocket socket, uint8_t* buffer, size_t buffer
     if (t != ',')
         return TCS_ERROR_ILL_FORMED_MESSAGE;
 
-    if (out_bytes_received != NULL)
-        *out_bytes_received = expected_length;
+    if (out_received_size != NULL)
+        *out_received_size = expected_length;
 
     return TCS_SUCCESS;
 }

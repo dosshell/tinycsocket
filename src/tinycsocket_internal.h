@@ -74,14 +74,14 @@ static const char* const TCS_LICENSE_TXT =
 * - TcsResult tcs_shutdown(TcsSocket socket, TcsShutdownDirection direction);
 *
 * Data Transfer:
-* - TcsResult tcs_send(TcsSocket socket, const uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* out_bytes_sent);
-* - TcsResult tcs_send_to(TcsSocket socket, const uint8_t* buffer, size_t buffer_size, uint32_t flags, const struct TcsAddress* destination_address, size_t* out_bytes_sent);
-* - TcsResult tcs_sendv(TcsSocket socket, const struct TcsBuffer* buffers, size_t buffer_count, uint32_t flags, size_t* out_bytes_sent);
+* - TcsResult tcs_send(TcsSocket socket, const uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* out_sent_size);
+* - TcsResult tcs_send_to(TcsSocket socket, const uint8_t* buffer, size_t buffer_size, uint32_t flags, const struct TcsAddress* destination_address, size_t* out_sent_size);
+* - TcsResult tcs_sendv(TcsSocket socket, const struct TcsIoVec* iov, size_t iov_length, uint32_t flags, size_t* out_sent_size);
 * - TcsResult tcs_send_netstring(TcsSocket socket, const uint8_t* buffer, size_t buffer_size);
-* - TcsResult tcs_receive(TcsSocket socket, uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* out_bytes_received);
-* - TcsResult tcs_receive_from(TcsSocket socket, uint8_t* buffer, size_t buffer_size, uint32_t flags, struct TcsAddress* out_source_address, size_t* out_bytes_received);
-* - TcsResult tcs_receive_line(TcsSocket socket, uint8_t* buffer, size_t buffer_size, uint8_t delimiter, size_t* out_bytes_received);
-* - TcsResult tcs_receive_netstring(TcsSocket socket, uint8_t* buffer, size_t buffer_size, size_t* out_bytes_received);
+* - TcsResult tcs_receive(TcsSocket socket, uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* out_received_size);
+* - TcsResult tcs_receive_from(TcsSocket socket, uint8_t* buffer, size_t buffer_size, uint32_t flags, struct TcsAddress* out_source_address, size_t* out_received_size);
+* - TcsResult tcs_receive_line(TcsSocket socket, uint8_t* buffer, size_t buffer_size, uint8_t delimiter, size_t* out_received_size);
+* - TcsResult tcs_receive_netstring(TcsSocket socket, uint8_t* buffer, size_t buffer_size, size_t* out_received_size);
 *
 * Socket Polling:
 * - TcsResult tcs_poll_create(struct TcsPoll** poll);
@@ -89,7 +89,7 @@ static const char* const TCS_LICENSE_TXT =
 * - TcsResult tcs_poll_add(struct TcsPoll* poll, TcsSocket socket, void* user_data, uint32_t flags);
 * - TcsResult tcs_poll_modify(struct TcsPoll* poll, TcsSocket socket, uint32_t flags);
 * - TcsResult tcs_poll_remove(struct TcsPoll* poll, TcsSocket socket);
-* - TcsResult tcs_poll_wait(struct TcsPoll* poll, struct TcsPollEvent* events, size_t events_count, size_t* out_events_populated, int timeout_ms);
+* - TcsResult tcs_poll_wait(struct TcsPoll* poll, struct TcsPollEvent* events, size_t events_length, size_t* out_events_length, int timeout_ms);
 *
 * Socket Options:
 * - TcsResult tcs_opt_set(TcsSocket socket, int32_t level, int32_t option_name, const void* option_value, size_t option_size);
@@ -130,9 +130,9 @@ static const char* const TCS_LICENSE_TXT =
 * - TcsResult tcs_opt_multicast_loop_get(TcsSocket socket, bool* out_is_loopback);
 *
 * Address and Interface Utilities:
-* - TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, size_t* out_count);
-* - TcsResult tcs_address_resolve(const char* hostname, TcsFamily address_family, struct TcsAddress addresses[], size_t capacity, size_t* out_count);
-* - TcsResult tcs_address_list(TcsInterfaceId interface_id_filter, TcsFamily address_family_filter, struct TcsInterfaceAddress interface_addresses[], size_t capacity, size_t* out_count);
+* - TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t interfaces_length, size_t* out_length);
+* - TcsResult tcs_address_resolve(const char* hostname, TcsFamily address_family, struct TcsAddress addresses[], size_t addresses_length, size_t* out_length);
+* - TcsResult tcs_address_list(TcsInterfaceId interface_id_filter, TcsFamily address_family_filter, struct TcsInterfaceAddress interface_addresses[], size_t interface_addresses_length, size_t* out_length);
 * - TcsResult tcs_address_socket_local(TcsSocket socket, struct TcsAddress* out_local_address);
 * - TcsResult tcs_address_socket_remote(TcsSocket socket, struct TcsAddress* out_remote_address);
 * - TcsResult tcs_address_socket_family(TcsSocket socket, TcsFamily* out_family);
@@ -364,15 +364,15 @@ struct TcsInterfaceAddress
 tcs_static_assert(address_storage_size, sizeof(((struct TcsAddress*)0)->data) <= 24);
 
 /**
- * @brief Used when sending/receiving an array of buffers.
+ * @brief Scatter/gather buffer descriptor (analogous to POSIX `struct iovec`).
  *
  * Useful if you want to send two or more data arrays at once, for example a header and a body.
- * Make an array of TcsBuffer and use tcs_sendv() to send them all at once.
+ * Make an array of TcsIoVec and use tcs_sendv() to send them all at once.
 */
-struct TcsBuffer
+struct TcsIoVec
 {
-    const uint8_t* data;
-    size_t size;
+    const uint8_t* buffer;
+    size_t buffer_size;
 };
 
 struct TcsPoll;
@@ -970,8 +970,8 @@ TcsResult tcs_bind(TcsSocket socket, const struct TcsAddress* local_address);
  *
  *   // Socket is now connected and ready for communication
  *   uint8_t buffer[] = "Hello, server!";
- *   size_t bytes_sent = 0;
- *   tcs_send(client_socket, buffer, sizeof(buffer)-1, TCS_MSG_SENDALL, &bytes_sent);
+ *   size_t sent_size = 0;
+ *   tcs_send(client_socket, buffer, sizeof(buffer)-1, TCS_MSG_SENDALL, &sent_size);
  *
  *   tcs_close(&client_socket);
  *   tcs_lib_free();
@@ -1031,8 +1031,8 @@ TcsResult tcs_connect(TcsSocket socket, const struct TcsAddress* address);
  *
  *   // Socket is now connected and ready for communication
  *   uint8_t buffer[] = "Hello, server!";
- *   size_t bytes_sent = 0;
- *   tcs_send(client_socket, buffer, sizeof(buffer)-1, TCS_MSG_SENDALL, &bytes_sent);
+ *   size_t sent_size = 0;
+ *   tcs_send(client_socket, buffer, sizeof(buffer)-1, TCS_MSG_SENDALL, &sent_size);
  *
  *   tcs_close(&client_socket);
  *   tcs_lib_free();
@@ -1121,11 +1121,11 @@ TcsResult tcs_shutdown(TcsSocket socket, TcsShutdownDirection direction);
  * @param buffer is a pointer to your data you want to send.
  * @param buffer_size is number of bytes of the data you want to send.
  * @param flags is a bitmask of send flags. Use #TCS_FLAG_NONE for no flags, or #TCS_MSG_SENDALL to keep sending until all bytes are transmitted (or the call fails).
- * @param out_bytes_sent is how many bytes that was successfully sent.
+ * @param out_sent_size is how many bytes that was successfully sent.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_receive()
  */
-TcsResult tcs_send(TcsSocket socket, const uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* out_bytes_sent);
+TcsResult tcs_send(TcsSocket socket, const uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* out_sent_size);
 
 /**
  * @brief Sends data to an address, useful with UDP sockets.
@@ -1135,7 +1135,7 @@ TcsResult tcs_send(TcsSocket socket, const uint8_t* buffer, size_t buffer_size, 
  * @param buffer_size is number of bytes of the data you want to send.
  * @param flags is a bitmask of send flags. Use #TCS_FLAG_NONE for no flags, or #TCS_MSG_SENDALL to keep sending until all bytes are transmitted (or the call fails).
  * @param destination_address is the address to send to.
- * @param out_bytes_sent is how many bytes that was successfully sent.
+ * @param out_sent_size is how many bytes that was successfully sent.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @retval #TCS_ERROR_NOT_SUPPORTED if destination_address has an address family not supported on this platform.
  * @see tcs_receive_from()
@@ -1145,23 +1145,23 @@ TcsResult tcs_send_to(TcsSocket socket,
                       size_t buffer_size,
                       uint32_t flags,
                       const struct TcsAddress* destination_address,
-                      size_t* out_bytes_sent);
+                      size_t* out_sent_size);
 
 /**
 * @brief Sends several data buffers on a socket as one message.
 *
 * @param socket is your in-out socket context.
-* @param buffers is a pointer to your array of buffers you want to send.
-* @param buffer_count is the number of buffers in your array.
+* @param iov is a pointer to your array of scatter/gather buffers you want to send.
+* @param iov_length is the number of buffers in your array.
 * @param flags is a bitmask of send flags. Use #TCS_FLAG_NONE for no flags, or #TCS_MSG_SENDALL to keep sending until all bytes are transmitted (or the call fails).
-* @param out_bytes_sent is how many bytes in total that was successfully sent.
+* @param out_sent_size is how many bytes in total that was successfully sent.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
 TcsResult tcs_sendv(TcsSocket socket,
-                    const struct TcsBuffer* buffers,
-                    size_t buffer_count,
+                    const struct TcsIoVec* iov,
+                    size_t iov_length,
                     uint32_t flags,
-                    size_t* out_bytes_sent);
+                    size_t* out_sent_size);
 
 /**
 * @brief Send data encoded as a netstring.
@@ -1191,7 +1191,7 @@ TcsResult tcs_send_netstring(TcsSocket socket, const uint8_t* buffer, size_t buf
 * @param buffer is a pointer to your buffer where you want to store the incoming data to.
 * @param buffer_size is the byte size of your buffer, for preventing overflows.
 * @param flags is a bitmask of receive flags. Use #TCS_FLAG_NONE for no flags, or any combination of #TCS_MSG_PEEK, #TCS_MSG_OOB, and #TCS_MSG_WAITALL.
-* @param out_bytes_received is how many bytes that was successfully written to your buffer.
+* @param out_received_size is how many bytes that was successfully written to your buffer.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_send()
 */
@@ -1199,7 +1199,7 @@ TcsResult tcs_receive(TcsSocket socket,
                       uint8_t* buffer,
                       size_t buffer_size,
                       uint32_t flags,
-                      size_t* out_bytes_received);
+                      size_t* out_received_size);
 
 /**
 * @brief Receive data from an address, useful with UDP sockets.
@@ -1209,7 +1209,7 @@ TcsResult tcs_receive(TcsSocket socket,
 * @param buffer_size is the byte size of your buffer, for preventing overflows.
 * @param flags is a bitmask of receive flags. Use #TCS_FLAG_NONE for no flags, or any combination of #TCS_MSG_PEEK, #TCS_MSG_OOB, and #TCS_MSG_WAITALL.
 * @param out_source_address is the address the data was received from.
-* @param out_bytes_received is how many bytes that was successfully written to your buffer.
+* @param out_received_size is how many bytes that was successfully written to your buffer.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_send_to()
 */
@@ -1218,7 +1218,7 @@ TcsResult tcs_receive_from(TcsSocket socket,
                            size_t buffer_size,
                            uint32_t flags,
                            struct TcsAddress* out_source_address,
-                           size_t* out_bytes_received);
+                           size_t* out_received_size);
 
 /**
 * @brief Read up to and including a delimiter.
@@ -1232,7 +1232,7 @@ TcsResult tcs_receive_from(TcsSocket socket,
 * @param buffer is a pointer to your buffer where you want to store the incoming data to.
 * @param buffer_size is the byte size of your buffer, for preventing overflows.
 * @param delimiter is your byte value where you want to stop reading. (including delimiter)
-* @param out_bytes_received is how many bytes that was successfully written to your buffer.
+* @param out_received_size is how many bytes that was successfully written to your buffer.
 * @return #TCS_AGAIN if no delimiter was found and the supplied buffer was filled.
 * @return #TCS_SUCCESS if the delimiter was found. Otherwise the error code.
 * @see tcs_receive_netstring()
@@ -1241,7 +1241,7 @@ TcsResult tcs_receive_line(TcsSocket socket,
                            uint8_t* buffer,
                            size_t buffer_size,
                            uint8_t delimiter,
-                           size_t* out_bytes_received);
+                           size_t* out_received_size);
 
 /**
 * @brief Receive a netstring-encoded message.
@@ -1253,13 +1253,13 @@ TcsResult tcs_receive_line(TcsSocket socket,
 * @param socket socket to receive from.
 * @param buffer buffer to store the decoded data (without the netstring framing).
 * @param buffer_size size of the buffer in bytes.
-* @param out_bytes_received optional pointer to receive the number of payload bytes received.
+* @param out_received_size optional pointer to receive the number of payload bytes received.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @retval #TCS_ERROR_ILL_FORMED_MESSAGE if the netstring is malformed or the length overflows.
 * @retval #TCS_ERROR_MEMORY if the buffer is too small for the payload.
 * @see tcs_send_netstring()
 */
-TcsResult tcs_receive_netstring(TcsSocket socket, uint8_t* buffer, size_t buffer_size, size_t* out_bytes_received);
+TcsResult tcs_receive_netstring(TcsSocket socket, uint8_t* buffer, size_t buffer_size, size_t* out_received_size);
 
 /**
 * @brief Create a context used for waiting on several sockets.
@@ -1298,8 +1298,8 @@ TcsResult tcs_receive_netstring(TcsSocket socket, uint8_t* buffer, size_t buffer
 *     if (ev[i].can_read)
 *     {
 *         uint8_t recv_buffer[8192] = {0};
-*         size_t bytes_received = 0;
-*         tcs_receive(ev[i].socket, recv_buffer, 8191, TCS_FLAG_NONE, &bytes_received);
+*         size_t received_size = 0;
+*         tcs_receive(ev[i].socket, recv_buffer, 8191, TCS_FLAG_NONE, &received_size);
 *     }
 * }
 * tcs_poll_destroy(&poll);
@@ -1364,16 +1364,16 @@ TcsResult tcs_poll_remove(struct TcsPoll* poll, TcsSocket socket);
 *
 * @param[in] poll is your poll context pointer created with @p tcs_poll_create().
 * @param[in,out] events is an array with in-out events. Assign each element to #TCS_POLL_EVENT_EMPTY.
-* @param events_count number of in elements in your events array. Does not make sense to have more events than number of sockets in the poll context. If too short, all events may not be returned.
-* @param[out] out_events_populated will contain the number of events the parameter events has been populated with by the call.
+* @param events_length number of in elements in your events array. Does not make sense to have more events than number of sockets in the poll context. If too short, all events may not be returned.
+* @param[out] out_events_length will contain the number of events the parameter events has been populated with by the call.
 * @param timeout_ms is the maximum wait time for any event. If any event happens before this time, the call will return immediately.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_poll_remove()
 */
 TcsResult tcs_poll_wait(struct TcsPoll* poll,
                         struct TcsPollEvent* events,
-                        size_t events_count,
-                        size_t* out_events_populated,
+                        size_t events_length,
+                        size_t* out_events_length,
                         int timeout_ms);
 
 /**
@@ -1815,11 +1815,11 @@ TcsResult tcs_opt_nonblocking_get(TcsSocket socket, bool* out_is_nonblocking);
 * @brief List available network interfaces.
 *
 * @param interfaces array to receive interface information, or NULL to only count.
-* @param capacity number of elements in the interfaces array.
-* @param out_count pointer to receive the total number of interfaces available, which may exceed capacity.
+* @param interfaces_length number of elements in the interfaces array.
+* @param out_length pointer to receive the total number of interfaces available, which may exceed @p interfaces_length.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, size_t* out_count);
+TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t interfaces_length, size_t* out_length);
 
 /**
 * @brief Resolve a hostname to one or more addresses.
@@ -1827,16 +1827,16 @@ TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, 
 * @param hostname hostname or IP string to resolve.
 * @param address_family address family filter, or ::TCS_FAMILY_ANY for all.
 * @param addresses array to receive resolved addresses, or NULL to only count.
-* @param capacity number of elements in the addresses array.
-* @param out_count pointer to receive the number of addresses found.
+* @param addresses_length number of elements in the addresses array.
+* @param out_length pointer to receive the number of addresses found.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @retval #TCS_ERROR_NOT_SUPPORTED if @p address_family is not supported on this platform (e.g. ::TCS_FAMILY_PACKET on non-Linux).
 */
 TcsResult tcs_address_resolve(const char* hostname,
                               TcsFamily address_family,
                               struct TcsAddress addresses[],
-                              size_t capacity,
-                              size_t* out_count);
+                              size_t addresses_length,
+                              size_t* out_length);
 
 /**
 * @brief List addresses associated with network interfaces.
@@ -1844,16 +1844,16 @@ TcsResult tcs_address_resolve(const char* hostname,
 * @param interface_id_filter interface ID to filter by, or 0 for all interfaces.
 * @param address_family_filter address family filter, or ::TCS_FAMILY_ANY for all.
 * @param interface_addresses array to receive results, or NULL to only count.
-* @param capacity number of elements in the array.
-* @param out_count pointer to receive the total number of results available, which may exceed capacity.
+* @param interface_addresses_length number of elements in the array.
+* @param out_length pointer to receive the total number of results available, which may exceed @p interface_addresses_length.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
-* @note If @p address_family_filter is not supported on this platform (e.g. ::TCS_FAMILY_PACKET on non-Linux), no entries match and *out_count is 0.
+* @note If @p address_family_filter is not supported on this platform (e.g. ::TCS_FAMILY_PACKET on non-Linux), no entries match and *out_length is 0.
 */
 TcsResult tcs_address_list(TcsInterfaceId interface_id_filter,
                            TcsFamily address_family_filter,
                            struct TcsInterfaceAddress interface_addresses[],
-                           size_t capacity,
-                           size_t* out_count);
+                           size_t interface_addresses_length,
+                           size_t* out_length);
 
 /**
 * @brief Get the local address of a bound or connected socket.
