@@ -1073,8 +1073,8 @@ TcsResult tcs_listen(TcsSocket socket, int backlog);
 /**
  * @brief Accept a socket from a listening socket.
  *
- * The accepted socket will get assigned a random local free port.
- * The listening socket will not be affected by this call.
+ * The accepted socket inherits the listening socket's local address and port; only the remote
+ * (peer) endpoint differs. The listening socket itself is not affected by this call.
  *
  * Example usage:
  * @code
