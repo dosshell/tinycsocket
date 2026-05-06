@@ -545,8 +545,8 @@ TcsResult tcs_send_netstring(TcsSocket socket_ctx, const uint8_t* buffer, size_t
 TcsResult tcs_receive_line(TcsSocket socket_ctx,
                            uint8_t* buffer,
                            size_t buffer_length,
-                           size_t* bytes_received,
-                           uint8_t delimiter)
+                           uint8_t delimiter,
+                           size_t* out_bytes_received)
 {
     if (socket_ctx == TCS_SOCKET_INVALID || buffer == NULL || buffer_length == 0)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -575,8 +575,8 @@ TcsResult tcs_receive_line(TcsSocket socket_ctx,
         sts = tcs_receive(socket_ctx, buffer + bytes_read, bytes_free_in_buffer, TCS_MSG_PEEK, &current_peeked);
         if (sts != TCS_SUCCESS)
         {
-            if (bytes_received != NULL)
-                *bytes_received = bytes_read;
+            if (out_bytes_received != NULL)
+                *out_bytes_received = bytes_read;
             return sts;
         }
         bytes_peeked += current_peeked;
@@ -592,8 +592,8 @@ TcsResult tcs_receive_line(TcsSocket socket_ctx,
 
             if (sts != TCS_SUCCESS)
             {
-                if (bytes_received != NULL)
-                    *bytes_received = bytes_read;
+                if (out_bytes_received != NULL)
+                    *out_bytes_received = bytes_read;
                 return sts;
             }
         }
@@ -619,20 +619,20 @@ TcsResult tcs_receive_line(TcsSocket socket_ctx,
             bytes_read += bytes;
             if (sts != TCS_SUCCESS)
             {
-                if (bytes_received != NULL)
-                    *bytes_received = bytes_read;
+                if (out_bytes_received != NULL)
+                    *out_bytes_received = bytes_read;
                 return sts;
             }
         }
         if (found_delimiter)
         {
-            if (bytes_received != NULL)
-                *bytes_received = bytes_read;
+            if (out_bytes_received != NULL)
+                *out_bytes_received = bytes_read;
             return sts;
         }
     }
-    if (bytes_received != NULL)
-        *bytes_received = bytes_read;
+    if (out_bytes_received != NULL)
+        *out_bytes_received = bytes_read;
     return TCS_AGAIN;
 }
 

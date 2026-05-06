@@ -1238,8 +1238,8 @@ TcsResult tcs_receive_from(TcsSocket socket_ctx,
 * @param socket_ctx is your in-out socket context.
 * @param buffer is a pointer to your buffer where you want to store the incoming data to.
 * @param buffer_size is the byte size of your buffer, for preventing overflows.
-* @param bytes_received is how many bytes that was successfully written to your buffer.
 * @param delimiter is your byte value where you want to stop reading. (including delimiter)
+* @param out_bytes_received is how many bytes that was successfully written to your buffer.
 * @return #TCS_AGAIN if no delimiter was found and the supplied buffer was filled.
 * @return #TCS_SUCCESS if the delimiter was found. Otherwise the error code.
 * @see tcs_receive_netstring()
@@ -1247,8 +1247,8 @@ TcsResult tcs_receive_from(TcsSocket socket_ctx,
 TcsResult tcs_receive_line(TcsSocket socket_ctx,
                            uint8_t* buffer,
                            size_t buffer_size,
-                           size_t* bytes_received,
-                           uint8_t delimiter);
+                           uint8_t delimiter,
+                           size_t* out_bytes_received);
 
 /**
 * @brief Receive a netstring-encoded message.

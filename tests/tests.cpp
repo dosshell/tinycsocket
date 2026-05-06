@@ -340,16 +340,16 @@ TEST_CASE("Simple 2 msg tcs_receive_line")
 
     // When
     CHECK(tcs_send(client_socket, msg, sizeof(msg), TCS_MSG_SENDALL, NULL) == TCS_SUCCESS);
-    CHECK(tcs_receive_line(server_socket, part1, sizeof(part1), &part1_length, ':') == TCS_SUCCESS);
-    CHECK(tcs_receive_line(server_socket, part2, sizeof(part2), &part2_length, '\0') == TCS_SUCCESS);
+    CHECK(tcs_receive_line(server_socket, part1, sizeof(part1), ':', &part1_length) == TCS_SUCCESS);
+    CHECK(tcs_receive_line(server_socket, part2, sizeof(part2), '\0', &part2_length) == TCS_SUCCESS);
 
     CHECK(tcs_opt_receive_timeout_set(server_socket, 2000) == TCS_SUCCESS);
-    CHECK(tcs_receive_line(server_socket, part3, sizeof(part3), &part3_length, '\0') == TCS_ERROR_TIMED_OUT);
+    CHECK(tcs_receive_line(server_socket, part3, sizeof(part3), '\0', &part3_length) == TCS_ERROR_TIMED_OUT);
 
     CHECK(tcs_send(client_socket, msg, sizeof(msg) - 3, TCS_MSG_SENDALL, NULL) == TCS_SUCCESS);
-    CHECK(tcs_receive_line(server_socket, part3, sizeof(part3), &part3_length, '\0') == TCS_ERROR_TIMED_OUT);
+    CHECK(tcs_receive_line(server_socket, part3, sizeof(part3), '\0', &part3_length) == TCS_ERROR_TIMED_OUT);
     CHECK(tcs_send(client_socket, msg + sizeof(msg) - 3, 3, TCS_MSG_SENDALL, NULL) == TCS_SUCCESS);
-    CHECK(tcs_receive_line(server_socket, part3 + part3_length, sizeof(part3), &part3_length, '\0') == TCS_SUCCESS);
+    CHECK(tcs_receive_line(server_socket, part3 + part3_length, sizeof(part3), '\0', &part3_length) == TCS_SUCCESS);
 
     // Then
     CHECK(part1_length == 6);
@@ -398,8 +398,8 @@ TEST_CASE("Partial msg tcs_receive_line")
 
     // When
     CHECK(tcs_send(client_socket, msg, sizeof(msg), TCS_MSG_SENDALL, NULL) == TCS_SUCCESS);
-    CHECK(tcs_receive_line(server_socket, part1, sizeof(part1), &part1_length, '\n') == TCS_AGAIN);
-    CHECK(tcs_receive_line(server_socket, part2, sizeof(part2), &part2_length, '\n') == TCS_SUCCESS);
+    CHECK(tcs_receive_line(server_socket, part1, sizeof(part1), '\n', &part1_length) == TCS_AGAIN);
+    CHECK(tcs_receive_line(server_socket, part2, sizeof(part2), '\n', &part2_length) == TCS_SUCCESS);
 
     // Then
     CHECK(part1_length == 10);
