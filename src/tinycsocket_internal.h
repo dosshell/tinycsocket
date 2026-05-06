@@ -623,7 +623,7 @@ TcsResult tcs_socket_tcp(TcsSocket* out_socket,
 /**
 * @brief Create a TCP socket from string addresses, optionally bind and/or connect.
 *
-* Parses the address strings with ::tcs_address_parse() and delegates to ::tcs_socket_tcp().
+* Resolves the address strings with ::tcs_address_resolve() and delegates to ::tcs_socket_tcp().
 * Addresses must include a port, e.g. "127.0.0.1:8080" or "[::1]:8080".
 * At least one of @p local_address or @p remote_address must be non-NULL.
 * On failure, *out_socket is always set back to #TCS_SOCKET_INVALID.
