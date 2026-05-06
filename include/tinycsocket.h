@@ -1897,12 +1897,14 @@ TcsResult tcs_address_socket_family(TcsSocket socket, TcsFamily* out_family);
  * String-based zone IDs (e.g. "%%eth0") are not supported.
  *
  * Examples:
- * - "192.168.0.1:1212"
- * - "::1"
- * - "[::1]:443"
- * - "fe80::1%%3"
- * - "::ffff:192.168.1.1"
- * - "91:E0:F0:00:FE:00"
+ * @verbatim
+ * 192.168.0.1:1212
+ * ::1
+ * [::1]:443
+ * fe80::1%3
+ * ::ffff:192.168.1.1
+ * 91:E0:F0:00:FE:00
+ * @endverbatim
  *
  * Note that this function will not perform DNS resolution. Use ::tcs_address_resolve() for that.
  *
