@@ -428,37 +428,37 @@ extern const uint32_t TCS_MSG_WAITALL;
 extern const uint32_t TCS_MSG_SENDALL;
 
 // Backlog
-extern const int TCS_BACKLOG_MAX; /**< Max number of queued sockets when listening */
+extern const int32_t TCS_BACKLOG_MAX; /**< Max number of queued sockets when listening */
 
 // Option levels
-extern const int TCS_SOL_SOCKET; /**< Socket option level for socket options */
-extern const int TCS_SOL_IP;     /**< IP option level for socket options */
+extern const int32_t TCS_SOL_SOCKET; /**< Socket option level for socket options */
+extern const int32_t TCS_SOL_IP;     /**< IP option level for socket options */
 
 // Socket options
-extern const int TCS_SO_TYPE;
-extern const int TCS_SO_BROADCAST;
-extern const int TCS_SO_KEEPALIVE;
-extern const int TCS_SO_LINGER;
-extern const int TCS_SO_REUSEADDR;
-extern const int TCS_SO_REUSEPORT;
-extern const int TCS_SO_RCVBUF; /**< Byte size of receiving buffer */
-extern const int TCS_SO_RCVTIMEO;
-extern const int TCS_SO_SNDBUF; /**< Byte size of sending buffer */
-extern const int TCS_SO_OOBINLINE;
-extern const int TCS_SO_PRIORITY;
+extern const int32_t TCS_SO_TYPE;
+extern const int32_t TCS_SO_BROADCAST;
+extern const int32_t TCS_SO_KEEPALIVE;
+extern const int32_t TCS_SO_LINGER;
+extern const int32_t TCS_SO_REUSEADDR;
+extern const int32_t TCS_SO_REUSEPORT;
+extern const int32_t TCS_SO_RCVBUF; /**< Byte size of receiving buffer */
+extern const int32_t TCS_SO_RCVTIMEO;
+extern const int32_t TCS_SO_SNDBUF; /**< Byte size of sending buffer */
+extern const int32_t TCS_SO_OOBINLINE;
+extern const int32_t TCS_SO_PRIORITY;
 
 // IP options
-extern const int TCS_TCP_NODELAY;
-extern const int TCS_IP_MEMBERSHIP_ADD;
-extern const int TCS_IP_MEMBERSHIP_DROP;
-extern const int TCS_IP_MULTICAST_LOOP;
+extern const int32_t TCS_TCP_NODELAY;
+extern const int32_t TCS_IP_MEMBERSHIP_ADD;
+extern const int32_t TCS_IP_MEMBERSHIP_DROP;
+extern const int32_t TCS_IP_MULTICAST_LOOP;
 
 // Packet options
-extern const int TCS_PACKET_MEMBERSHIP_ADD;
-extern const int TCS_PACKET_MEMBERSHIP_DROP;
+extern const int32_t TCS_PACKET_MEMBERSHIP_ADD;
+extern const int32_t TCS_PACKET_MEMBERSHIP_DROP;
 
 // Use for timeout to wait until infinity happens
-extern const int TCS_WAIT_INF;
+extern const int32_t TCS_WAIT_INF;
 
 static const struct TcsPollEvent TCS_POLL_EVENT_EMPTY = {0, 0, false, false, TCS_SUCCESS};
 

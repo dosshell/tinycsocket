@@ -97,7 +97,7 @@ struct TcsPoll
 };
 
 const TcsSocket TCS_SOCKET_INVALID = INVALID_SOCKET;
-const int TCS_WAIT_INF = -1;
+const int32_t TCS_WAIT_INF = -1;
 
 // Addresses
 const uint32_t TCS_ADDRESS_ANY_IP4 = INADDR_ANY;
@@ -128,30 +128,30 @@ const uint32_t TCS_MSG_WAITALL = 0x8; // Binary compatible when it does not exis
 const uint32_t TCS_MSG_SENDALL = 0x80000000;
 
 // Backlog
-const int TCS_BACKLOG_MAX = SOMAXCONN;
+const int32_t TCS_BACKLOG_MAX = SOMAXCONN;
 
 // Option levels
-const int TCS_SOL_SOCKET = SOL_SOCKET;
-const int TCS_SOL_IP = IPPROTO_IP;
+const int32_t TCS_SOL_SOCKET = SOL_SOCKET;
+const int32_t TCS_SOL_IP = IPPROTO_IP;
 
 // Socket options
-const int TCS_SO_TYPE = SO_TYPE;
-const int TCS_SO_BROADCAST = SO_BROADCAST;
-const int TCS_SO_KEEPALIVE = SO_KEEPALIVE;
-const int TCS_SO_LINGER = SO_LINGER;
-const int TCS_SO_REUSEADDR = SO_REUSEADDR;
-const int TCS_SO_REUSEPORT = -1;
-const int TCS_SO_RCVBUF = SO_RCVBUF;
-const int TCS_SO_RCVTIMEO = SO_RCVTIMEO;
-const int TCS_SO_SNDBUF = SO_SNDBUF;
-const int TCS_SO_OOBINLINE = SO_OOBINLINE;
-const int TCS_SO_PRIORITY = -1;
+const int32_t TCS_SO_TYPE = SO_TYPE;
+const int32_t TCS_SO_BROADCAST = SO_BROADCAST;
+const int32_t TCS_SO_KEEPALIVE = SO_KEEPALIVE;
+const int32_t TCS_SO_LINGER = SO_LINGER;
+const int32_t TCS_SO_REUSEADDR = SO_REUSEADDR;
+const int32_t TCS_SO_REUSEPORT = -1;
+const int32_t TCS_SO_RCVBUF = SO_RCVBUF;
+const int32_t TCS_SO_RCVTIMEO = SO_RCVTIMEO;
+const int32_t TCS_SO_SNDBUF = SO_SNDBUF;
+const int32_t TCS_SO_OOBINLINE = SO_OOBINLINE;
+const int32_t TCS_SO_PRIORITY = -1;
 
 // IP options
-const int TCS_TCP_NODELAY = TCP_NODELAY;
-const int TCS_IP_MEMBERSHIP_ADD = IP_ADD_MEMBERSHIP;
-const int TCS_IP_MEMBERSHIP_DROP = IP_DROP_MEMBERSHIP;
-const int TCS_IP_MULTICAST_LOOP = IP_MULTICAST_LOOP;
+const int32_t TCS_TCP_NODELAY = TCP_NODELAY;
+const int32_t TCS_IP_MEMBERSHIP_ADD = IP_ADD_MEMBERSHIP;
+const int32_t TCS_IP_MEMBERSHIP_DROP = IP_DROP_MEMBERSHIP;
+const int32_t TCS_IP_MULTICAST_LOOP = IP_MULTICAST_LOOP;
 
 // ######## Internal Helpers ########
 

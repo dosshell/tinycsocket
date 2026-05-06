@@ -434,37 +434,37 @@ extern const uint32_t TCS_MSG_WAITALL;
 extern const uint32_t TCS_MSG_SENDALL;
 
 // Backlog
-extern const int TCS_BACKLOG_MAX; /**< Max number of queued sockets when listening */
+extern const int32_t TCS_BACKLOG_MAX; /**< Max number of queued sockets when listening */
 
 // Option levels
-extern const int TCS_SOL_SOCKET; /**< Socket option level for socket options */
-extern const int TCS_SOL_IP;     /**< IP option level for socket options */
+extern const int32_t TCS_SOL_SOCKET; /**< Socket option level for socket options */
+extern const int32_t TCS_SOL_IP;     /**< IP option level for socket options */
 
 // Socket options
-extern const int TCS_SO_TYPE;
-extern const int TCS_SO_BROADCAST;
-extern const int TCS_SO_KEEPALIVE;
-extern const int TCS_SO_LINGER;
-extern const int TCS_SO_REUSEADDR;
-extern const int TCS_SO_REUSEPORT;
-extern const int TCS_SO_RCVBUF; /**< Byte size of receiving buffer */
-extern const int TCS_SO_RCVTIMEO;
-extern const int TCS_SO_SNDBUF; /**< Byte size of sending buffer */
-extern const int TCS_SO_OOBINLINE;
-extern const int TCS_SO_PRIORITY;
+extern const int32_t TCS_SO_TYPE;
+extern const int32_t TCS_SO_BROADCAST;
+extern const int32_t TCS_SO_KEEPALIVE;
+extern const int32_t TCS_SO_LINGER;
+extern const int32_t TCS_SO_REUSEADDR;
+extern const int32_t TCS_SO_REUSEPORT;
+extern const int32_t TCS_SO_RCVBUF; /**< Byte size of receiving buffer */
+extern const int32_t TCS_SO_RCVTIMEO;
+extern const int32_t TCS_SO_SNDBUF; /**< Byte size of sending buffer */
+extern const int32_t TCS_SO_OOBINLINE;
+extern const int32_t TCS_SO_PRIORITY;
 
 // IP options
-extern const int TCS_TCP_NODELAY;
-extern const int TCS_IP_MEMBERSHIP_ADD;
-extern const int TCS_IP_MEMBERSHIP_DROP;
-extern const int TCS_IP_MULTICAST_LOOP;
+extern const int32_t TCS_TCP_NODELAY;
+extern const int32_t TCS_IP_MEMBERSHIP_ADD;
+extern const int32_t TCS_IP_MEMBERSHIP_DROP;
+extern const int32_t TCS_IP_MULTICAST_LOOP;
 
 // Packet options
-extern const int TCS_PACKET_MEMBERSHIP_ADD;
-extern const int TCS_PACKET_MEMBERSHIP_DROP;
+extern const int32_t TCS_PACKET_MEMBERSHIP_ADD;
+extern const int32_t TCS_PACKET_MEMBERSHIP_DROP;
 
 // Use for timeout to wait until infinity happens
-extern const int TCS_WAIT_INF;
+extern const int32_t TCS_WAIT_INF;
 
 static const struct TcsPollEvent TCS_POLL_EVENT_EMPTY = {0, 0, false, false, TCS_SUCCESS};
 
@@ -2409,7 +2409,7 @@ struct TcsPoll
 };
 
 const TcsSocket TCS_SOCKET_INVALID = -1;
-const int TCS_WAIT_INF = -1;
+const int32_t TCS_WAIT_INF = -1;
 
 static long tcs_iov_max = 1024; // Default, updated by tcs_lib_init() via sysconf(_SC_IOV_MAX)
 
@@ -2446,45 +2446,45 @@ const uint32_t TCS_MSG_WAITALL = MSG_WAITALL;
 const uint32_t TCS_MSG_SENDALL = 0x80000000;
 
 // Backlog
-const int TCS_BACKLOG_MAX = SOMAXCONN;
+const int32_t TCS_BACKLOG_MAX = SOMAXCONN;
 
 // Option levels
-const int TCS_SOL_SOCKET = SOL_SOCKET;
-const int TCS_SOL_IP = IPPROTO_IP; // Same as SOL_IP but crossplatform (BSD)
+const int32_t TCS_SOL_SOCKET = SOL_SOCKET;
+const int32_t TCS_SOL_IP = IPPROTO_IP; // Same as SOL_IP but crossplatform (BSD)
 
 // Socket options
-const int TCS_SO_TYPE = SO_TYPE;
-const int TCS_SO_BROADCAST = SO_BROADCAST;
-const int TCS_SO_KEEPALIVE = SO_KEEPALIVE;
-const int TCS_SO_LINGER = SO_LINGER;
-const int TCS_SO_REUSEADDR = SO_REUSEADDR;
+const int32_t TCS_SO_TYPE = SO_TYPE;
+const int32_t TCS_SO_BROADCAST = SO_BROADCAST;
+const int32_t TCS_SO_KEEPALIVE = SO_KEEPALIVE;
+const int32_t TCS_SO_LINGER = SO_LINGER;
+const int32_t TCS_SO_REUSEADDR = SO_REUSEADDR;
 #ifdef SO_REUSEPORT
-const int TCS_SO_REUSEPORT = SO_REUSEPORT;
+const int32_t TCS_SO_REUSEPORT = SO_REUSEPORT;
 #else
-const int TCS_SO_REUSEPORT = -1;
+const int32_t TCS_SO_REUSEPORT = -1;
 #endif
-const int TCS_SO_RCVBUF = SO_RCVBUF;
-const int TCS_SO_RCVTIMEO = SO_RCVTIMEO;
-const int TCS_SO_SNDBUF = SO_SNDBUF;
-const int TCS_SO_OOBINLINE = SO_OOBINLINE;
+const int32_t TCS_SO_RCVBUF = SO_RCVBUF;
+const int32_t TCS_SO_RCVTIMEO = SO_RCVTIMEO;
+const int32_t TCS_SO_SNDBUF = SO_SNDBUF;
+const int32_t TCS_SO_OOBINLINE = SO_OOBINLINE;
 #ifdef SO_PRIORITY
-const int TCS_SO_PRIORITY = SO_PRIORITY;
+const int32_t TCS_SO_PRIORITY = SO_PRIORITY;
 #else
-const int TCS_SO_PRIORITY = -1;
+const int32_t TCS_SO_PRIORITY = -1;
 #endif
 
 // IP options
-const int TCS_TCP_NODELAY = TCP_NODELAY;
-const int TCS_IP_MEMBERSHIP_ADD = IP_ADD_MEMBERSHIP;
-const int TCS_IP_MEMBERSHIP_DROP = IP_DROP_MEMBERSHIP;
-const int TCS_IP_MULTICAST_LOOP = IP_MULTICAST_LOOP;
+const int32_t TCS_TCP_NODELAY = TCP_NODELAY;
+const int32_t TCS_IP_MEMBERSHIP_ADD = IP_ADD_MEMBERSHIP;
+const int32_t TCS_IP_MEMBERSHIP_DROP = IP_DROP_MEMBERSHIP;
+const int32_t TCS_IP_MULTICAST_LOOP = IP_MULTICAST_LOOP;
 
 #if TCS_HAS_AF_PACKET
-const int TCS_PACKET_MEMBERSHIP_ADD = PACKET_ADD_MEMBERSHIP;
-const int TCS_PACKET_MEMBERSHIP_DROP = PACKET_DROP_MEMBERSHIP;
+const int32_t TCS_PACKET_MEMBERSHIP_ADD = PACKET_ADD_MEMBERSHIP;
+const int32_t TCS_PACKET_MEMBERSHIP_DROP = PACKET_DROP_MEMBERSHIP;
 #else
-const int TCS_PACKET_MEMBERSHIP_ADD = -1;
-const int TCS_PACKET_MEMBERSHIP_DROP = -1;
+const int32_t TCS_PACKET_MEMBERSHIP_ADD = -1;
+const int32_t TCS_PACKET_MEMBERSHIP_DROP = -1;
 #endif
 
 // Default flags
@@ -4284,7 +4284,7 @@ struct TcsPoll
 };
 
 const TcsSocket TCS_SOCKET_INVALID = INVALID_SOCKET;
-const int TCS_WAIT_INF = -1;
+const int32_t TCS_WAIT_INF = -1;
 
 // Addresses
 const uint32_t TCS_ADDRESS_ANY_IP4 = INADDR_ANY;
@@ -4315,30 +4315,30 @@ const uint32_t TCS_MSG_WAITALL = 0x8; // Binary compatible when it does not exis
 const uint32_t TCS_MSG_SENDALL = 0x80000000;
 
 // Backlog
-const int TCS_BACKLOG_MAX = SOMAXCONN;
+const int32_t TCS_BACKLOG_MAX = SOMAXCONN;
 
 // Option levels
-const int TCS_SOL_SOCKET = SOL_SOCKET;
-const int TCS_SOL_IP = IPPROTO_IP;
+const int32_t TCS_SOL_SOCKET = SOL_SOCKET;
+const int32_t TCS_SOL_IP = IPPROTO_IP;
 
 // Socket options
-const int TCS_SO_TYPE = SO_TYPE;
-const int TCS_SO_BROADCAST = SO_BROADCAST;
-const int TCS_SO_KEEPALIVE = SO_KEEPALIVE;
-const int TCS_SO_LINGER = SO_LINGER;
-const int TCS_SO_REUSEADDR = SO_REUSEADDR;
-const int TCS_SO_REUSEPORT = -1;
-const int TCS_SO_RCVBUF = SO_RCVBUF;
-const int TCS_SO_RCVTIMEO = SO_RCVTIMEO;
-const int TCS_SO_SNDBUF = SO_SNDBUF;
-const int TCS_SO_OOBINLINE = SO_OOBINLINE;
-const int TCS_SO_PRIORITY = -1;
+const int32_t TCS_SO_TYPE = SO_TYPE;
+const int32_t TCS_SO_BROADCAST = SO_BROADCAST;
+const int32_t TCS_SO_KEEPALIVE = SO_KEEPALIVE;
+const int32_t TCS_SO_LINGER = SO_LINGER;
+const int32_t TCS_SO_REUSEADDR = SO_REUSEADDR;
+const int32_t TCS_SO_REUSEPORT = -1;
+const int32_t TCS_SO_RCVBUF = SO_RCVBUF;
+const int32_t TCS_SO_RCVTIMEO = SO_RCVTIMEO;
+const int32_t TCS_SO_SNDBUF = SO_SNDBUF;
+const int32_t TCS_SO_OOBINLINE = SO_OOBINLINE;
+const int32_t TCS_SO_PRIORITY = -1;
 
 // IP options
-const int TCS_TCP_NODELAY = TCP_NODELAY;
-const int TCS_IP_MEMBERSHIP_ADD = IP_ADD_MEMBERSHIP;
-const int TCS_IP_MEMBERSHIP_DROP = IP_DROP_MEMBERSHIP;
-const int TCS_IP_MULTICAST_LOOP = IP_MULTICAST_LOOP;
+const int32_t TCS_TCP_NODELAY = TCP_NODELAY;
+const int32_t TCS_IP_MEMBERSHIP_ADD = IP_ADD_MEMBERSHIP;
+const int32_t TCS_IP_MEMBERSHIP_DROP = IP_DROP_MEMBERSHIP;
+const int32_t TCS_IP_MULTICAST_LOOP = IP_MULTICAST_LOOP;
 
 // ######## Internal Helpers ########
 
