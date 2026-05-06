@@ -336,7 +336,7 @@ struct TcsAddress
         } ip4;
         struct
         {
-            struct TcsIp6Address address; /**< Network byte order */
+            struct TcsIp6Address address;
             TcsInterfaceId
                 scope_id;  /**< Native type. Only valid for local link addresses. See ::tcs_interface_list(). */
             uint16_t port; /**< Same byte order as the host */
