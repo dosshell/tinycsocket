@@ -1120,7 +1120,7 @@ TcsResult tcs_shutdown(TcsSocket socket, TcsShutdownDirection direction);
  * @param socket is your in-out socket context.
  * @param buffer is a pointer to your data you want to send.
  * @param buffer_size is number of bytes of the data you want to send.
- * @param flags is currently not in use.
+ * @param flags is a bitmask of send flags. Use #TCS_FLAG_NONE for no flags, or #TCS_MSG_SENDALL to keep sending until all bytes are transmitted (or the call fails).
  * @param out_bytes_sent is how many bytes that was successfully sent.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_receive()
@@ -1133,7 +1133,7 @@ TcsResult tcs_send(TcsSocket socket, const uint8_t* buffer, size_t buffer_size, 
  * @param socket is your in-out socket context.
  * @param buffer is a pointer to your data you want to send.
  * @param buffer_size is number of bytes of the data you want to send.
- * @param flags is currently not in use.
+ * @param flags is a bitmask of send flags. Use #TCS_FLAG_NONE for no flags, or #TCS_MSG_SENDALL to keep sending until all bytes are transmitted (or the call fails).
  * @param destination_address is the address to send to.
  * @param out_bytes_sent is how many bytes that was successfully sent.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
@@ -1153,7 +1153,7 @@ TcsResult tcs_send_to(TcsSocket socket,
 * @param socket is your in-out socket context.
 * @param buffers is a pointer to your array of buffers you want to send.
 * @param buffer_count is the number of buffers in your array.
-* @param flags is currently not in use.
+* @param flags is a bitmask of send flags. Use #TCS_FLAG_NONE for no flags, or #TCS_MSG_SENDALL to keep sending until all bytes are transmitted (or the call fails).
 * @param out_bytes_sent is how many bytes in total that was successfully sent.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
@@ -1190,7 +1190,7 @@ TcsResult tcs_send_netstring(TcsSocket socket, const uint8_t* buffer, size_t buf
 * @param socket is your in-out socket context.
 * @param buffer is a pointer to your buffer where you want to store the incoming data to.
 * @param buffer_size is the byte size of your buffer, for preventing overflows.
-* @param flags is currently not in use.
+* @param flags is a bitmask of receive flags. Use #TCS_FLAG_NONE for no flags, or any combination of #TCS_MSG_PEEK, #TCS_MSG_OOB, and #TCS_MSG_WAITALL.
 * @param out_bytes_received is how many bytes that was successfully written to your buffer.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_send()
@@ -1207,8 +1207,8 @@ TcsResult tcs_receive(TcsSocket socket,
 * @param socket is your in-out socket context.
 * @param buffer is a pointer to your buffer where you want to store the incoming data to.
 * @param buffer_size is the byte size of your buffer, for preventing overflows.
-* @param flags is currently not in use.
-* @param out_source_address is the address to receive from.
+* @param flags is a bitmask of receive flags. Use #TCS_FLAG_NONE for no flags, or any combination of #TCS_MSG_PEEK, #TCS_MSG_OOB, and #TCS_MSG_WAITALL.
+* @param out_source_address is the address the data was received from.
 * @param out_bytes_received is how many bytes that was successfully written to your buffer.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_send_to()
