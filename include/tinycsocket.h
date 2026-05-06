@@ -76,18 +76,18 @@ static const char* const TCS_LICENSE_TXT =
 * - TcsResult tcs_connect(TcsSocket socket_ctx, const struct TcsAddress* address);
 * - TcsResult tcs_connect_str(TcsSocket socket_ctx, const char* remote_address, uint16_t port);
 * - TcsResult tcs_listen(TcsSocket socket_ctx, int backlog);
-* - TcsResult tcs_accept(TcsSocket socket_ctx, TcsSocket* out_child_socket, struct TcsAddress* address);
+* - TcsResult tcs_accept(TcsSocket socket_ctx, TcsSocket* out_child_socket, struct TcsAddress* out_address);
 * - TcsResult tcs_shutdown(TcsSocket socket_ctx, TcsShutdownDirection direction);
 *
 * Data Transfer:
-* - TcsResult tcs_send(TcsSocket socket_ctx, const uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* bytes_sent);
-* - TcsResult tcs_send_to(TcsSocket socket_ctx, const uint8_t* buffer, size_t buffer_size, uint32_t flags, const struct TcsAddress* destination_address, size_t* bytes_sent);
-* - TcsResult tcs_sendv(TcsSocket socket_ctx, const struct TcsBuffer* buffers, size_t buffer_count, uint32_t flags, size_t* bytes_sent);
+* - TcsResult tcs_send(TcsSocket socket_ctx, const uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* out_bytes_sent);
+* - TcsResult tcs_send_to(TcsSocket socket_ctx, const uint8_t* buffer, size_t buffer_size, uint32_t flags, const struct TcsAddress* destination_address, size_t* out_bytes_sent);
+* - TcsResult tcs_sendv(TcsSocket socket_ctx, const struct TcsBuffer* buffers, size_t buffer_count, uint32_t flags, size_t* out_bytes_sent);
 * - TcsResult tcs_send_netstring(TcsSocket socket_ctx, const uint8_t* buffer, size_t buffer_size);
-* - TcsResult tcs_receive(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* bytes_received);
-* - TcsResult tcs_receive_from(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, uint32_t flags, struct TcsAddress* source_address, size_t* bytes_received);
-* - TcsResult tcs_receive_line(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, size_t* bytes_received, uint8_t delimiter);
-* - TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, size_t* bytes_received);
+* - TcsResult tcs_receive(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* out_bytes_received);
+* - TcsResult tcs_receive_from(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, uint32_t flags, struct TcsAddress* out_source_address, size_t* out_bytes_received);
+* - TcsResult tcs_receive_line(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, uint8_t delimiter, size_t* out_bytes_received);
+* - TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, size_t* out_bytes_received);
 *
 * Socket Polling:
 * - TcsResult tcs_poll_create(struct TcsPoll** poll);
@@ -95,36 +95,36 @@ static const char* const TCS_LICENSE_TXT =
 * - TcsResult tcs_poll_add(struct TcsPoll* poll, TcsSocket socket_ctx, void* user_data, uint32_t flags);
 * - TcsResult tcs_poll_modify(struct TcsPoll* poll, TcsSocket socket_ctx, uint32_t flags);
 * - TcsResult tcs_poll_remove(struct TcsPoll* poll, TcsSocket socket_ctx);
-* - TcsResult tcs_poll_wait(struct TcsPoll* poll, struct TcsPollEvent* events, size_t events_count, size_t* events_populated, int timeout_ms);
+* - TcsResult tcs_poll_wait(struct TcsPoll* poll, struct TcsPollEvent* events, size_t events_count, size_t* out_events_populated, int timeout_ms);
 *
 * Socket Options:
 * - TcsResult tcs_opt_set(TcsSocket socket_ctx, int32_t level, int32_t option_name, const void* option_value, size_t option_size);
 * - TcsResult tcs_opt_get(TcsSocket socket_ctx, int32_t level, int32_t option_name, void* option_value, size_t* option_size);
-* - TcsResult tcs_opt_type_get(TcsSocket socket_ctx, TcsSockType* type);
+* - TcsResult tcs_opt_type_get(TcsSocket socket_ctx, TcsSockType* out_type);
 * - TcsResult tcs_opt_broadcast_set(TcsSocket socket_ctx, bool do_allow_broadcast);
-* - TcsResult tcs_opt_broadcast_get(TcsSocket socket_ctx, bool* is_broadcast_allowed);
+* - TcsResult tcs_opt_broadcast_get(TcsSocket socket_ctx, bool* out_is_broadcast_allowed);
 * - TcsResult tcs_opt_keep_alive_set(TcsSocket socket_ctx, bool do_keep_alive);
-* - TcsResult tcs_opt_keep_alive_get(TcsSocket socket_ctx, bool* is_keep_alive_enabled);
+* - TcsResult tcs_opt_keep_alive_get(TcsSocket socket_ctx, bool* out_is_keep_alive_enabled);
 * - TcsResult tcs_opt_reuse_address_set(TcsSocket socket_ctx, bool do_allow_reuse_address);
-* - TcsResult tcs_opt_reuse_address_get(TcsSocket socket_ctx, bool* is_reuse_address_allowed);
+* - TcsResult tcs_opt_reuse_address_get(TcsSocket socket_ctx, bool* out_is_reuse_address_allowed);
 * - TcsResult tcs_opt_reuse_port_set(TcsSocket socket_ctx, bool do_allow_reuse_port);
-* - TcsResult tcs_opt_reuse_port_get(TcsSocket socket_ctx, bool* is_reuse_port_allowed);
+* - TcsResult tcs_opt_reuse_port_get(TcsSocket socket_ctx, bool* out_is_reuse_port_allowed);
 * - TcsResult tcs_opt_send_buffer_size_set(TcsSocket socket_ctx, size_t send_buffer_size);
-* - TcsResult tcs_opt_send_buffer_size_get(TcsSocket socket_ctx, size_t* send_buffer_size);
+* - TcsResult tcs_opt_send_buffer_size_get(TcsSocket socket_ctx, size_t* out_send_buffer_size);
 * - TcsResult tcs_opt_receive_buffer_size_set(TcsSocket socket_ctx, size_t receive_buffer_size);
-* - TcsResult tcs_opt_receive_buffer_size_get(TcsSocket socket_ctx, size_t* receive_buffer_size);
+* - TcsResult tcs_opt_receive_buffer_size_get(TcsSocket socket_ctx, size_t* out_receive_buffer_size);
 * - TcsResult tcs_opt_receive_timeout_set(TcsSocket socket_ctx, int timeout_ms);
-* - TcsResult tcs_opt_receive_timeout_get(TcsSocket socket_ctx, int* timeout_ms);
+* - TcsResult tcs_opt_receive_timeout_get(TcsSocket socket_ctx, int* out_timeout_ms);
 * - TcsResult tcs_opt_linger_set(TcsSocket socket_ctx, bool do_linger, int timeout_seconds);
-* - TcsResult tcs_opt_linger_get(TcsSocket socket_ctx, bool* do_linger, int* timeout_seconds);
+* - TcsResult tcs_opt_linger_get(TcsSocket socket_ctx, bool* out_do_linger, int* out_timeout_seconds);
 * - TcsResult tcs_opt_ip_no_delay_set(TcsSocket socket_ctx, bool use_no_delay);
-* - TcsResult tcs_opt_ip_no_delay_get(TcsSocket socket_ctx, bool* is_no_delay_used);
+* - TcsResult tcs_opt_ip_no_delay_get(TcsSocket socket_ctx, bool* out_is_no_delay_used);
 * - TcsResult tcs_opt_out_of_band_inline_set(TcsSocket socket_ctx, bool enable_oob);
-* - TcsResult tcs_opt_out_of_band_inline_get(TcsSocket socket_ctx, bool* is_oob_enabled);
+* - TcsResult tcs_opt_out_of_band_inline_get(TcsSocket socket_ctx, bool* out_is_oob_enabled);
 * - TcsResult tcs_opt_priority_set(TcsSocket socket_ctx, int priority);
-* - TcsResult tcs_opt_priority_get(TcsSocket socket_ctx, int* priority);
+* - TcsResult tcs_opt_priority_get(TcsSocket socket_ctx, int* out_priority);
 * - TcsResult tcs_opt_nonblocking_set(TcsSocket socket_ctx, bool do_nonblocking);
-* - TcsResult tcs_opt_nonblocking_get(TcsSocket socket_ctx, bool* is_nonblocking);
+* - TcsResult tcs_opt_nonblocking_get(TcsSocket socket_ctx, bool* out_is_nonblocking);
 * - TcsResult tcs_opt_membership_add(TcsSocket socket_ctx, const struct TcsAddress* multicast_address);
 * - TcsResult tcs_opt_membership_add_str(TcsSocket socket_ctx, const char* multicast_address);
 * - TcsResult tcs_opt_membership_add_to(TcsSocket socket_ctx, const struct TcsAddress* local_address, const struct TcsAddress* multicast_address);
@@ -133,14 +133,14 @@ static const char* const TCS_LICENSE_TXT =
 * - TcsResult tcs_opt_membership_drop_from(TcsSocket socket_ctx, const struct TcsAddress* local_address, const struct TcsAddress* multicast_address);
 * - TcsResult tcs_opt_multicast_interface_set(TcsSocket socket_ctx, const struct TcsAddress* local_address);
 * - TcsResult tcs_opt_multicast_loop_set(TcsSocket socket_ctx, bool do_loopback);
-* - TcsResult tcs_opt_multicast_loop_get(TcsSocket socket_ctx, bool* is_loopback);
+* - TcsResult tcs_opt_multicast_loop_get(TcsSocket socket_ctx, bool* out_is_loopback);
 *
 * Address and Interface Utilities:
 * - TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, size_t* out_count);
 * - TcsResult tcs_address_resolve(const char* hostname, TcsFamily address_family, struct TcsAddress addresses[], size_t capacity, size_t* out_count);
 * - TcsResult tcs_address_list(unsigned int interface_id_filter, TcsFamily address_family_filter, struct TcsInterfaceAddress interface_addresses[], size_t capacity, size_t* out_count);
-* - TcsResult tcs_address_socket_local(TcsSocket socket_ctx, struct TcsAddress* local_address);
-* - TcsResult tcs_address_socket_remote(TcsSocket socket_ctx, struct TcsAddress* remote_address);
+* - TcsResult tcs_address_socket_local(TcsSocket socket_ctx, struct TcsAddress* out_local_address);
+* - TcsResult tcs_address_socket_remote(TcsSocket socket_ctx, struct TcsAddress* out_remote_address);
 * - TcsResult tcs_address_socket_family(TcsSocket socket_ctx, TcsFamily* out_family);
 * - TcsResult tcs_address_parse(const char str[], struct TcsAddress* out_address);
 * - TcsResult tcs_address_to_str(const struct TcsAddress* address, char out_str[70]);
@@ -1103,11 +1103,11 @@ TcsResult tcs_listen(TcsSocket socket_ctx, int backlog);
  * 
  * @param socket_ctx is your listening socket you used when you called ::tcs_listen().
  * @param out_child_socket is your accepted socket. Must have the in value of #TCS_SOCKET_INVALID.
- * @param address is an optional pointer to a buffer where the remote address of the accepted socket can be stored.
+ * @param out_address is an optional pointer to a buffer where the remote address of the accepted socket can be stored.
  *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  */
-TcsResult tcs_accept(TcsSocket socket_ctx, TcsSocket* out_child_socket, struct TcsAddress* address);
+TcsResult tcs_accept(TcsSocket socket_ctx, TcsSocket* out_child_socket, struct TcsAddress* out_address);
 
 /**
 * @brief Turn off communication with a 3-way handshaking for the socket.
@@ -1128,11 +1128,11 @@ TcsResult tcs_shutdown(TcsSocket socket_ctx, TcsShutdownDirection direction);
  * @param buffer is a pointer to your data you want to send.
  * @param buffer_size is number of bytes of the data you want to send.
  * @param flags is currently not in use.
- * @param bytes_sent is how many bytes that was successfully sent.
+ * @param out_bytes_sent is how many bytes that was successfully sent.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_receive()
  */
-TcsResult tcs_send(TcsSocket socket_ctx, const uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* bytes_sent);
+TcsResult tcs_send(TcsSocket socket_ctx, const uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* out_bytes_sent);
 
 /**
  * @brief Sends data to an address, useful with UDP sockets.
@@ -1142,7 +1142,7 @@ TcsResult tcs_send(TcsSocket socket_ctx, const uint8_t* buffer, size_t buffer_si
  * @param buffer_size is number of bytes of the data you want to send.
  * @param flags is currently not in use.
  * @param destination_address is the address to send to.
- * @param bytes_sent is how many bytes that was successfully sent.
+ * @param out_bytes_sent is how many bytes that was successfully sent.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @retval #TCS_ERROR_NOT_SUPPORTED if destination_address has an address family not supported on this platform.
  * @see tcs_receive_from()
@@ -1152,7 +1152,7 @@ TcsResult tcs_send_to(TcsSocket socket_ctx,
                       size_t buffer_size,
                       uint32_t flags,
                       const struct TcsAddress* destination_address,
-                      size_t* bytes_sent);
+                      size_t* out_bytes_sent);
 
 /**
 * @brief Sends several data buffers on a socket as one message.
@@ -1161,14 +1161,14 @@ TcsResult tcs_send_to(TcsSocket socket_ctx,
 * @param buffers is a pointer to your array of buffers you want to send.
 * @param buffer_count is the number of buffers in your array.
 * @param flags is currently not in use.
-* @param bytes_sent is how many bytes in total that was successfully sent.
+* @param out_bytes_sent is how many bytes in total that was successfully sent.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
 TcsResult tcs_sendv(TcsSocket socket_ctx,
                     const struct TcsBuffer* buffers,
                     size_t buffer_count,
                     uint32_t flags,
-                    size_t* bytes_sent);
+                    size_t* out_bytes_sent);
 
 /**
 * @brief Send data encoded as a netstring.
@@ -1198,7 +1198,7 @@ TcsResult tcs_send_netstring(TcsSocket socket_ctx, const uint8_t* buffer, size_t
 * @param buffer is a pointer to your buffer where you want to store the incoming data to.
 * @param buffer_size is the byte size of your buffer, for preventing overflows.
 * @param flags is currently not in use.
-* @param bytes_received is how many bytes that was successfully written to your buffer.
+* @param out_bytes_received is how many bytes that was successfully written to your buffer.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_send()
 */
@@ -1206,7 +1206,7 @@ TcsResult tcs_receive(TcsSocket socket_ctx,
                       uint8_t* buffer,
                       size_t buffer_size,
                       uint32_t flags,
-                      size_t* bytes_received);
+                      size_t* out_bytes_received);
 
 /**
 * @brief Receive data from an address, useful with UDP sockets.
@@ -1215,8 +1215,8 @@ TcsResult tcs_receive(TcsSocket socket_ctx,
 * @param buffer is a pointer to your buffer where you want to store the incoming data to.
 * @param buffer_size is the byte size of your buffer, for preventing overflows.
 * @param flags is currently not in use.
-* @param source_address is the address to receive from.
-* @param bytes_received is how many bytes that was successfully written to your buffer.
+* @param out_source_address is the address to receive from.
+* @param out_bytes_received is how many bytes that was successfully written to your buffer.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_send_to()
 */
@@ -1224,8 +1224,8 @@ TcsResult tcs_receive_from(TcsSocket socket_ctx,
                            uint8_t* buffer,
                            size_t buffer_size,
                            uint32_t flags,
-                           struct TcsAddress* source_address,
-                           size_t* bytes_received);
+                           struct TcsAddress* out_source_address,
+                           size_t* out_bytes_received);
 
 /**
 * @brief Read up to and including a delimiter.
@@ -1260,13 +1260,13 @@ TcsResult tcs_receive_line(TcsSocket socket_ctx,
 * @param socket_ctx socket to receive from.
 * @param buffer buffer to store the decoded data (without the netstring framing).
 * @param buffer_size size of the buffer in bytes.
-* @param bytes_received optional pointer to receive the number of payload bytes received.
+* @param out_bytes_received optional pointer to receive the number of payload bytes received.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @retval #TCS_ERROR_ILL_FORMED_MESSAGE if the netstring is malformed or the length overflows.
 * @retval #TCS_ERROR_MEMORY if the buffer is too small for the payload.
 * @see tcs_send_netstring()
 */
-TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, size_t* bytes_received);
+TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, size_t* out_bytes_received);
 
 /**
 * @brief Create a context used for waiting on several sockets.
@@ -1372,7 +1372,7 @@ TcsResult tcs_poll_remove(struct TcsPoll* poll, TcsSocket socket_ctx);
 * @param[in] poll is your poll context pointer created with @p tcs_poll_create().
 * @param[in,out] events is an array with in-out events. Assign each element to #TCS_POLL_EVENT_EMPTY.
 * @param events_count number of in elements in your events array. Does not make sense to have more events than number of sockets in the poll context. If too short, all events may not be returned.
-* @param[out] events_populated will contain the number of events the parameter events has been populated with by the call.
+* @param[out] out_events_populated will contain the number of events the parameter events has been populated with by the call.
 * @param timeout_ms is the maximum wait time for any event. If any event happens before this time, the call will return immediately.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_poll_remove()
@@ -1380,7 +1380,7 @@ TcsResult tcs_poll_remove(struct TcsPoll* poll, TcsSocket socket_ctx);
 TcsResult tcs_poll_wait(struct TcsPoll* poll,
                         struct TcsPollEvent* events,
                         size_t events_count,
-                        size_t* events_populated,
+                        size_t* out_events_populated,
                         int timeout_ms);
 
 /**
@@ -1425,10 +1425,10 @@ TcsResult tcs_opt_get(TcsSocket socket_ctx,
 * @brief Query the socket type (e.g. ::TCS_SOCK_STREAM or ::TCS_SOCK_DGRAM).
 *
 * @param socket_ctx socket to query.
-* @param type pointer to receive the socket type.
+* @param out_type pointer to receive the socket type.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_type_get(TcsSocket socket_ctx, TcsSockType* type);
+TcsResult tcs_opt_type_get(TcsSocket socket_ctx, TcsSockType* out_type);
 
 /**
 * @brief Enable the socket to be allowed to send to broadcast addresses.
@@ -1452,10 +1452,10 @@ TcsResult tcs_opt_broadcast_set(TcsSocket socket_ctx, bool do_allow_broadcast);
 * See tcs_opt_broadcast_set() for details on the broadcast option.
 *
 * @param socket_ctx socket to query.
-* @param is_broadcast_allowed pointer to receive the current broadcast setting.
+* @param out_is_broadcast_allowed pointer to receive the current broadcast setting.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_broadcast_get(TcsSocket socket_ctx, bool* is_broadcast_allowed);
+TcsResult tcs_opt_broadcast_get(TcsSocket socket_ctx, bool* out_is_broadcast_allowed);
 
 /**
 * @brief Enable or disable TCP keep-alive on a socket.
@@ -1483,10 +1483,10 @@ TcsResult tcs_opt_keep_alive_set(TcsSocket socket_ctx, bool do_keep_alive);
 * See tcs_opt_keep_alive_set() for details on what keep-alive does.
 *
 * @param socket_ctx socket to query.
-* @param is_keep_alive_enabled pointer to receive the current keep-alive setting.
+* @param out_is_keep_alive_enabled pointer to receive the current keep-alive setting.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_keep_alive_get(TcsSocket socket_ctx, bool* is_keep_alive_enabled);
+TcsResult tcs_opt_keep_alive_get(TcsSocket socket_ctx, bool* out_is_keep_alive_enabled);
 
 /**
 * @brief Allow or disallow address reuse on a socket.
@@ -1526,10 +1526,10 @@ TcsResult tcs_opt_reuse_address_set(TcsSocket socket_ctx, bool do_allow_reuse_ad
 * See tcs_opt_reuse_address_set() for details on the address reuse option.
 *
 * @param socket_ctx socket to query.
-* @param is_reuse_address_allowed pointer to receive the current setting.
+* @param out_is_reuse_address_allowed pointer to receive the current setting.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_reuse_address_get(TcsSocket socket_ctx, bool* is_reuse_address_allowed);
+TcsResult tcs_opt_reuse_address_get(TcsSocket socket_ctx, bool* out_is_reuse_address_allowed);
 
 /**
 * @brief Allow or disallow multiple sockets to bind to the same address and port.
@@ -1558,10 +1558,10 @@ TcsResult tcs_opt_reuse_port_set(TcsSocket socket_ctx, bool do_allow_reuse_port)
 * @note Returns #TCS_ERROR_NOT_SUPPORTED on Windows.
 *
 * @param socket_ctx socket to query.
-* @param is_reuse_port_allowed pointer to receive the current setting.
+* @param out_is_reuse_port_allowed pointer to receive the current setting.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_reuse_port_get(TcsSocket socket_ctx, bool* is_reuse_port_allowed);
+TcsResult tcs_opt_reuse_port_get(TcsSocket socket_ctx, bool* out_is_reuse_port_allowed);
 
 /**
 * @brief Set the send buffer size of a socket.
@@ -1576,10 +1576,10 @@ TcsResult tcs_opt_send_buffer_size_set(TcsSocket socket_ctx, size_t send_buffer_
 * @brief Query the send buffer size of a socket.
 *
 * @param socket_ctx socket to query.
-* @param send_buffer_size pointer to receive the send buffer size in bytes.
+* @param out_send_buffer_size pointer to receive the send buffer size in bytes.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_send_buffer_size_get(TcsSocket socket_ctx, size_t* send_buffer_size);
+TcsResult tcs_opt_send_buffer_size_get(TcsSocket socket_ctx, size_t* out_send_buffer_size);
 
 /**
 * @brief Set the receive buffer size of a socket.
@@ -1594,10 +1594,10 @@ TcsResult tcs_opt_receive_buffer_size_set(TcsSocket socket_ctx, size_t receive_b
 * @brief Query the receive buffer size of a socket.
 *
 * @param socket_ctx socket to query.
-* @param receive_buffer_size pointer to receive the receive buffer size in bytes.
+* @param out_receive_buffer_size pointer to receive the receive buffer size in bytes.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_receive_buffer_size_get(TcsSocket socket_ctx, size_t* receive_buffer_size);
+TcsResult tcs_opt_receive_buffer_size_get(TcsSocket socket_ctx, size_t* out_receive_buffer_size);
 
 /**
 * @brief Set the receive timeout of a socket.
@@ -1612,10 +1612,10 @@ TcsResult tcs_opt_receive_timeout_set(TcsSocket socket_ctx, int timeout_ms);
 * @brief Query the receive timeout of a socket.
 *
 * @param socket_ctx socket to query.
-* @param timeout_ms pointer to receive the timeout in milliseconds.
+* @param out_timeout_ms pointer to receive the timeout in milliseconds.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_receive_timeout_get(TcsSocket socket_ctx, int* timeout_ms);
+TcsResult tcs_opt_receive_timeout_get(TcsSocket socket_ctx, int* out_timeout_ms);
 
 /**
 * @brief Configure the linger behavior of a socket on close.
@@ -1631,11 +1631,11 @@ TcsResult tcs_opt_linger_set(TcsSocket socket_ctx, bool do_linger, int timeout_s
 * @brief Query the linger behavior of a socket.
 *
 * @param socket_ctx socket to query.
-* @param do_linger pointer to receive whether lingering is enabled.
-* @param timeout_seconds pointer to receive the linger timeout in seconds.
+* @param out_do_linger pointer to receive whether lingering is enabled.
+* @param out_timeout_seconds pointer to receive the linger timeout in seconds.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_linger_get(TcsSocket socket_ctx, bool* do_linger, int* timeout_seconds);
+TcsResult tcs_opt_linger_get(TcsSocket socket_ctx, bool* out_do_linger, int* out_timeout_seconds);
 
 /**
 * @brief Enable or disable Nagle's algorithm (TCP_NODELAY).
@@ -1650,10 +1650,10 @@ TcsResult tcs_opt_ip_no_delay_set(TcsSocket socket_ctx, bool use_no_delay);
 * @brief Query whether Nagle's algorithm is disabled on a socket.
 *
 * @param socket_ctx socket to query.
-* @param is_no_delay_used pointer to receive the current setting.
+* @param out_is_no_delay_used pointer to receive the current setting.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_ip_no_delay_get(TcsSocket socket_ctx, bool* is_no_delay_used);
+TcsResult tcs_opt_ip_no_delay_get(TcsSocket socket_ctx, bool* out_is_no_delay_used);
 
 /**
 * @brief Enable or disable inline reception of out-of-band data.
@@ -1668,10 +1668,10 @@ TcsResult tcs_opt_out_of_band_inline_set(TcsSocket socket_ctx, bool enable_oob);
 * @brief Query whether out-of-band data is received inline.
 *
 * @param socket_ctx socket to query.
-* @param is_oob_enabled pointer to receive the current setting.
+* @param out_is_oob_enabled pointer to receive the current setting.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_out_of_band_inline_get(TcsSocket socket_ctx, bool* is_oob_enabled);
+TcsResult tcs_opt_out_of_band_inline_get(TcsSocket socket_ctx, bool* out_is_oob_enabled);
 
 /**
 * @brief Set the socket priority.
@@ -1690,10 +1690,10 @@ TcsResult tcs_opt_priority_set(TcsSocket socket_ctx, int priority);
 * @note Not supported on Windows. Will return #TCS_ERROR_NOT_SUPPORTED on that platform.
 *
 * @param socket_ctx socket to query.
-* @param priority pointer to receive the priority value.
+* @param out_priority pointer to receive the priority value.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_priority_get(TcsSocket socket_ctx, int* priority);
+TcsResult tcs_opt_priority_get(TcsSocket socket_ctx, int* out_priority);
 
 /**
 * @brief Join a multicast group on a specific local interface.
@@ -1797,10 +1797,10 @@ TcsResult tcs_opt_multicast_loop_set(TcsSocket socket_ctx, bool do_loopback);
 * @brief Get the current multicast loopback setting.
 *
 * @param socket_ctx socket to query.
-* @param is_loopback pointer to receive the current setting.
+* @param out_is_loopback pointer to receive the current setting.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_multicast_loop_get(TcsSocket socket_ctx, bool* is_loopback);
+TcsResult tcs_opt_multicast_loop_get(TcsSocket socket_ctx, bool* out_is_loopback);
 
 /**
 * @brief Set a socket to non-blocking or blocking mode.
@@ -1816,7 +1816,7 @@ TcsResult tcs_opt_nonblocking_set(TcsSocket socket_ctx, bool do_nonblocking);
 *
 * @note Not supported on Windows. Will return #TCS_ERROR_NOT_SUPPORTED on that platform.
 */
-TcsResult tcs_opt_nonblocking_get(TcsSocket socket_ctx, bool* is_nonblocking);
+TcsResult tcs_opt_nonblocking_get(TcsSocket socket_ctx, bool* out_is_nonblocking);
 
 /**
 * @brief List available network interfaces.
@@ -1866,19 +1866,19 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
 * @brief Get the local address of a bound or connected socket.
 *
 * @param socket_ctx socket to query.
-* @param local_address pointer to receive the local address.
+* @param out_local_address pointer to receive the local address.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_address_socket_local(TcsSocket socket_ctx, struct TcsAddress* local_address);
+TcsResult tcs_address_socket_local(TcsSocket socket_ctx, struct TcsAddress* out_local_address);
 
 /**
 * @brief Get the remote address of a connected socket.
 *
 * @param socket_ctx socket to query.
-* @param remote_address pointer to receive the remote address.
+* @param out_remote_address pointer to receive the remote address.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_address_socket_remote(TcsSocket socket_ctx, struct TcsAddress* remote_address);
+TcsResult tcs_address_socket_remote(TcsSocket socket_ctx, struct TcsAddress* out_remote_address);
 
 /**
 * @brief Get the address family of a socket.
@@ -6556,8 +6556,8 @@ TcsResult tcs_send_netstring(TcsSocket socket_ctx, const uint8_t* buffer, size_t
 TcsResult tcs_receive_line(TcsSocket socket_ctx,
                            uint8_t* buffer,
                            size_t buffer_length,
-                           size_t* bytes_received,
-                           uint8_t delimiter)
+                           uint8_t delimiter,
+                           size_t* out_bytes_received)
 {
     if (socket_ctx == TCS_SOCKET_INVALID || buffer == NULL || buffer_length == 0)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -6586,8 +6586,8 @@ TcsResult tcs_receive_line(TcsSocket socket_ctx,
         sts = tcs_receive(socket_ctx, buffer + bytes_read, bytes_free_in_buffer, TCS_MSG_PEEK, &current_peeked);
         if (sts != TCS_SUCCESS)
         {
-            if (bytes_received != NULL)
-                *bytes_received = bytes_read;
+            if (out_bytes_received != NULL)
+                *out_bytes_received = bytes_read;
             return sts;
         }
         bytes_peeked += current_peeked;
@@ -6603,8 +6603,8 @@ TcsResult tcs_receive_line(TcsSocket socket_ctx,
 
             if (sts != TCS_SUCCESS)
             {
-                if (bytes_received != NULL)
-                    *bytes_received = bytes_read;
+                if (out_bytes_received != NULL)
+                    *out_bytes_received = bytes_read;
                 return sts;
             }
         }
@@ -6630,24 +6630,24 @@ TcsResult tcs_receive_line(TcsSocket socket_ctx,
             bytes_read += bytes;
             if (sts != TCS_SUCCESS)
             {
-                if (bytes_received != NULL)
-                    *bytes_received = bytes_read;
+                if (out_bytes_received != NULL)
+                    *out_bytes_received = bytes_read;
                 return sts;
             }
         }
         if (found_delimiter)
         {
-            if (bytes_received != NULL)
-                *bytes_received = bytes_read;
+            if (out_bytes_received != NULL)
+                *out_bytes_received = bytes_read;
             return sts;
         }
     }
-    if (bytes_received != NULL)
-        *bytes_received = bytes_read;
+    if (out_bytes_received != NULL)
+        *out_bytes_received = bytes_read;
     return TCS_AGAIN;
 }
 
-TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_length, size_t* bytes_received)
+TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_length, size_t* out_bytes_received)
 {
     if (socket_ctx == TCS_SOCKET_INVALID || buffer == NULL || buffer_length == 0)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -6696,8 +6696,8 @@ TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t bu
     if (t != ',')
         return TCS_ERROR_ILL_FORMED_MESSAGE;
 
-    if (bytes_received != NULL)
-        *bytes_received = expected_length;
+    if (out_bytes_received != NULL)
+        *out_bytes_received = expected_length;
 
     return TCS_SUCCESS;
 }

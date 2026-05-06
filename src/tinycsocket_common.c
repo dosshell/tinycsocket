@@ -636,7 +636,7 @@ TcsResult tcs_receive_line(TcsSocket socket_ctx,
     return TCS_AGAIN;
 }
 
-TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_length, size_t* bytes_received)
+TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_length, size_t* out_bytes_received)
 {
     if (socket_ctx == TCS_SOCKET_INVALID || buffer == NULL || buffer_length == 0)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -685,8 +685,8 @@ TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t bu
     if (t != ',')
         return TCS_ERROR_ILL_FORMED_MESSAGE;
 
-    if (bytes_received != NULL)
-        *bytes_received = expected_length;
+    if (out_bytes_received != NULL)
+        *out_bytes_received = expected_length;
 
     return TCS_SUCCESS;
 }
