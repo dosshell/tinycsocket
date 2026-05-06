@@ -935,9 +935,9 @@ TcsResult tcs_bind(TcsSocket socket, const struct TcsAddress* local_address);
  * This function establishes a connection to the specified remote address structure.
  * For TCP sockets, this initiates a three-way handshake. For UDP sockets, this
  * associates the socket with the remote address for subsequent send operations.
- * The function blocks indefinitely until the connection is established or fails.
- * Timeout for this function is set by OS defaults. Use TcsPoll or
- * ::tcs_opt_nonblocking_set() for non-blocking behavior.
+ * The function blocks until the connection is established, fails, or the OS-default
+ * connect timeout expires (typically tens of seconds to a few minutes, platform-dependent).
+ * Use TcsPoll or ::tcs_opt_nonblocking_set() for non-blocking behavior.
  *
  * @code
  * #include "tinycsocket.h"
