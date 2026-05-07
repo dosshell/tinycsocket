@@ -115,9 +115,9 @@ const TcsFamily TCS_FAMILY_IPV6 = {AF_INET6};
 const TcsFamily TCS_FAMILY_PACKET = {-1}; /* AF_PACKET unsupported on Windows */
 
 // Type
-const TcsSockType TCS_SOCK_STREAM = {SOCK_STREAM};
-const TcsSockType TCS_SOCK_DGRAM = {SOCK_DGRAM};
-const TcsSockType TCS_SOCK_RAW = {SOCK_RAW};
+const TcsSocketType TCS_SOCKET_STREAM = {SOCK_STREAM};
+const TcsSocketType TCS_SOCKET_DGRAM = {SOCK_DGRAM};
+const TcsSocketType TCS_SOCKET_RAW = {SOCK_RAW};
 
 // Recv flags
 const uint32_t TCS_MSG_PEEK = MSG_PEEK;
@@ -302,7 +302,7 @@ TcsResult tcs_lib_free(void)
     return TCS_SUCCESS;
 }
 
-TcsResult tcs_socket(TcsSocket* out_socket, TcsFamily family, TcsSockType type, TcsProtocol protocol)
+TcsResult tcs_socket(TcsSocket* out_socket, TcsFamily family, TcsSocketType type, TcsProtocol protocol)
 {
     if (out_socket == NULL || *out_socket != TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -539,11 +539,7 @@ TcsResult tcs_send_to(TcsSocket socket,
     }
 }
 
-TcsResult tcs_sendv(TcsSocket socket,
-                    const struct TcsIoVec* iov,
-                    size_t iov_length,
-                    uint32_t flags,
-                    size_t* sent_size)
+TcsResult tcs_sendv(TcsSocket socket, const struct TcsIoVec* iov, size_t iov_length, uint32_t flags, size_t* sent_size)
 {
     if (socket == TCS_SOCKET_INVALID || iov == NULL || iov_length == 0)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -639,8 +635,8 @@ TcsResult tcs_receive(TcsSocket socket, uint8_t* buffer, size_t buffer_size, uin
     {
         if (received_size != NULL)
             *received_size = 0;
-        TcsSockType sock_type = {0};
-        if (tcs_opt_type_get(socket, &sock_type) == TCS_SUCCESS && sock_type.native == TCS_SOCK_STREAM.native)
+        TcsSocketType sock_type = {0};
+        if (tcs_opt_type_get(socket, &sock_type) == TCS_SUCCESS && sock_type.native == TCS_SOCKET_STREAM.native)
             return TCS_SHUTDOWN;
         return TCS_SUCCESS;
     }
@@ -684,8 +680,8 @@ TcsResult tcs_receive_from(TcsSocket socket,
     {
         if (received_size != NULL)
             *received_size = 0;
-        TcsSockType sock_type = {0};
-        if (tcs_opt_type_get(socket, &sock_type) == TCS_SUCCESS && sock_type.native == TCS_SOCK_STREAM.native)
+        TcsSocketType sock_type = {0};
+        if (tcs_opt_type_get(socket, &sock_type) == TCS_SUCCESS && sock_type.native == TCS_SOCKET_STREAM.native)
             return TCS_SHUTDOWN;
         return TCS_SUCCESS;
     }
@@ -1112,8 +1108,7 @@ TcsResult tcs_opt_set(TcsSocket socket,
     if (option_name == -1)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
-    int sockopt_status =
-        setsockopt(socket, (int)level, (int)option_name, (const char*)option_value, (int)option_size);
+    int sockopt_status = setsockopt(socket, (int)level, (int)option_name, (const char*)option_value, (int)option_size);
     return socketstatus2retcode(sockopt_status);
 }
 
@@ -1147,8 +1142,8 @@ TcsResult tcs_opt_reuse_address_set(TcsSocket socket, bool do_allow_reuse_addres
         return sts;
 
 #if _WIN32_WINNT >= 0x0502
-    TcsSockType sock_type = {0};
-    if (tcs_opt_type_get(socket, &sock_type) == TCS_SUCCESS && sock_type.native == TCS_SOCK_STREAM.native)
+    TcsSocketType sock_type = {0};
+    if (tcs_opt_type_get(socket, &sock_type) == TCS_SUCCESS && sock_type.native == TCS_SOCKET_STREAM.native)
         tcs_opt_set(socket, TCS_SOL_SOCKET, SO_EXCLUSIVEADDRUSE, &b, sizeof(b));
 #endif
 

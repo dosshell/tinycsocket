@@ -56,13 +56,13 @@ static const char* const TCS_LICENSE_TXT =
 * - TcsResult tcs_lib_free(void);
 *
 * Socket Creation:
-* - TcsResult tcs_socket(TcsSocket* out_socket, TcsFamily family, TcsSockType type, TcsProtocol protocol);
+* - TcsResult tcs_socket(TcsSocket* out_socket, TcsFamily family, TcsSocketType type, TcsProtocol protocol);
 * - TcsResult tcs_socket_tcp(TcsSocket* out_socket, const struct TcsAddress* local_address, const struct TcsAddress* remote_address, int timeout_ms);
 * - TcsResult tcs_socket_tcp_str(TcsSocket* out_socket, const char* local_address, const char* remote_address, int timeout_ms);
 * - TcsResult tcs_socket_udp(TcsSocket* out_socket, const struct TcsAddress* local_address, const struct TcsAddress* remote_address);
 * - TcsResult tcs_socket_udp_str(TcsSocket* out_socket, const char* local_address, const char* remote_address);
-* - TcsResult tcs_socket_packet(TcsSocket* out_socket, const struct TcsAddress* bind_address, TcsSockType type);
-* - TcsResult tcs_socket_packet_str(TcsSocket* out_socket, const char* interface_name, uint16_t protocol, TcsSockType type);
+* - TcsResult tcs_socket_packet(TcsSocket* out_socket, const struct TcsAddress* bind_address, TcsSocketType type);
+* - TcsResult tcs_socket_packet_str(TcsSocket* out_socket, const char* interface_name, uint16_t protocol, TcsSocketType type);
 * - TcsResult tcs_close(TcsSocket* socket);
 *
 * Socket Operations:
@@ -94,7 +94,7 @@ static const char* const TCS_LICENSE_TXT =
 * Socket Options:
 * - TcsResult tcs_opt_set(TcsSocket socket, int32_t level, int32_t option_name, const void* option_value, size_t option_size);
 * - TcsResult tcs_opt_get(TcsSocket socket, int32_t level, int32_t option_name, void* option_value, size_t* option_size);
-* - TcsResult tcs_opt_type_get(TcsSocket socket, TcsSockType* out_type);
+* - TcsResult tcs_opt_type_get(TcsSocket socket, TcsSocketType* out_type);
 * - TcsResult tcs_opt_broadcast_set(TcsSocket socket, bool do_allow_broadcast);
 * - TcsResult tcs_opt_broadcast_get(TcsSocket socket, bool* out_is_broadcast_allowed);
 * - TcsResult tcs_opt_keep_alive_set(TcsSocket socket, bool do_keep_alive);
@@ -228,10 +228,10 @@ typedef struct TcsFamily
  * @brief Socket type. Holds the native SOCK_* value in `native`.
  * Use the TCS_SOCK_* constants below as the only valid values.
  */
-typedef struct TcsSockType
+typedef struct TcsSocketType
 {
     int native;
-} TcsSockType;
+} TcsSocketType;
 
 /**
  * @brief Protocol number for ::tcs_socket().
@@ -386,8 +386,8 @@ struct TcsPollEvent
 };
 
 extern const TcsFamily TCS_FAMILY_ANY;    /**< Layer 4 agnostic (AF_UNSPEC) */
-extern const TcsFamily TCS_FAMILY_IPV4;    /**< INET IPv4 interface (AF_INET) */
-extern const TcsFamily TCS_FAMILY_IPV6;    /**< INET IPv6 interface (AF_INET6) */
+extern const TcsFamily TCS_FAMILY_IPV4;   /**< INET IPv4 interface (AF_INET) */
+extern const TcsFamily TCS_FAMILY_IPV6;   /**< INET IPv6 interface (AF_INET6) */
 extern const TcsFamily TCS_FAMILY_PACKET; /**< Layer 2 interface (AF_PACKET on Linux; unsupported elsewhere) */
 
 // gcc may trigger bug #53119
@@ -411,12 +411,12 @@ extern const struct TcsIpv6Address TCS_ADDRESS_LOOPBACK_IPV6;
 extern const TcsSocket TCS_SOCKET_INVALID; /**< Define new sockets to this value, always. */
 static const uint32_t TCS_FLAG_NONE = 0;
 
-extern const TcsSockType TCS_SOCK_STREAM; /**< Use for streaming types like TCP */
-extern const TcsSockType TCS_SOCK_DGRAM;  /**< Use for datagrams types like UDP */
-extern const TcsSockType TCS_SOCK_RAW;    /**< Use for raw sockets, eg. layer 2 packet sockets */
+extern const TcsSocketType TCS_SOCKET_STREAM; /**< Use for streaming types like TCP */
+extern const TcsSocketType TCS_SOCKET_DGRAM;  /**< Use for datagrams types like UDP */
+extern const TcsSocketType TCS_SOCKET_RAW;    /**< Use for raw sockets, eg. layer 2 packet sockets */
 
-static const TcsProtocol TCS_PROTOCOL_IP_TCP = 6;  /**< TCP, IANA-assigned (RFC 9293). Use with TCS_SOCK_STREAM. */
-static const TcsProtocol TCS_PROTOCOL_IP_UDP = 17; /**< UDP, IANA-assigned (RFC 768). Use with TCS_SOCK_DGRAM. */
+static const TcsProtocol TCS_PROTOCOL_IP_TCP = 6;  /**< TCP, IANA-assigned (RFC 9293). Use with TCS_SOCKET_STREAM. */
+static const TcsProtocol TCS_PROTOCOL_IP_UDP = 17; /**< UDP, IANA-assigned (RFC 768). Use with TCS_SOCKET_DGRAM. */
 static const TcsProtocol TCS_PROTOCOL_ETH_ALL = 3; /**< Receive all protocols. Use with TCS_FAMILY_PACKET. */
 
 // Recv flags
@@ -448,7 +448,6 @@ extern const int32_t TCS_SO_OOBINLINE;
 extern const int32_t TCS_SO_PRIORITY;
 
 // IP options
-extern const int32_t TCS_TCP_NODELAY;
 extern const int32_t TCS_IP_MEMBERSHIP_ADD;
 extern const int32_t TCS_IP_MEMBERSHIP_DROP;
 extern const int32_t TCS_IP_MULTICAST_LOOP;
@@ -456,6 +455,9 @@ extern const int32_t TCS_IP_MULTICAST_LOOP;
 // Packet options
 extern const int32_t TCS_PACKET_MEMBERSHIP_ADD;
 extern const int32_t TCS_PACKET_MEMBERSHIP_DROP;
+
+// TCP options
+extern const int32_t TCS_TCP_NODELAY;
 
 // Use for timeout to wait until infinity happens
 extern const int32_t TCS_WAIT_INF;
@@ -530,7 +532,7 @@ TcsResult tcs_lib_free(void);
  *       return -1; // Failed to initialize tinycsocket
  *
  *   TcsSocket my_socket = TCS_SOCKET_INVALID; // Always initialize TcsSocket to TCS_SOCKET_INVALID.
- *   TcsResult tcs_socket_res = tcs_socket(&my_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
+ *   TcsResult tcs_socket_res = tcs_socket(&my_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP);
  *   if (tcs_socket_res != TCS_SUCCESS)
  *   {
  *     tcs_lib_free();
@@ -546,7 +548,7 @@ TcsResult tcs_lib_free(void);
  *
  * @param[out] out_socket pointer to socket context to be created, which must have been initialized to #TCS_SOCKET_INVALID before use.
  * @param[in] family See ::TcsFamily for supported values.
- * @param[in] type specifies the type of the socket, supported values are: ::TCS_SOCK_STREAM, ::TCS_SOCK_DGRAM and ::TCS_SOCK_RAW.
+ * @param[in] type specifies the type of the socket, supported values are: ::TCS_SOCKET_STREAM, ::TCS_SOCKET_DGRAM and ::TCS_SOCKET_RAW.
  * @param[in] protocol specifies the protocol, for example #TCS_PROTOCOL_IP_TCP or #TCS_PROTOCOL_IP_UDP.
  *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
@@ -563,7 +565,7 @@ TcsResult tcs_lib_free(void);
  * @see tcs_lib_init()
  * @see tcs_lib_free()
  */
-TcsResult tcs_socket(TcsSocket* out_socket, TcsFamily family, TcsSockType type, TcsProtocol protocol);
+TcsResult tcs_socket(TcsSocket* out_socket, TcsFamily family, TcsSocketType type, TcsProtocol protocol);
 
 /**
 * @brief Create a TCP socket, optionally bind to a local address and/or connect to a remote address.
@@ -782,7 +784,7 @@ TcsResult tcs_socket_udp_str(TcsSocket* out_socket, const char* local_address, c
 *   bind.data.packet.protocol = 0x22F0; // e.g. AVTP
 *
 *   TcsSocket socket = TCS_SOCKET_INVALID;
-*   TcsResult res = tcs_socket_packet(&socket, &bind, TCS_SOCK_DGRAM);
+*   TcsResult res = tcs_socket_packet(&socket, &bind, TCS_SOCKET_DGRAM);
 *   if (res != TCS_SUCCESS)
 *   {
 *     tcs_lib_free();
@@ -798,7 +800,7 @@ TcsResult tcs_socket_udp_str(TcsSocket* out_socket, const char* local_address, c
 *
 * @param[out] out_socket pointer to socket context to be created, which must have been initialized to #TCS_SOCKET_INVALID before use.
 * @param[in] bind_address address with family TCS_FAMILY_PACKET specifying interface_id and protocol.
-* @param[in] type socket type, either #TCS_SOCK_RAW for full L2 frames or #TCS_SOCK_DGRAM for frames without the L2 header.
+* @param[in] type socket type, either #TCS_SOCKET_RAW for full L2 frames or #TCS_SOCKET_DGRAM for frames without the L2 header.
 *
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @retval #TCS_ERROR_INVALID_ARGUMENT if @p out_socket is NULL, if *out_socket is not #TCS_SOCKET_INVALID, or if @p bind_address is NULL or not TCS_FAMILY_PACKET.
@@ -806,7 +808,7 @@ TcsResult tcs_socket_udp_str(TcsSocket* out_socket, const char* local_address, c
 * @see tcs_socket_packet_str()
 * @see tcs_close()
 */
-TcsResult tcs_socket_packet(TcsSocket* out_socket, const struct TcsAddress* bind_address, TcsSockType type);
+TcsResult tcs_socket_packet(TcsSocket* out_socket, const struct TcsAddress* bind_address, TcsSocketType type);
 
 /**
 * @brief Create a packet socket bound to a named network interface.
@@ -821,7 +823,7 @@ TcsResult tcs_socket_packet(TcsSocket* out_socket, const struct TcsAddress* bind
 *   tcs_lib_init();
 *
 *   TcsSocket socket = TCS_SOCKET_INVALID;
-*   TcsResult res = tcs_socket_packet_str(&socket, "eth0", 0x22F0, TCS_SOCK_DGRAM);
+*   TcsResult res = tcs_socket_packet_str(&socket, "eth0", 0x22F0, TCS_SOCKET_DGRAM);
 *   if (res != TCS_SUCCESS)
 *   {
 *     tcs_lib_free();
@@ -838,7 +840,7 @@ TcsResult tcs_socket_packet(TcsSocket* out_socket, const struct TcsAddress* bind
 * @param[out] out_socket pointer to socket context to be created, which must have been initialized to #TCS_SOCKET_INVALID before use.
 * @param[in] interface_name name of the network interface to bind to.
 * @param[in] protocol EtherType protocol in host byte order, e.g. 0x22F0 for AVTP.
-* @param[in] type socket type, either #TCS_SOCK_RAW for full L2 frames or #TCS_SOCK_DGRAM for frames without the L2 header.
+* @param[in] type socket type, either #TCS_SOCKET_RAW for full L2 frames or #TCS_SOCKET_DGRAM for frames without the L2 header.
 *
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @retval #TCS_ERROR_INVALID_ARGUMENT if @p out_socket is NULL, if *out_socket is not #TCS_SOCKET_INVALID, or if @p interface_name is NULL or not found.
@@ -846,7 +848,10 @@ TcsResult tcs_socket_packet(TcsSocket* out_socket, const struct TcsAddress* bind
 * @see tcs_socket_packet()
 * @see tcs_close()
 */
-TcsResult tcs_socket_packet_str(TcsSocket* out_socket, const char* interface_name, uint16_t protocol, TcsSockType type);
+TcsResult tcs_socket_packet_str(TcsSocket* out_socket,
+                                const char* interface_name,
+                                uint16_t protocol,
+                                TcsSocketType type);
 
 /**
 * @brief Closes the socket, stop communication and free all resources for the socket.
@@ -884,7 +889,7 @@ TcsResult tcs_close(TcsSocket* socket);
  *     return -1;
  *
  *   TcsSocket server_socket = TCS_SOCKET_INVALID;
- *   TcsResult socket_res = tcs_socket(&server_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
+ *   TcsResult socket_res = tcs_socket(&server_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP);
  *   if (socket_res != TCS_SUCCESS)
  *   {
  *     tcs_lib_free();
@@ -948,7 +953,7 @@ TcsResult tcs_bind(TcsSocket socket, const struct TcsAddress* local_address);
  *     return -1;
  *
  *   TcsSocket client_socket = TCS_SOCKET_INVALID;
- *   TcsResult socket_res = tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
+ *   TcsResult socket_res = tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP);
  *   if (socket_res != TCS_SUCCESS)
  *   {
  *     tcs_lib_free();
@@ -1014,7 +1019,7 @@ TcsResult tcs_connect(TcsSocket socket, const struct TcsAddress* address);
  *     return -1;
  *
  *   TcsSocket client_socket = TCS_SOCKET_INVALID;
- *   TcsResult socket_res = tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
+ *   TcsResult socket_res = tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP);
  *   if (socket_res != TCS_SUCCESS)
  *   {
  *     tcs_lib_free();
@@ -1079,7 +1084,7 @@ TcsResult tcs_listen(TcsSocket socket, int backlog);
  * Example usage:
  * @code
  * TcsSocket listen_socket = TCS_SOCKET_INVALID;
- * tcs_socket(&listen_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
+ * tcs_socket(&listen_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP);
  * struct TcsAddress local_address = TCS_ADDRESS_NONE;
  * local_address.family = TCS_FAMILY_IPV4;
  * local_address.data.ipv4.port = 1212;
@@ -1167,7 +1172,7 @@ TcsResult tcs_sendv(TcsSocket socket,
 * @brief Send data encoded as a netstring.
 *
 * Netstrings provide a simple framing format for sending discrete messages over a
-* stream-oriented transport such as TCP (::TCS_SOCK_STREAM). The format is:
+* stream-oriented transport such as TCP (::TCS_SOCKET_STREAM). The format is:
 * @code
 * <length>:<data>,
 * @endcode
@@ -1195,11 +1200,7 @@ TcsResult tcs_send_netstring(TcsSocket socket, const uint8_t* buffer, size_t buf
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_send()
 */
-TcsResult tcs_receive(TcsSocket socket,
-                      uint8_t* buffer,
-                      size_t buffer_size,
-                      uint32_t flags,
-                      size_t* out_received_size);
+TcsResult tcs_receive(TcsSocket socket, uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* out_received_size);
 
 /**
 * @brief Receive data from an address, useful with UDP sockets.
@@ -1272,8 +1273,8 @@ TcsResult tcs_receive_netstring(TcsSocket socket, uint8_t* buffer, size_t buffer
 * tcs_lib_init();
 * TcsSocket socket1 = TCS_SOCKET_INVALID;
 * TcsSocket socket2 = TCS_SOCKET_INVALID;
-* tcs_socket(&socket1, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP);
-* tcs_socket(&socket2, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP);
+* tcs_socket(&socket1, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP);
+* tcs_socket(&socket2, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP);
 *
 * struct TcsAddress addr1 = TCS_ADDRESS_NONE;
 * addr1.family = TCS_FAMILY_IPV4;
@@ -1408,20 +1409,16 @@ TcsResult tcs_opt_set(TcsSocket socket,
 * @param option_size is a pointer the byte size of the data pointed by @p option_value.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_get(TcsSocket socket,
-                      int32_t level,
-                      int32_t option_name,
-                      void* option_value,
-                      size_t* option_size);
+TcsResult tcs_opt_get(TcsSocket socket, int32_t level, int32_t option_name, void* option_value, size_t* option_size);
 
 /**
-* @brief Query the socket type (e.g. ::TCS_SOCK_STREAM or ::TCS_SOCK_DGRAM).
+* @brief Query the socket type (e.g. ::TCS_SOCKET_STREAM or ::TCS_SOCKET_DGRAM).
 *
 * @param socket socket to query.
 * @param out_type pointer to receive the socket type.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_type_get(TcsSocket socket, TcsSockType* out_type);
+TcsResult tcs_opt_type_get(TcsSocket socket, TcsSocketType* out_type);
 
 /**
 * @brief Enable the socket to be allowed to send to broadcast addresses.

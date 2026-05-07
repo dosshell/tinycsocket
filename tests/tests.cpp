@@ -103,7 +103,7 @@ TEST_CASE("Example from README")
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
 
     TcsSocket client_socket = TCS_SOCKET_INVALID;
-    REQUIRE(tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    REQUIRE(tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
     REQUIRE(tcs_connect_str(client_socket, "example.com", 80) == TCS_SUCCESS);
 
     uint8_t send_buffer[] =
@@ -157,7 +157,7 @@ TEST_CASE("Create socket")
     int pre_mem_diff = TCS_MEM_DIFF();
 
     // When
-    TcsResult sts = tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP);
+    TcsResult sts = tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP);
 
     // Then
     CHECK(sts == TCS_SUCCESS);
@@ -177,8 +177,8 @@ TEST_CASE("UDP Test")
     // Gíven
     TcsSocket socket_recv = TCS_SOCKET_INVALID;
     TcsSocket socket_send = TCS_SOCKET_INVALID;
-    CHECK(tcs_socket(&socket_recv, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
-    CHECK(tcs_socket(&socket_send, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket_recv, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket_send, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
     CHECK(tcs_opt_receive_timeout_set(socket_recv, 5000) == TCS_SUCCESS);
     CHECK(tcs_opt_reuse_address_set(socket_recv, true) == TCS_SUCCESS);
 
@@ -222,7 +222,7 @@ TEST_CASE("Bind UDP")
 
     // Given
     TcsSocket socket = TCS_SOCKET_INVALID;
-    CHECK(tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
 
     // When
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
@@ -246,7 +246,7 @@ TEST_CASE("Non-blocking")
 
     // Given
     TcsSocket socket = TCS_SOCKET_INVALID;
-    REQUIRE(tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    REQUIRE(tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
 
     // When
     TcsResult sts = tcs_opt_nonblocking_set(socket, true);
@@ -275,8 +275,8 @@ TEST_CASE("Simple TCP Test")
     TcsSocket accept_socket = TCS_SOCKET_INVALID;
     TcsSocket client_socket = TCS_SOCKET_INVALID;
 
-    REQUIRE(tcs_socket(&listen_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
-    REQUIRE(tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    REQUIRE(tcs_socket(&listen_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    REQUIRE(tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
 
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
@@ -315,8 +315,8 @@ TEST_CASE("Simple 2 msg tcs_receive_line")
     TcsSocket server_socket = TCS_SOCKET_INVALID;
     TcsSocket client_socket = TCS_SOCKET_INVALID;
 
-    REQUIRE(tcs_socket(&listen_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
-    REQUIRE(tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    REQUIRE(tcs_socket(&listen_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    REQUIRE(tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
 
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
@@ -375,8 +375,8 @@ TEST_CASE("Partial msg tcs_receive_line")
     TcsSocket server_socket = TCS_SOCKET_INVALID;
     TcsSocket client_socket = TCS_SOCKET_INVALID;
 
-    REQUIRE(tcs_socket(&listen_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
-    REQUIRE(tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    REQUIRE(tcs_socket(&listen_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    REQUIRE(tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
 
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     TcsAddress local_address = TCS_ADDRESS_NONE;
@@ -423,8 +423,8 @@ TEST_CASE("sendv")
     TcsSocket accept_socket = TCS_SOCKET_INVALID;
     TcsSocket client_socket = TCS_SOCKET_INVALID;
 
-    REQUIRE(tcs_socket(&listen_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
-    REQUIRE(tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    REQUIRE(tcs_socket(&listen_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    REQUIRE(tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
 
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     TcsAddress local_address = TCS_ADDRESS_NONE;
@@ -471,8 +471,8 @@ TEST_CASE("Simple TCP Netstring Test")
     TcsSocket accept_socket = TCS_SOCKET_INVALID;
     TcsSocket client_socket = TCS_SOCKET_INVALID;
 
-    REQUIRE(tcs_socket(&listen_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
-    REQUIRE(tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    REQUIRE(tcs_socket(&listen_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    REQUIRE(tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
 
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     TcsAddress local_address = TCS_ADDRESS_NONE;
@@ -511,8 +511,8 @@ TEST_CASE("Netstring with multi-digit length")
     TcsSocket accept_socket = TCS_SOCKET_INVALID;
     TcsSocket client_socket = TCS_SOCKET_INVALID;
 
-    REQUIRE(tcs_socket(&listen_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
-    REQUIRE(tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    REQUIRE(tcs_socket(&listen_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    REQUIRE(tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
 
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     TcsAddress local_address = TCS_ADDRESS_NONE;
@@ -552,8 +552,8 @@ TEST_CASE("Netstring with overflowing length is rejected")
     TcsSocket accept_socket = TCS_SOCKET_INVALID;
     TcsSocket client_socket = TCS_SOCKET_INVALID;
 
-    REQUIRE(tcs_socket(&listen_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
-    REQUIRE(tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    REQUIRE(tcs_socket(&listen_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    REQUIRE(tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
 
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     TcsAddress local_address = TCS_ADDRESS_NONE;
@@ -590,8 +590,8 @@ TEST_CASE("shutdown")
     TcsSocket peer1 = TCS_NULLSOCKET;
     TcsSocket peer2 = TCS_NULLSOCKET;
 
-    CHECK(tcs_socket(&peer1, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
-    CHECK(tcs_socket(&peer2, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&peer1, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&peer2, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
 
     CHECK(tcs_bind(peer1, 5678) == TCS_SUCCESS);
     CHECK(tcs_bind(peer2, 5679) == TCS_SUCCESS);
@@ -881,7 +881,7 @@ TEST_CASE("tcs_poll_wait simple write")
     int pre_mem_diff = TCS_MEM_DIFF();
     TcsSocket socket = TCS_SOCKET_INVALID;
 
-    CHECK(tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
 
     TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_FAMILY_IPV4;
@@ -922,7 +922,7 @@ TEST_CASE("tcs_poll_wait simple read")
     // Given
     TcsSocket socket = TCS_SOCKET_INVALID;
 
-    CHECK(tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
     int allocation_diff_before = TCS_MEM_DIFF();
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_FAMILY_IPV4;
@@ -979,7 +979,7 @@ TEST_CASE("tcs_poll_wait partial")
     for (int i = 0; i < SOCKET_COUNT; ++i)
     {
         socket[i] = TCS_SOCKET_INVALID;
-        CHECK(tcs_socket(&socket[i], TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+        CHECK(tcs_socket(&socket[i], TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
 
         struct TcsAddress local_address = TCS_ADDRESS_NONE;
         local_address.family = TCS_FAMILY_IPV4;
@@ -1040,7 +1040,7 @@ TEST_CASE("tcs_poll_modify")
 
     // Given
     TcsSocket socket = TCS_SOCKET_INVALID;
-    CHECK(tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
 
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_FAMILY_IPV4;
@@ -1253,9 +1253,9 @@ TEST_CASE("TCS_SO_BROADCAST")
     TcsSocket socket_true = TCS_SOCKET_INVALID;
     TcsSocket socket_fail = TCS_SOCKET_INVALID;
     TcsSocket socket_null = TCS_SOCKET_INVALID;
-    CHECK(tcs_socket(&socket_false, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
-    CHECK(tcs_socket(&socket_true, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
-    CHECK(tcs_socket(&socket_fail, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket_false, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket_true, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket_fail, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
 
     // When
     CHECK(tcs_opt_broadcast_set(socket_false, false) == TCS_SUCCESS);
@@ -1300,9 +1300,9 @@ TEST_CASE("TCS_SO_KEEPALIVE")
     TcsSocket socket_fail = TCS_SOCKET_INVALID;
     TcsSocket socket_null = TCS_SOCKET_INVALID;
 
-    CHECK(tcs_socket(&socket_false, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
-    CHECK(tcs_socket(&socket_true, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
-    CHECK(tcs_socket(&socket_fail, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket_false, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket_true, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket_fail, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
 
     // When
     CHECK(tcs_opt_keep_alive_set(socket_false, false) == TCS_SUCCESS);
@@ -1343,9 +1343,9 @@ TEST_CASE("TCS_SO_LINGER")
     TcsSocket socket_fail = TCS_SOCKET_INVALID;
     TcsSocket socket_null = TCS_SOCKET_INVALID;
 
-    CHECK(tcs_socket(&socket_false, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
-    CHECK(tcs_socket(&socket_true, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
-    CHECK(tcs_socket(&socket_fail, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket_false, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket_true, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket_fail, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
 
     // When
     CHECK(tcs_opt_linger_set(socket_false, false, 3) == TCS_SUCCESS);
@@ -1389,9 +1389,9 @@ TEST_CASE("TCS_SO_REUSEADDR")
     TcsSocket socket_fail = TCS_SOCKET_INVALID;
     TcsSocket socket_null = TCS_SOCKET_INVALID;
 
-    CHECK(tcs_socket(&socket_false, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
-    CHECK(tcs_socket(&socket_true, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
-    CHECK(tcs_socket(&socket_fail, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket_false, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket_true, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket_fail, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
 
     // When
     CHECK(tcs_opt_reuse_address_set(socket_false, false) == TCS_SUCCESS);
@@ -1428,7 +1428,7 @@ TEST_CASE("TCS_SO_RCVBUF")
     TcsSocket socket = TCS_SOCKET_INVALID;
     TcsSocket socket_null = TCS_SOCKET_INVALID;
 
-    CHECK(tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
 
     // When
     CHECK(tcs_opt_receive_buffer_size_set(socket, 8192) == TCS_SUCCESS);
@@ -1455,7 +1455,7 @@ TEST_CASE("TCS_SO_SNDBUF")
     TcsSocket socket = TCS_SOCKET_INVALID;
     TcsSocket socket_null = TCS_SOCKET_INVALID;
 
-    CHECK(tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
 
     // When
     CHECK(tcs_opt_send_buffer_size_set(socket, 8192) == TCS_SUCCESS);
@@ -1481,7 +1481,7 @@ TEST_CASE("TCS_SO_RCVTIMEO")
     TcsSocket socket = TCS_SOCKET_INVALID;
     TcsSocket socket_null = TCS_SOCKET_INVALID;
 
-    CHECK(tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
 
     // When
     CHECK(tcs_opt_receive_timeout_set(socket, 920) == TCS_SUCCESS);
@@ -1510,9 +1510,9 @@ TEST_CASE("TCS_SO_OOBINLINE")
     TcsSocket socket_fail = TCS_SOCKET_INVALID;
     TcsSocket socket_null = TCS_SOCKET_INVALID;
 
-    CHECK(tcs_socket(&socket_false, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
-    CHECK(tcs_socket(&socket_true, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
-    CHECK(tcs_socket(&socket_fail, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket_false, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket_true, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket_fail, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
 
     // When
     CHECK(tcs_opt_out_of_band_inline_set(socket_false, false) == TCS_SUCCESS);
@@ -1559,7 +1559,7 @@ TEST_CASE("Simple Multicast Add Membership")
     tcs_address_parse("239.255.255.251:1901", &multicast_address);
 
     TcsSocket socket = TCS_SOCKET_INVALID;
-    CHECK(tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, 0) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, 0) == TCS_SUCCESS);
     CHECK(tcs_opt_reuse_address_set(socket, true) == TCS_SUCCESS);
     CHECK(tcs_opt_receive_timeout_set(socket, 5000) == TCS_SUCCESS);
     CHECK(tcs_opt_multicast_interface_set(socket, &loopback) == TCS_SUCCESS);
@@ -1595,7 +1595,7 @@ TEST_CASE("tcs_opt_membership_add_str")
     loopback.data.ipv4.port = 1902;
 
     TcsSocket socket = TCS_SOCKET_INVALID;
-    CHECK(tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, 0) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, 0) == TCS_SUCCESS);
     CHECK(tcs_bind(socket, &loopback) == TCS_SUCCESS);
 
     // When/Then
@@ -1618,8 +1618,8 @@ TEST_CASE("Multicast Add-Drop-Add Membership")
 
     TcsSocket socket_send = TCS_SOCKET_INVALID;
     TcsSocket socket_recv = TCS_SOCKET_INVALID;
-    CHECK(tcs_socket(&socket_send, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
-    CHECK(tcs_socket(&socket_recv, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket_send, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket_recv, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
     tcs_opt_receive_timeout_set(socket_recv, 2000);
     CHECK(tcs_opt_reuse_address_set(socket_recv, true) == TCS_SUCCESS);
     CHECK(tcs_opt_multicast_interface_set(socket_send, &loopback) == TCS_SUCCESS);
@@ -1674,7 +1674,7 @@ TEST_CASE("tcs_opt_membership_drop_str")
     loopback.data.ipv4.port = 1903;
 
     TcsSocket socket = TCS_SOCKET_INVALID;
-    CHECK(tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, 0) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, 0) == TCS_SUCCESS);
     CHECK(tcs_bind(socket, &loopback) == TCS_SUCCESS);
 
     // When/Then
@@ -1693,7 +1693,7 @@ TEST_CASE("Simple AVTP talker")
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
 
     TcsSocket socket = TCS_SOCKET_INVALID;
-    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCK_RAW, TCS_PROTOCOL_ETH_ALL) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCKET_RAW, TCS_PROTOCOL_ETH_ALL) == TCS_SUCCESS);
     TcsAddress address = TCS_ADDRESS_NONE;
     tcs_address_parse("", &address);
 
@@ -1932,7 +1932,7 @@ TEST_CASE("Create packet socket")
     TcsSocket socket = TCS_SOCKET_INVALID;
 
     // When
-    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCK_RAW, TCS_PROTOCOL_ETH_ALL) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCKET_RAW, TCS_PROTOCOL_ETH_ALL) == TCS_SUCCESS);
 
     // Then
     CHECK(socket != TCS_SOCKET_INVALID);
@@ -1951,7 +1951,7 @@ TEST_CASE("Create AVTP socket")
     TcsSocket socket = TCS_SOCKET_INVALID;
 
     // When
-    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCK_DGRAM, 0x22F0) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCKET_DGRAM, 0x22F0) == TCS_SUCCESS);
 
     // Then
     CHECK(socket != TCS_SOCKET_INVALID);
@@ -1970,7 +1970,7 @@ TEST_CASE("AVTP Create talker socket sendto")
     TcsSocket socket = TCS_SOCKET_INVALID;
 
     // When
-    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCK_DGRAM, 0x22F0) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCKET_DGRAM, 0x22F0) == TCS_SUCCESS);
 
     CHECK(tcs_opt_priority_set(socket, 6) == TCS_SUCCESS); // Set priority to 6 (VLAN priority 6)
     static struct TcsInterfaceAddress addrs[kAddressListCapacity];
@@ -2005,7 +2005,7 @@ TEST_CASE("TSN Create talker socket bind")
     TcsSocket socket = TCS_SOCKET_INVALID;
 
     // When
-    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCK_RAW, TCS_PROTOCOL_ETH_ALL) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCKET_RAW, TCS_PROTOCOL_ETH_ALL) == TCS_SUCCESS);
 
     CHECK(tcs_opt_priority_set(socket, 6) == TCS_SUCCESS); // Set priority to 6 (VLAN priority 6)
     static struct TcsInterfaceAddress addr[kAddressListCapacity];
@@ -2049,7 +2049,7 @@ TEST_CASE("TSN Create listener")
     TcsSocket socket = TCS_SOCKET_INVALID;
 
     // When
-    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCK_RAW, TCS_PROTOCOL_ETH_ALL) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCKET_RAW, TCS_PROTOCOL_ETH_ALL) == TCS_SUCCESS);
 
     static struct TcsInterfaceAddress addr[kAddressListCapacity];
     size_t addresses_found = 0;
@@ -2083,7 +2083,7 @@ TEST_CASE("Create DGRAM packet socket with preset")
     TcsSocket socket = TCS_SOCKET_INVALID;
 
     // When
-    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCK_DGRAM, TCS_PROTOCOL_ETH_ALL) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCKET_DGRAM, TCS_PROTOCOL_ETH_ALL) == TCS_SUCCESS);
 
     // Then
     CHECK(socket != TCS_SOCKET_INVALID);
@@ -2111,7 +2111,7 @@ TEST_CASE("tcs_socket_packet bind")
     bind_address.data.packet.protocol = 0x22F0;
 
     // When
-    CHECK(tcs_socket_packet(&socket, &bind_address, TCS_SOCK_DGRAM) == TCS_SUCCESS);
+    CHECK(tcs_socket_packet(&socket, &bind_address, TCS_SOCKET_DGRAM) == TCS_SUCCESS);
 
     // Then
     CHECK(socket != TCS_SOCKET_INVALID);
@@ -2138,7 +2138,7 @@ TEST_CASE("tcs_socket_packet sendto")
     bind_address.data.packet.interface_id = addrs[0].iface.id;
     bind_address.data.packet.protocol = 0x22F0;
 
-    CHECK(tcs_socket_packet(&socket, &bind_address, TCS_SOCK_DGRAM) == TCS_SUCCESS);
+    CHECK(tcs_socket_packet(&socket, &bind_address, TCS_SOCKET_DGRAM) == TCS_SUCCESS);
 
     // When - sendto with explicit destination
     struct TcsAddress dest_address = TCS_ADDRESS_NONE;
@@ -2187,7 +2187,7 @@ TEST_CASE("tcs_socket_packet_str bind")
     }
 
     // When
-    CHECK(tcs_socket_packet_str(&socket, iface_name, 0x22F0, TCS_SOCK_DGRAM) == TCS_SUCCESS);
+    CHECK(tcs_socket_packet_str(&socket, iface_name, 0x22F0, TCS_SOCKET_DGRAM) == TCS_SUCCESS);
 
     // Then
     CHECK(socket != TCS_SOCKET_INVALID);
@@ -2207,10 +2207,10 @@ TEST_CASE("tcs_socket_packet invalid arguments old")
     TcsSocket socket = TCS_SOCKET_INVALID;
 
     // When/Then - NULL address should fail
-    CHECK(tcs_socket_packet(&socket, NULL, TCS_SOCK_DGRAM) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_socket_packet(&socket, NULL, TCS_SOCKET_DGRAM) == TCS_ERROR_INVALID_ARGUMENT);
 
     // When/Then - NULL socket should fail
-    CHECK(tcs_socket_packet(NULL, NULL, TCS_SOCK_DGRAM) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_socket_packet(NULL, NULL, TCS_SOCKET_DGRAM) == TCS_ERROR_INVALID_ARGUMENT);
 
     // Clean up
     REQUIRE(tcs_lib_free() == TCS_SUCCESS);
@@ -2231,7 +2231,7 @@ TEST_CASE("tcs_socket_packet DGRAM")
     TcsSocket socket = TCS_SOCKET_INVALID;
 
     // When
-    CHECK(tcs_socket_packet(&socket, &bind, TCS_SOCK_DGRAM) == TCS_SUCCESS);
+    CHECK(tcs_socket_packet(&socket, &bind, TCS_SOCKET_DGRAM) == TCS_SUCCESS);
 
     // Then
     CHECK(socket != TCS_SOCKET_INVALID);
@@ -2255,7 +2255,7 @@ TEST_CASE("tcs_socket_packet RAW")
     TcsSocket socket = TCS_SOCKET_INVALID;
 
     // When
-    CHECK(tcs_socket_packet(&socket, &bind, TCS_SOCK_RAW) == TCS_SUCCESS);
+    CHECK(tcs_socket_packet(&socket, &bind, TCS_SOCKET_RAW) == TCS_SUCCESS);
 
     // Then
     CHECK(socket != TCS_SOCKET_INVALID);
@@ -2274,7 +2274,7 @@ TEST_CASE("tcs_socket_packet_str DGRAM")
     TcsSocket socket = TCS_SOCKET_INVALID;
 
     // When
-    CHECK(tcs_socket_packet_str(&socket, "lo", 0x22F0, TCS_SOCK_DGRAM) == TCS_SUCCESS);
+    CHECK(tcs_socket_packet_str(&socket, "lo", 0x22F0, TCS_SOCKET_DGRAM) == TCS_SUCCESS);
 
     // Then
     CHECK(socket != TCS_SOCKET_INVALID);
@@ -2291,7 +2291,7 @@ TEST_CASE("tcs_socket_packet multicast add and drop str")
 
     // Given - create and bind a DGRAM packet socket on lo
     TcsSocket socket = TCS_SOCKET_INVALID;
-    CHECK(tcs_socket_packet_str(&socket, "lo", 0x22F0, TCS_SOCK_DGRAM) == TCS_SUCCESS);
+    CHECK(tcs_socket_packet_str(&socket, "lo", 0x22F0, TCS_SOCKET_DGRAM) == TCS_SUCCESS);
 
     // When/Then - join and leave a multicast MAC group via str
     CHECK(tcs_opt_membership_add_str(socket, "91:e0:f0:00:fe:00") == TCS_SUCCESS);
@@ -2310,14 +2310,14 @@ TEST_CASE("tcs_socket_packet invalid arguments")
 
     // NULL bind_address
     TcsSocket socket = TCS_SOCKET_INVALID;
-    CHECK(tcs_socket_packet(&socket, NULL, TCS_SOCK_DGRAM) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_socket_packet(&socket, NULL, TCS_SOCKET_DGRAM) == TCS_ERROR_INVALID_ARGUMENT);
     CHECK(socket == TCS_SOCKET_INVALID);
 
     // Wrong family
     struct TcsAddress bad = TCS_ADDRESS_NONE;
     bad.family = TCS_FAMILY_IPV4;
     socket = TCS_SOCKET_INVALID;
-    CHECK(tcs_socket_packet(&socket, &bad, TCS_SOCK_DGRAM) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_socket_packet(&socket, &bad, TCS_SOCKET_DGRAM) == TCS_ERROR_INVALID_ARGUMENT);
     CHECK(socket == TCS_SOCKET_INVALID);
 
     // Invalid type
@@ -2326,7 +2326,7 @@ TEST_CASE("tcs_socket_packet invalid arguments")
     bind.data.packet.interface_id = 1;
     bind.data.packet.protocol = 0x22F0;
     socket = TCS_SOCKET_INVALID;
-    CHECK(tcs_socket_packet(&socket, &bind, TcsSockType{9999}) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_socket_packet(&socket, &bind, TcsSocketType{9999}) == TCS_ERROR_INVALID_ARGUMENT);
     CHECK(socket == TCS_SOCKET_INVALID);
 
     // Clean up
@@ -2342,7 +2342,7 @@ TEST_CASE("tcs_socket_packet_str invalid interface")
     TcsSocket socket = TCS_SOCKET_INVALID;
 
     // When/Then
-    CHECK(tcs_socket_packet_str(&socket, "nonexistent99", 0x22F0, TCS_SOCK_DGRAM) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_socket_packet_str(&socket, "nonexistent99", 0x22F0, TCS_SOCKET_DGRAM) == TCS_ERROR_INVALID_ARGUMENT);
     CHECK(socket == TCS_SOCKET_INVALID);
 
     // Clean up
@@ -2358,7 +2358,7 @@ TEST_CASE("Sentinel handling: TCS_FAMILY_PACKET on unsupported platform")
 
     // Probe whether this platform supports AF_PACKET by trying to create one.
     TcsSocket probe = TCS_SOCKET_INVALID;
-    TcsResult probe_res = tcs_socket(&probe, TCS_FAMILY_PACKET, TCS_SOCK_RAW, TCS_PROTOCOL_ETH_ALL);
+    TcsResult probe_res = tcs_socket(&probe, TCS_FAMILY_PACKET, TCS_SOCKET_RAW, TCS_PROTOCOL_ETH_ALL);
 
     if (probe_res == TCS_ERROR_NOT_SUPPORTED)
     {
@@ -2379,7 +2379,7 @@ TEST_CASE("Sentinel handling: TCS_FAMILY_PACKET on unsupported platform")
 
         // sockaddr2native (via tcs_bind) must reject a sentinel address
         TcsSocket udp_socket = TCS_SOCKET_INVALID;
-        REQUIRE(tcs_socket(&udp_socket, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+        REQUIRE(tcs_socket(&udp_socket, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
         struct TcsAddress packet_addr = TCS_ADDRESS_NONE;
         packet_addr.family = TCS_FAMILY_PACKET;
         CHECK(tcs_bind(udp_socket, &packet_addr) == TCS_ERROR_NOT_SUPPORTED);
@@ -2403,8 +2403,8 @@ TEST_CASE("tcs_address_socket_local on TCP")
     TcsSocket listen_socket = TCS_SOCKET_INVALID;
     TcsSocket client_socket = TCS_SOCKET_INVALID;
 
-    REQUIRE(tcs_socket(&listen_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
-    REQUIRE(tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    REQUIRE(tcs_socket(&listen_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    REQUIRE(tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
 
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     struct TcsAddress bind_address = TCS_ADDRESS_NONE;
@@ -2441,8 +2441,8 @@ TEST_CASE("tcs_address_socket_remote on TCP")
     TcsSocket listen_socket = TCS_SOCKET_INVALID;
     TcsSocket client_socket = TCS_SOCKET_INVALID;
 
-    REQUIRE(tcs_socket(&listen_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
-    REQUIRE(tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    REQUIRE(tcs_socket(&listen_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    REQUIRE(tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
 
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     struct TcsAddress bind_address = TCS_ADDRESS_NONE;
@@ -2481,7 +2481,7 @@ TEST_CASE("tcs_address_socket_local and remote with invalid args")
     CHECK(tcs_address_socket_remote(TCS_SOCKET_INVALID, &addr) == TCS_ERROR_INVALID_ARGUMENT);
 
     TcsSocket socket = TCS_SOCKET_INVALID;
-    REQUIRE(tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    REQUIRE(tcs_socket(&socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
     CHECK(tcs_address_socket_local(socket, NULL) == TCS_ERROR_INVALID_ARGUMENT);
     CHECK(tcs_address_socket_remote(socket, NULL) == TCS_ERROR_INVALID_ARGUMENT);
 
@@ -2496,7 +2496,7 @@ TEST_CASE("IPv6 socket preset TCP")
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
 
     TcsSocket socket = TCS_SOCKET_INVALID;
-    CHECK(tcs_socket(&socket, TCS_FAMILY_IPV6, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_FAMILY_IPV6, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
     CHECK(socket != TCS_SOCKET_INVALID);
 
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
@@ -2508,7 +2508,7 @@ TEST_CASE("IPv6 socket preset UDP")
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
 
     TcsSocket socket = TCS_SOCKET_INVALID;
-    CHECK(tcs_socket(&socket, TCS_FAMILY_IPV6, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket, TCS_FAMILY_IPV6, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
     CHECK(socket != TCS_SOCKET_INVALID);
 
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
@@ -2523,8 +2523,8 @@ TEST_CASE("IPv6 Simple TCP Test")
     TcsSocket accept_socket = TCS_SOCKET_INVALID;
     TcsSocket client_socket = TCS_SOCKET_INVALID;
 
-    REQUIRE(tcs_socket(&listen_socket, TCS_FAMILY_IPV6, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
-    REQUIRE(tcs_socket(&client_socket, TCS_FAMILY_IPV6, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    REQUIRE(tcs_socket(&listen_socket, TCS_FAMILY_IPV6, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    REQUIRE(tcs_socket(&client_socket, TCS_FAMILY_IPV6, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
 
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
@@ -2561,8 +2561,8 @@ TEST_CASE("IPv6 UDP Test")
 
     TcsSocket socket_recv = TCS_SOCKET_INVALID;
     TcsSocket socket_send = TCS_SOCKET_INVALID;
-    CHECK(tcs_socket(&socket_recv, TCS_FAMILY_IPV6, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
-    CHECK(tcs_socket(&socket_send, TCS_FAMILY_IPV6, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket_recv, TCS_FAMILY_IPV6, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket_send, TCS_FAMILY_IPV6, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
     CHECK(tcs_opt_receive_timeout_set(socket_recv, 5000) == TCS_SUCCESS);
     CHECK(tcs_opt_reuse_address_set(socket_recv, true) == TCS_SUCCESS);
 

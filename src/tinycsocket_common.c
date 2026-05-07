@@ -43,52 +43,52 @@ const char* tcs_strerror(TcsResult result)
 {
     switch (result)
     {
-    case TCS_SUCCESS:
-        return "Success";
-    case TCS_AGAIN:
-        return "Try again";
-    case TCS_IN_PROGRESS:
-        return "Operation in progress";
-    case TCS_SHUTDOWN:
-        return "Socket shutdown";
-    case TCS_ERROR_UNKNOWN:
-        return "Unknown error";
-    case TCS_ERROR_MEMORY:
-        return "Out of memory";
-    case TCS_ERROR_INVALID_ARGUMENT:
-        return "Invalid argument";
-    case TCS_ERROR_SYSTEM:
-        return "System error";
-    case TCS_ERROR_PERMISSION_DENIED:
-        return "Permission denied";
-    case TCS_ERROR_NOT_IMPLEMENTED:
-        return "Not implemented";
-    case TCS_ERROR_NOT_SUPPORTED:
-        return "Not supported";
-    case TCS_ERROR_ADDRESS_LOOKUP_FAILED:
-        return "Address lookup failed";
-    case TCS_ERROR_CONNECTION_REFUSED:
-        return "Connection refused";
-    case TCS_ERROR_NOT_CONNECTED:
-        return "Not connected";
-    case TCS_ERROR_SOCKET_CLOSED:
-        return "Socket closed";
-    case TCS_ERROR_WOULD_BLOCK:
-        return "Operation would block";
-    case TCS_ERROR_TIMED_OUT:
-        return "Timed out";
-    case TCS_ERROR_TEMPORARY_FAILURE:
-        return "Temporary failure";
-    case TCS_ERROR_NETWORK_UNREACHABLE:
-        return "Network unreachable";
-    case TCS_ERROR_CONNECTION_RESET:
-        return "Connection reset";
-    case TCS_ERROR_ADDRESS_IN_USE:
-        return "Address in use";
-    case TCS_ERROR_LIBRARY_NOT_INITIALIZED:
-        return "Library not initialized";
-    case TCS_ERROR_ILL_FORMED_MESSAGE:
-        return "Ill-formed message";
+        case TCS_SUCCESS:
+            return "Success";
+        case TCS_AGAIN:
+            return "Try again";
+        case TCS_IN_PROGRESS:
+            return "Operation in progress";
+        case TCS_SHUTDOWN:
+            return "Socket shutdown";
+        case TCS_ERROR_UNKNOWN:
+            return "Unknown error";
+        case TCS_ERROR_MEMORY:
+            return "Out of memory";
+        case TCS_ERROR_INVALID_ARGUMENT:
+            return "Invalid argument";
+        case TCS_ERROR_SYSTEM:
+            return "System error";
+        case TCS_ERROR_PERMISSION_DENIED:
+            return "Permission denied";
+        case TCS_ERROR_NOT_IMPLEMENTED:
+            return "Not implemented";
+        case TCS_ERROR_NOT_SUPPORTED:
+            return "Not supported";
+        case TCS_ERROR_ADDRESS_LOOKUP_FAILED:
+            return "Address lookup failed";
+        case TCS_ERROR_CONNECTION_REFUSED:
+            return "Connection refused";
+        case TCS_ERROR_NOT_CONNECTED:
+            return "Not connected";
+        case TCS_ERROR_SOCKET_CLOSED:
+            return "Socket closed";
+        case TCS_ERROR_WOULD_BLOCK:
+            return "Operation would block";
+        case TCS_ERROR_TIMED_OUT:
+            return "Timed out";
+        case TCS_ERROR_TEMPORARY_FAILURE:
+            return "Temporary failure";
+        case TCS_ERROR_NETWORK_UNREACHABLE:
+            return "Network unreachable";
+        case TCS_ERROR_CONNECTION_RESET:
+            return "Connection reset";
+        case TCS_ERROR_ADDRESS_IN_USE:
+            return "Address in use";
+        case TCS_ERROR_LIBRARY_NOT_INITIALIZED:
+            return "Library not initialized";
+        case TCS_ERROR_ILL_FORMED_MESSAGE:
+            return "Ill-formed message";
     }
     return "Unknown TcsResult";
 }
@@ -114,7 +114,7 @@ TcsResult tcs_socket_tcp(TcsSocket* out_socket,
 
     TcsFamily family = local_address != NULL ? local_address->family : remote_address->family;
 
-    TcsResult res = tcs_socket(out_socket, family, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
+    TcsResult res = tcs_socket(out_socket, family, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP);
     if (res != TCS_SUCCESS)
         return res;
 
@@ -262,7 +262,7 @@ TcsResult tcs_socket_udp(TcsSocket* out_socket,
 
     TcsFamily family = local_address != NULL ? local_address->family : remote_address->family;
 
-    TcsResult res = tcs_socket(out_socket, family, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP);
+    TcsResult res = tcs_socket(out_socket, family, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP);
     if (res != TCS_SUCCESS)
         return res;
 
@@ -346,7 +346,7 @@ TcsResult tcs_socket_udp_str(TcsSocket* out_socket, const char* local_address, c
         out_socket, local_address != NULL ? &local_addr : NULL, remote_address != NULL ? &remote_addr : NULL);
 }
 
-TcsResult tcs_socket_packet(TcsSocket* out_socket, const struct TcsAddress* bind_address, TcsSockType type)
+TcsResult tcs_socket_packet(TcsSocket* out_socket, const struct TcsAddress* bind_address, TcsSocketType type)
 {
     if (out_socket == NULL || *out_socket != TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -354,7 +354,7 @@ TcsResult tcs_socket_packet(TcsSocket* out_socket, const struct TcsAddress* bind
         return TCS_ERROR_INVALID_ARGUMENT;
     if (bind_address->family.native != TCS_FAMILY_PACKET.native)
         return TCS_ERROR_INVALID_ARGUMENT;
-    if (type.native != TCS_SOCK_RAW.native && type.native != TCS_SOCK_DGRAM.native)
+    if (type.native != TCS_SOCKET_RAW.native && type.native != TCS_SOCKET_DGRAM.native)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     TcsResult res = tcs_socket(out_socket, TCS_FAMILY_PACKET, type, bind_address->data.packet.protocol);
@@ -371,7 +371,10 @@ TcsResult tcs_socket_packet(TcsSocket* out_socket, const struct TcsAddress* bind
     return TCS_SUCCESS;
 }
 
-TcsResult tcs_socket_packet_str(TcsSocket* out_socket, const char* interface_name, uint16_t protocol, TcsSockType type)
+TcsResult tcs_socket_packet_str(TcsSocket* out_socket,
+                                const char* interface_name,
+                                uint16_t protocol,
+                                TcsSocketType type)
 {
     if (out_socket == NULL || *out_socket != TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -714,7 +717,7 @@ TcsResult tcs_opt_broadcast_set(TcsSocket socket, bool do_allow_broadcast)
     return tcs_opt_set(socket, TCS_SOL_SOCKET, TCS_SO_BROADCAST, &b, sizeof(b));
 }
 
-TcsResult tcs_opt_type_get(TcsSocket socket, TcsSockType* type)
+TcsResult tcs_opt_type_get(TcsSocket socket, TcsSocketType* type)
 {
     if (socket == TCS_SOCKET_INVALID || type == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -1431,7 +1434,8 @@ bool tcs_address_is_link_local(const struct TcsAddress* addr)
     if (addr->family.native == TCS_FAMILY_IPV4.native)
         return (addr->data.ipv4.address >> 16) == 0xA9FE; // 169.254.0.0/16
     if (addr->family.native == TCS_FAMILY_IPV6.native)
-        return addr->data.ipv6.address.bytes[0] == 0xFE && (addr->data.ipv6.address.bytes[1] & 0xC0) == 0x80; // fe80::/10
+        return addr->data.ipv6.address.bytes[0] == 0xFE &&
+               (addr->data.ipv6.address.bytes[1] & 0xC0) == 0x80; // fe80::/10
     return false;
 }
 
