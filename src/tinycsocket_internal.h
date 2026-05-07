@@ -23,27 +23,8 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-static const char* const TCS_VERSION_TXT = "v0.3.76";
-static const char* const TCS_LICENSE_TXT =
-    "Copyright 2018 Markus Lindelöw\n"
-    "\n"
-    "Permission is hereby granted, free of charge, to any person obtaining a copy "
-    "of this software and associated documentation files(the \"Software\"), to deal "
-    "in the Software without restriction, including without limitation the rights "
-    "to use, copy, modify, merge, publish, distribute, sublicense, and / or sell "
-    "copies of the Software, and to permit persons to whom the Software is "
-    "furnished to do so, subject to the following conditions:\n"
-    "\n"
-    "The above copyright notice and this permission notice shall be included in all "
-    "copies or substantial portions of the Software.\n"
-    "\n"
-    "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR "
-    "IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, "
-    "FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE "
-    "AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER "
-    "LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, "
-    "OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE "
-    "SOFTWARE.";
+static const char* const TCS_VERSION_TXT = "v0.3.77";
+extern const char* const TCS_LICENSE_TXT;
 
 /*
 * List of all functions in the library:
@@ -53,89 +34,89 @@ static const char* const TCS_LICENSE_TXT =
 * 
 * Library Management:
 * - TcsResult tcs_lib_init(void);
-* - TcsResult tcs_lib_free(void);
+* - TcsResult tcs_lib_cleanup(void);
 *
 * Socket Creation:
-* - TcsResult tcs_socket(TcsSocket* out_socket, TcsFamily family, TcsSockType type, TcsProtocol protocol);
+* - TcsResult tcs_socket(TcsSocket* out_socket, TcsFamily family, TcsSocketType type, TcsProtocol protocol);
 * - TcsResult tcs_socket_tcp(TcsSocket* out_socket, const struct TcsAddress* local_address, const struct TcsAddress* remote_address, int timeout_ms);
 * - TcsResult tcs_socket_tcp_str(TcsSocket* out_socket, const char* local_address, const char* remote_address, int timeout_ms);
 * - TcsResult tcs_socket_udp(TcsSocket* out_socket, const struct TcsAddress* local_address, const struct TcsAddress* remote_address);
 * - TcsResult tcs_socket_udp_str(TcsSocket* out_socket, const char* local_address, const char* remote_address);
-* - TcsResult tcs_socket_packet(TcsSocket* out_socket, const struct TcsAddress* bind_address, TcsSockType type);
-* - TcsResult tcs_socket_packet_str(TcsSocket* out_socket, const char* interface_name, uint16_t protocol, TcsSockType type);
-* - TcsResult tcs_close(TcsSocket* socket_ctx);
+* - TcsResult tcs_socket_packet(TcsSocket* out_socket, const struct TcsAddress* bind_address, TcsSocketType type);
+* - TcsResult tcs_socket_packet_str(TcsSocket* out_socket, const char* interface_name, uint16_t protocol, TcsSocketType type);
+* - TcsResult tcs_close(TcsSocket* socket);
 *
 * Socket Operations:
-* - TcsResult tcs_bind(TcsSocket socket_ctx, const struct TcsAddress* local_address);
-* - TcsResult tcs_connect(TcsSocket socket_ctx, const struct TcsAddress* address);
-* - TcsResult tcs_connect_str(TcsSocket socket_ctx, const char* remote_address, uint16_t port);
-* - TcsResult tcs_listen(TcsSocket socket_ctx, int backlog);
-* - TcsResult tcs_accept(TcsSocket socket_ctx, TcsSocket* out_child_socket, struct TcsAddress* address);
-* - TcsResult tcs_shutdown(TcsSocket socket_ctx, TcsShutdownDirection direction);
+* - TcsResult tcs_bind(TcsSocket socket, const struct TcsAddress* local_address);
+* - TcsResult tcs_connect(TcsSocket socket, const struct TcsAddress* address);
+* - TcsResult tcs_connect_str(TcsSocket socket, const char* remote_address, uint16_t port);
+* - TcsResult tcs_listen(TcsSocket socket, int backlog);
+* - TcsResult tcs_accept(TcsSocket listener, TcsSocket* out_socket, struct TcsAddress* out_address);
+* - TcsResult tcs_shutdown(TcsSocket socket, TcsShutdownDirection direction);
 *
 * Data Transfer:
-* - TcsResult tcs_send(TcsSocket socket_ctx, const uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* bytes_sent);
-* - TcsResult tcs_send_to(TcsSocket socket_ctx, const uint8_t* buffer, size_t buffer_size, uint32_t flags, const struct TcsAddress* destination_address, size_t* bytes_sent);
-* - TcsResult tcs_sendv(TcsSocket socket_ctx, const struct TcsBuffer* buffers, size_t buffer_count, uint32_t flags, size_t* bytes_sent);
-* - TcsResult tcs_send_netstring(TcsSocket socket_ctx, const uint8_t* buffer, size_t buffer_size);
-* - TcsResult tcs_receive(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* bytes_received);
-* - TcsResult tcs_receive_from(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, uint32_t flags, struct TcsAddress* source_address, size_t* bytes_received);
-* - TcsResult tcs_receive_line(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, size_t* bytes_received, uint8_t delimiter);
-* - TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, size_t* bytes_received);
+* - TcsResult tcs_send(TcsSocket socket, const uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* out_sent_size);
+* - TcsResult tcs_send_to(TcsSocket socket, const uint8_t* buffer, size_t buffer_size, uint32_t flags, const struct TcsAddress* destination_address, size_t* out_sent_size);
+* - TcsResult tcs_sendv(TcsSocket socket, const struct TcsIoVec* iov, size_t iov_length, uint32_t flags, size_t* out_sent_size);
+* - TcsResult tcs_send_netstring(TcsSocket socket, const uint8_t* buffer, size_t buffer_size);
+* - TcsResult tcs_receive(TcsSocket socket, uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* out_received_size);
+* - TcsResult tcs_receive_from(TcsSocket socket, uint8_t* buffer, size_t buffer_size, uint32_t flags, struct TcsAddress* out_source_address, size_t* out_received_size);
+* - TcsResult tcs_receive_line(TcsSocket socket, uint8_t* buffer, size_t buffer_size, uint8_t delimiter, size_t* out_received_size);
+* - TcsResult tcs_receive_netstring(TcsSocket socket, uint8_t* buffer, size_t buffer_size, size_t* out_received_size);
 *
 * Socket Polling:
-* - TcsResult tcs_poll_create(struct TcsPoll** poll);
+* - TcsResult tcs_poll_create(struct TcsPoll** out_poll);
 * - TcsResult tcs_poll_destroy(struct TcsPoll** poll);
-* - TcsResult tcs_poll_add(struct TcsPoll* poll, TcsSocket socket_ctx, void* user_data, uint32_t flags);
-* - TcsResult tcs_poll_modify(struct TcsPoll* poll, TcsSocket socket_ctx, uint32_t flags);
-* - TcsResult tcs_poll_remove(struct TcsPoll* poll, TcsSocket socket_ctx);
-* - TcsResult tcs_poll_wait(struct TcsPoll* poll, struct TcsPollEvent* events, size_t events_count, size_t* events_populated, int timeout_ms);
+* - TcsResult tcs_poll_add(struct TcsPoll* poll, TcsSocket socket, void* user_data, uint32_t flags);
+* - TcsResult tcs_poll_modify(struct TcsPoll* poll, TcsSocket socket, uint32_t flags);
+* - TcsResult tcs_poll_remove(struct TcsPoll* poll, TcsSocket socket);
+* - TcsResult tcs_poll_wait(struct TcsPoll* poll, struct TcsPollEvent* out_events, size_t events_length, size_t* out_events_length, int timeout_ms);
 *
 * Socket Options:
-* - TcsResult tcs_opt_set(TcsSocket socket_ctx, int32_t level, int32_t option_name, const void* option_value, size_t option_size);
-* - TcsResult tcs_opt_get(TcsSocket socket_ctx, int32_t level, int32_t option_name, void* option_value, size_t* option_size);
-* - TcsResult tcs_opt_type_get(TcsSocket socket_ctx, TcsSockType* type);
-* - TcsResult tcs_opt_broadcast_set(TcsSocket socket_ctx, bool do_allow_broadcast);
-* - TcsResult tcs_opt_broadcast_get(TcsSocket socket_ctx, bool* is_broadcast_allowed);
-* - TcsResult tcs_opt_keep_alive_set(TcsSocket socket_ctx, bool do_keep_alive);
-* - TcsResult tcs_opt_keep_alive_get(TcsSocket socket_ctx, bool* is_keep_alive_enabled);
-* - TcsResult tcs_opt_reuse_address_set(TcsSocket socket_ctx, bool do_allow_reuse_address);
-* - TcsResult tcs_opt_reuse_address_get(TcsSocket socket_ctx, bool* is_reuse_address_allowed);
-* - TcsResult tcs_opt_reuse_port_set(TcsSocket socket_ctx, bool do_allow_reuse_port);
-* - TcsResult tcs_opt_reuse_port_get(TcsSocket socket_ctx, bool* is_reuse_port_allowed);
-* - TcsResult tcs_opt_send_buffer_size_set(TcsSocket socket_ctx, size_t send_buffer_size);
-* - TcsResult tcs_opt_send_buffer_size_get(TcsSocket socket_ctx, size_t* send_buffer_size);
-* - TcsResult tcs_opt_receive_buffer_size_set(TcsSocket socket_ctx, size_t receive_buffer_size);
-* - TcsResult tcs_opt_receive_buffer_size_get(TcsSocket socket_ctx, size_t* receive_buffer_size);
-* - TcsResult tcs_opt_receive_timeout_set(TcsSocket socket_ctx, int timeout_ms);
-* - TcsResult tcs_opt_receive_timeout_get(TcsSocket socket_ctx, int* timeout_ms);
-* - TcsResult tcs_opt_linger_set(TcsSocket socket_ctx, bool do_linger, int timeout_seconds);
-* - TcsResult tcs_opt_linger_get(TcsSocket socket_ctx, bool* do_linger, int* timeout_seconds);
-* - TcsResult tcs_opt_ip_no_delay_set(TcsSocket socket_ctx, bool use_no_delay);
-* - TcsResult tcs_opt_ip_no_delay_get(TcsSocket socket_ctx, bool* is_no_delay_used);
-* - TcsResult tcs_opt_out_of_band_inline_set(TcsSocket socket_ctx, bool enable_oob);
-* - TcsResult tcs_opt_out_of_band_inline_get(TcsSocket socket_ctx, bool* is_oob_enabled);
-* - TcsResult tcs_opt_priority_set(TcsSocket socket_ctx, int priority);
-* - TcsResult tcs_opt_priority_get(TcsSocket socket_ctx, int* priority);
-* - TcsResult tcs_opt_nonblocking_set(TcsSocket socket_ctx, bool do_nonblocking);
-* - TcsResult tcs_opt_nonblocking_get(TcsSocket socket_ctx, bool* is_nonblocking);
-* - TcsResult tcs_opt_membership_add(TcsSocket socket_ctx, const struct TcsAddress* multicast_address);
-* - TcsResult tcs_opt_membership_add_str(TcsSocket socket_ctx, const char* multicast_address);
-* - TcsResult tcs_opt_membership_add_to(TcsSocket socket_ctx, const struct TcsAddress* local_address, const struct TcsAddress* multicast_address);
-* - TcsResult tcs_opt_membership_drop(TcsSocket socket_ctx, const struct TcsAddress* multicast_address);
-* - TcsResult tcs_opt_membership_drop_str(TcsSocket socket_ctx, const char* multicast_address);
-* - TcsResult tcs_opt_membership_drop_from(TcsSocket socket_ctx, const struct TcsAddress* local_address, const struct TcsAddress* multicast_address);
-* - TcsResult tcs_opt_multicast_interface_set(TcsSocket socket_ctx, const struct TcsAddress* local_address);
-* - TcsResult tcs_opt_multicast_loop_set(TcsSocket socket_ctx, bool do_loopback);
-* - TcsResult tcs_opt_multicast_loop_get(TcsSocket socket_ctx, bool* is_loopback);
+* - TcsResult tcs_opt_set(TcsSocket socket, int32_t level, int32_t option_name, const void* option_value, size_t option_size);
+* - TcsResult tcs_opt_get(TcsSocket socket, int32_t level, int32_t option_name, void* out_option_value, size_t* option_size);
+* - TcsResult tcs_opt_type_get(TcsSocket socket, TcsSocketType* out_type);
+* - TcsResult tcs_opt_broadcast_set(TcsSocket socket, bool do_allow_broadcast);
+* - TcsResult tcs_opt_broadcast_get(TcsSocket socket, bool* out_is_broadcast_allowed);
+* - TcsResult tcs_opt_keep_alive_set(TcsSocket socket, bool do_keep_alive);
+* - TcsResult tcs_opt_keep_alive_get(TcsSocket socket, bool* out_is_keep_alive_enabled);
+* - TcsResult tcs_opt_reuse_address_set(TcsSocket socket, bool do_allow_reuse_address);
+* - TcsResult tcs_opt_reuse_address_get(TcsSocket socket, bool* out_is_reuse_address_allowed);
+* - TcsResult tcs_opt_reuse_port_set(TcsSocket socket, bool do_allow_reuse_port);
+* - TcsResult tcs_opt_reuse_port_get(TcsSocket socket, bool* out_is_reuse_port_allowed);
+* - TcsResult tcs_opt_send_buffer_size_set(TcsSocket socket, size_t send_buffer_size);
+* - TcsResult tcs_opt_send_buffer_size_get(TcsSocket socket, size_t* out_send_buffer_size);
+* - TcsResult tcs_opt_receive_buffer_size_set(TcsSocket socket, size_t receive_buffer_size);
+* - TcsResult tcs_opt_receive_buffer_size_get(TcsSocket socket, size_t* out_receive_buffer_size);
+* - TcsResult tcs_opt_receive_timeout_set(TcsSocket socket, int timeout_ms);
+* - TcsResult tcs_opt_receive_timeout_get(TcsSocket socket, int* out_timeout_ms);
+* - TcsResult tcs_opt_linger_set(TcsSocket socket, bool do_linger, int timeout_seconds);
+* - TcsResult tcs_opt_linger_get(TcsSocket socket, bool* out_do_linger, int* out_timeout_seconds);
+* - TcsResult tcs_opt_ip_no_delay_set(TcsSocket socket, bool use_no_delay);
+* - TcsResult tcs_opt_ip_no_delay_get(TcsSocket socket, bool* out_is_no_delay_used);
+* - TcsResult tcs_opt_out_of_band_inline_set(TcsSocket socket, bool enable_oob);
+* - TcsResult tcs_opt_out_of_band_inline_get(TcsSocket socket, bool* out_is_oob_enabled);
+* - TcsResult tcs_opt_priority_set(TcsSocket socket, int priority);
+* - TcsResult tcs_opt_priority_get(TcsSocket socket, int* out_priority);
+* - TcsResult tcs_opt_nonblocking_set(TcsSocket socket, bool do_nonblocking);
+* - TcsResult tcs_opt_nonblocking_get(TcsSocket socket, bool* out_is_nonblocking);
+* - TcsResult tcs_opt_membership_add(TcsSocket socket, const struct TcsAddress* multicast_address);
+* - TcsResult tcs_opt_membership_add_str(TcsSocket socket, const char* multicast_address);
+* - TcsResult tcs_opt_membership_add_to(TcsSocket socket, const struct TcsAddress* local_address, const struct TcsAddress* multicast_address);
+* - TcsResult tcs_opt_membership_drop(TcsSocket socket, const struct TcsAddress* multicast_address);
+* - TcsResult tcs_opt_membership_drop_str(TcsSocket socket, const char* multicast_address);
+* - TcsResult tcs_opt_membership_drop_from(TcsSocket socket, const struct TcsAddress* local_address, const struct TcsAddress* multicast_address);
+* - TcsResult tcs_opt_multicast_interface_set(TcsSocket socket, const struct TcsAddress* local_address);
+* - TcsResult tcs_opt_multicast_loop_set(TcsSocket socket, bool do_loopback);
+* - TcsResult tcs_opt_multicast_loop_get(TcsSocket socket, bool* out_is_loopback);
 *
 * Address and Interface Utilities:
-* - TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, size_t* out_count);
-* - TcsResult tcs_address_resolve(const char* hostname, TcsFamily address_family, struct TcsAddress addresses[], size_t capacity, size_t* out_count);
-* - TcsResult tcs_address_list(unsigned int interface_id_filter, TcsFamily address_family_filter, struct TcsInterfaceAddress interface_addresses[], size_t capacity, size_t* out_count);
-* - TcsResult tcs_address_socket_local(TcsSocket socket_ctx, struct TcsAddress* local_address);
-* - TcsResult tcs_address_socket_remote(TcsSocket socket_ctx, struct TcsAddress* remote_address);
-* - TcsResult tcs_address_socket_family(TcsSocket socket_ctx, TcsFamily* out_family);
+* - TcsResult tcs_interface_list(struct TcsInterface out_interfaces[], size_t interfaces_length, size_t* out_length);
+* - TcsResult tcs_address_resolve(const char* hostname, TcsFamily address_family, struct TcsAddress out_addresses[], size_t addresses_length, size_t* out_length);
+* - TcsResult tcs_address_list(TcsInterfaceId interface_id_filter, TcsFamily address_family_filter, struct TcsInterfaceAddress out_interface_addresses[], size_t interface_addresses_length, size_t* out_length);
+* - TcsResult tcs_address_socket_local(TcsSocket socket, struct TcsAddress* out_local_address);
+* - TcsResult tcs_address_socket_remote(TcsSocket socket, struct TcsAddress* out_remote_address);
+* - TcsResult tcs_address_socket_family(TcsSocket socket, TcsFamily* out_family);
 * - TcsResult tcs_address_parse(const char str[], struct TcsAddress* out_address);
 * - TcsResult tcs_address_to_str(const struct TcsAddress* address, char out_str[70]);
 * - bool tcs_address_is_equal(const struct TcsAddress* l, const struct TcsAddress* r);
@@ -144,6 +125,7 @@ static const char* const TCS_LICENSE_TXT =
 * - bool tcs_address_is_loopback(const struct TcsAddress* addr);
 * - bool tcs_address_is_multicast(const struct TcsAddress* addr);
 * - bool tcs_address_is_broadcast(const struct TcsAddress* addr);
+* - bool tcs_address_is_supported(const struct TcsAddress* addr);
 */
 
 // Recognize which system we are compiling against
@@ -193,15 +175,21 @@ typedef int TcsSocket;
 typedef unsigned int TcsInterfaceId;
 #endif
 
-#ifndef TCS_SENDV_STACK_MAX
-#define TCS_SENDV_STACK_MAX 112
-#endif
-
-// Declarations
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+// Configuration
+
+#ifndef TCS_CFG_SENDV_STACK_MAX
+#define TCS_CFG_SENDV_STACK_MAX 112
+#endif
+
+#ifndef TCS_CFG_INTERFACE_NAME_SIZE
+#define TCS_CFG_INTERFACE_NAME_SIZE 64
+#endif
+
+// Declarations
 
 /** @internal */
 #define tcs_static_assert(name, expr) typedef char tcs_sa_##name[(expr) ? 1 : -1]
@@ -217,10 +205,21 @@ typedef struct TcsFamily
     int native;
 } TcsFamily;
 
-extern const TcsFamily TCS_FAMILY_ANY;    /**< Layer 4 agnostic (AF_UNSPEC) */
-extern const TcsFamily TCS_FAMILY_IP4;    /**< INET IPv4 interface (AF_INET) */
-extern const TcsFamily TCS_FAMILY_IP6;    /**< INET IPv6 interface (AF_INET6) */
-extern const TcsFamily TCS_FAMILY_PACKET; /**< Layer 2 interface (AF_PACKET on Linux; unsupported elsewhere) */
+/**
+ * @brief Socket type. Holds the native SOCK_* value in `native`.
+ * Use the TCS_SOCK_* constants below as the only valid values.
+ */
+typedef struct TcsSocketType
+{
+    int native;
+} TcsSocketType;
+
+/**
+ * @brief Protocol number for ::tcs_socket().
+ *
+ * Typedef'd as uint16_t since both IP protocol numbers (IANA, 8-bit) and EtherTypes (IEEE, 16-bit) fit.
+ */
+typedef uint16_t TcsProtocol;
 
 /**
  * @brief Flags for poll events
@@ -231,141 +230,6 @@ typedef enum
     TCS_POLL_WRITE = 2,
 } TcsPollFlags;
 
-/**
- * @brief IPv6 address (16 bytes), analogous to POSIX struct in6_addr.
- */
-struct TcsIp6Address
-{
-    uint8_t bytes[16];
-};
-
-/**
- * @brief Network Address
- *
- * Always host-byte-order. You will never need to use htons etc.
-
- */
-struct TcsAddress
-{
-    TcsFamily family;
-    union
-    {
-        unsigned char _storage[24]; /**< Ensures full zero-initialization when copied from TCS_ADDRESS_NONE */
-        struct
-        {
-            uint32_t address; /**< Same byte order as the host */
-            uint16_t port;    /**< Same byte order as the host */
-
-        } ip4;
-        struct
-        {
-            struct TcsIp6Address address; /**< Network byte order */
-            TcsInterfaceId
-                scope_id;  /**< Native type. Only valid for local link addresses. See ::tcs_interface_list(). */
-            uint16_t port; /**< Same byte order as the host */
-        } ip6;
-        struct
-        {
-            TcsInterfaceId
-                interface_id; /**< Local interface index, use tcs_interface_list() to find valid interfaces. Native type. */
-            uint16_t
-                protocol;   /**< Host byte order. E.g. TCS_PROTOCOL_ETH_ALL, 0 (block all until bind), ETH_P_TSN etc. */
-            uint8_t mac[6]; /**< Typical destination mac address or local mac address when joining groups */
-        } packet;
-    } data;
-};
-
-#ifndef TCS_INTERFACE_NAME_SIZE
-#define TCS_INTERFACE_NAME_SIZE 64
-#endif
-
-/**
- * @brief Network Interface Information
- */
-struct TcsInterface
-{
-    TcsInterfaceId id;
-    char name[TCS_INTERFACE_NAME_SIZE];
-};
-
-struct TcsInterfaceAddress
-{
-    struct TcsInterface iface;
-    struct TcsAddress address;
-};
-
-tcs_static_assert(address_storage_size, sizeof(((struct TcsAddress*)0)->data) <= 24);
-
-// gcc may trigger bug #53119
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-braces"
-#endif
-static const struct TcsAddress TCS_ADDRESS_NONE = {{0}, {{0}}};
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
-
-extern const uint32_t TCS_ADDRESS_ANY_IP4;
-extern const uint32_t TCS_ADDRESS_LOOPBACK_IP4;
-extern const uint32_t TCS_ADDRESS_BROADCAST_IP4;
-extern const uint32_t TCS_ADDRESS_NONE_IP4;
-
-extern const struct TcsIp6Address TCS_ADDRESS_ANY_IP6;
-extern const struct TcsIp6Address TCS_ADDRESS_LOOPBACK_IP6;
-
-/**
- * @brief Used when sending/receiving an array of buffers.
- *
- * Useful if you want to send two or more data arrays at once, for example a header and a body.
- * Make an array of TcsBuffer and use tcs_sendv() to send them all at once.
-*/
-struct TcsBuffer
-{
-    const uint8_t* data;
-    size_t size;
-};
-
-extern const TcsSocket TCS_SOCKET_INVALID; /**< Define new sockets to this value, always. */
-static const uint32_t TCS_FLAG_NONE = 0;
-
-// Type
-/**
- * @brief Socket type. Holds the native SOCK_* value in `native`.
- * Use the TCS_SOCK_* constants below as the only valid values.
- */
-typedef struct TcsSockType
-{
-    int native;
-} TcsSockType;
-
-extern const TcsSockType TCS_SOCK_STREAM; /**< Use for streaming types like TCP */
-extern const TcsSockType TCS_SOCK_DGRAM;  /**< Use for datagrams types like UDP */
-extern const TcsSockType TCS_SOCK_RAW;    /**< Use for raw sockets, eg. layer 2 packet sockets */
-
-// Protocol
-/**
- * @brief Protocol number for ::tcs_socket().
- *
- * Typedef'd as uint16_t since both IP protocol numbers (IANA, 8-bit) and EtherTypes (IEEE, 16-bit) fit.
- */
-typedef uint16_t TcsProtocol;
-
-static const TcsProtocol TCS_PROTOCOL_IP_TCP = 6;  /**< TCP, IANA-assigned (RFC 9293). Use with TCS_SOCK_STREAM. */
-static const TcsProtocol TCS_PROTOCOL_IP_UDP = 17; /**< UDP, IANA-assigned (RFC 768). Use with TCS_SOCK_DGRAM. */
-static const TcsProtocol TCS_PROTOCOL_ETH_ALL = 3; /**< Receive all protocols. Use with TCS_FAMILY_PACKET. */
-
-// Recv flags
-extern const uint32_t TCS_MSG_PEEK;
-extern const uint32_t TCS_MSG_OOB;
-extern const uint32_t TCS_MSG_WAITALL;
-
-// Send flags
-extern const uint32_t TCS_MSG_SENDALL;
-
-// Backlog
-extern const int TCS_BACKLOG_MAX; /**< Max number of queued sockets when listening */
-
 // Socket Direction
 typedef enum
 {
@@ -373,36 +237,6 @@ typedef enum
     TCS_SHUTDOWN_SEND,    /**< To shutdown outgoing packets for socket */
     TCS_SHUTDOWN_BOTH,    /**< To shutdown both incoming and outgoing packets for socket */
 } TcsShutdownDirection;
-
-// Option levels
-extern const int TCS_SOL_SOCKET; /**< Socket option level for socket options */
-extern const int TCS_SOL_IP;     /**< IP option level for socket options */
-
-// Socket options
-extern const int TCS_SO_TYPE;
-extern const int TCS_SO_BROADCAST;
-extern const int TCS_SO_KEEPALIVE;
-extern const int TCS_SO_LINGER;
-extern const int TCS_SO_REUSEADDR;
-extern const int TCS_SO_REUSEPORT;
-extern const int TCS_SO_RCVBUF; /**< Byte size of receiving buffer */
-extern const int TCS_SO_RCVTIMEO;
-extern const int TCS_SO_SNDBUF; /**< Byte size of sending buffer */
-extern const int TCS_SO_OOBINLINE;
-extern const int TCS_SO_PRIORITY;
-
-// IP options
-extern const int TCS_TCP_NODELAY;
-extern const int TCS_IP_MEMBERSHIP_ADD;
-extern const int TCS_IP_MEMBERSHIP_DROP;
-extern const int TCS_IP_MULTICAST_LOOP;
-
-// Packet options
-extern const int TCS_PACKET_MEMBERSHIP_ADD;
-extern const int TCS_PACKET_MEMBERSHIP_DROP;
-
-// Use for timeout to wait until infinity happens
-extern const int TCS_WAIT_INF;
 
 // Return codes
 typedef enum
@@ -442,6 +276,88 @@ typedef enum
     TCS_ERROR_ILL_FORMED_MESSAGE = -96,
 } TcsResult;
 
+/**
+ * @brief Convert a tinycsocket result code to a static human-readable string.
+ *
+ * The returned pointer is never NULL and must not be freed.
+ */
+const char* tcs_strerror(TcsResult result);
+
+/**
+ * @brief IPv6 address (16 bytes), analogous to POSIX struct in6_addr.
+ */
+struct TcsAddressIpv6
+{
+    uint8_t bytes[16];
+};
+
+typedef uint32_t TcsAddressIpv4;
+
+/**
+ * @brief Network Address
+ *
+ * Always host-byte-order. You will never need to use htons etc.
+
+ */
+struct TcsAddress
+{
+    TcsFamily family;
+    union
+    {
+        unsigned char _storage[24]; /**< Ensures full zero-initialization when copied from TCS_ADDRESS_NONE */
+        struct
+        {
+            TcsAddressIpv4 address; /**< Same byte order as the host */
+            uint16_t port;          /**< Same byte order as the host */
+
+        } ipv4;
+        struct
+        {
+            struct TcsAddressIpv6 address;
+            TcsInterfaceId
+                scope_id;  /**< Native type. Only valid for local link addresses. See ::tcs_interface_list(). */
+            uint16_t port; /**< Same byte order as the host */
+        } ipv6;
+        struct
+        {
+            TcsInterfaceId
+                interface_id; /**< Local interface index, use tcs_interface_list() to find valid interfaces. Native type. */
+            uint16_t
+                protocol;   /**< Host byte order. E.g. TCS_PROTOCOL_ETH_ALL, 0 (block all until bind), ETH_P_TSN etc. */
+            uint8_t mac[6]; /**< Typical destination mac address or local mac address when joining groups */
+        } packet;
+    } data;
+};
+
+/**
+ * @brief Network Interface Information
+ */
+struct TcsInterface
+{
+    TcsInterfaceId id;
+    char name[TCS_CFG_INTERFACE_NAME_SIZE];
+};
+
+struct TcsInterfaceAddress
+{
+    struct TcsInterface iface;
+    struct TcsAddress address;
+};
+
+tcs_static_assert(address_storage_size, sizeof(((struct TcsAddress*)0)->data) <= 24);
+
+/**
+ * @brief Scatter/gather buffer descriptor (analogous to POSIX `struct iovec`).
+ *
+ * Useful if you want to send two or more data arrays at once, for example a header and a body.
+ * Make an array of TcsIoVec and use tcs_sendv() to send them all at once.
+*/
+struct TcsIoVec
+{
+    const uint8_t* buffer;
+    size_t buffer_size;
+};
+
 struct TcsPoll;
 struct TcsPollEvent
 {
@@ -451,6 +367,86 @@ struct TcsPollEvent
     bool can_write;
     TcsResult error;
 };
+
+extern const TcsFamily TCS_FAMILY_ANY;    /**< Layer 4 agnostic (AF_UNSPEC) */
+extern const TcsFamily TCS_FAMILY_IPV4;   /**< INET IPv4 interface (AF_INET) */
+extern const TcsFamily TCS_FAMILY_IPV6;   /**< INET IPv6 interface (AF_INET6) */
+extern const TcsFamily TCS_FAMILY_PACKET; /**< Layer 2 interface (AF_PACKET on Linux; unsupported elsewhere) */
+
+// gcc may trigger bug #53119
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-braces"
+#endif
+static const struct TcsAddress TCS_ADDRESS_NONE = {{0}, {{0}}};
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
+
+extern const TcsAddressIpv4 TCS_ADDRESS_IPV4_ANY;
+extern const TcsAddressIpv4 TCS_ADDRESS_IPV4_LOOPBACK;
+extern const TcsAddressIpv4 TCS_ADDRESS_IPV4_BROADCAST;
+extern const TcsAddressIpv4 TCS_ADDRESS_IPV4_NONE;
+
+extern const struct TcsAddressIpv6 TCS_ADDRESS_IPV6_ANY;
+extern const struct TcsAddressIpv6 TCS_ADDRESS_IPV6_LOOPBACK;
+
+extern const TcsSocket TCS_SOCKET_INVALID; /**< Define new sockets to this value, always. */
+static const uint32_t TCS_FLAG_NONE = 0;
+
+extern const TcsSocketType TCS_SOCKET_STREAM; /**< Use for streaming types like TCP */
+extern const TcsSocketType TCS_SOCKET_DGRAM;  /**< Use for datagrams types like UDP */
+extern const TcsSocketType TCS_SOCKET_RAW;    /**< Use for raw sockets, eg. layer 2 packet sockets */
+
+static const TcsProtocol TCS_PROTOCOL_IP_TCP = 6;  /**< TCP, IANA-assigned (RFC 9293). Use with TCS_SOCKET_STREAM. */
+static const TcsProtocol TCS_PROTOCOL_IP_UDP = 17; /**< UDP, IANA-assigned (RFC 768). Use with TCS_SOCKET_DGRAM. */
+static const TcsProtocol TCS_PROTOCOL_ETH_ALL = 3; /**< Receive all protocols. Use with TCS_FAMILY_PACKET. */
+
+// Recv flags
+extern const uint32_t TCS_MSG_PEEK;
+extern const uint32_t TCS_MSG_OOB;
+extern const uint32_t TCS_MSG_WAITALL;
+
+// Send flags
+extern const uint32_t TCS_MSG_SENDALL;
+
+// Backlog
+extern const int TCS_BACKLOG_MAX; /**< Max number of queued sockets when listening */
+
+// Option levels
+extern const int32_t TCS_SOL_SOCKET; /**< Socket option level for socket options */
+extern const int32_t TCS_SOL_IP;     /**< IP option level for socket options */
+extern const int32_t TCS_SOL_TCP;    /**< TCP option level for socket options */
+extern const int32_t TCS_SOL_PACKET; /**< Packet option level for socket options. Linux-only; -1 elsewhere. */
+
+// Socket options
+extern const int32_t TCS_SO_TYPE;
+extern const int32_t TCS_SO_BROADCAST;
+extern const int32_t TCS_SO_KEEPALIVE;
+extern const int32_t TCS_SO_LINGER;
+extern const int32_t TCS_SO_REUSEADDR;
+extern const int32_t TCS_SO_REUSEPORT;
+extern const int32_t TCS_SO_RCVBUF; /**< Byte size of receiving buffer */
+extern const int32_t TCS_SO_RCVTIMEO;
+extern const int32_t TCS_SO_SNDBUF; /**< Byte size of sending buffer */
+extern const int32_t TCS_SO_OOBINLINE;
+extern const int32_t TCS_SO_PRIORITY;
+
+// IP options
+extern const int32_t TCS_IP_MEMBERSHIP_ADD;
+extern const int32_t TCS_IP_MEMBERSHIP_DROP;
+extern const int32_t TCS_IP_MULTICAST_LOOP;
+
+// TCP options
+extern const int32_t TCS_TCP_NODELAY;
+
+// Packet options
+extern const int32_t TCS_PACKET_MEMBERSHIP_ADD;
+extern const int32_t TCS_PACKET_MEMBERSHIP_DROP;
+
+// Use for timeout to wait until infinity happens
+extern const int32_t TCS_WAIT_INF;
+
 static const struct TcsPollEvent TCS_POLL_EVENT_EMPTY = {0, 0, false, false, TCS_SUCCESS};
 
 // ######## Library Management ########
@@ -463,7 +459,7 @@ static const struct TcsPollEvent TCS_POLL_EVENT_EMPTY = {0, 0, false, false, TCS
  * On Windows, it will initialize Winsock, otherwise it does nothing and will always return #TCS_SUCCESS.
  *
  * You can call this multiple times, it will keep a counter of how many times you have called it (RAII friendly).
- * You should call tcs_lib_free() after you are done with the library (before program exit), atleast the number of times you have called tcs_lib_init().
+ * You should call tcs_lib_cleanup() after you are done with the library (before program exit), atleast the number of times you have called tcs_lib_init().
  * 
  * @code
  * #include "tinycsocket.h"
@@ -474,11 +470,11 @@ static const struct TcsPollEvent TCS_POLL_EVENT_EMPTY = {0, 0, false, false, TCS
  *   if (tcs_init_res != TCS_SUCCESS)
  *       return -1; // Failed to initialize tinycsocket
  *   // Do stuff with the library here
- *   tcs_lib_free();
+ *   tcs_lib_cleanup();
  * }
  * @endcode
  *
- * @see tcs_lib_free()
+ * @see tcs_lib_cleanup()
  *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  *
@@ -496,7 +492,7 @@ TcsResult tcs_lib_init(void);
  *
  * @retval #TCS_ERROR_LIBRARY_NOT_INITIALIZED if you have not called tcs_lib_init() before calling this function.
  */
-TcsResult tcs_lib_free(void);
+TcsResult tcs_lib_cleanup(void);
 
 // ######## Socket Creation ########
 
@@ -521,23 +517,23 @@ TcsResult tcs_lib_free(void);
  *       return -1; // Failed to initialize tinycsocket
  *
  *   TcsSocket my_socket = TCS_SOCKET_INVALID; // Always initialize TcsSocket to TCS_SOCKET_INVALID.
- *   TcsResult tcs_socket_res = tcs_socket(&my_socket, TCS_FAMILY_IP4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
+ *   TcsResult tcs_socket_res = tcs_socket(&my_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP);
  *   if (tcs_socket_res != TCS_SUCCESS)
  *   {
- *     tcs_lib_free();
+ *     tcs_lib_cleanup();
  *     return -2; // Failed to create socket
  *   }
  *
  *   // Do stuff with my_socket here. See examples in the documentation.
  *
  *   tcs_close(&my_socket); // Safe to call even if my_socket is TCS_SOCKET_INVALID
- *   tcs_lib_free();
+ *   tcs_lib_cleanup();
  * }
  * @endcode
  *
  * @param[out] out_socket pointer to socket context to be created, which must have been initialized to #TCS_SOCKET_INVALID before use.
  * @param[in] family See ::TcsFamily for supported values.
- * @param[in] type specifies the type of the socket, supported values are: ::TCS_SOCK_STREAM, ::TCS_SOCK_DGRAM and ::TCS_SOCK_RAW.
+ * @param[in] type specifies the type of the socket, supported values are: ::TCS_SOCKET_STREAM, ::TCS_SOCKET_DGRAM and ::TCS_SOCKET_RAW.
  * @param[in] protocol specifies the protocol, for example #TCS_PROTOCOL_IP_TCP or #TCS_PROTOCOL_IP_UDP.
  *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
@@ -552,9 +548,9 @@ TcsResult tcs_lib_free(void);
  * @see tcs_socket_packet_str()
  * @see tcs_close()
  * @see tcs_lib_init()
- * @see tcs_lib_free()
+ * @see tcs_lib_cleanup()
  */
-TcsResult tcs_socket(TcsSocket* out_socket, TcsFamily family, TcsSockType type, TcsProtocol protocol);
+TcsResult tcs_socket(TcsSocket* out_socket, TcsFamily family, TcsSocketType type, TcsProtocol protocol);
 
 /**
 * @brief Create a TCP socket, optionally bind to a local address and/or connect to a remote address.
@@ -573,22 +569,22 @@ TcsResult tcs_socket(TcsSocket* out_socket, TcsFamily family, TcsSockType type, 
 *   tcs_lib_init();
 *
 *   struct TcsAddress local = TCS_ADDRESS_NONE;
-*   local.family = TCS_FAMILY_IP4;
-*   local.data.ip4.address = TCS_ADDRESS_ANY_IP4;
-*   local.data.ip4.port = 8080;
+*   local.family = TCS_FAMILY_IPV4;
+*   local.data.ipv4.address = TCS_ADDRESS_IPV4_ANY;
+*   local.data.ipv4.port = 8080;
 *
 *   TcsSocket server = TCS_SOCKET_INVALID;
 *   TcsResult res = tcs_socket_tcp(&server, &local, NULL, 0);
 *   if (res != TCS_SUCCESS)
 *   {
-*     tcs_lib_free();
+*     tcs_lib_cleanup();
 *     return -1;
 *   }
 *
 *   // Socket is now bound, call tcs_listen() and tcs_accept() to accept connections
 *
 *   tcs_close(&server);
-*   tcs_lib_free();
+*   tcs_lib_cleanup();
 * }
 * @endcode
 *
@@ -614,7 +610,7 @@ TcsResult tcs_socket_tcp(TcsSocket* out_socket,
 /**
 * @brief Create a TCP socket from string addresses, optionally bind and/or connect.
 *
-* Parses the address strings with ::tcs_address_parse() and delegates to ::tcs_socket_tcp().
+* Resolves the address strings with ::tcs_address_resolve() and delegates to ::tcs_socket_tcp().
 * Addresses must include a port, e.g. "127.0.0.1:8080" or "[::1]:8080".
 * At least one of @p local_address or @p remote_address must be non-NULL.
 * On failure, *out_socket is always set back to #TCS_SOCKET_INVALID.
@@ -629,14 +625,14 @@ TcsResult tcs_socket_tcp(TcsSocket* out_socket,
 *   TcsResult res = tcs_socket_tcp_str(&socket, NULL, "127.0.0.1:8080", 5000);
 *   if (res != TCS_SUCCESS)
 *   {
-*     tcs_lib_free();
+*     tcs_lib_cleanup();
 *     return -1;
 *   }
 *
 *   // Socket is now connected and ready for communication
 *
 *   tcs_close(&socket);
-*   tcs_lib_free();
+*   tcs_lib_cleanup();
 * }
 * @endcode
 *
@@ -680,22 +676,22 @@ TcsResult tcs_socket_tcp_str(TcsSocket* out_socket,
 *   tcs_lib_init();
 *
 *   struct TcsAddress local = TCS_ADDRESS_NONE;
-*   local.family = TCS_FAMILY_IP4;
-*   local.data.ip4.address = TCS_ADDRESS_ANY_IP4;
-*   local.data.ip4.port = 8080;
+*   local.family = TCS_FAMILY_IPV4;
+*   local.data.ipv4.address = TCS_ADDRESS_IPV4_ANY;
+*   local.data.ipv4.port = 8080;
 *
 *   TcsSocket socket = TCS_SOCKET_INVALID;
 *   TcsResult res = tcs_socket_udp(&socket, &local, NULL);
 *   if (res != TCS_SUCCESS)
 *   {
-*     tcs_lib_free();
+*     tcs_lib_cleanup();
 *     return -1;
 *   }
 *
 *   // Socket is now bound and ready to receive with tcs_receive_from()
 *
 *   tcs_close(&socket);
-*   tcs_lib_free();
+*   tcs_lib_cleanup();
 * }
 * @endcode
 *
@@ -731,14 +727,14 @@ TcsResult tcs_socket_udp(TcsSocket* out_socket,
 *   TcsResult res = tcs_socket_udp_str(&socket, "0.0.0.0:8080", NULL);
 *   if (res != TCS_SUCCESS)
 *   {
-*     tcs_lib_free();
+*     tcs_lib_cleanup();
 *     return -1;
 *   }
 *
 *   // Socket is now bound and ready to receive with tcs_receive_from()
 *
 *   tcs_close(&socket);
-*   tcs_lib_free();
+*   tcs_lib_cleanup();
 * }
 * @endcode
 *
@@ -773,23 +769,23 @@ TcsResult tcs_socket_udp_str(TcsSocket* out_socket, const char* local_address, c
 *   bind.data.packet.protocol = 0x22F0; // e.g. AVTP
 *
 *   TcsSocket socket = TCS_SOCKET_INVALID;
-*   TcsResult res = tcs_socket_packet(&socket, &bind, TCS_SOCK_DGRAM);
+*   TcsResult res = tcs_socket_packet(&socket, &bind, TCS_SOCKET_DGRAM);
 *   if (res != TCS_SUCCESS)
 *   {
-*     tcs_lib_free();
+*     tcs_lib_cleanup();
 *     return -1;
 *   }
 *
 *   // Socket is now bound and ready for tcs_send_to() / tcs_receive_from()
 *
 *   tcs_close(&socket);
-*   tcs_lib_free();
+*   tcs_lib_cleanup();
 * }
 * @endcode
 *
 * @param[out] out_socket pointer to socket context to be created, which must have been initialized to #TCS_SOCKET_INVALID before use.
 * @param[in] bind_address address with family TCS_FAMILY_PACKET specifying interface_id and protocol.
-* @param[in] type socket type, either #TCS_SOCK_RAW for full L2 frames or #TCS_SOCK_DGRAM for frames without the L2 header.
+* @param[in] type socket type, either #TCS_SOCKET_RAW for full L2 frames or #TCS_SOCKET_DGRAM for frames without the L2 header.
 *
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @retval #TCS_ERROR_INVALID_ARGUMENT if @p out_socket is NULL, if *out_socket is not #TCS_SOCKET_INVALID, or if @p bind_address is NULL or not TCS_FAMILY_PACKET.
@@ -797,7 +793,7 @@ TcsResult tcs_socket_udp_str(TcsSocket* out_socket, const char* local_address, c
 * @see tcs_socket_packet_str()
 * @see tcs_close()
 */
-TcsResult tcs_socket_packet(TcsSocket* out_socket, const struct TcsAddress* bind_address, TcsSockType type);
+TcsResult tcs_socket_packet(TcsSocket* out_socket, const struct TcsAddress* bind_address, TcsSocketType type);
 
 /**
 * @brief Create a packet socket bound to a named network interface.
@@ -812,24 +808,24 @@ TcsResult tcs_socket_packet(TcsSocket* out_socket, const struct TcsAddress* bind
 *   tcs_lib_init();
 *
 *   TcsSocket socket = TCS_SOCKET_INVALID;
-*   TcsResult res = tcs_socket_packet_str(&socket, "eth0", 0x22F0, TCS_SOCK_DGRAM);
+*   TcsResult res = tcs_socket_packet_str(&socket, "eth0", 0x22F0, TCS_SOCKET_DGRAM);
 *   if (res != TCS_SUCCESS)
 *   {
-*     tcs_lib_free();
+*     tcs_lib_cleanup();
 *     return -1;
 *   }
 *
 *   // Socket is now bound and ready for tcs_send_to() / tcs_receive_from()
 *
 *   tcs_close(&socket);
-*   tcs_lib_free();
+*   tcs_lib_cleanup();
 * }
 * @endcode
 *
 * @param[out] out_socket pointer to socket context to be created, which must have been initialized to #TCS_SOCKET_INVALID before use.
 * @param[in] interface_name name of the network interface to bind to.
 * @param[in] protocol EtherType protocol in host byte order, e.g. 0x22F0 for AVTP.
-* @param[in] type socket type, either #TCS_SOCK_RAW for full L2 frames or #TCS_SOCK_DGRAM for frames without the L2 header.
+* @param[in] type socket type, either #TCS_SOCKET_RAW for full L2 frames or #TCS_SOCKET_DGRAM for frames without the L2 header.
 *
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @retval #TCS_ERROR_INVALID_ARGUMENT if @p out_socket is NULL, if *out_socket is not #TCS_SOCKET_INVALID, or if @p interface_name is NULL or not found.
@@ -837,27 +833,29 @@ TcsResult tcs_socket_packet(TcsSocket* out_socket, const struct TcsAddress* bind
 * @see tcs_socket_packet()
 * @see tcs_close()
 */
-TcsResult tcs_socket_packet_str(TcsSocket* out_socket, const char* interface_name, uint16_t protocol, TcsSockType type);
+TcsResult tcs_socket_packet_str(TcsSocket* out_socket,
+                                const char* interface_name,
+                                uint16_t protocol,
+                                TcsSocketType type);
 
 /**
 * @brief Closes the socket, stop communication and free all resources for the socket.
 *
 * This will free all resources associated with the socket and set the socket value to #TCS_SOCKET_INVALID.
 *
-* @param[in,out] socket_ctx is a pointer to your socket context you have previously created with ::tcs_socket() or one of the helper functions. Will be set to #TCS_SOCKET_INVALID on success.
+* @param[in,out] socket is a pointer to your socket context you have previously created with ::tcs_socket() or one of the helper functions. Will be set to #TCS_SOCKET_INVALID on success.
 *
 * @return #TCS_SUCCESS if successful, otherwise the error code.
-* @retval #TCS_ERROR_INVALID_ARGUMENT if you have provided an invalid argument. Such as a NULL pointer or a socket that is already #TCS_SOCKET_INVALID.
-* @retval #TCS_ERROR_SOCKET_CLOSED if the socket is already closed.
+* @retval #TCS_ERROR_INVALID_ARGUMENT if @p socket is NULL or already #TCS_SOCKET_INVALID.
 *
 * @see tcs_socket()
 * @see tcs_socket_tcp()
 * @see tcs_socket_udp()
 * @see tcs_socket_packet()
 * @see tcs_lib_init()
-* @see tcs_lib_free()
+* @see tcs_lib_cleanup()
 */
-TcsResult tcs_close(TcsSocket* socket_ctx);
+TcsResult tcs_close(TcsSocket* socket);
 
 /**
  * @brief Binds a socket to a local address.
@@ -876,23 +874,23 @@ TcsResult tcs_close(TcsSocket* socket_ctx);
  *     return -1;
  *
  *   TcsSocket server_socket = TCS_SOCKET_INVALID;
- *   TcsResult socket_res = tcs_socket(&server_socket, TCS_FAMILY_IP4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
+ *   TcsResult socket_res = tcs_socket(&server_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP);
  *   if (socket_res != TCS_SUCCESS)
  *   {
- *     tcs_lib_free();
+ *     tcs_lib_cleanup();
  *     return -2;
  *   }
  *
  *   struct TcsAddress local_address = TCS_ADDRESS_NONE;
- *   local_address.family = TCS_FAMILY_IP4;
- *   local_address.data.ip4.address = TCS_ADDRESS_ANY_IP4; // Bind to all interfaces
- *   local_address.data.ip4.port = 8080;
+ *   local_address.family = TCS_FAMILY_IPV4;
+ *   local_address.data.ipv4.address = TCS_ADDRESS_IPV4_ANY; // Bind to all interfaces
+ *   local_address.data.ipv4.port = 8080;
  *
  *   TcsResult bind_res = tcs_bind(server_socket, &local_address);
  *   if (bind_res != TCS_SUCCESS)
  *   {
  *     tcs_close(&server_socket);
- *     tcs_lib_free();
+ *     tcs_lib_cleanup();
  *     return -3; // Failed to bind to address
  *   }
  *
@@ -900,16 +898,16 @@ TcsResult tcs_close(TcsSocket* socket_ctx);
  *   // For UDP: socket is ready to receive datagrams
  *
  *   tcs_close(&server_socket);
- *   tcs_lib_free();
+ *   tcs_lib_cleanup();
  *   return 0;
  * }
  * @endcode
  *
- * @param socket_ctx The socket to bind. Must be a valid socket created with tcs_socket().
- * @param local_address The local address structure to bind to. Use TCS_ADDRESS_ANY_IP4 for the address field to bind to all interfaces.
+ * @param[in] socket The socket to bind. Must be a valid socket created with tcs_socket().
+ * @param[in] local_address The local address structure to bind to. Use TCS_ADDRESS_IPV4_ANY for the address field to bind to all interfaces.
  *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
- * @retval #TCS_ERROR_INVALID_ARGUMENT if socket_ctx is invalid or local_address is NULL.
+ * @retval #TCS_ERROR_INVALID_ARGUMENT if socket is invalid or local_address is NULL.
  * @retval #TCS_ERROR_NOT_SUPPORTED if local_address has an address family not supported on this platform.
  * @retval #TCS_ERROR_PERMISSION_DENIED if binding to the specified address/port requires elevated privileges.
  * @retval #TCS_ERROR_SYSTEM if the address is already in use or another system error occurred.
@@ -919,7 +917,7 @@ TcsResult tcs_close(TcsSocket* socket_ctx);
  * @see tcs_socket_udp()
  * @see tcs_address_socket_local()
  */
-TcsResult tcs_bind(TcsSocket socket_ctx, const struct TcsAddress* local_address);
+TcsResult tcs_bind(TcsSocket socket, const struct TcsAddress* local_address);
 
 /**
  * @brief Connect a socket to a remote address structure.
@@ -927,9 +925,9 @@ TcsResult tcs_bind(TcsSocket socket_ctx, const struct TcsAddress* local_address)
  * This function establishes a connection to the specified remote address structure.
  * For TCP sockets, this initiates a three-way handshake. For UDP sockets, this
  * associates the socket with the remote address for subsequent send operations.
- * The function blocks indefinitely until the connection is established or fails.
- * Timeout for this function is set by OS defaults. Use TcsPoll or
- * ::tcs_opt_nonblocking_set() for non-blocking behavior.
+ * The function blocks until the connection is established, fails, or the OS-default
+ * connect timeout expires (typically tens of seconds to a few minutes, platform-dependent).
+ * Use TcsPoll or ::tcs_opt_nonblocking_set() for non-blocking behavior.
  *
  * @code
  * #include "tinycsocket.h"
@@ -940,42 +938,42 @@ TcsResult tcs_bind(TcsSocket socket_ctx, const struct TcsAddress* local_address)
  *     return -1;
  *
  *   TcsSocket client_socket = TCS_SOCKET_INVALID;
- *   TcsResult socket_res = tcs_socket(&client_socket, TCS_FAMILY_IP4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
+ *   TcsResult socket_res = tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP);
  *   if (socket_res != TCS_SUCCESS)
  *   {
- *     tcs_lib_free();
+ *     tcs_lib_cleanup();
  *     return -2;
  *   }
  *
  *   struct TcsAddress remote_address = TCS_ADDRESS_NONE;
- *   remote_address.family = TCS_FAMILY_IP4;
- *   remote_address.data.ip4.address = 0x7F000001; // 127.0.0.1 loopback
- *   remote_address.data.ip4.port = 8080;
+ *   remote_address.family = TCS_FAMILY_IPV4;
+ *   remote_address.data.ipv4.address = 0x7F000001; // 127.0.0.1 loopback
+ *   remote_address.data.ipv4.port = 8080;
  *
  *   TcsResult connect_res = tcs_connect(client_socket, &remote_address);
  *   if (connect_res != TCS_SUCCESS)
  *   {
  *     tcs_close(&client_socket);
- *     tcs_lib_free();
+ *     tcs_lib_cleanup();
  *     return -3; // Failed to connect
  *   }
  *
  *   // Socket is now connected and ready for communication
  *   uint8_t buffer[] = "Hello, server!";
- *   size_t bytes_sent = 0;
- *   tcs_send(client_socket, buffer, sizeof(buffer)-1, TCS_MSG_SENDALL, &bytes_sent);
+ *   size_t sent_size = 0;
+ *   tcs_send(client_socket, buffer, sizeof(buffer)-1, TCS_MSG_SENDALL, &sent_size);
  *
  *   tcs_close(&client_socket);
- *   tcs_lib_free();
+ *   tcs_lib_cleanup();
  *   return 0;
  * }
  * @endcode
  *
- * @param socket_ctx The socket to connect. Must be a valid socket created with tcs_socket().
- * @param address The remote address structure to connect to.
+ * @param[in] socket The socket to connect. Must be a valid socket created with tcs_socket().
+ * @param[in] address The remote address structure to connect to.
  *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
- * @retval #TCS_ERROR_INVALID_ARGUMENT if socket_ctx is invalid or address is NULL.
+ * @retval #TCS_ERROR_INVALID_ARGUMENT if socket is invalid or address is NULL.
  * @retval #TCS_ERROR_NOT_SUPPORTED if address has an address family not supported on this platform.
  * @retval #TCS_ERROR_CONNECTION_REFUSED if the remote server refused the connection.
  * @retval #TCS_ERROR_TIMED_OUT if the connection attempt timed out (can take 3+ minutes for unreachable hosts).
@@ -986,7 +984,7 @@ TcsResult tcs_bind(TcsSocket socket_ctx, const struct TcsAddress* local_address)
  * @see tcs_bind()
  * @see tcs_listen()
  */
-TcsResult tcs_connect(TcsSocket socket_ctx, const struct TcsAddress* address);
+TcsResult tcs_connect(TcsSocket socket, const struct TcsAddress* address);
 
 /**
  * @brief Connect a socket to a remote hostname and port.
@@ -1006,10 +1004,10 @@ TcsResult tcs_connect(TcsSocket socket_ctx, const struct TcsAddress* address);
  *     return -1;
  *
  *   TcsSocket client_socket = TCS_SOCKET_INVALID;
- *   TcsResult socket_res = tcs_socket(&client_socket, TCS_FAMILY_IP4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
+ *   TcsResult socket_res = tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP);
  *   if (socket_res != TCS_SUCCESS)
  *   {
- *     tcs_lib_free();
+ *     tcs_lib_cleanup();
  *     return -2;
  *   }
  *
@@ -1017,27 +1015,27 @@ TcsResult tcs_connect(TcsSocket socket_ctx, const struct TcsAddress* address);
  *   if (connect_res != TCS_SUCCESS)
  *   {
  *     tcs_close(&client_socket);
- *     tcs_lib_free();
+ *     tcs_lib_cleanup();
  *     return -3; // Failed to connect
  *   }
  *
  *   // Socket is now connected and ready for communication
  *   uint8_t buffer[] = "Hello, server!";
- *   size_t bytes_sent = 0;
- *   tcs_send(client_socket, buffer, sizeof(buffer)-1, TCS_MSG_SENDALL, &bytes_sent);
+ *   size_t sent_size = 0;
+ *   tcs_send(client_socket, buffer, sizeof(buffer)-1, TCS_MSG_SENDALL, &sent_size);
  *
  *   tcs_close(&client_socket);
- *   tcs_lib_free();
+ *   tcs_lib_cleanup();
  *   return 0;
  * }
  * @endcode
  *
- * @param socket_ctx The socket to connect. Must be a valid socket created with tcs_socket().
- * @param remote_address The remote hostname or IP address to connect to.
- * @param port The remote port number to connect to.
+ * @param[in] socket The socket to connect. Must be a valid socket created with tcs_socket().
+ * @param[in] remote_address The remote hostname or IP address to connect to.
+ * @param[in] port The remote port number to connect to.
  *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
- * @retval #TCS_ERROR_INVALID_ARGUMENT if socket_ctx is invalid or remote_address is NULL.
+ * @retval #TCS_ERROR_INVALID_ARGUMENT if socket is invalid or remote_address is NULL.
  * @retval #TCS_ERROR_CONNECTION_REFUSED if the remote server refused the connection.
  * @retval #TCS_ERROR_ADDRESS_LOOKUP_FAILED if the hostname could not be resolved.
  * @retval #TCS_ERROR_TIMED_OUT if the connection attempt timed out.
@@ -1048,33 +1046,33 @@ TcsResult tcs_connect(TcsSocket socket_ctx, const struct TcsAddress* address);
  * @see tcs_bind()
  * @see tcs_listen()
  */
-TcsResult tcs_connect_str(TcsSocket socket_ctx, const char* remote_address, uint16_t port);
+TcsResult tcs_connect_str(TcsSocket socket, const char* remote_address, uint16_t port);
 
 /**
  * @brief Let a socket start listening for incoming connections.
  *
  * Call #tcs_bind() first to bind to a local address to listening at.
  *
- * @param socket_ctx is your in-out socket context.
- * @param backlog is the maximum number of queued incoming sockets. Use #TCS_BACKLOG_MAX to set it to max.
+ * @param[in] socket is your in-out socket context.
+ * @param[in] backlog is the maximum number of queued incoming sockets. Use #TCS_BACKLOG_MAX to set it to max.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_accept()
  */
-TcsResult tcs_listen(TcsSocket socket_ctx, int backlog);
+TcsResult tcs_listen(TcsSocket socket, int backlog);
 
 /**
  * @brief Accept a socket from a listening socket.
  *
- * The accepted socket will get assigned a random local free port.
- * The listening socket will not be affected by this call.
+ * The accepted socket inherits the listening socket's local address and port; only the remote
+ * (peer) endpoint differs. The listening socket itself is not affected by this call.
  *
  * Example usage:
  * @code
  * TcsSocket listen_socket = TCS_SOCKET_INVALID;
- * tcs_socket(&listen_socket, TCS_FAMILY_IP4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
+ * tcs_socket(&listen_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP);
  * struct TcsAddress local_address = TCS_ADDRESS_NONE;
- * local_address.family = TCS_FAMILY_IP4;
- * local_address.data.ip4.port = 1212;
+ * local_address.family = TCS_FAMILY_IPV4;
+ * local_address.data.ipv4.port = 1212;
  * tcs_bind(listen_socket, &local_address);
  * tcs_listen(listen_socket, TCS_BACKLOG_MAX);
  * while (true)
@@ -1086,13 +1084,13 @@ TcsResult tcs_listen(TcsSocket socket_ctx, int backlog);
  * }
  * @endcode
  * 
- * @param socket_ctx is your listening socket you used when you called ::tcs_listen().
- * @param out_child_socket is your accepted socket. Must have the in value of #TCS_SOCKET_INVALID.
- * @param address is an optional pointer to a buffer where the remote address of the accepted socket can be stored.
+ * @param[in] listener is your listening socket you used when you called ::tcs_listen().
+ * @param[out] out_socket is your accepted socket. Must have the in value of #TCS_SOCKET_INVALID.
+ * @param[out] out_address is an optional pointer to a buffer where the remote address of the accepted socket can be stored.
  *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  */
-TcsResult tcs_accept(TcsSocket socket_ctx, TcsSocket* out_child_socket, struct TcsAddress* address);
+TcsResult tcs_accept(TcsSocket listener, TcsSocket* out_socket, struct TcsAddress* out_address);
 
 /**
 * @brief Turn off communication with a 3-way handshaking for the socket.
@@ -1100,66 +1098,66 @@ TcsResult tcs_accept(TcsSocket socket_ctx, TcsSocket* out_child_socket, struct T
 * Use this function to cancel blocking calls (recv, accept etc) from another thread, or use sigaction.
 * The socket will finish all queued sends first.
 *
-* @param socket_ctx is your in-out socket context.
-* @param direction defines in which direction you want to turn off the communication.
+* @param[in] socket is your in-out socket context.
+* @param[in] direction defines in which direction you want to turn off the communication.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_shutdown(TcsSocket socket_ctx, TcsShutdownDirection direction);
+TcsResult tcs_shutdown(TcsSocket socket, TcsShutdownDirection direction);
 
 /**
  * @brief Sends data on a socket, blocking
  *
- * @param socket_ctx is your in-out socket context.
- * @param buffer is a pointer to your data you want to send.
- * @param buffer_size is number of bytes of the data you want to send.
- * @param flags is currently not in use.
- * @param bytes_sent is how many bytes that was successfully sent.
+ * @param[in] socket is your in-out socket context.
+ * @param[in] buffer is a pointer to your data you want to send.
+ * @param[in] buffer_size is number of bytes of the data you want to send.
+ * @param[in] flags is a bitmask of send flags. Use #TCS_FLAG_NONE for no flags, or #TCS_MSG_SENDALL to keep sending until all bytes are transmitted (or the call fails).
+ * @param[out] out_sent_size is how many bytes that was successfully sent.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @see tcs_receive()
  */
-TcsResult tcs_send(TcsSocket socket_ctx, const uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* bytes_sent);
+TcsResult tcs_send(TcsSocket socket, const uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* out_sent_size);
 
 /**
  * @brief Sends data to an address, useful with UDP sockets.
  *
- * @param socket_ctx is your in-out socket context.
- * @param buffer is a pointer to your data you want to send.
- * @param buffer_size is number of bytes of the data you want to send.
- * @param flags is currently not in use.
- * @param destination_address is the address to send to.
- * @param bytes_sent is how many bytes that was successfully sent.
+ * @param[in] socket is your in-out socket context.
+ * @param[in] buffer is a pointer to your data you want to send.
+ * @param[in] buffer_size is number of bytes of the data you want to send.
+ * @param[in] flags is a bitmask of send flags. Use #TCS_FLAG_NONE for no flags, or #TCS_MSG_SENDALL to keep sending until all bytes are transmitted (or the call fails).
+ * @param[in] destination_address is the address to send to.
+ * @param[out] out_sent_size is how many bytes that was successfully sent.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @retval #TCS_ERROR_NOT_SUPPORTED if destination_address has an address family not supported on this platform.
  * @see tcs_receive_from()
  */
-TcsResult tcs_send_to(TcsSocket socket_ctx,
+TcsResult tcs_send_to(TcsSocket socket,
                       const uint8_t* buffer,
                       size_t buffer_size,
                       uint32_t flags,
                       const struct TcsAddress* destination_address,
-                      size_t* bytes_sent);
+                      size_t* out_sent_size);
 
 /**
 * @brief Sends several data buffers on a socket as one message.
 *
-* @param socket_ctx is your in-out socket context.
-* @param buffers is a pointer to your array of buffers you want to send.
-* @param buffer_count is the number of buffers in your array.
-* @param flags is currently not in use.
-* @param bytes_sent is how many bytes in total that was successfully sent.
+* @param[in] socket is your in-out socket context.
+* @param[in] iov is a pointer to your array of scatter/gather buffers you want to send.
+* @param[in] iov_length is the number of buffers in your array.
+* @param[in] flags is a bitmask of send flags. Use #TCS_FLAG_NONE for no flags, or #TCS_MSG_SENDALL to keep sending until all bytes are transmitted (or the call fails).
+* @param[out] out_sent_size is how many bytes in total that was successfully sent.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_sendv(TcsSocket socket_ctx,
-                    const struct TcsBuffer* buffers,
-                    size_t buffer_count,
+TcsResult tcs_sendv(TcsSocket socket,
+                    const struct TcsIoVec* iov,
+                    size_t iov_length,
                     uint32_t flags,
-                    size_t* bytes_sent);
+                    size_t* out_sent_size);
 
 /**
 * @brief Send data encoded as a netstring.
 *
 * Netstrings provide a simple framing format for sending discrete messages over a
-* stream-oriented transport such as TCP (::TCS_SOCK_STREAM). The format is:
+* stream-oriented transport such as TCP (::TCS_SOCKET_STREAM). The format is:
 * @code
 * <length>:<data>,
 * @endcode
@@ -1168,49 +1166,45 @@ TcsResult tcs_sendv(TcsSocket socket_ctx,
 * This is useful when you need packet-like semantics over TCP, where message
 * boundaries are otherwise not preserved.
 *
-* @param socket_ctx socket to send on.
-* @param buffer data to send.
-* @param buffer_size number of bytes to send.
+* @param[in] socket socket to send on.
+* @param[in] buffer data to send.
+* @param[in] buffer_size number of bytes to send.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_receive_netstring()
 */
-TcsResult tcs_send_netstring(TcsSocket socket_ctx, const uint8_t* buffer, size_t buffer_size);
+TcsResult tcs_send_netstring(TcsSocket socket, const uint8_t* buffer, size_t buffer_size);
 
 /**
 * @brief Receive data from a socket to your buffer
 *
-* @param socket_ctx is your in-out socket context.
-* @param buffer is a pointer to your buffer where you want to store the incoming data to.
-* @param buffer_size is the byte size of your buffer, for preventing overflows.
-* @param flags is currently not in use.
-* @param bytes_received is how many bytes that was successfully written to your buffer.
+* @param[in] socket is your in-out socket context.
+* @param[out] buffer is a pointer to your buffer where you want to store the incoming data to.
+* @param[in] buffer_size is the byte size of your buffer, for preventing overflows.
+* @param[in] flags is a bitmask of receive flags. Use #TCS_FLAG_NONE for no flags, or any combination of #TCS_MSG_PEEK, #TCS_MSG_OOB, and #TCS_MSG_WAITALL.
+* @param[out] out_received_size is how many bytes that was successfully written to your buffer.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_send()
 */
-TcsResult tcs_receive(TcsSocket socket_ctx,
-                      uint8_t* buffer,
-                      size_t buffer_size,
-                      uint32_t flags,
-                      size_t* bytes_received);
+TcsResult tcs_receive(TcsSocket socket, uint8_t* buffer, size_t buffer_size, uint32_t flags, size_t* out_received_size);
 
 /**
 * @brief Receive data from an address, useful with UDP sockets.
 *
-* @param socket_ctx is your in-out socket context.
-* @param buffer is a pointer to your buffer where you want to store the incoming data to.
-* @param buffer_size is the byte size of your buffer, for preventing overflows.
-* @param flags is currently not in use.
-* @param source_address is the address to receive from.
-* @param bytes_received is how many bytes that was successfully written to your buffer.
+* @param[in] socket is your in-out socket context.
+* @param[out] buffer is a pointer to your buffer where you want to store the incoming data to.
+* @param[in] buffer_size is the byte size of your buffer, for preventing overflows.
+* @param[in] flags is a bitmask of receive flags. Use #TCS_FLAG_NONE for no flags, or any combination of #TCS_MSG_PEEK, #TCS_MSG_OOB, and #TCS_MSG_WAITALL.
+* @param[out] out_source_address is the address the data was received from.
+* @param[out] out_received_size is how many bytes that was successfully written to your buffer.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_send_to()
 */
-TcsResult tcs_receive_from(TcsSocket socket_ctx,
+TcsResult tcs_receive_from(TcsSocket socket,
                            uint8_t* buffer,
                            size_t buffer_size,
                            uint32_t flags,
-                           struct TcsAddress* source_address,
-                           size_t* bytes_received);
+                           struct TcsAddress* out_source_address,
+                           size_t* out_received_size);
 
 /**
 * @brief Read up to and including a delimiter.
@@ -1220,20 +1214,20 @@ TcsResult tcs_receive_from(TcsSocket socket_ctx,
 * The call will block until the delimiter is received or the supplied buffer is filled.
 * The timeout time will not be per call but between each packet received. Longer call time than timeout is possible.
 *
-* @param socket_ctx is your in-out socket context.
-* @param buffer is a pointer to your buffer where you want to store the incoming data to.
-* @param buffer_size is the byte size of your buffer, for preventing overflows.
-* @param bytes_received is how many bytes that was successfully written to your buffer.
-* @param delimiter is your byte value where you want to stop reading. (including delimiter)
+* @param[in] socket is your in-out socket context.
+* @param[out] buffer is a pointer to your buffer where you want to store the incoming data to.
+* @param[in] buffer_size is the byte size of your buffer, for preventing overflows.
+* @param[in] delimiter is your byte value where you want to stop reading. (including delimiter)
+* @param[out] out_received_size is how many bytes that was successfully written to your buffer.
 * @return #TCS_AGAIN if no delimiter was found and the supplied buffer was filled.
 * @return #TCS_SUCCESS if the delimiter was found. Otherwise the error code.
 * @see tcs_receive_netstring()
 */
-TcsResult tcs_receive_line(TcsSocket socket_ctx,
+TcsResult tcs_receive_line(TcsSocket socket,
                            uint8_t* buffer,
                            size_t buffer_size,
-                           size_t* bytes_received,
-                           uint8_t delimiter);
+                           uint8_t delimiter,
+                           size_t* out_received_size);
 
 /**
 * @brief Receive a netstring-encoded message.
@@ -1242,16 +1236,16 @@ TcsResult tcs_receive_line(TcsSocket socket_ctx,
 * a stream socket. This allows receiving discrete messages over TCP where message
 * boundaries are otherwise not preserved.
 *
-* @param socket_ctx socket to receive from.
-* @param buffer buffer to store the decoded data (without the netstring framing).
-* @param buffer_size size of the buffer in bytes.
-* @param bytes_received optional pointer to receive the number of payload bytes received.
+* @param[in] socket socket to receive from.
+* @param[out] buffer buffer to store the decoded data (without the netstring framing).
+* @param[in] buffer_size size of the buffer in bytes.
+* @param[out] out_received_size optional pointer to receive the number of payload bytes received.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @retval #TCS_ERROR_ILL_FORMED_MESSAGE if the netstring is malformed or the length overflows.
 * @retval #TCS_ERROR_MEMORY if the buffer is too small for the payload.
 * @see tcs_send_netstring()
 */
-TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t buffer_size, size_t* bytes_received);
+TcsResult tcs_receive_netstring(TcsSocket socket, uint8_t* buffer, size_t buffer_size, size_t* out_received_size);
 
 /**
 * @brief Create a context used for waiting on several sockets.
@@ -1264,17 +1258,17 @@ TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t bu
 * tcs_lib_init();
 * TcsSocket socket1 = TCS_SOCKET_INVALID;
 * TcsSocket socket2 = TCS_SOCKET_INVALID;
-* tcs_socket(&socket1, TCS_FAMILY_IP4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP);
-* tcs_socket(&socket2, TCS_FAMILY_IP4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP);
+* tcs_socket(&socket1, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP);
+* tcs_socket(&socket2, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP);
 *
 * struct TcsAddress addr1 = TCS_ADDRESS_NONE;
-* addr1.family = TCS_FAMILY_IP4;
-* addr1.data.ip4.port = 1000;
+* addr1.family = TCS_FAMILY_IPV4;
+* addr1.data.ipv4.port = 1000;
 * tcs_bind(socket1, &addr1);
 *
 * struct TcsAddress addr2 = TCS_ADDRESS_NONE;
-* addr2.family = TCS_FAMILY_IP4;
-* addr2.data.ip4.port = 1001;
+* addr2.family = TCS_FAMILY_IPV4;
+* addr2.data.ipv4.port = 1001;
 * tcs_bind(socket2, &addr2);
 *
 * struct TcsPoll* poll = NULL;
@@ -1290,21 +1284,21 @@ TcsResult tcs_receive_netstring(TcsSocket socket_ctx, uint8_t* buffer, size_t bu
 *     if (ev[i].can_read)
 *     {
 *         uint8_t recv_buffer[8192] = {0};
-*         size_t bytes_received = 0;
-*         tcs_receive(ev[i].socket, recv_buffer, 8191, TCS_FLAG_NONE, &bytes_received);
+*         size_t received_size = 0;
+*         tcs_receive(ev[i].socket, recv_buffer, 8191, TCS_FLAG_NONE, &received_size);
 *     }
 * }
 * tcs_poll_destroy(&poll);
 * tcs_close(&socket1);
 * tcs_close(&socket2);
-* tcs_lib_free();
+* tcs_lib_cleanup();
 * @endcode
 *
-* @param[out] poll is your out poll context pointer. Initiate a TcsPoll pointer to NULL and use the address of this pointer.
+* @param[out] out_poll is your out poll context pointer. Initiate a TcsPoll pointer to NULL and use the address of this pointer.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_poll_destroy()
 */
-TcsResult tcs_poll_create(struct TcsPoll** poll);
+TcsResult tcs_poll_create(struct TcsPoll** out_poll);
 
 /**
 * @brief Frees all resources bound to the poll context.
@@ -1321,64 +1315,64 @@ TcsResult tcs_poll_destroy(struct TcsPoll** poll);
 * @brief Add a socket to the poll context.
 *
 * @param[in] poll is your poll context pointer created with tcs_poll_create().
-* @param socket_ctx will be added to the poll context. Note that you can still use it outside of the poll context.
+* @param[in] socket will be added to the poll context. Note that you can still use it outside of the poll context.
 * @param[in] user_data is a pointer of your choice that is associated with the socket. Use NULL if not used.
-* @param flags is a bitmask of ::TcsPollFlags (e.g. TCS_POLL_READ | TCS_POLL_WRITE). Errors are always reported.
+* @param[in] flags is a bitmask of ::TcsPollFlags (e.g. TCS_POLL_READ | TCS_POLL_WRITE). Errors are always reported.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_poll_remove()
 */
-TcsResult tcs_poll_add(struct TcsPoll* poll, TcsSocket socket_ctx, void* user_data, uint32_t flags);
+TcsResult tcs_poll_add(struct TcsPoll* poll, TcsSocket socket, void* user_data, uint32_t flags);
 
 /**
 * @brief Modify the poll flags for a socket already in the poll context.
 *
 * @param[in] poll is your poll context pointer created with tcs_poll_create().
-* @param socket_ctx is the socket to modify.
-* @param flags is the new bitmask of ::TcsPollFlags. Errors are always reported.
+* @param[in] socket is the socket to modify.
+* @param[in] flags is the new bitmask of ::TcsPollFlags. Errors are always reported.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @retval #TCS_ERROR_INVALID_ARGUMENT if the socket is not in the poll context.
 * @see tcs_poll_add()
 */
-TcsResult tcs_poll_modify(struct TcsPoll* poll, TcsSocket socket_ctx, uint32_t flags);
+TcsResult tcs_poll_modify(struct TcsPoll* poll, TcsSocket socket, uint32_t flags);
 
 /**
 * @brief Remove a socket from the poll context.
 *
 * @param[in] poll is a context pointer created with tcs_poll_create()
-* @param socket_ctx will be removed from the poll context.
+* @param[in] socket will be removed from the poll context.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_poll_add()
 */
-TcsResult tcs_poll_remove(struct TcsPoll* poll, TcsSocket socket_ctx);
+TcsResult tcs_poll_remove(struct TcsPoll* poll, TcsSocket socket);
 
 /**
 * @brief Wait for events on sockets in the poll context.
 *
 * @param[in] poll is your poll context pointer created with @p tcs_poll_create().
-* @param[in,out] events is an array with in-out events. Assign each element to #TCS_POLL_EVENT_EMPTY.
-* @param events_count number of in elements in your events array. Does not make sense to have more events than number of sockets in the poll context. If too short, all events may not be returned.
-* @param[out] events_populated will contain the number of events the parameter events has been populated with by the call.
-* @param timeout_ms is the maximum wait time for any event. If any event happens before this time, the call will return immediately.
+* @param[in,out] out_events is an array to fill with events. Assign each element to #TCS_POLL_EVENT_EMPTY before the call.
+* @param[in] events_length number of in elements in your @p out_events array. Does not make sense to have more events than number of sockets in the poll context. If too short, all events may not be returned.
+* @param[out] out_events_length will contain the number of events the @p out_events array has been populated with by the call.
+* @param[in] timeout_ms is the maximum wait time for any event. If any event happens before this time, the call will return immediately.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_poll_remove()
 */
 TcsResult tcs_poll_wait(struct TcsPoll* poll,
-                        struct TcsPollEvent* events,
-                        size_t events_count,
-                        size_t* events_populated,
+                        struct TcsPollEvent* out_events,
+                        size_t events_length,
+                        size_t* out_events_length,
                         int timeout_ms);
 
 /**
 * @brief Set parameters on a socket. It is recommended to use tcs_opt_*_set() instead.
 *
-* @param socket_ctx is your in-out socket context.
-* @param level is the definition level.
-* @param option_name is the option name.
-* @param option_value is a pointer to the option value.
-* @param option_size is the byte size of the data pointed by @p option_value.
+* @param[in] socket is your in-out socket context.
+* @param[in] level is the definition level.
+* @param[in] option_name is the option name.
+* @param[in] option_value is a pointer to the option value.
+* @param[in] option_size is the byte size of the data pointed by @p option_value.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_set(TcsSocket socket_ctx,
+TcsResult tcs_opt_set(TcsSocket socket,
                       int32_t level,
                       int32_t option_name,
                       const void* option_value,
@@ -1393,27 +1387,27 @@ TcsResult tcs_opt_set(TcsSocket socket_ctx,
 * tcs_opt_get(socket, TCS_SOL_IP, TCS_IP_MULTICAST_LOOP, &c, &a);
 * @endcode
 *
-* @param socket_ctx is your in-out socket context.
-* @param level is the definition level.
-* @param option_name is the option name.
-* @param option_value is a pointer to the option value.
-* @param option_size is a pointer the byte size of the data pointed by @p option_value.
+* @param[in] socket is your in-out socket context.
+* @param[in] level is the definition level.
+* @param[in] option_name is the option name.
+* @param[out] out_option_value is a pointer to receive the option value.
+* @param[in,out] option_size is a pointer the byte size of the data pointed by @p out_option_value.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_get(TcsSocket socket_ctx,
+TcsResult tcs_opt_get(TcsSocket socket,
                       int32_t level,
                       int32_t option_name,
-                      void* option_value,
+                      void* out_option_value,
                       size_t* option_size);
 
 /**
-* @brief Query the socket type (e.g. ::TCS_SOCK_STREAM or ::TCS_SOCK_DGRAM).
+* @brief Query the socket type (e.g. ::TCS_SOCKET_STREAM or ::TCS_SOCKET_DGRAM).
 *
-* @param socket_ctx socket to query.
-* @param type pointer to receive the socket type.
+* @param[in] socket socket to query.
+* @param[out] out_type pointer to receive the socket type.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_type_get(TcsSocket socket_ctx, TcsSockType* type);
+TcsResult tcs_opt_type_get(TcsSocket socket, TcsSocketType* out_type);
 
 /**
 * @brief Enable the socket to be allowed to send to broadcast addresses.
@@ -1425,22 +1419,22 @@ TcsResult tcs_opt_type_get(TcsSocket socket_ctx, TcsSockType* type);
 *
 * Only valid for protocols that support broadcast, for example UDP. Default is false.
 *
-* @param socket_ctx socket to enable/disable permission to send broadcast on.
-* @param do_allow_broadcast set to true to allow, false to forbid.
+* @param[in] socket socket to enable/disable permission to send broadcast on.
+* @param[in] do_allow_broadcast set to true to allow, false to forbid.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_broadcast_set(TcsSocket socket_ctx, bool do_allow_broadcast);
+TcsResult tcs_opt_broadcast_set(TcsSocket socket, bool do_allow_broadcast);
 
 /**
 * @brief Query whether broadcast is enabled on a socket.
 *
 * See tcs_opt_broadcast_set() for details on the broadcast option.
 *
-* @param socket_ctx socket to query.
-* @param is_broadcast_allowed pointer to receive the current broadcast setting.
+* @param[in] socket socket to query.
+* @param[out] out_is_broadcast_allowed pointer to receive the current broadcast setting.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_broadcast_get(TcsSocket socket_ctx, bool* is_broadcast_allowed);
+TcsResult tcs_opt_broadcast_get(TcsSocket socket, bool* out_is_broadcast_allowed);
 
 /**
 * @brief Enable or disable TCP keep-alive on a socket.
@@ -1456,22 +1450,22 @@ TcsResult tcs_opt_broadcast_get(TcsSocket socket_ctx, bool* is_broadcast_allowed
 * This is particularly useful for long-lived connections that may be idle for extended
 * periods, such as database connections or control channels.
 *
-* @param socket_ctx socket to configure.
-* @param do_keep_alive set to true to enable, false to disable.
+* @param[in] socket socket to configure.
+* @param[in] do_keep_alive set to true to enable, false to disable.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_keep_alive_set(TcsSocket socket_ctx, bool do_keep_alive);
+TcsResult tcs_opt_keep_alive_set(TcsSocket socket, bool do_keep_alive);
 
 /**
 * @brief Query whether keep-alive is enabled on a socket.
 *
 * See tcs_opt_keep_alive_set() for details on what keep-alive does.
 *
-* @param socket_ctx socket to query.
-* @param is_keep_alive_enabled pointer to receive the current keep-alive setting.
+* @param[in] socket socket to query.
+* @param[out] out_is_keep_alive_enabled pointer to receive the current keep-alive setting.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_keep_alive_get(TcsSocket socket_ctx, bool* is_keep_alive_enabled);
+TcsResult tcs_opt_keep_alive_get(TcsSocket socket, bool* out_is_keep_alive_enabled);
 
 /**
 * @brief Allow or disallow address reuse on a socket.
@@ -1499,22 +1493,22 @@ TcsResult tcs_opt_keep_alive_get(TcsSocket socket_ctx, bool* is_keep_alive_enabl
 * POSIX. For UDP sockets, only SO_REUSEADDR is set, preserving multicast and
 * same-port binding behavior. I.e. it mimics POSIX behaviour.
 *
-* @param socket_ctx socket to configure.
-* @param do_allow_reuse_address set to true to allow, false to disallow.
+* @param[in] socket socket to configure.
+* @param[in] do_allow_reuse_address set to true to allow, false to disallow.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_reuse_address_set(TcsSocket socket_ctx, bool do_allow_reuse_address);
+TcsResult tcs_opt_reuse_address_set(TcsSocket socket, bool do_allow_reuse_address);
 
 /**
 * @brief Query whether address reuse is enabled on a socket.
 *
 * See tcs_opt_reuse_address_set() for details on the address reuse option.
 *
-* @param socket_ctx socket to query.
-* @param is_reuse_address_allowed pointer to receive the current setting.
+* @param[in] socket socket to query.
+* @param[out] out_is_reuse_address_allowed pointer to receive the current setting.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_reuse_address_get(TcsSocket socket_ctx, bool* is_reuse_address_allowed);
+TcsResult tcs_opt_reuse_address_get(TcsSocket socket, bool* out_is_reuse_address_allowed);
 
 /**
 * @brief Allow or disallow multiple sockets to bind to the same address and port.
@@ -1529,11 +1523,11 @@ TcsResult tcs_opt_reuse_address_get(TcsSocket socket_ctx, bool* is_reuse_address
 * @note Only supported on POSIX (Linux 3.9+). Returns #TCS_ERROR_NOT_SUPPORTED on Windows,
 * which has no equivalent with the same semantics.
 *
-* @param socket_ctx socket to configure.
-* @param do_allow_reuse_port set to true to allow, false to disallow.
+* @param[in] socket socket to configure.
+* @param[in] do_allow_reuse_port set to true to allow, false to disallow.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_reuse_port_set(TcsSocket socket_ctx, bool do_allow_reuse_port);
+TcsResult tcs_opt_reuse_port_set(TcsSocket socket, bool do_allow_reuse_port);
 
 /**
 * @brief Query whether port reuse is enabled on a socket.
@@ -1542,229 +1536,229 @@ TcsResult tcs_opt_reuse_port_set(TcsSocket socket_ctx, bool do_allow_reuse_port)
 *
 * @note Returns #TCS_ERROR_NOT_SUPPORTED on Windows.
 *
-* @param socket_ctx socket to query.
-* @param is_reuse_port_allowed pointer to receive the current setting.
+* @param[in] socket socket to query.
+* @param[out] out_is_reuse_port_allowed pointer to receive the current setting.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_reuse_port_get(TcsSocket socket_ctx, bool* is_reuse_port_allowed);
+TcsResult tcs_opt_reuse_port_get(TcsSocket socket, bool* out_is_reuse_port_allowed);
 
 /**
 * @brief Set the send buffer size of a socket.
 *
-* @param socket_ctx socket to configure.
-* @param send_buffer_size desired send buffer size in bytes.
+* @param[in] socket socket to configure.
+* @param[in] send_buffer_size desired send buffer size in bytes.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_send_buffer_size_set(TcsSocket socket_ctx, size_t send_buffer_size);
+TcsResult tcs_opt_send_buffer_size_set(TcsSocket socket, size_t send_buffer_size);
 
 /**
 * @brief Query the send buffer size of a socket.
 *
-* @param socket_ctx socket to query.
-* @param send_buffer_size pointer to receive the send buffer size in bytes.
+* @param[in] socket socket to query.
+* @param[out] out_send_buffer_size pointer to receive the send buffer size in bytes.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_send_buffer_size_get(TcsSocket socket_ctx, size_t* send_buffer_size);
+TcsResult tcs_opt_send_buffer_size_get(TcsSocket socket, size_t* out_send_buffer_size);
 
 /**
 * @brief Set the receive buffer size of a socket.
 *
-* @param socket_ctx socket to configure.
-* @param receive_buffer_size desired receive buffer size in bytes.
+* @param[in] socket socket to configure.
+* @param[in] receive_buffer_size desired receive buffer size in bytes.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_receive_buffer_size_set(TcsSocket socket_ctx, size_t receive_buffer_size);
+TcsResult tcs_opt_receive_buffer_size_set(TcsSocket socket, size_t receive_buffer_size);
 
 /**
 * @brief Query the receive buffer size of a socket.
 *
-* @param socket_ctx socket to query.
-* @param receive_buffer_size pointer to receive the receive buffer size in bytes.
+* @param[in] socket socket to query.
+* @param[out] out_receive_buffer_size pointer to receive the receive buffer size in bytes.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_receive_buffer_size_get(TcsSocket socket_ctx, size_t* receive_buffer_size);
+TcsResult tcs_opt_receive_buffer_size_get(TcsSocket socket, size_t* out_receive_buffer_size);
 
 /**
 * @brief Set the receive timeout of a socket.
 *
-* @param socket_ctx socket to configure.
-* @param timeout_ms timeout in milliseconds. Must be non-negative.
+* @param[in] socket socket to configure.
+* @param[in] timeout_ms timeout in milliseconds. Must be non-negative.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_receive_timeout_set(TcsSocket socket_ctx, int timeout_ms);
+TcsResult tcs_opt_receive_timeout_set(TcsSocket socket, int timeout_ms);
 
 /**
 * @brief Query the receive timeout of a socket.
 *
-* @param socket_ctx socket to query.
-* @param timeout_ms pointer to receive the timeout in milliseconds.
+* @param[in] socket socket to query.
+* @param[out] out_timeout_ms pointer to receive the timeout in milliseconds.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_receive_timeout_get(TcsSocket socket_ctx, int* timeout_ms);
+TcsResult tcs_opt_receive_timeout_get(TcsSocket socket, int* out_timeout_ms);
 
 /**
 * @brief Configure the linger behavior of a socket on close.
 *
-* @param socket_ctx socket to configure.
-* @param do_linger set to true to enable lingering, false to disable.
-* @param timeout_seconds linger timeout in seconds (only used when do_linger is true).
+* @param[in] socket socket to configure.
+* @param[in] do_linger set to true to enable lingering, false to disable.
+* @param[in] timeout_seconds linger timeout in seconds (only used when do_linger is true).
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_linger_set(TcsSocket socket_ctx, bool do_linger, int timeout_seconds);
+TcsResult tcs_opt_linger_set(TcsSocket socket, bool do_linger, int timeout_seconds);
 
 /**
 * @brief Query the linger behavior of a socket.
 *
-* @param socket_ctx socket to query.
-* @param do_linger pointer to receive whether lingering is enabled.
-* @param timeout_seconds pointer to receive the linger timeout in seconds.
+* @param[in] socket socket to query.
+* @param[out] out_do_linger pointer to receive whether lingering is enabled.
+* @param[out] out_timeout_seconds pointer to receive the linger timeout in seconds.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_linger_get(TcsSocket socket_ctx, bool* do_linger, int* timeout_seconds);
+TcsResult tcs_opt_linger_get(TcsSocket socket, bool* out_do_linger, int* out_timeout_seconds);
 
 /**
 * @brief Enable or disable Nagle's algorithm (TCP_NODELAY).
 *
-* @param socket_ctx socket to configure.
-* @param use_no_delay set to true to disable Nagle's algorithm (lower latency), false to enable it.
+* @param[in] socket socket to configure.
+* @param[in] use_no_delay set to true to disable Nagle's algorithm (lower latency), false to enable it.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_ip_no_delay_set(TcsSocket socket_ctx, bool use_no_delay);
+TcsResult tcs_opt_ip_no_delay_set(TcsSocket socket, bool use_no_delay);
 
 /**
 * @brief Query whether Nagle's algorithm is disabled on a socket.
 *
-* @param socket_ctx socket to query.
-* @param is_no_delay_used pointer to receive the current setting.
+* @param[in] socket socket to query.
+* @param[out] out_is_no_delay_used pointer to receive the current setting.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_ip_no_delay_get(TcsSocket socket_ctx, bool* is_no_delay_used);
+TcsResult tcs_opt_ip_no_delay_get(TcsSocket socket, bool* out_is_no_delay_used);
 
 /**
 * @brief Enable or disable inline reception of out-of-band data.
 *
-* @param socket_ctx socket to configure.
-* @param enable_oob set to true to receive OOB data inline, false to disable.
+* @param[in] socket socket to configure.
+* @param[in] enable_oob set to true to receive OOB data inline, false to disable.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_out_of_band_inline_set(TcsSocket socket_ctx, bool enable_oob);
+TcsResult tcs_opt_out_of_band_inline_set(TcsSocket socket, bool enable_oob);
 
 /**
 * @brief Query whether out-of-band data is received inline.
 *
-* @param socket_ctx socket to query.
-* @param is_oob_enabled pointer to receive the current setting.
+* @param[in] socket socket to query.
+* @param[out] out_is_oob_enabled pointer to receive the current setting.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_out_of_band_inline_get(TcsSocket socket_ctx, bool* is_oob_enabled);
+TcsResult tcs_opt_out_of_band_inline_get(TcsSocket socket, bool* out_is_oob_enabled);
 
 /**
 * @brief Set the socket priority.
 *
 * @note Not supported on Windows. Will return #TCS_ERROR_NOT_SUPPORTED on that platform.
 *
-* @param socket_ctx socket to configure.
-* @param priority priority value.
+* @param[in] socket socket to configure.
+* @param[in] priority priority value.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_priority_set(TcsSocket socket_ctx, int priority);
+TcsResult tcs_opt_priority_set(TcsSocket socket, int priority);
 
 /**
 * @brief Query the socket priority.
 *
 * @note Not supported on Windows. Will return #TCS_ERROR_NOT_SUPPORTED on that platform.
 *
-* @param socket_ctx socket to query.
-* @param priority pointer to receive the priority value.
+* @param[in] socket socket to query.
+* @param[out] out_priority pointer to receive the priority value.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_priority_get(TcsSocket socket_ctx, int* priority);
+TcsResult tcs_opt_priority_get(TcsSocket socket, int* out_priority);
 
 /**
 * @brief Join a multicast group on a specific local interface.
 *
-* @param socket_ctx socket to configure.
-* @param local_address local interface address to use.
-* @param multicast_address multicast group address to join.
+* @param[in] socket socket to configure.
+* @param[in] local_address local interface address to use.
+* @param[in] multicast_address multicast group address to join.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @retval #TCS_ERROR_NOT_SUPPORTED if either address has an address family not supported on this platform.
 */
-TcsResult tcs_opt_membership_add_to(TcsSocket socket_ctx,
+TcsResult tcs_opt_membership_add_to(TcsSocket socket,
                                     const struct TcsAddress* local_address,
                                     const struct TcsAddress* multicast_address);
 
 /**
 * @brief Leave a multicast group on a specific local interface.
 *
-* @param socket_ctx socket to configure.
-* @param local_address local interface address used when joining.
-* @param multicast_address multicast group address to leave.
+* @param[in] socket socket to configure.
+* @param[in] local_address local interface address used when joining.
+* @param[in] multicast_address multicast group address to leave.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @retval #TCS_ERROR_NOT_SUPPORTED if either address has an address family not supported on this platform.
 */
-TcsResult tcs_opt_membership_drop_from(TcsSocket socket_ctx,
+TcsResult tcs_opt_membership_drop_from(TcsSocket socket,
                                        const struct TcsAddress* local_address,
                                        const struct TcsAddress* multicast_address);
 
 /**
 * @brief Join a multicast group using the default local interface.
 *
-* @param socket_ctx socket to configure.
-* @param multicast_address multicast group address to join.
+* @param[in] socket socket to configure.
+* @param[in] multicast_address multicast group address to join.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @retval #TCS_ERROR_NOT_SUPPORTED if multicast_address has an address family not supported on this platform.
 */
-TcsResult tcs_opt_membership_add(TcsSocket socket_ctx, const struct TcsAddress* multicast_address);
+TcsResult tcs_opt_membership_add(TcsSocket socket, const struct TcsAddress* multicast_address);
 
 /**
 * @brief Join a multicast group by address string.
 *
 * Resolves the multicast address string and joins the group using the default local interface.
 *
-* @param socket_ctx socket to configure.
-* @param multicast_address multicast group address string (e.g. "239.1.2.3" or "ff02::1").
+* @param[in] socket socket to configure.
+* @param[in] multicast_address multicast group address string (e.g. "239.1.2.3" or "ff02::1").
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @retval #TCS_ERROR_INVALID_ARGUMENT if multicast_address is NULL.
 * @retval #TCS_ERROR_ADDRESS_LOOKUP_FAILED if the address string could not be resolved.
 * @see tcs_opt_membership_add()
 * @see tcs_opt_membership_drop_str()
 */
-TcsResult tcs_opt_membership_add_str(TcsSocket socket_ctx, const char* multicast_address);
+TcsResult tcs_opt_membership_add_str(TcsSocket socket, const char* multicast_address);
 
 /**
 * @brief Leave a multicast group using the default local interface.
 *
-* @param socket_ctx socket to configure.
-* @param multicast_address multicast group address to leave.
+* @param[in] socket socket to configure.
+* @param[in] multicast_address multicast group address to leave.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @retval #TCS_ERROR_NOT_SUPPORTED if multicast_address has an address family not supported on this platform.
 */
-TcsResult tcs_opt_membership_drop(TcsSocket socket_ctx, const struct TcsAddress* multicast_address);
+TcsResult tcs_opt_membership_drop(TcsSocket socket, const struct TcsAddress* multicast_address);
 
 /**
 * @brief Leave a multicast group by address string.
 *
 * Parses the multicast address string and leaves the group using the default local interface.
 *
-* @param socket_ctx socket to configure.
-* @param multicast_address multicast group address string (e.g. "239.1.2.3" or "ff02::1").
+* @param[in] socket socket to configure.
+* @param[in] multicast_address multicast group address string (e.g. "239.1.2.3" or "ff02::1").
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @retval #TCS_ERROR_INVALID_ARGUMENT if multicast_address is NULL.
 * @retval #TCS_ERROR_ADDRESS_LOOKUP_FAILED if the address string could not be resolved.
 * @see tcs_opt_membership_drop()
 * @see tcs_opt_membership_add_str()
 */
-TcsResult tcs_opt_membership_drop_str(TcsSocket socket_ctx, const char* multicast_address);
+TcsResult tcs_opt_membership_drop_str(TcsSocket socket, const char* multicast_address);
 
 /**
 * @brief Set the outgoing interface for multicast packets.
 *
-* @param socket_ctx socket to configure.
-* @param local_address local interface address to use for outgoing multicast.
+* @param[in] socket socket to configure.
+* @param[in] local_address local interface address to use for outgoing multicast.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @retval #TCS_ERROR_NOT_SUPPORTED if local_address has an address family not supported on this platform.
 */
-TcsResult tcs_opt_multicast_interface_set(TcsSocket socket_ctx, const struct TcsAddress* local_address);
+TcsResult tcs_opt_multicast_interface_set(TcsSocket socket, const struct TcsAddress* local_address);
 
 /**
 * @brief Enable or disable multicast loopback.
@@ -1772,107 +1766,107 @@ TcsResult tcs_opt_multicast_interface_set(TcsSocket socket_ctx, const struct Tcs
 * When enabled, multicast packets sent on this socket are looped back and
 * delivered to local receivers on the same host.
 *
-* @param socket_ctx socket to configure.
-* @param do_loopback set to true to enable loopback, false to disable.
+* @param[in] socket socket to configure.
+* @param[in] do_loopback set to true to enable loopback, false to disable.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_multicast_loop_set(TcsSocket socket_ctx, bool do_loopback);
+TcsResult tcs_opt_multicast_loop_set(TcsSocket socket, bool do_loopback);
 
 /**
 * @brief Get the current multicast loopback setting.
 *
-* @param socket_ctx socket to query.
-* @param is_loopback pointer to receive the current setting.
+* @param[in] socket socket to query.
+* @param[out] out_is_loopback pointer to receive the current setting.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_multicast_loop_get(TcsSocket socket_ctx, bool* is_loopback);
+TcsResult tcs_opt_multicast_loop_get(TcsSocket socket, bool* out_is_loopback);
 
 /**
 * @brief Set a socket to non-blocking or blocking mode.
 *
-* @param socket_ctx socket to configure.
-* @param do_nonblocking set to true for non-blocking, false for blocking.
+* @param[in] socket socket to configure.
+* @param[in] do_nonblocking set to true for non-blocking, false for blocking.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_nonblocking_set(TcsSocket socket_ctx, bool do_nonblocking);
+TcsResult tcs_opt_nonblocking_set(TcsSocket socket, bool do_nonblocking);
 
 /**
 * @brief Query the non-blocking state of a socket.
 *
 * @note Not supported on Windows. Will return #TCS_ERROR_NOT_SUPPORTED on that platform.
 */
-TcsResult tcs_opt_nonblocking_get(TcsSocket socket_ctx, bool* is_nonblocking);
+TcsResult tcs_opt_nonblocking_get(TcsSocket socket, bool* out_is_nonblocking);
 
 /**
 * @brief List available network interfaces.
 *
-* @param interfaces array to receive interface information, or NULL to only count.
-* @param capacity number of elements in the interfaces array.
-* @param out_count pointer to receive the total number of interfaces available, which may exceed capacity.
+* @param[out] out_interfaces array to receive interface information, or NULL to only count.
+* @param[in] interfaces_length number of elements in the @p out_interfaces array.
+* @param[out] out_length pointer to receive the total number of interfaces available, which may exceed @p interfaces_length.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t capacity, size_t* out_count);
+TcsResult tcs_interface_list(struct TcsInterface out_interfaces[], size_t interfaces_length, size_t* out_length);
 
 /**
 * @brief Resolve a hostname to one or more addresses.
 *
-* @param hostname hostname or IP string to resolve.
-* @param address_family address family filter, or ::TCS_FAMILY_ANY for all.
-* @param addresses array to receive resolved addresses, or NULL to only count.
-* @param capacity number of elements in the addresses array.
-* @param out_count pointer to receive the number of addresses found.
+* @param[in] hostname hostname or IP string to resolve.
+* @param[in] address_family address family filter, or ::TCS_FAMILY_ANY for all.
+* @param[out] out_addresses array to receive resolved addresses, or NULL to only count.
+* @param[in] addresses_length number of elements in the @p out_addresses array.
+* @param[out] out_length pointer to receive the number of addresses found.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @retval #TCS_ERROR_NOT_SUPPORTED if @p address_family is not supported on this platform (e.g. ::TCS_FAMILY_PACKET on non-Linux).
 */
 TcsResult tcs_address_resolve(const char* hostname,
                               TcsFamily address_family,
-                              struct TcsAddress addresses[],
-                              size_t capacity,
-                              size_t* out_count);
+                              struct TcsAddress out_addresses[],
+                              size_t addresses_length,
+                              size_t* out_length);
 
 /**
 * @brief List addresses associated with network interfaces.
 *
-* @param interface_id_filter interface ID to filter by, or 0 for all interfaces.
-* @param address_family_filter address family filter, or ::TCS_FAMILY_ANY for all.
-* @param interface_addresses array to receive results, or NULL to only count.
-* @param capacity number of elements in the array.
-* @param out_count pointer to receive the total number of results available, which may exceed capacity.
+* @param[in] interface_id_filter interface ID to filter by, or 0 for all interfaces.
+* @param[in] address_family_filter address family filter, or ::TCS_FAMILY_ANY for all.
+* @param[out] out_interface_addresses array to receive results, or NULL to only count.
+* @param[in] interface_addresses_length number of elements in the @p out_interface_addresses array.
+* @param[out] out_length pointer to receive the total number of results available, which may exceed @p interface_addresses_length.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
-* @note If @p address_family_filter is not supported on this platform (e.g. ::TCS_FAMILY_PACKET on non-Linux), no entries match and *out_count is 0.
+* @note If @p address_family_filter is not supported on this platform (e.g. ::TCS_FAMILY_PACKET on non-Linux), no entries match and *out_length is 0.
 */
-TcsResult tcs_address_list(unsigned int interface_id_filter,
+TcsResult tcs_address_list(TcsInterfaceId interface_id_filter,
                            TcsFamily address_family_filter,
-                           struct TcsInterfaceAddress interface_addresses[],
-                           size_t capacity,
-                           size_t* out_count);
+                           struct TcsInterfaceAddress out_interface_addresses[],
+                           size_t interface_addresses_length,
+                           size_t* out_length);
 
 /**
 * @brief Get the local address of a bound or connected socket.
 *
-* @param socket_ctx socket to query.
-* @param local_address pointer to receive the local address.
+* @param[in] socket socket to query.
+* @param[out] out_local_address pointer to receive the local address.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_address_socket_local(TcsSocket socket_ctx, struct TcsAddress* local_address);
+TcsResult tcs_address_socket_local(TcsSocket socket, struct TcsAddress* out_local_address);
 
 /**
 * @brief Get the remote address of a connected socket.
 *
-* @param socket_ctx socket to query.
-* @param remote_address pointer to receive the remote address.
+* @param[in] socket socket to query.
+* @param[out] out_remote_address pointer to receive the remote address.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_address_socket_remote(TcsSocket socket_ctx, struct TcsAddress* remote_address);
+TcsResult tcs_address_socket_remote(TcsSocket socket, struct TcsAddress* out_remote_address);
 
 /**
 * @brief Get the address family of a socket.
 *
-* @param socket_ctx socket to query.
-* @param out_family pointer to receive the address family.
+* @param[in] socket socket to query.
+* @param[out] out_family pointer to receive the address family.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_address_socket_family(TcsSocket socket_ctx, TcsFamily* out_family);
+TcsResult tcs_address_socket_family(TcsSocket socket, TcsFamily* out_family);
 
 /**
  * @brief Parse a network address from a string.
@@ -1882,17 +1876,19 @@ TcsResult tcs_address_socket_family(TcsSocket socket_ctx, TcsFamily* out_family)
  * String-based zone IDs (e.g. "%%eth0") are not supported.
  *
  * Examples:
- * - "192.168.0.1:1212"
- * - "::1"
- * - "[::1]:443"
- * - "fe80::1%%3"
- * - "::ffff:192.168.1.1"
- * - "91:E0:F0:00:FE:00"
+ * @verbatim
+ * 192.168.0.1:1212
+ * ::1
+ * [::1]:443
+ * fe80::1%3
+ * ::ffff:192.168.1.1
+ * 91:E0:F0:00:FE:00
+ * @endverbatim
  *
  * Note that this function will not perform DNS resolution. Use ::tcs_address_resolve() for that.
  *
- * @param str The string to parse.
- * @param out_address The parsed address.
+ * @param[in] str The string to parse.
+ * @param[out] out_address The parsed address.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  */
 TcsResult tcs_address_parse(const char str[], struct TcsAddress* out_address);
@@ -1902,29 +1898,32 @@ TcsResult tcs_address_parse(const char str[], struct TcsAddress* out_address);
  * 
  * This will make a verbose string representation of the address.
  * 
- * @param address
- * @param out_str
+ * @param[in] address the address to convert.
+ * @param[out] out_str buffer of at least 70 bytes to receive the string representation.
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  */
 TcsResult tcs_address_to_str(const struct TcsAddress* address, char out_str[70]);
 
-/** @brief Check if two addresses are equal. */
+/** @brief Check if two addresses are equal. Returns false for NULL, mismatched, unknown, or unsupported address families. */
 bool tcs_address_is_equal(const struct TcsAddress* l, const struct TcsAddress* r);
 
-/** @brief Check if the address is a wildcard (any) address. */
+/** @brief Check if the address is a wildcard (any) address. Returns false for NULL, unknown, or unsupported address families. */
 bool tcs_address_is_any(const struct TcsAddress* addr);
 
-/** @brief Check if the address is a link-local address. */
+/** @brief Check if the address is a link-local address. Returns false for NULL, unknown, or unsupported address families. */
 bool tcs_address_is_link_local(const struct TcsAddress* addr);
 
-/** @brief Check if the address is a loopback address. */
+/** @brief Check if the address is a loopback address. Returns false for NULL, unknown, or unsupported address families. */
 bool tcs_address_is_loopback(const struct TcsAddress* addr);
 
-/** @brief Check if the address is a multicast address. */
+/** @brief Check if the address is a multicast address. Returns false for NULL, unknown, or unsupported address families. */
 bool tcs_address_is_multicast(const struct TcsAddress* addr);
 
-/** @brief Check if the address is a broadcast address. */
+/** @brief Check if the address is a broadcast address. Returns false for NULL, unknown, or unsupported address families. */
 bool tcs_address_is_broadcast(const struct TcsAddress* addr);
+
+/** @brief Check if the address family is known and supported by this platform. Returns false for NULL or unknown families. */
+bool tcs_address_is_supported(const struct TcsAddress* addr);
 
 #ifdef __cplusplus
 }

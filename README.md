@@ -20,7 +20,7 @@ int main(int argc, const char* argv[])
     tcs_lib_init();
 
     TcsSocket client_socket = TCS_SOCKET_INVALID;
-    tcs_socket(&client_socket, TCS_FAMILY_IP4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
+    tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP);
     tcs_connect_str(client_socket, "example.com", 80);
 
     uint8_t send_buffer[] =
@@ -37,7 +37,7 @@ int main(int argc, const char* argv[])
     tcs_shutdown(client_socket, TCS_SHUTDOWN_BOTH);
     tcs_close(&client_socket);
 
-    tcs_lib_free();
+    tcs_lib_cleanup();
 }
 ```
 
