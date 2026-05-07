@@ -451,7 +451,7 @@ TcsResult tcs_connect_str(TcsSocket socket, const char* remote_address, uint16_t
     if (res != TCS_SUCCESS)
         return res;
 
-    if (socket_family.native != TCS_FAMILY_IP4.native && socket_family.native != TCS_FAMILY_IP6.native)
+    if (socket_family.native != TCS_FAMILY_IPV4.native && socket_family.native != TCS_FAMILY_IPV6.native)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
     struct TcsAddress found_addresses;
@@ -464,17 +464,17 @@ TcsResult tcs_connect_str(TcsSocket socket, const char* remote_address, uint16_t
     if (no_of_found_addresses == 0)
         return TCS_ERROR_ADDRESS_LOOKUP_FAILED;
 
-    if (socket_family.native == TCS_FAMILY_IP4.native)
+    if (socket_family.native == TCS_FAMILY_IPV4.native)
     {
-        if (found_addresses.data.ip4.port == 0)
-            found_addresses.data.ip4.port = port;
+        if (found_addresses.data.ipv4.port == 0)
+            found_addresses.data.ipv4.port = port;
         else if (port != 0)
             return TCS_ERROR_INVALID_ARGUMENT;
     }
-    else if (socket_family.native == TCS_FAMILY_IP6.native)
+    else if (socket_family.native == TCS_FAMILY_IPV6.native)
     {
-        if (found_addresses.data.ip6.port == 0)
-            found_addresses.data.ip6.port = port;
+        if (found_addresses.data.ipv6.port == 0)
+            found_addresses.data.ipv6.port = port;
         else if (port != 0)
             return TCS_ERROR_INVALID_ARGUMENT;
     }
@@ -963,9 +963,9 @@ TcsResult tcs_address_parse(const char str[], struct TcsAddress* out_address)
         if (p < 0 || p > 65535)
             return TCS_ERROR_INVALID_ARGUMENT;
 
-        out_address->family = TCS_FAMILY_IP4;
-        out_address->data.ip4.address = (uint32_t)b1 << 24 | (uint32_t)b2 << 16 | (uint32_t)b3 << 8 | (uint32_t)b4;
-        out_address->data.ip4.port = (uint16_t)p;
+        out_address->family = TCS_FAMILY_IPV4;
+        out_address->data.ipv4.address = (uint32_t)b1 << 24 | (uint32_t)b2 << 16 | (uint32_t)b3 << 8 | (uint32_t)b4;
+        out_address->data.ipv4.port = (uint16_t)p;
     }
     else if (is_ipv6)
     {
@@ -1241,14 +1241,14 @@ TcsResult tcs_address_parse(const char str[], struct TcsAddress* out_address)
             return TCS_ERROR_INVALID_ARGUMENT;
         }
 
-        out_address->family = TCS_FAMILY_IP6;
+        out_address->family = TCS_FAMILY_IPV6;
         for (int i = 0; i < 8; i++)
         {
-            out_address->data.ip6.address.bytes[i * 2] = (uint8_t)(ctx.groups[i] >> 8);
-            out_address->data.ip6.address.bytes[i * 2 + 1] = (uint8_t)(ctx.groups[i] & 0xFF);
+            out_address->data.ipv6.address.bytes[i * 2] = (uint8_t)(ctx.groups[i] >> 8);
+            out_address->data.ipv6.address.bytes[i * 2 + 1] = (uint8_t)(ctx.groups[i] & 0xFF);
         }
-        out_address->data.ip6.port = (uint16_t)ctx.port_val;
-        out_address->data.ip6.scope_id = (TcsInterfaceId)ctx.scope_id;
+        out_address->data.ipv6.port = (uint16_t)ctx.port_val;
+        out_address->data.ipv6.scope_id = (TcsInterfaceId)ctx.scope_id;
     }
     else if (is_mac)
     {
@@ -1293,10 +1293,10 @@ TcsResult tcs_address_to_str(const struct TcsAddress* address, char str[70])
         return TCS_ERROR_INVALID_ARGUMENT;
 
     memset(str, 0, 70);
-    if (address->family.native == TCS_FAMILY_IP4.native)
+    if (address->family.native == TCS_FAMILY_IPV4.native)
     {
-        uint32_t d = address->data.ip4.address;
-        uint16_t p = address->data.ip4.port;
+        uint32_t d = address->data.ipv4.address;
+        uint16_t p = address->data.ipv4.port;
         uint8_t b1 = (uint8_t)(d & 0xFF);
         uint8_t b2 = (uint8_t)((d >> 8) & 0xFF);
         uint8_t b3 = (uint8_t)((d >> 16) & 0xFF);
@@ -1306,12 +1306,12 @@ TcsResult tcs_address_to_str(const struct TcsAddress* address, char str[70])
         else
             snprintf(str, 70, "%i.%i.%i.%i:%i", b4, b3, b2, b1, p);
     }
-    else if (address->family.native == TCS_FAMILY_IP6.native)
+    else if (address->family.native == TCS_FAMILY_IPV6.native)
     {
         uint16_t groups[8];
         for (int i = 0; i < 8; i++)
-            groups[i] = (uint16_t)((unsigned int)address->data.ip6.address.bytes[i * 2] << 8 |
-                                   address->data.ip6.address.bytes[i * 2 + 1]);
+            groups[i] = (uint16_t)((unsigned int)address->data.ipv6.address.bytes[i * 2] << 8 |
+                                   address->data.ipv6.address.bytes[i * 2 + 1]);
 
         // Find longest run of consecutive zero groups for :: compression (RFC 5952)
         int best_start = -1;
@@ -1356,8 +1356,8 @@ TcsResult tcs_address_to_str(const struct TcsAddress* address, char str[70])
         }
         addr_str[pos] = '\0';
 
-        uint16_t p = address->data.ip6.port;
-        TcsInterfaceId sc = address->data.ip6.scope_id;
+        uint16_t p = address->data.ipv6.port;
+        TcsInterfaceId sc = address->data.ipv6.scope_id;
         if (p != 0 && sc != 0)
             snprintf(str, 70, "[%s%%%u]:%u", addr_str, (unsigned int)sc, (unsigned int)p);
         else if (p != 0)
@@ -1398,11 +1398,11 @@ bool tcs_address_is_equal(const struct TcsAddress* l, const struct TcsAddress* r
 
     if (l->family.native == TCS_FAMILY_ANY.native)
         return true; // We consider any address equal to any address
-    if (l->family.native == TCS_FAMILY_IP4.native)
-        return l->data.ip4.address == r->data.ip4.address && l->data.ip4.port == r->data.ip4.port;
-    if (l->family.native == TCS_FAMILY_IP6.native)
-        return memcmp(l->data.ip6.address.bytes, r->data.ip6.address.bytes, 16) == 0 &&
-               l->data.ip6.port == r->data.ip6.port;
+    if (l->family.native == TCS_FAMILY_IPV4.native)
+        return l->data.ipv4.address == r->data.ipv4.address && l->data.ipv4.port == r->data.ipv4.port;
+    if (l->family.native == TCS_FAMILY_IPV6.native)
+        return memcmp(l->data.ipv6.address.bytes, r->data.ipv6.address.bytes, 16) == 0 &&
+               l->data.ipv6.port == r->data.ipv6.port;
     if (l->family.native == TCS_FAMILY_PACKET.native)
         return memcmp(l->data.packet.mac, r->data.packet.mac, 6) == 0 &&
                l->data.packet.protocol == r->data.packet.protocol &&
@@ -1414,12 +1414,12 @@ bool tcs_address_is_any(const struct TcsAddress* addr)
 {
     if (addr == NULL)
         return false;
-    if (addr->family.native == TCS_FAMILY_IP4.native)
-        return addr->data.ip4.address == TCS_ADDRESS_ANY_IP4;
-    if (addr->family.native == TCS_FAMILY_IP6.native)
+    if (addr->family.native == TCS_FAMILY_IPV4.native)
+        return addr->data.ipv4.address == TCS_ADDRESS_ANY_IPV4;
+    if (addr->family.native == TCS_FAMILY_IPV6.native)
     {
         static const uint8_t any6[16] = {0};
-        return memcmp(addr->data.ip6.address.bytes, any6, 16) == 0;
+        return memcmp(addr->data.ipv6.address.bytes, any6, 16) == 0;
     }
     return false;
 }
@@ -1428,10 +1428,10 @@ bool tcs_address_is_link_local(const struct TcsAddress* addr)
 {
     if (addr == NULL)
         return false;
-    if (addr->family.native == TCS_FAMILY_IP4.native)
-        return (addr->data.ip4.address >> 16) == 0xA9FE; // 169.254.0.0/16
-    if (addr->family.native == TCS_FAMILY_IP6.native)
-        return addr->data.ip6.address.bytes[0] == 0xFE && (addr->data.ip6.address.bytes[1] & 0xC0) == 0x80; // fe80::/10
+    if (addr->family.native == TCS_FAMILY_IPV4.native)
+        return (addr->data.ipv4.address >> 16) == 0xA9FE; // 169.254.0.0/16
+    if (addr->family.native == TCS_FAMILY_IPV6.native)
+        return addr->data.ipv6.address.bytes[0] == 0xFE && (addr->data.ipv6.address.bytes[1] & 0xC0) == 0x80; // fe80::/10
     return false;
 }
 
@@ -1439,17 +1439,17 @@ bool tcs_address_is_loopback(const struct TcsAddress* addr)
 {
     if (addr == NULL)
         return false;
-    if (addr->family.native == TCS_FAMILY_IP4.native)
-        return addr->data.ip4.address == TCS_ADDRESS_LOOPBACK_IP4;
-    if (addr->family.native == TCS_FAMILY_IP6.native)
-        return addr->data.ip6.address.bytes[0] == 0 && addr->data.ip6.address.bytes[1] == 0 &&
-               addr->data.ip6.address.bytes[2] == 0 && addr->data.ip6.address.bytes[3] == 0 &&
-               addr->data.ip6.address.bytes[4] == 0 && addr->data.ip6.address.bytes[5] == 0 &&
-               addr->data.ip6.address.bytes[6] == 0 && addr->data.ip6.address.bytes[7] == 0 &&
-               addr->data.ip6.address.bytes[8] == 0 && addr->data.ip6.address.bytes[9] == 0 &&
-               addr->data.ip6.address.bytes[10] == 0 && addr->data.ip6.address.bytes[11] == 0 &&
-               addr->data.ip6.address.bytes[12] == 0 && addr->data.ip6.address.bytes[13] == 0 &&
-               addr->data.ip6.address.bytes[14] == 0 && addr->data.ip6.address.bytes[15] == 1;
+    if (addr->family.native == TCS_FAMILY_IPV4.native)
+        return addr->data.ipv4.address == TCS_ADDRESS_LOOPBACK_IPV4;
+    if (addr->family.native == TCS_FAMILY_IPV6.native)
+        return addr->data.ipv6.address.bytes[0] == 0 && addr->data.ipv6.address.bytes[1] == 0 &&
+               addr->data.ipv6.address.bytes[2] == 0 && addr->data.ipv6.address.bytes[3] == 0 &&
+               addr->data.ipv6.address.bytes[4] == 0 && addr->data.ipv6.address.bytes[5] == 0 &&
+               addr->data.ipv6.address.bytes[6] == 0 && addr->data.ipv6.address.bytes[7] == 0 &&
+               addr->data.ipv6.address.bytes[8] == 0 && addr->data.ipv6.address.bytes[9] == 0 &&
+               addr->data.ipv6.address.bytes[10] == 0 && addr->data.ipv6.address.bytes[11] == 0 &&
+               addr->data.ipv6.address.bytes[12] == 0 && addr->data.ipv6.address.bytes[13] == 0 &&
+               addr->data.ipv6.address.bytes[14] == 0 && addr->data.ipv6.address.bytes[15] == 1;
     if (addr->family.native == TCS_FAMILY_PACKET.native)
     {
         static const uint8_t zero_mac[6] = {0};
@@ -1462,10 +1462,10 @@ bool tcs_address_is_multicast(const struct TcsAddress* addr)
 {
     if (addr == NULL)
         return false;
-    if (addr->family.native == TCS_FAMILY_IP4.native)
-        return (addr->data.ip4.address >> 24) >= 224 && (addr->data.ip4.address >> 24) <= 239;
-    if (addr->family.native == TCS_FAMILY_IP6.native)
-        return addr->data.ip6.address.bytes[0] == 0xFF;
+    if (addr->family.native == TCS_FAMILY_IPV4.native)
+        return (addr->data.ipv4.address >> 24) >= 224 && (addr->data.ipv4.address >> 24) <= 239;
+    if (addr->family.native == TCS_FAMILY_IPV6.native)
+        return addr->data.ipv6.address.bytes[0] == 0xFF;
     if (addr->family.native == TCS_FAMILY_PACKET.native)
         return (addr->data.packet.mac[0] & 0x01) != 0;
     return false;
@@ -1475,8 +1475,8 @@ bool tcs_address_is_broadcast(const struct TcsAddress* addr)
 {
     if (addr == NULL)
         return false;
-    if (addr->family.native == TCS_FAMILY_IP4.native)
-        return addr->data.ip4.address == TCS_ADDRESS_BROADCAST_IP4;
+    if (addr->family.native == TCS_FAMILY_IPV4.native)
+        return addr->data.ipv4.address == TCS_ADDRESS_BROADCAST_IPV4;
     if (addr->family.native == TCS_FAMILY_PACKET.native)
         return addr->data.packet.mac[0] == 0xFF && addr->data.packet.mac[1] == 0xFF &&
                addr->data.packet.mac[2] == 0xFF && addr->data.packet.mac[3] == 0xFF &&
@@ -1490,9 +1490,9 @@ bool tcs_address_is_supported(const struct TcsAddress* addr)
         return false;
     if (addr->family.native == TCS_FAMILY_ANY.native)
         return true;
-    if (addr->family.native == TCS_FAMILY_IP4.native)
+    if (addr->family.native == TCS_FAMILY_IPV4.native)
         return true;
-    if (addr->family.native == TCS_FAMILY_IP6.native)
+    if (addr->family.native == TCS_FAMILY_IPV6.native)
         return true;
     if (addr->family.native == TCS_FAMILY_PACKET.native)
         return addr->family.native != -1;

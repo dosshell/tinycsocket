@@ -106,18 +106,18 @@ const int32_t TCS_WAIT_INF = -1;
 static long tcs_iov_max = 1024; // Default, updated by tcs_lib_init() via sysconf(_SC_IOV_MAX)
 
 // Addresses
-const uint32_t TCS_ADDRESS_ANY_IP4 = INADDR_ANY;
-const uint32_t TCS_ADDRESS_LOOPBACK_IP4 = INADDR_LOOPBACK;
-const uint32_t TCS_ADDRESS_BROADCAST_IP4 = INADDR_BROADCAST;
-const uint32_t TCS_ADDRESS_NONE_IP4 = INADDR_NONE;
+const uint32_t TCS_ADDRESS_ANY_IPV4 = INADDR_ANY;
+const uint32_t TCS_ADDRESS_LOOPBACK_IPV4 = INADDR_LOOPBACK;
+const uint32_t TCS_ADDRESS_BROADCAST_IPV4 = INADDR_BROADCAST;
+const uint32_t TCS_ADDRESS_NONE_IPV4 = INADDR_NONE;
 
-const struct TcsIp6Address TCS_ADDRESS_ANY_IP6 = {{0}};
-const struct TcsIp6Address TCS_ADDRESS_LOOPBACK_IP6 = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}};
+const struct TcsIpv6Address TCS_ADDRESS_ANY_IPV6 = {{0}};
+const struct TcsIpv6Address TCS_ADDRESS_LOOPBACK_IPV6 = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}};
 
 // Family
 const TcsFamily TCS_FAMILY_ANY = {AF_UNSPEC};
-const TcsFamily TCS_FAMILY_IP4 = {AF_INET};
-const TcsFamily TCS_FAMILY_IP6 = {AF_INET6};
+const TcsFamily TCS_FAMILY_IPV4 = {AF_INET};
+const TcsFamily TCS_FAMILY_IPV6 = {AF_INET6};
 #if TCS_HAS_AF_PACKET
 const TcsFamily TCS_FAMILY_PACKET = {AF_PACKET};
 #else
@@ -250,23 +250,23 @@ static TcsResult sockaddr2native(const struct TcsAddress* tcs_address,
     {
         return TCS_ERROR_NOT_SUPPORTED;
     }
-    else if (tcs_address->family.native == TCS_FAMILY_IP4.native)
+    else if (tcs_address->family.native == TCS_FAMILY_IPV4.native)
     {
         struct sockaddr_in* addr = (struct sockaddr_in*)out_address;
         addr->sin_family = (sa_family_t)AF_INET;
-        addr->sin_port = (in_port_t)htons(tcs_address->data.ip4.port);
-        addr->sin_addr.s_addr = (in_addr_t)htonl(tcs_address->data.ip4.address);
+        addr->sin_port = (in_port_t)htons(tcs_address->data.ipv4.port);
+        addr->sin_addr.s_addr = (in_addr_t)htonl(tcs_address->data.ipv4.address);
         if (out_address_size != NULL)
             *out_address_size = sizeof(struct sockaddr_in);
         return TCS_SUCCESS;
     }
-    else if (tcs_address->family.native == TCS_FAMILY_IP6.native)
+    else if (tcs_address->family.native == TCS_FAMILY_IPV6.native)
     {
         struct sockaddr_in6* addr = (struct sockaddr_in6*)out_address;
         addr->sin6_family = (sa_family_t)AF_INET6;
-        addr->sin6_port = (in_port_t)htons(tcs_address->data.ip6.port);
-        memcpy(&addr->sin6_addr, tcs_address->data.ip6.address.bytes, 16);
-        addr->sin6_scope_id = (uint32_t)tcs_address->data.ip6.scope_id;
+        addr->sin6_port = (in_port_t)htons(tcs_address->data.ipv6.port);
+        memcpy(&addr->sin6_addr, tcs_address->data.ipv6.address.bytes, 16);
+        addr->sin6_scope_id = (uint32_t)tcs_address->data.ipv6.scope_id;
         if (out_address_size != NULL)
             *out_address_size = sizeof(struct sockaddr_in6);
         return TCS_SUCCESS;
@@ -300,17 +300,17 @@ static TcsResult native2sockaddr(const struct sockaddr* in_addr, struct TcsAddre
     {
         // (const void*) Supresses false positive alignment warning, the creator of the sockaddr is responsible for the alignment.
         struct sockaddr_in const* addr = (struct sockaddr_in const*)(const void*)in_addr;
-        out_addr->family = TCS_FAMILY_IP4;
-        out_addr->data.ip4.port = ntohs((uint16_t)addr->sin_port);
-        out_addr->data.ip4.address = ntohl((uint32_t)addr->sin_addr.s_addr);
+        out_addr->family = TCS_FAMILY_IPV4;
+        out_addr->data.ipv4.port = ntohs((uint16_t)addr->sin_port);
+        out_addr->data.ipv4.address = ntohl((uint32_t)addr->sin_addr.s_addr);
     }
     else if (in_addr->sa_family == AF_INET6)
     {
         struct sockaddr_in6 const* addr = (struct sockaddr_in6 const*)(const void*)in_addr;
-        out_addr->family = TCS_FAMILY_IP6;
-        out_addr->data.ip6.port = ntohs((uint16_t)addr->sin6_port);
-        memcpy(out_addr->data.ip6.address.bytes, &addr->sin6_addr, 16);
-        out_addr->data.ip6.scope_id = (TcsInterfaceId)addr->sin6_scope_id;
+        out_addr->family = TCS_FAMILY_IPV6;
+        out_addr->data.ipv6.port = ntohs((uint16_t)addr->sin6_port);
+        memcpy(out_addr->data.ipv6.address.bytes, &addr->sin6_addr, 16);
+        out_addr->data.ipv6.scope_id = (TcsInterfaceId)addr->sin6_scope_id;
     }
 #if TCS_HAS_AF_PACKET
     else if (in_addr->sa_family == AF_PACKET)
@@ -1197,7 +1197,7 @@ TcsResult tcs_opt_membership_add_to(TcsSocket socket,
     if (sts_ma2n != TCS_SUCCESS)
         return sts_ma2n;
 
-    if (multicast_address->family.native == TCS_FAMILY_IP4.native)
+    if (multicast_address->family.native == TCS_FAMILY_IPV4.native)
     {
         const struct sockaddr_in* address_native_local_p = (struct sockaddr_in*)&local_address_native;
         const struct sockaddr_in* address_native_multicast_p = (struct sockaddr_in*)&multicast_address_native;
@@ -1213,12 +1213,12 @@ TcsResult tcs_opt_membership_add_to(TcsSocket socket,
             return sts_opt;
         return TCS_SUCCESS;
     }
-    else if (multicast_address->family.native == TCS_FAMILY_IP6.native)
+    else if (multicast_address->family.native == TCS_FAMILY_IPV6.native)
     {
         struct ipv6_mreq mreq6;
         memset(&mreq6, 0, sizeof mreq6);
-        memcpy(&mreq6.ipv6mr_multiaddr, multicast_address->data.ip6.address.bytes, 16);
-        mreq6.ipv6mr_interface = (unsigned int)local_address->data.ip6.scope_id;
+        memcpy(&mreq6.ipv6mr_multiaddr, multicast_address->data.ipv6.address.bytes, 16);
+        mreq6.ipv6mr_interface = (unsigned int)local_address->data.ipv6.scope_id;
 
         TcsResult sts_opt = tcs_opt_set(socket, IPPROTO_IPV6, IPV6_JOIN_GROUP, &mreq6, sizeof(mreq6));
         if (sts_opt != TCS_SUCCESS)
@@ -1300,7 +1300,7 @@ TcsResult tcs_opt_membership_drop_from(TcsSocket socket,
     if (sts_ma2n != TCS_SUCCESS)
         return sts_ma2n;
 
-    if (multicast_address->family.native == TCS_FAMILY_IP4.native)
+    if (multicast_address->family.native == TCS_FAMILY_IPV4.native)
     {
         const struct sockaddr_in* address_native_local_p = (struct sockaddr_in*)&local_address_native;
         const struct sockaddr_in* address_native_multicast_p = (struct sockaddr_in*)&multicast_address_native;
@@ -1316,12 +1316,12 @@ TcsResult tcs_opt_membership_drop_from(TcsSocket socket,
             return sts_opt;
         return TCS_SUCCESS;
     }
-    else if (multicast_address->family.native == TCS_FAMILY_IP6.native)
+    else if (multicast_address->family.native == TCS_FAMILY_IPV6.native)
     {
         struct ipv6_mreq mreq6;
         memset(&mreq6, 0, sizeof mreq6);
-        memcpy(&mreq6.ipv6mr_multiaddr, multicast_address->data.ip6.address.bytes, 16);
-        mreq6.ipv6mr_interface = (unsigned int)local_address->data.ip6.scope_id;
+        memcpy(&mreq6.ipv6mr_multiaddr, multicast_address->data.ipv6.address.bytes, 16);
+        mreq6.ipv6mr_interface = (unsigned int)local_address->data.ipv6.scope_id;
 
         TcsResult sts_opt = tcs_opt_set(socket, IPPROTO_IPV6, IPV6_LEAVE_GROUP, &mreq6, sizeof(mreq6));
         if (sts_opt != TCS_SUCCESS)
@@ -1357,15 +1357,15 @@ TcsResult tcs_opt_multicast_interface_set(TcsSocket socket, const struct TcsAddr
     if (socket == TCS_SOCKET_INVALID || local_address == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (local_address->family.native == TCS_FAMILY_IP4.native)
+    if (local_address->family.native == TCS_FAMILY_IPV4.native)
     {
         struct in_addr iface;
-        iface.s_addr = htonl(local_address->data.ip4.address);
+        iface.s_addr = htonl(local_address->data.ipv4.address);
         return tcs_opt_set(socket, TCS_SOL_IP, IP_MULTICAST_IF, &iface, sizeof(iface));
     }
-    else if (local_address->family.native == TCS_FAMILY_IP6.native)
+    else if (local_address->family.native == TCS_FAMILY_IPV6.native)
     {
-        unsigned int idx = (unsigned int)local_address->data.ip6.scope_id;
+        unsigned int idx = (unsigned int)local_address->data.ipv6.scope_id;
         return tcs_opt_set(socket, IPPROTO_IPV6, IPV6_MULTICAST_IF, &idx, sizeof(idx));
     }
     return TCS_ERROR_INVALID_ARGUMENT;
@@ -1699,7 +1699,7 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
     // Check if we support the requested address family in the ioctl fallback.
     // IPv4 is always available. AF_PACKET is available on Linux via SIOCGIFHWADDR.
     bool supported = (address_family_filter.native == TCS_FAMILY_ANY.native ||
-                      address_family_filter.native == TCS_FAMILY_IP4.native);
+                      address_family_filter.native == TCS_FAMILY_IPV4.native);
 #if TCS_HAS_AF_PACKET
     supported = supported || (address_family_filter.native == TCS_FAMILY_PACKET.native);
 #endif
@@ -1764,7 +1764,7 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
 
         // IPv4 addresses
         if (address_family_filter.native == TCS_FAMILY_ANY.native ||
-            address_family_filter.native == TCS_FAMILY_IP4.native)
+            address_family_filter.native == TCS_FAMILY_IPV4.native)
         {
             struct TcsAddress address = TCS_ADDRESS_NONE;
             TcsResult convert_status = native2sockaddr((struct sockaddr*)&ifr->ifr_addr, &address);

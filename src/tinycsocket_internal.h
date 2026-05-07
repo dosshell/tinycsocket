@@ -305,7 +305,7 @@ const char* tcs_strerror(TcsResult result);
 /**
  * @brief IPv6 address (16 bytes), analogous to POSIX struct in6_addr.
  */
-struct TcsIp6Address
+struct TcsIpv6Address
 {
     uint8_t bytes[16];
 };
@@ -327,14 +327,14 @@ struct TcsAddress
             uint32_t address; /**< Same byte order as the host */
             uint16_t port;    /**< Same byte order as the host */
 
-        } ip4;
+        } ipv4;
         struct
         {
-            struct TcsIp6Address address;
+            struct TcsIpv6Address address;
             TcsInterfaceId
                 scope_id;  /**< Native type. Only valid for local link addresses. See ::tcs_interface_list(). */
             uint16_t port; /**< Same byte order as the host */
-        } ip6;
+        } ipv6;
         struct
         {
             TcsInterfaceId
@@ -386,8 +386,8 @@ struct TcsPollEvent
 };
 
 extern const TcsFamily TCS_FAMILY_ANY;    /**< Layer 4 agnostic (AF_UNSPEC) */
-extern const TcsFamily TCS_FAMILY_IP4;    /**< INET IPv4 interface (AF_INET) */
-extern const TcsFamily TCS_FAMILY_IP6;    /**< INET IPv6 interface (AF_INET6) */
+extern const TcsFamily TCS_FAMILY_IPV4;    /**< INET IPv4 interface (AF_INET) */
+extern const TcsFamily TCS_FAMILY_IPV6;    /**< INET IPv6 interface (AF_INET6) */
 extern const TcsFamily TCS_FAMILY_PACKET; /**< Layer 2 interface (AF_PACKET on Linux; unsupported elsewhere) */
 
 // gcc may trigger bug #53119
@@ -400,13 +400,13 @@ static const struct TcsAddress TCS_ADDRESS_NONE = {{0}, {{0}}};
 #pragma GCC diagnostic pop
 #endif
 
-extern const uint32_t TCS_ADDRESS_ANY_IP4;
-extern const uint32_t TCS_ADDRESS_LOOPBACK_IP4;
-extern const uint32_t TCS_ADDRESS_BROADCAST_IP4;
-extern const uint32_t TCS_ADDRESS_NONE_IP4;
+extern const uint32_t TCS_ADDRESS_ANY_IPV4;
+extern const uint32_t TCS_ADDRESS_LOOPBACK_IPV4;
+extern const uint32_t TCS_ADDRESS_BROADCAST_IPV4;
+extern const uint32_t TCS_ADDRESS_NONE_IPV4;
 
-extern const struct TcsIp6Address TCS_ADDRESS_ANY_IP6;
-extern const struct TcsIp6Address TCS_ADDRESS_LOOPBACK_IP6;
+extern const struct TcsIpv6Address TCS_ADDRESS_ANY_IPV6;
+extern const struct TcsIpv6Address TCS_ADDRESS_LOOPBACK_IPV6;
 
 extern const TcsSocket TCS_SOCKET_INVALID; /**< Define new sockets to this value, always. */
 static const uint32_t TCS_FLAG_NONE = 0;
@@ -530,7 +530,7 @@ TcsResult tcs_lib_free(void);
  *       return -1; // Failed to initialize tinycsocket
  *
  *   TcsSocket my_socket = TCS_SOCKET_INVALID; // Always initialize TcsSocket to TCS_SOCKET_INVALID.
- *   TcsResult tcs_socket_res = tcs_socket(&my_socket, TCS_FAMILY_IP4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
+ *   TcsResult tcs_socket_res = tcs_socket(&my_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
  *   if (tcs_socket_res != TCS_SUCCESS)
  *   {
  *     tcs_lib_free();
@@ -582,9 +582,9 @@ TcsResult tcs_socket(TcsSocket* out_socket, TcsFamily family, TcsSockType type, 
 *   tcs_lib_init();
 *
 *   struct TcsAddress local = TCS_ADDRESS_NONE;
-*   local.family = TCS_FAMILY_IP4;
-*   local.data.ip4.address = TCS_ADDRESS_ANY_IP4;
-*   local.data.ip4.port = 8080;
+*   local.family = TCS_FAMILY_IPV4;
+*   local.data.ipv4.address = TCS_ADDRESS_ANY_IPV4;
+*   local.data.ipv4.port = 8080;
 *
 *   TcsSocket server = TCS_SOCKET_INVALID;
 *   TcsResult res = tcs_socket_tcp(&server, &local, NULL, 0);
@@ -689,9 +689,9 @@ TcsResult tcs_socket_tcp_str(TcsSocket* out_socket,
 *   tcs_lib_init();
 *
 *   struct TcsAddress local = TCS_ADDRESS_NONE;
-*   local.family = TCS_FAMILY_IP4;
-*   local.data.ip4.address = TCS_ADDRESS_ANY_IP4;
-*   local.data.ip4.port = 8080;
+*   local.family = TCS_FAMILY_IPV4;
+*   local.data.ipv4.address = TCS_ADDRESS_ANY_IPV4;
+*   local.data.ipv4.port = 8080;
 *
 *   TcsSocket socket = TCS_SOCKET_INVALID;
 *   TcsResult res = tcs_socket_udp(&socket, &local, NULL);
@@ -884,7 +884,7 @@ TcsResult tcs_close(TcsSocket* socket);
  *     return -1;
  *
  *   TcsSocket server_socket = TCS_SOCKET_INVALID;
- *   TcsResult socket_res = tcs_socket(&server_socket, TCS_FAMILY_IP4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
+ *   TcsResult socket_res = tcs_socket(&server_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
  *   if (socket_res != TCS_SUCCESS)
  *   {
  *     tcs_lib_free();
@@ -892,9 +892,9 @@ TcsResult tcs_close(TcsSocket* socket);
  *   }
  *
  *   struct TcsAddress local_address = TCS_ADDRESS_NONE;
- *   local_address.family = TCS_FAMILY_IP4;
- *   local_address.data.ip4.address = TCS_ADDRESS_ANY_IP4; // Bind to all interfaces
- *   local_address.data.ip4.port = 8080;
+ *   local_address.family = TCS_FAMILY_IPV4;
+ *   local_address.data.ipv4.address = TCS_ADDRESS_ANY_IPV4; // Bind to all interfaces
+ *   local_address.data.ipv4.port = 8080;
  *
  *   TcsResult bind_res = tcs_bind(server_socket, &local_address);
  *   if (bind_res != TCS_SUCCESS)
@@ -914,7 +914,7 @@ TcsResult tcs_close(TcsSocket* socket);
  * @endcode
  *
  * @param socket The socket to bind. Must be a valid socket created with tcs_socket().
- * @param local_address The local address structure to bind to. Use TCS_ADDRESS_ANY_IP4 for the address field to bind to all interfaces.
+ * @param local_address The local address structure to bind to. Use TCS_ADDRESS_ANY_IPV4 for the address field to bind to all interfaces.
  *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @retval #TCS_ERROR_INVALID_ARGUMENT if socket is invalid or local_address is NULL.
@@ -948,7 +948,7 @@ TcsResult tcs_bind(TcsSocket socket, const struct TcsAddress* local_address);
  *     return -1;
  *
  *   TcsSocket client_socket = TCS_SOCKET_INVALID;
- *   TcsResult socket_res = tcs_socket(&client_socket, TCS_FAMILY_IP4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
+ *   TcsResult socket_res = tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
  *   if (socket_res != TCS_SUCCESS)
  *   {
  *     tcs_lib_free();
@@ -956,9 +956,9 @@ TcsResult tcs_bind(TcsSocket socket, const struct TcsAddress* local_address);
  *   }
  *
  *   struct TcsAddress remote_address = TCS_ADDRESS_NONE;
- *   remote_address.family = TCS_FAMILY_IP4;
- *   remote_address.data.ip4.address = 0x7F000001; // 127.0.0.1 loopback
- *   remote_address.data.ip4.port = 8080;
+ *   remote_address.family = TCS_FAMILY_IPV4;
+ *   remote_address.data.ipv4.address = 0x7F000001; // 127.0.0.1 loopback
+ *   remote_address.data.ipv4.port = 8080;
  *
  *   TcsResult connect_res = tcs_connect(client_socket, &remote_address);
  *   if (connect_res != TCS_SUCCESS)
@@ -1014,7 +1014,7 @@ TcsResult tcs_connect(TcsSocket socket, const struct TcsAddress* address);
  *     return -1;
  *
  *   TcsSocket client_socket = TCS_SOCKET_INVALID;
- *   TcsResult socket_res = tcs_socket(&client_socket, TCS_FAMILY_IP4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
+ *   TcsResult socket_res = tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
  *   if (socket_res != TCS_SUCCESS)
  *   {
  *     tcs_lib_free();
@@ -1079,10 +1079,10 @@ TcsResult tcs_listen(TcsSocket socket, int backlog);
  * Example usage:
  * @code
  * TcsSocket listen_socket = TCS_SOCKET_INVALID;
- * tcs_socket(&listen_socket, TCS_FAMILY_IP4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
+ * tcs_socket(&listen_socket, TCS_FAMILY_IPV4, TCS_SOCK_STREAM, TCS_PROTOCOL_IP_TCP);
  * struct TcsAddress local_address = TCS_ADDRESS_NONE;
- * local_address.family = TCS_FAMILY_IP4;
- * local_address.data.ip4.port = 1212;
+ * local_address.family = TCS_FAMILY_IPV4;
+ * local_address.data.ipv4.port = 1212;
  * tcs_bind(listen_socket, &local_address);
  * tcs_listen(listen_socket, TCS_BACKLOG_MAX);
  * while (true)
@@ -1272,17 +1272,17 @@ TcsResult tcs_receive_netstring(TcsSocket socket, uint8_t* buffer, size_t buffer
 * tcs_lib_init();
 * TcsSocket socket1 = TCS_SOCKET_INVALID;
 * TcsSocket socket2 = TCS_SOCKET_INVALID;
-* tcs_socket(&socket1, TCS_FAMILY_IP4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP);
-* tcs_socket(&socket2, TCS_FAMILY_IP4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP);
+* tcs_socket(&socket1, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP);
+* tcs_socket(&socket2, TCS_FAMILY_IPV4, TCS_SOCK_DGRAM, TCS_PROTOCOL_IP_UDP);
 *
 * struct TcsAddress addr1 = TCS_ADDRESS_NONE;
-* addr1.family = TCS_FAMILY_IP4;
-* addr1.data.ip4.port = 1000;
+* addr1.family = TCS_FAMILY_IPV4;
+* addr1.data.ipv4.port = 1000;
 * tcs_bind(socket1, &addr1);
 *
 * struct TcsAddress addr2 = TCS_ADDRESS_NONE;
-* addr2.family = TCS_FAMILY_IP4;
-* addr2.data.ip4.port = 1001;
+* addr2.family = TCS_FAMILY_IPV4;
+* addr2.data.ipv4.port = 1001;
 * tcs_bind(socket2, &addr2);
 *
 * struct TcsPoll* poll = NULL;
