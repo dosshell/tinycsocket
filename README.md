@@ -37,7 +37,7 @@ int main(int argc, const char* argv[])
     tcs_shutdown(client_socket, TCS_SHUTDOWN_BOTH);
     tcs_close(&client_socket);
 
-    tcs_lib_free();
+    tcs_lib_cleanup();
 }
 ```
 

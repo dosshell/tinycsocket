@@ -40,7 +40,7 @@ extern const char* const TCS_LICENSE_TXT;
 * 
 * Library Management:
 * - TcsResult tcs_lib_init(void);
-* - TcsResult tcs_lib_free(void);
+* - TcsResult tcs_lib_cleanup(void);
 *
 * Socket Creation:
 * - TcsResult tcs_socket(TcsSocket* out_socket, TcsFamily family, TcsSocketType type, TcsProtocol protocol);
@@ -465,7 +465,7 @@ static const struct TcsPollEvent TCS_POLL_EVENT_EMPTY = {0, 0, false, false, TCS
  * On Windows, it will initialize Winsock, otherwise it does nothing and will always return #TCS_SUCCESS.
  *
  * You can call this multiple times, it will keep a counter of how many times you have called it (RAII friendly).
- * You should call tcs_lib_free() after you are done with the library (before program exit), atleast the number of times you have called tcs_lib_init().
+ * You should call tcs_lib_cleanup() after you are done with the library (before program exit), atleast the number of times you have called tcs_lib_init().
  * 
  * @code
  * #include "tinycsocket.h"
@@ -476,11 +476,11 @@ static const struct TcsPollEvent TCS_POLL_EVENT_EMPTY = {0, 0, false, false, TCS
  *   if (tcs_init_res != TCS_SUCCESS)
  *       return -1; // Failed to initialize tinycsocket
  *   // Do stuff with the library here
- *   tcs_lib_free();
+ *   tcs_lib_cleanup();
  * }
  * @endcode
  *
- * @see tcs_lib_free()
+ * @see tcs_lib_cleanup()
  *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  *
@@ -498,7 +498,7 @@ TcsResult tcs_lib_init(void);
  *
  * @retval #TCS_ERROR_LIBRARY_NOT_INITIALIZED if you have not called tcs_lib_init() before calling this function.
  */
-TcsResult tcs_lib_free(void);
+TcsResult tcs_lib_cleanup(void);
 
 // ######## Socket Creation ########
 
@@ -526,14 +526,14 @@ TcsResult tcs_lib_free(void);
  *   TcsResult tcs_socket_res = tcs_socket(&my_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP);
  *   if (tcs_socket_res != TCS_SUCCESS)
  *   {
- *     tcs_lib_free();
+ *     tcs_lib_cleanup();
  *     return -2; // Failed to create socket
  *   }
  *
  *   // Do stuff with my_socket here. See examples in the documentation.
  *
  *   tcs_close(&my_socket); // Safe to call even if my_socket is TCS_SOCKET_INVALID
- *   tcs_lib_free();
+ *   tcs_lib_cleanup();
  * }
  * @endcode
  *
@@ -554,7 +554,7 @@ TcsResult tcs_lib_free(void);
  * @see tcs_socket_packet_str()
  * @see tcs_close()
  * @see tcs_lib_init()
- * @see tcs_lib_free()
+ * @see tcs_lib_cleanup()
  */
 TcsResult tcs_socket(TcsSocket* out_socket, TcsFamily family, TcsSocketType type, TcsProtocol protocol);
 
@@ -583,14 +583,14 @@ TcsResult tcs_socket(TcsSocket* out_socket, TcsFamily family, TcsSocketType type
 *   TcsResult res = tcs_socket_tcp(&server, &local, NULL, 0);
 *   if (res != TCS_SUCCESS)
 *   {
-*     tcs_lib_free();
+*     tcs_lib_cleanup();
 *     return -1;
 *   }
 *
 *   // Socket is now bound, call tcs_listen() and tcs_accept() to accept connections
 *
 *   tcs_close(&server);
-*   tcs_lib_free();
+*   tcs_lib_cleanup();
 * }
 * @endcode
 *
@@ -631,14 +631,14 @@ TcsResult tcs_socket_tcp(TcsSocket* out_socket,
 *   TcsResult res = tcs_socket_tcp_str(&socket, NULL, "127.0.0.1:8080", 5000);
 *   if (res != TCS_SUCCESS)
 *   {
-*     tcs_lib_free();
+*     tcs_lib_cleanup();
 *     return -1;
 *   }
 *
 *   // Socket is now connected and ready for communication
 *
 *   tcs_close(&socket);
-*   tcs_lib_free();
+*   tcs_lib_cleanup();
 * }
 * @endcode
 *
@@ -690,14 +690,14 @@ TcsResult tcs_socket_tcp_str(TcsSocket* out_socket,
 *   TcsResult res = tcs_socket_udp(&socket, &local, NULL);
 *   if (res != TCS_SUCCESS)
 *   {
-*     tcs_lib_free();
+*     tcs_lib_cleanup();
 *     return -1;
 *   }
 *
 *   // Socket is now bound and ready to receive with tcs_receive_from()
 *
 *   tcs_close(&socket);
-*   tcs_lib_free();
+*   tcs_lib_cleanup();
 * }
 * @endcode
 *
@@ -733,14 +733,14 @@ TcsResult tcs_socket_udp(TcsSocket* out_socket,
 *   TcsResult res = tcs_socket_udp_str(&socket, "0.0.0.0:8080", NULL);
 *   if (res != TCS_SUCCESS)
 *   {
-*     tcs_lib_free();
+*     tcs_lib_cleanup();
 *     return -1;
 *   }
 *
 *   // Socket is now bound and ready to receive with tcs_receive_from()
 *
 *   tcs_close(&socket);
-*   tcs_lib_free();
+*   tcs_lib_cleanup();
 * }
 * @endcode
 *
@@ -778,14 +778,14 @@ TcsResult tcs_socket_udp_str(TcsSocket* out_socket, const char* local_address, c
 *   TcsResult res = tcs_socket_packet(&socket, &bind, TCS_SOCKET_DGRAM);
 *   if (res != TCS_SUCCESS)
 *   {
-*     tcs_lib_free();
+*     tcs_lib_cleanup();
 *     return -1;
 *   }
 *
 *   // Socket is now bound and ready for tcs_send_to() / tcs_receive_from()
 *
 *   tcs_close(&socket);
-*   tcs_lib_free();
+*   tcs_lib_cleanup();
 * }
 * @endcode
 *
@@ -817,14 +817,14 @@ TcsResult tcs_socket_packet(TcsSocket* out_socket, const struct TcsAddress* bind
 *   TcsResult res = tcs_socket_packet_str(&socket, "eth0", 0x22F0, TCS_SOCKET_DGRAM);
 *   if (res != TCS_SUCCESS)
 *   {
-*     tcs_lib_free();
+*     tcs_lib_cleanup();
 *     return -1;
 *   }
 *
 *   // Socket is now bound and ready for tcs_send_to() / tcs_receive_from()
 *
 *   tcs_close(&socket);
-*   tcs_lib_free();
+*   tcs_lib_cleanup();
 * }
 * @endcode
 *
@@ -859,7 +859,7 @@ TcsResult tcs_socket_packet_str(TcsSocket* out_socket,
 * @see tcs_socket_udp()
 * @see tcs_socket_packet()
 * @see tcs_lib_init()
-* @see tcs_lib_free()
+* @see tcs_lib_cleanup()
 */
 TcsResult tcs_close(TcsSocket* socket);
 
@@ -883,7 +883,7 @@ TcsResult tcs_close(TcsSocket* socket);
  *   TcsResult socket_res = tcs_socket(&server_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP);
  *   if (socket_res != TCS_SUCCESS)
  *   {
- *     tcs_lib_free();
+ *     tcs_lib_cleanup();
  *     return -2;
  *   }
  *
@@ -896,7 +896,7 @@ TcsResult tcs_close(TcsSocket* socket);
  *   if (bind_res != TCS_SUCCESS)
  *   {
  *     tcs_close(&server_socket);
- *     tcs_lib_free();
+ *     tcs_lib_cleanup();
  *     return -3; // Failed to bind to address
  *   }
  *
@@ -904,7 +904,7 @@ TcsResult tcs_close(TcsSocket* socket);
  *   // For UDP: socket is ready to receive datagrams
  *
  *   tcs_close(&server_socket);
- *   tcs_lib_free();
+ *   tcs_lib_cleanup();
  *   return 0;
  * }
  * @endcode
@@ -947,7 +947,7 @@ TcsResult tcs_bind(TcsSocket socket, const struct TcsAddress* local_address);
  *   TcsResult socket_res = tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP);
  *   if (socket_res != TCS_SUCCESS)
  *   {
- *     tcs_lib_free();
+ *     tcs_lib_cleanup();
  *     return -2;
  *   }
  *
@@ -960,7 +960,7 @@ TcsResult tcs_bind(TcsSocket socket, const struct TcsAddress* local_address);
  *   if (connect_res != TCS_SUCCESS)
  *   {
  *     tcs_close(&client_socket);
- *     tcs_lib_free();
+ *     tcs_lib_cleanup();
  *     return -3; // Failed to connect
  *   }
  *
@@ -970,7 +970,7 @@ TcsResult tcs_bind(TcsSocket socket, const struct TcsAddress* local_address);
  *   tcs_send(client_socket, buffer, sizeof(buffer)-1, TCS_MSG_SENDALL, &sent_size);
  *
  *   tcs_close(&client_socket);
- *   tcs_lib_free();
+ *   tcs_lib_cleanup();
  *   return 0;
  * }
  * @endcode
@@ -1013,7 +1013,7 @@ TcsResult tcs_connect(TcsSocket socket, const struct TcsAddress* address);
  *   TcsResult socket_res = tcs_socket(&client_socket, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP);
  *   if (socket_res != TCS_SUCCESS)
  *   {
- *     tcs_lib_free();
+ *     tcs_lib_cleanup();
  *     return -2;
  *   }
  *
@@ -1021,7 +1021,7 @@ TcsResult tcs_connect(TcsSocket socket, const struct TcsAddress* address);
  *   if (connect_res != TCS_SUCCESS)
  *   {
  *     tcs_close(&client_socket);
- *     tcs_lib_free();
+ *     tcs_lib_cleanup();
  *     return -3; // Failed to connect
  *   }
  *
@@ -1031,7 +1031,7 @@ TcsResult tcs_connect(TcsSocket socket, const struct TcsAddress* address);
  *   tcs_send(client_socket, buffer, sizeof(buffer)-1, TCS_MSG_SENDALL, &sent_size);
  *
  *   tcs_close(&client_socket);
- *   tcs_lib_free();
+ *   tcs_lib_cleanup();
  *   return 0;
  * }
  * @endcode
@@ -1297,7 +1297,7 @@ TcsResult tcs_receive_netstring(TcsSocket socket, uint8_t* buffer, size_t buffer
 * tcs_poll_destroy(&poll);
 * tcs_close(&socket1);
 * tcs_close(&socket2);
-* tcs_lib_free();
+* tcs_lib_cleanup();
 * @endcode
 *
 * @param[out] out_poll is your out poll context pointer. Initiate a TcsPoll pointer to NULL and use the address of this pointer.
@@ -2651,7 +2651,7 @@ TcsResult tcs_lib_init(void)
     return TCS_SUCCESS;
 }
 
-TcsResult tcs_lib_free(void)
+TcsResult tcs_lib_cleanup(void)
 {
     // Not needed for posix
     return TCS_SUCCESS;
@@ -4472,7 +4472,7 @@ TcsResult tcs_lib_init(void)
     return TCS_SUCCESS;
 }
 
-TcsResult tcs_lib_free(void)
+TcsResult tcs_lib_cleanup(void)
 {
     WSACleanup();
     return TCS_SUCCESS;
@@ -6053,7 +6053,7 @@ const char* const TCS_LICENSE_TXT =
 // ######## Library Management ########
 
 // tcs_lib_init() is defined in OS specific files
-// tcs_lib_free() is defined in OS specific files
+// tcs_lib_cleanup() is defined in OS specific files
 
 const char* tcs_strerror(TcsResult result)
 {

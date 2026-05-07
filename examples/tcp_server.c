@@ -71,6 +71,6 @@ int main(void)
     if (tcs_close(&child_socket) != TCS_SUCCESS)
         return show_error("Could not close socket");
 
-    if (tcs_lib_free() != TCS_SUCCESS)
+    if (tcs_lib_cleanup() != TCS_SUCCESS)
         return show_error("Could not free tinycsocket");
 }

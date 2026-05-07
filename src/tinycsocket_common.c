@@ -58,7 +58,7 @@ const char* const TCS_LICENSE_TXT =
 // ######## Library Management ########
 
 // tcs_lib_init() is defined in OS specific files
-// tcs_lib_free() is defined in OS specific files
+// tcs_lib_cleanup() is defined in OS specific files
 
 const char* tcs_strerror(TcsResult result)
 {

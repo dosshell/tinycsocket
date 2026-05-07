@@ -122,7 +122,7 @@ TEST_CASE("Example from README")
            shutdown_res == TCS_ERROR_CONNECTION_RESET || shutdown_res == TCS_ERROR_SOCKET_CLOSED));
     CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
 
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("Init Test")
@@ -132,7 +132,7 @@ TEST_CASE("Init Test")
 
     // When
     CHECK(tcs_lib_init() == TCS_SUCCESS);
-    CHECK(tcs_lib_free() == TCS_SUCCESS);
+    CHECK(tcs_lib_cleanup() == TCS_SUCCESS);
 
     // Then
     CHECK_NO_LEAK(pre_mem_diff);
@@ -166,7 +166,7 @@ TEST_CASE("Create socket")
 
     // Clean up
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("UDP Test")
@@ -212,7 +212,7 @@ TEST_CASE("UDP Test")
     // Clean up
     CHECK(tcs_close(&socket_recv) == TCS_SUCCESS);
     CHECK(tcs_close(&socket_send) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("Bind UDP")
@@ -236,7 +236,7 @@ TEST_CASE("Bind UDP")
     CHECK(sts == TCS_SUCCESS);
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("Non-blocking")
@@ -262,7 +262,7 @@ TEST_CASE("Non-blocking")
     CHECK_POSIX(is_non_blocking == true);
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("Simple TCP Test")
@@ -302,7 +302,7 @@ TEST_CASE("Simple TCP Test")
     // Clean up
     CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
     CHECK(tcs_close(&accept_socket) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("Simple 2 msg tcs_receive_line")
@@ -362,7 +362,7 @@ TEST_CASE("Simple 2 msg tcs_receive_line")
     // Clean up
     CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
     CHECK(tcs_close(&server_socket) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("Partial msg tcs_receive_line")
@@ -410,7 +410,7 @@ TEST_CASE("Partial msg tcs_receive_line")
     // Clean up
     CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
     CHECK(tcs_close(&server_socket) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("sendv")
@@ -458,7 +458,7 @@ TEST_CASE("sendv")
     // Clean up
     CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
     CHECK(tcs_close(&accept_socket) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("Simple TCP Netstring Test")
@@ -498,7 +498,7 @@ TEST_CASE("Simple TCP Netstring Test")
     // Clean up
     CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
     CHECK(tcs_close(&accept_socket) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("Netstring with multi-digit length")
@@ -541,7 +541,7 @@ TEST_CASE("Netstring with multi-digit length")
     // Clean up
     CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
     CHECK(tcs_close(&accept_socket) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("Netstring with overflowing length is rejected")
@@ -576,7 +576,7 @@ TEST_CASE("Netstring with overflowing length is rejected")
 
     CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
     CHECK(tcs_close(&accept_socket) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 // TODO(markusl): Broken on Windows (use nonblocking behind the curton?)
@@ -616,7 +616,7 @@ TEST_CASE("shutdown")
     t1.join();
 
     // Clean up
-    tcs_lib_free();
+    tcs_lib_cleanup();
 }
 #endif
 
@@ -659,7 +659,7 @@ TEST_CASE("tcs_socket_tcp bind and connect")
     CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
     CHECK(tcs_close(&accept_socket) == TCS_SUCCESS);
     CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("tcs_socket_tcp invalid arguments")
@@ -687,7 +687,7 @@ TEST_CASE("tcs_socket_tcp invalid arguments")
     CHECK(socket == TCS_SOCKET_INVALID);
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("tcs_socket_tcp connect timeout")
@@ -713,7 +713,7 @@ TEST_CASE("tcs_socket_tcp connect timeout")
     CHECK(socket == TCS_SOCKET_INVALID);
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("tcs_socket_tcp_str bind and connect")
@@ -745,7 +745,7 @@ TEST_CASE("tcs_socket_tcp_str bind and connect")
     CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
     CHECK(tcs_close(&accept_socket) == TCS_SUCCESS);
     CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("tcs_socket_udp bind and send_to")
@@ -788,7 +788,7 @@ TEST_CASE("tcs_socket_udp bind and send_to")
     // Clean up
     CHECK(tcs_close(&socket_send) == TCS_SUCCESS);
     CHECK(tcs_close(&socket_recv) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("tcs_socket_udp invalid arguments")
@@ -816,7 +816,7 @@ TEST_CASE("tcs_socket_udp invalid arguments")
     CHECK(socket == TCS_SOCKET_INVALID);
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("tcs_socket_udp_str bind and send_to")
@@ -849,7 +849,7 @@ TEST_CASE("tcs_socket_udp_str bind and send_to")
     // Clean up
     CHECK(tcs_close(&socket_send) == TCS_SUCCESS);
     CHECK(tcs_close(&socket_recv) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("tcs_poll simple memory check")
@@ -869,7 +869,7 @@ TEST_CASE("tcs_poll simple memory check")
     CHECK_NO_LEAK(pre_mem_diff);
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("tcs_poll_wait simple write")
@@ -911,7 +911,7 @@ TEST_CASE("tcs_poll_wait simple write")
 
     // Clean up
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
-    tcs_lib_free();
+    tcs_lib_cleanup();
 }
 
 TEST_CASE("tcs_poll_wait simple read")
@@ -960,7 +960,7 @@ TEST_CASE("tcs_poll_wait simple read")
 
     // Clean up
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("tcs_poll_wait partial")
@@ -1030,7 +1030,7 @@ TEST_CASE("tcs_poll_wait partial")
     {
         CHECK(tcs_close(&socket[i]) == TCS_SUCCESS);
     }
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("tcs_poll_modify")
@@ -1078,7 +1078,7 @@ TEST_CASE("tcs_poll_modify")
     // Clean up
     CHECK(tcs_poll_destroy(&poll) == TCS_SUCCESS);
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("Address information count")
@@ -1096,7 +1096,7 @@ TEST_CASE("Address information count")
     CHECK(no_of_found_addresses > 0);
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 TEST_CASE("Interface list")
 {
@@ -1134,7 +1134,7 @@ TEST_CASE("Interface list")
     }
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("Get loopback address")
@@ -1170,7 +1170,7 @@ TEST_CASE("Get loopback address")
     CHECK_NO_LEAK(pre_mem_diff);
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS); // We are in C++, we should use defer
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS); // We are in C++, we should use defer
 }
 
 TEST_CASE("tcs_util_address_to_string with only IPv4")
@@ -1286,7 +1286,7 @@ TEST_CASE("TCS_SO_BROADCAST")
     CHECK(tcs_close(&socket_false) == TCS_SUCCESS);
     CHECK(tcs_close(&socket_true) == TCS_SUCCESS);
     CHECK(tcs_close(&socket_fail) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("TCS_SO_KEEPALIVE")
@@ -1329,7 +1329,7 @@ TEST_CASE("TCS_SO_KEEPALIVE")
     CHECK(tcs_close(&socket_false) == TCS_SUCCESS);
     CHECK(tcs_close(&socket_true) == TCS_SUCCESS);
     CHECK(tcs_close(&socket_fail) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("TCS_SO_LINGER")
@@ -1375,7 +1375,7 @@ TEST_CASE("TCS_SO_LINGER")
     CHECK(tcs_close(&socket_false) == TCS_SUCCESS);
     CHECK(tcs_close(&socket_true) == TCS_SUCCESS);
     CHECK(tcs_close(&socket_fail) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("TCS_SO_REUSEADDR")
@@ -1416,7 +1416,7 @@ TEST_CASE("TCS_SO_REUSEADDR")
     CHECK(tcs_close(&socket_false) == TCS_SUCCESS);
     CHECK(tcs_close(&socket_true) == TCS_SUCCESS);
     CHECK(tcs_close(&socket_fail) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("TCS_SO_RCVBUF")
@@ -1443,7 +1443,7 @@ TEST_CASE("TCS_SO_RCVBUF")
 
     // Clean up
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("TCS_SO_SNDBUF")
@@ -1469,7 +1469,7 @@ TEST_CASE("TCS_SO_SNDBUF")
     CHECK(socket_rcvbuf_value == 8192);
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("TCS_SO_RCVTIMEO")
@@ -1496,7 +1496,7 @@ TEST_CASE("TCS_SO_RCVTIMEO")
     CHECK(socket_receive_timeout_value == 920);
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("TCS_SO_OOBINLINE")
@@ -1539,7 +1539,7 @@ TEST_CASE("TCS_SO_OOBINLINE")
     CHECK(tcs_close(&socket_false) == TCS_SUCCESS);
     CHECK(tcs_close(&socket_true) == TCS_SUCCESS);
     CHECK(tcs_close(&socket_fail) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("Simple Multicast Add Membership")
@@ -1581,7 +1581,7 @@ TEST_CASE("Simple Multicast Add Membership")
 
     // Clean up
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("tcs_opt_membership_add_str")
@@ -1603,7 +1603,7 @@ TEST_CASE("tcs_opt_membership_add_str")
 
     // Clean up
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("Multicast Add-Drop-Add Membership")
@@ -1660,7 +1660,7 @@ TEST_CASE("Multicast Add-Drop-Add Membership")
     // Clean up
     CHECK(tcs_close(&socket_recv) == TCS_SUCCESS);
     CHECK(tcs_close(&socket_send) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("tcs_opt_membership_drop_str")
@@ -1683,7 +1683,7 @@ TEST_CASE("tcs_opt_membership_drop_str")
 
     // Clean up
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 #if defined(__linux__)
@@ -1699,7 +1699,7 @@ TEST_CASE("Simple AVTP talker")
 
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 #endif
 
@@ -1939,7 +1939,7 @@ TEST_CASE("Create packet socket")
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("Create AVTP socket")
@@ -1958,7 +1958,7 @@ TEST_CASE("Create AVTP socket")
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("AVTP Create talker socket sendto")
@@ -1993,7 +1993,7 @@ TEST_CASE("AVTP Create talker socket sendto")
     // Then
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("TSN Create talker socket bind")
@@ -2037,7 +2037,7 @@ TEST_CASE("TSN Create talker socket bind")
     // Then
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("TSN Create listener")
@@ -2071,7 +2071,7 @@ TEST_CASE("TSN Create listener")
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("Create DGRAM packet socket with preset")
@@ -2090,7 +2090,7 @@ TEST_CASE("Create DGRAM packet socket with preset")
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("tcs_socket_packet bind")
@@ -2118,7 +2118,7 @@ TEST_CASE("tcs_socket_packet bind")
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("tcs_socket_packet sendto")
@@ -2156,7 +2156,7 @@ TEST_CASE("tcs_socket_packet sendto")
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("tcs_socket_packet_str bind")
@@ -2182,7 +2182,7 @@ TEST_CASE("tcs_socket_packet_str bind")
     }
     if (iface_name == NULL)
     {
-        REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+        REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
         return;
     }
 
@@ -2194,7 +2194,7 @@ TEST_CASE("tcs_socket_packet_str bind")
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 #endif
 
@@ -2213,7 +2213,7 @@ TEST_CASE("tcs_socket_packet invalid arguments old")
     CHECK(tcs_socket_packet(NULL, NULL, TCS_SOCKET_DGRAM) == TCS_ERROR_INVALID_ARGUMENT);
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 #if defined(__linux__)
@@ -2238,7 +2238,7 @@ TEST_CASE("tcs_socket_packet DGRAM")
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("tcs_socket_packet RAW")
@@ -2262,7 +2262,7 @@ TEST_CASE("tcs_socket_packet RAW")
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("tcs_socket_packet_str DGRAM")
@@ -2281,7 +2281,7 @@ TEST_CASE("tcs_socket_packet_str DGRAM")
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("tcs_socket_packet multicast add and drop str")
@@ -2299,7 +2299,7 @@ TEST_CASE("tcs_socket_packet multicast add and drop str")
 
     // Clean up
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 #endif
 
@@ -2330,7 +2330,7 @@ TEST_CASE("tcs_socket_packet invalid arguments")
     CHECK(socket == TCS_SOCKET_INVALID);
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("tcs_socket_packet_str invalid interface")
@@ -2346,7 +2346,7 @@ TEST_CASE("tcs_socket_packet_str invalid interface")
     CHECK(socket == TCS_SOCKET_INVALID);
 
     // Clean up
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("Sentinel handling: TCS_FAMILY_PACKET on unsupported platform")
@@ -2393,7 +2393,7 @@ TEST_CASE("Sentinel handling: TCS_FAMILY_PACKET on unsupported platform")
     // Other results (e.g. TCS_ERROR_PERMISSION_DENIED on Linux without CAP_NET_RAW) are valid
     // platform-specific outcomes and not exercised by this test.
 
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("tcs_address_socket_local on TCP")
@@ -2431,7 +2431,7 @@ TEST_CASE("tcs_address_socket_local on TCP")
     CHECK(tcs_close(&accept_socket) == TCS_SUCCESS);
     CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
     CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("tcs_address_socket_remote on TCP")
@@ -2469,7 +2469,7 @@ TEST_CASE("tcs_address_socket_remote on TCP")
     CHECK(tcs_close(&accept_socket) == TCS_SUCCESS);
     CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
     CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("tcs_address_socket_local and remote with invalid args")
@@ -2486,7 +2486,7 @@ TEST_CASE("tcs_address_socket_local and remote with invalid args")
     CHECK(tcs_address_socket_remote(socket, NULL) == TCS_ERROR_INVALID_ARGUMENT);
 
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 // ######## IPv6 Tests ########
@@ -2500,7 +2500,7 @@ TEST_CASE("IPv6 socket preset TCP")
     CHECK(socket != TCS_SOCKET_INVALID);
 
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("IPv6 socket preset UDP")
@@ -2512,7 +2512,7 @@ TEST_CASE("IPv6 socket preset UDP")
     CHECK(socket != TCS_SOCKET_INVALID);
 
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("IPv6 Simple TCP Test")
@@ -2552,7 +2552,7 @@ TEST_CASE("IPv6 Simple TCP Test")
 
     CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
     CHECK(tcs_close(&accept_socket) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("IPv6 UDP Test")
@@ -2591,7 +2591,7 @@ TEST_CASE("IPv6 UDP Test")
 
     CHECK(tcs_close(&socket_recv) == TCS_SUCCESS);
     CHECK(tcs_close(&socket_send) == TCS_SUCCESS);
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("IPv6 address parse loopback")
@@ -2884,7 +2884,7 @@ TEST_CASE("IPv6 address resolve loopback")
     CHECK(addresses[0].family.native == TCS_FAMILY_IPV6.native);
     CHECK(tcs_address_is_loopback(&addresses[0]));
 
-    REQUIRE(tcs_lib_free() == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
 TEST_CASE("IPv6 address is_equal")

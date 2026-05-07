@@ -360,7 +360,7 @@ TcsResult tcs_lib_init(void)
     return TCS_SUCCESS;
 }
 
-TcsResult tcs_lib_free(void)
+TcsResult tcs_lib_cleanup(void)
 {
     // Not needed for posix
     return TCS_SUCCESS;
