@@ -406,20 +406,20 @@ TcsResult tcs_listen(TcsSocket socket, int backlog)
     return socketstatus2retcode(status);
 }
 
-TcsResult tcs_accept(TcsSocket socket, TcsSocket* out_socket, struct TcsAddress* address)
+TcsResult tcs_accept(TcsSocket listener, TcsSocket* out_socket, struct TcsAddress* out_address)
 {
-    if (socket == TCS_SOCKET_INVALID || out_socket == NULL || *out_socket != TCS_SOCKET_INVALID)
+    if (listener == TCS_SOCKET_INVALID || out_socket == NULL || *out_socket != TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     SOCKADDR_STORAGE native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
     int addr_len = sizeof(native_sockaddr);
-    *out_socket = accept(socket, (PSOCKADDR)&native_sockaddr, &addr_len);
+    *out_socket = accept(listener, (PSOCKADDR)&native_sockaddr, &addr_len);
     if (*out_socket != INVALID_SOCKET)
     {
-        if (address != NULL)
+        if (out_address != NULL)
         {
-            TcsResult convert_addr_status = native2sockaddr((PSOCKADDR)&native_sockaddr, address);
+            TcsResult convert_addr_status = native2sockaddr((PSOCKADDR)&native_sockaddr, out_address);
             if (convert_addr_status != TCS_SUCCESS)
                 return convert_addr_status;
         }
@@ -714,23 +714,23 @@ TcsResult tcs_receive_from(TcsSocket socket,
 
 // ######## Socket Polling ########
 
-TcsResult tcs_poll_create(struct TcsPoll** poll)
+TcsResult tcs_poll_create(struct TcsPoll** out_poll)
 {
-    if (poll == NULL || *poll != NULL)
+    if (out_poll == NULL || *out_poll != NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    *poll = (struct TcsPoll*)malloc(sizeof(struct TcsPoll));
-    if (*poll == NULL)
+    *out_poll = (struct TcsPoll*)malloc(sizeof(struct TcsPoll));
+    if (*out_poll == NULL)
         return TCS_ERROR_MEMORY;
-    memset(*poll, 0, sizeof(struct TcsPoll));
-    int sts_read_array = tds_ulist_soc_create(&(*poll)->read_sockets);
-    int sts_write_array = tds_ulist_soc_create(&(*poll)->write_sockets);
-    int sts_error_array = tds_ulist_soc_create(&(*poll)->error_sockets);
-    int sts_user_data = tds_map_socket_user_create(&(*poll)->user_data);
+    memset(*out_poll, 0, sizeof(struct TcsPoll));
+    int sts_read_array = tds_ulist_soc_create(&(*out_poll)->read_sockets);
+    int sts_write_array = tds_ulist_soc_create(&(*out_poll)->write_sockets);
+    int sts_error_array = tds_ulist_soc_create(&(*out_poll)->error_sockets);
+    int sts_user_data = tds_map_socket_user_create(&(*out_poll)->user_data);
 
     if (sts_read_array != 0 || sts_write_array != 0 || sts_error_array != 0 || sts_user_data != 0)
     {
-        tcs_poll_destroy(poll);
+        tcs_poll_destroy(out_poll);
         return TCS_ERROR_MEMORY;
     }
     return TCS_SUCCESS;
@@ -889,14 +889,14 @@ TcsResult tcs_poll_remove(struct TcsPoll* poll, TcsSocket socket)
 }
 
 TcsResult tcs_poll_wait(struct TcsPoll* poll,
-                        struct TcsPollEvent* events,
+                        struct TcsPollEvent* out_events,
                         size_t events_length,
                         size_t* out_events_length,
                         int timeout_ms)
 {
     if (poll == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
-    if (events == NULL || out_events_length == NULL)
+    if (out_events == NULL || out_events_length == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
     if (timeout_ms < 0 && timeout_ms != TCS_WAIT_INF)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -975,7 +975,7 @@ TcsResult tcs_poll_wait(struct TcsPoll* poll,
     memcpy(wfds_cpy->fd_array, poll->write_sockets.data, sizeof(SOCKET) * poll->write_sockets.count);
     memcpy(efds_cpy->fd_array, poll->error_sockets.data, sizeof(SOCKET) * poll->error_sockets.count);
 
-    memset(events, 0, sizeof(struct TcsPollEvent) * events_length);
+    memset(out_events, 0, sizeof(struct TcsPollEvent) * events_length);
     *out_events_length = 0;
 
     // Run select
@@ -995,13 +995,13 @@ TcsResult tcs_poll_wait(struct TcsPoll* poll,
     {
         for (u_int n = 0; n < rfds_cpy->fd_count && events_added < events_length; ++n)
         {
-            events[events_added].socket = rfds_cpy->fd_array[n];
-            events[events_added].can_read = true;
+            out_events[events_added].socket = rfds_cpy->fd_array[n];
+            out_events[events_added].can_read = true;
             for (size_t i = 0; i < poll->user_data.count; ++i)
             {
-                if (events[events_added].socket == poll->user_data.keys[i])
+                if (out_events[events_added].socket == poll->user_data.keys[i])
                 {
-                    events[events_added].user_data = poll->user_data.values[i];
+                    out_events[events_added].user_data = poll->user_data.values[i];
                     break;
                 }
             }
@@ -1013,23 +1013,23 @@ TcsResult tcs_poll_wait(struct TcsPoll* poll,
             size_t new_n = events_added;
             for (size_t m = 0; m < events_added; ++m)
             {
-                if (events[m].socket == wfds_cpy->fd_array[n])
+                if (out_events[m].socket == wfds_cpy->fd_array[n])
                 {
                     new_n = m;
                     break;
                 }
             }
-            events[new_n].can_write = true;
+            out_events[new_n].can_write = true;
             // Check for new events
             if (events_added == new_n)
             {
-                events[new_n].socket = wfds_cpy->fd_array[n];
+                out_events[new_n].socket = wfds_cpy->fd_array[n];
 
                 for (size_t i = 0; i < poll->user_data.count; ++i)
                 {
-                    if (events[new_n].socket == poll->user_data.keys[i])
+                    if (out_events[new_n].socket == poll->user_data.keys[i])
                     {
-                        events[new_n].user_data = poll->user_data.values[i];
+                        out_events[new_n].user_data = poll->user_data.values[i];
                         break;
                     }
                 }
@@ -1042,7 +1042,7 @@ TcsResult tcs_poll_wait(struct TcsPoll* poll,
             size_t new_n = events_added;
             for (size_t m = 0; m < events_added; ++m)
             {
-                if (events[m].socket == efds_cpy->fd_array[n])
+                if (out_events[m].socket == efds_cpy->fd_array[n])
                 {
                     new_n = m;
                     break;
@@ -1052,18 +1052,18 @@ TcsResult tcs_poll_wait(struct TcsPoll* poll,
             int so_error = 0;
             int so_error_size = sizeof(so_error);
             if (getsockopt((SOCKET)efds_cpy->fd_array[n], SOL_SOCKET, SO_ERROR, (char*)&so_error, &so_error_size) != 0)
-                events[new_n].error = wsaerror2retcode(WSAGetLastError());
+                out_events[new_n].error = wsaerror2retcode(WSAGetLastError());
             else
-                events[new_n].error = so_error != 0 ? wsaerror2retcode(so_error) : TCS_ERROR_UNKNOWN;
+                out_events[new_n].error = so_error != 0 ? wsaerror2retcode(so_error) : TCS_ERROR_UNKNOWN;
             if (events_added == new_n)
             {
-                events[new_n].socket = efds_cpy->fd_array[n];
+                out_events[new_n].socket = efds_cpy->fd_array[n];
 
                 for (size_t i = 0; i < poll->user_data.count; ++i)
                 {
-                    if (events[new_n].socket == poll->user_data.keys[i])
+                    if (out_events[new_n].socket == poll->user_data.keys[i])
                     {
-                        events[new_n].user_data = poll->user_data.values[i];
+                        out_events[new_n].user_data = poll->user_data.values[i];
                         break;
                     }
                 }
@@ -1114,16 +1114,16 @@ TcsResult tcs_opt_set(TcsSocket socket,
     return socketstatus2retcode(sockopt_status);
 }
 
-TcsResult tcs_opt_get(TcsSocket socket, int32_t level, int32_t option_name, void* option_value, size_t* option_size)
+TcsResult tcs_opt_get(TcsSocket socket, int32_t level, int32_t option_name, void* out_option_value, size_t* option_size)
 {
-    if (socket == TCS_SOCKET_INVALID || option_value == NULL || option_size == NULL)
+    if (socket == TCS_SOCKET_INVALID || out_option_value == NULL || option_size == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     if (option_name == -1)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
     int optlen = (int)*option_size;
-    int sockopt_status = getsockopt(socket, (int)level, (int)option_name, (char*)option_value, &optlen);
+    int sockopt_status = getsockopt(socket, (int)level, (int)option_name, (char*)out_option_value, &optlen);
     if (sockopt_status == 0)
         *option_size = (size_t)optlen;
     return socketstatus2retcode(sockopt_status);
@@ -1488,12 +1488,12 @@ static TcsResult adapter_is_up(PIP_ADAPTER_ADDRESSES adapter, bool* out_is_up)
     return TCS_SUCCESS;
 }
 
-TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t interfaces_length, size_t* out_length)
+TcsResult tcs_interface_list(struct TcsInterface out_interfaces[], size_t interfaces_length, size_t* out_length)
 {
-    if (interfaces == NULL && out_length == NULL)
+    if (out_interfaces == NULL && out_length == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (interfaces == NULL && interfaces_length != 0)
+    if (out_interfaces == NULL && interfaces_length != 0)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     if (out_length != NULL)
@@ -1552,17 +1552,17 @@ TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t interfaces
             if (!is_up)
                 continue;
 
-            if (interfaces != NULL && i < interfaces_length)
+            if (out_interfaces != NULL && i < interfaces_length)
             {
-                memset(interfaces[i].name, '\0', TCS_CFG_INTERFACE_NAME_SIZE);
+                memset(out_interfaces[i].name, '\0', TCS_CFG_INTERFACE_NAME_SIZE);
                 TcsResult name_sts =
-                    adapter_get_friendly_name(iter, interfaces[i].name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
+                    adapter_get_friendly_name(iter, out_interfaces[i].name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
                 if (name_sts != TCS_SUCCESS)
                 {
                     free(adapters);
                     return TCS_ERROR_SYSTEM;
                 }
-                interfaces[i].id = iter->IfIndex;
+                out_interfaces[i].id = iter->IfIndex;
             }
             if (out_length != NULL)
                 (*out_length)++;
@@ -1576,14 +1576,14 @@ TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t interfaces
 
 TcsResult tcs_address_resolve(const char* hostname,
                               TcsFamily address_family,
-                              struct TcsAddress addresses[],
+                              struct TcsAddress out_addresses[],
                               size_t addresses_length,
                               size_t* out_length)
 {
     if (hostname == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (addresses == NULL && out_length == NULL)
+    if (out_addresses == NULL && out_length == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     if (out_length != NULL)
@@ -1595,8 +1595,8 @@ TcsResult tcs_address_resolve(const char* hostname,
     {
         if (address_family.native == TCS_FAMILY_ANY.native || parsed.family.native == address_family.native)
         {
-            if (addresses != NULL && addresses_length > 0)
-                addresses[0] = parsed;
+            if (out_addresses != NULL && addresses_length > 0)
+                out_addresses[0] = parsed;
             if (out_length != NULL)
                 *out_length = 1;
             return TCS_SUCCESS;
@@ -1619,7 +1619,7 @@ TcsResult tcs_address_resolve(const char* hostname,
         return TCS_ERROR_UNKNOWN;
 
     size_t i = 0;
-    if (addresses == NULL)
+    if (out_addresses == NULL)
     {
         for (PADDRINFOA iter = native_addrinfo_list; iter != NULL; iter = iter->ai_next)
             i++;
@@ -1630,7 +1630,7 @@ TcsResult tcs_address_resolve(const char* hostname,
         {
             if (iter->ai_addr == NULL)
                 continue;
-            TcsResult address_convert_status = native2sockaddr(iter->ai_addr, &addresses[i]);
+            TcsResult address_convert_status = native2sockaddr(iter->ai_addr, &out_addresses[i]);
             if (address_convert_status != TCS_SUCCESS)
                 continue;
             i++;
@@ -1649,14 +1649,14 @@ TcsResult tcs_address_resolve(const char* hostname,
 
 TcsResult tcs_address_list(unsigned int interface_id_filter,
                            TcsFamily address_family_filter,
-                           struct TcsInterfaceAddress interface_addresses[],
+                           struct TcsInterfaceAddress out_interface_addresses[],
                            size_t interface_addresses_length,
                            size_t* out_length)
 {
-    if (interface_addresses == NULL && out_length == NULL)
+    if (out_interface_addresses == NULL && out_length == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    if (interface_addresses == NULL && interface_addresses_length != 0)
+    if (out_interface_addresses == NULL && interface_addresses_length != 0)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     if (out_length != NULL)
@@ -1734,24 +1734,24 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
             if (convert_sts != TCS_SUCCESS)
                 continue; // skip entries we cannot represent (unknown family, malformed sockaddr, etc.)
 
-            if (interface_addresses != NULL && populated < interface_addresses_length)
+            if (out_interface_addresses != NULL && populated < interface_addresses_length)
             {
-                memset(interface_addresses[populated].iface.name, '\0', TCS_CFG_INTERFACE_NAME_SIZE);
+                memset(out_interface_addresses[populated].iface.name, '\0', TCS_CFG_INTERFACE_NAME_SIZE);
                 TcsResult name_sts = adapter_get_friendly_name(
-                    iter, interface_addresses[populated].iface.name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
+                    iter, out_interface_addresses[populated].iface.name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
                 if (name_sts != TCS_SUCCESS)
                 {
                     free(adapters);
                     return TCS_ERROR_SYSTEM;
                 }
-                interface_addresses[populated].iface.id = iter->IfIndex;
-                interface_addresses[populated].address = address;
+                out_interface_addresses[populated].iface.id = iter->IfIndex;
+                out_interface_addresses[populated].address = address;
                 populated++;
 
                 if (out_length != NULL)
                     (*out_length)++;
             }
-            else if (interface_addresses == NULL && out_length != NULL)
+            else if (out_interface_addresses == NULL && out_length != NULL)
             {
                 (*out_length)++;
             }

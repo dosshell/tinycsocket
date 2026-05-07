@@ -51,7 +51,7 @@ extern const char* const TCS_LICENSE_TXT;
 * - TcsResult tcs_connect(TcsSocket socket, const struct TcsAddress* address);
 * - TcsResult tcs_connect_str(TcsSocket socket, const char* remote_address, uint16_t port);
 * - TcsResult tcs_listen(TcsSocket socket, int backlog);
-* - TcsResult tcs_accept(TcsSocket socket, TcsSocket* out_socket, struct TcsAddress* out_address);
+* - TcsResult tcs_accept(TcsSocket listener, TcsSocket* out_socket, struct TcsAddress* out_address);
 * - TcsResult tcs_shutdown(TcsSocket socket, TcsShutdownDirection direction);
 *
 * Data Transfer:
@@ -65,16 +65,16 @@ extern const char* const TCS_LICENSE_TXT;
 * - TcsResult tcs_receive_netstring(TcsSocket socket, uint8_t* buffer, size_t buffer_size, size_t* out_received_size);
 *
 * Socket Polling:
-* - TcsResult tcs_poll_create(struct TcsPoll** poll);
+* - TcsResult tcs_poll_create(struct TcsPoll** out_poll);
 * - TcsResult tcs_poll_destroy(struct TcsPoll** poll);
 * - TcsResult tcs_poll_add(struct TcsPoll* poll, TcsSocket socket, void* user_data, uint32_t flags);
 * - TcsResult tcs_poll_modify(struct TcsPoll* poll, TcsSocket socket, uint32_t flags);
 * - TcsResult tcs_poll_remove(struct TcsPoll* poll, TcsSocket socket);
-* - TcsResult tcs_poll_wait(struct TcsPoll* poll, struct TcsPollEvent* events, size_t events_length, size_t* out_events_length, int timeout_ms);
+* - TcsResult tcs_poll_wait(struct TcsPoll* poll, struct TcsPollEvent* out_events, size_t events_length, size_t* out_events_length, int timeout_ms);
 *
 * Socket Options:
 * - TcsResult tcs_opt_set(TcsSocket socket, int32_t level, int32_t option_name, const void* option_value, size_t option_size);
-* - TcsResult tcs_opt_get(TcsSocket socket, int32_t level, int32_t option_name, void* option_value, size_t* option_size);
+* - TcsResult tcs_opt_get(TcsSocket socket, int32_t level, int32_t option_name, void* out_option_value, size_t* option_size);
 * - TcsResult tcs_opt_type_get(TcsSocket socket, TcsSocketType* out_type);
 * - TcsResult tcs_opt_broadcast_set(TcsSocket socket, bool do_allow_broadcast);
 * - TcsResult tcs_opt_broadcast_get(TcsSocket socket, bool* out_is_broadcast_allowed);
@@ -111,9 +111,9 @@ extern const char* const TCS_LICENSE_TXT;
 * - TcsResult tcs_opt_multicast_loop_get(TcsSocket socket, bool* out_is_loopback);
 *
 * Address and Interface Utilities:
-* - TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t interfaces_length, size_t* out_length);
-* - TcsResult tcs_address_resolve(const char* hostname, TcsFamily address_family, struct TcsAddress addresses[], size_t addresses_length, size_t* out_length);
-* - TcsResult tcs_address_list(TcsInterfaceId interface_id_filter, TcsFamily address_family_filter, struct TcsInterfaceAddress interface_addresses[], size_t interface_addresses_length, size_t* out_length);
+* - TcsResult tcs_interface_list(struct TcsInterface out_interfaces[], size_t interfaces_length, size_t* out_length);
+* - TcsResult tcs_address_resolve(const char* hostname, TcsFamily address_family, struct TcsAddress out_addresses[], size_t addresses_length, size_t* out_length);
+* - TcsResult tcs_address_list(TcsInterfaceId interface_id_filter, TcsFamily address_family_filter, struct TcsInterfaceAddress out_interface_addresses[], size_t interface_addresses_length, size_t* out_length);
 * - TcsResult tcs_address_socket_local(TcsSocket socket, struct TcsAddress* out_local_address);
 * - TcsResult tcs_address_socket_remote(TcsSocket socket, struct TcsAddress* out_remote_address);
 * - TcsResult tcs_address_socket_family(TcsSocket socket, TcsFamily* out_family);
@@ -1084,13 +1084,13 @@ TcsResult tcs_listen(TcsSocket socket, int backlog);
  * }
  * @endcode
  * 
- * @param socket is your listening socket you used when you called ::tcs_listen().
+ * @param listener is your listening socket you used when you called ::tcs_listen().
  * @param out_socket is your accepted socket. Must have the in value of #TCS_SOCKET_INVALID.
  * @param out_address is an optional pointer to a buffer where the remote address of the accepted socket can be stored.
  *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  */
-TcsResult tcs_accept(TcsSocket socket, TcsSocket* out_socket, struct TcsAddress* out_address);
+TcsResult tcs_accept(TcsSocket listener, TcsSocket* out_socket, struct TcsAddress* out_address);
 
 /**
 * @brief Turn off communication with a 3-way handshaking for the socket.
@@ -1294,11 +1294,11 @@ TcsResult tcs_receive_netstring(TcsSocket socket, uint8_t* buffer, size_t buffer
 * tcs_lib_free();
 * @endcode
 *
-* @param[out] poll is your out poll context pointer. Initiate a TcsPoll pointer to NULL and use the address of this pointer.
+* @param[out] out_poll is your out poll context pointer. Initiate a TcsPoll pointer to NULL and use the address of this pointer.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_poll_destroy()
 */
-TcsResult tcs_poll_create(struct TcsPoll** poll);
+TcsResult tcs_poll_create(struct TcsPoll** out_poll);
 
 /**
 * @brief Frees all resources bound to the poll context.
@@ -1349,15 +1349,15 @@ TcsResult tcs_poll_remove(struct TcsPoll* poll, TcsSocket socket);
 * @brief Wait for events on sockets in the poll context.
 *
 * @param[in] poll is your poll context pointer created with @p tcs_poll_create().
-* @param[in,out] events is an array with in-out events. Assign each element to #TCS_POLL_EVENT_EMPTY.
-* @param events_length number of in elements in your events array. Does not make sense to have more events than number of sockets in the poll context. If too short, all events may not be returned.
-* @param[out] out_events_length will contain the number of events the parameter events has been populated with by the call.
+* @param[in,out] out_events is an array to fill with events. Assign each element to #TCS_POLL_EVENT_EMPTY before the call.
+* @param events_length number of in elements in your @p out_events array. Does not make sense to have more events than number of sockets in the poll context. If too short, all events may not be returned.
+* @param[out] out_events_length will contain the number of events the @p out_events array has been populated with by the call.
 * @param timeout_ms is the maximum wait time for any event. If any event happens before this time, the call will return immediately.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @see tcs_poll_remove()
 */
 TcsResult tcs_poll_wait(struct TcsPoll* poll,
-                        struct TcsPollEvent* events,
+                        struct TcsPollEvent* out_events,
                         size_t events_length,
                         size_t* out_events_length,
                         int timeout_ms);
@@ -1390,11 +1390,11 @@ TcsResult tcs_opt_set(TcsSocket socket,
 * @param socket is your in-out socket context.
 * @param level is the definition level.
 * @param option_name is the option name.
-* @param option_value is a pointer to the option value.
-* @param option_size is a pointer the byte size of the data pointed by @p option_value.
+* @param out_option_value is a pointer to receive the option value.
+* @param option_size is a pointer the byte size of the data pointed by @p out_option_value.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_get(TcsSocket socket, int32_t level, int32_t option_name, void* option_value, size_t* option_size);
+TcsResult tcs_opt_get(TcsSocket socket, int32_t level, int32_t option_name, void* out_option_value, size_t* option_size);
 
 /**
 * @brief Query the socket type (e.g. ::TCS_SOCKET_STREAM or ::TCS_SOCKET_DGRAM).
@@ -1796,27 +1796,27 @@ TcsResult tcs_opt_nonblocking_get(TcsSocket socket, bool* out_is_nonblocking);
 /**
 * @brief List available network interfaces.
 *
-* @param interfaces array to receive interface information, or NULL to only count.
-* @param interfaces_length number of elements in the interfaces array.
+* @param out_interfaces array to receive interface information, or NULL to only count.
+* @param interfaces_length number of elements in the @p out_interfaces array.
 * @param out_length pointer to receive the total number of interfaces available, which may exceed @p interfaces_length.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_interface_list(struct TcsInterface interfaces[], size_t interfaces_length, size_t* out_length);
+TcsResult tcs_interface_list(struct TcsInterface out_interfaces[], size_t interfaces_length, size_t* out_length);
 
 /**
 * @brief Resolve a hostname to one or more addresses.
 *
 * @param hostname hostname or IP string to resolve.
 * @param address_family address family filter, or ::TCS_FAMILY_ANY for all.
-* @param addresses array to receive resolved addresses, or NULL to only count.
-* @param addresses_length number of elements in the addresses array.
+* @param out_addresses array to receive resolved addresses, or NULL to only count.
+* @param addresses_length number of elements in the @p out_addresses array.
 * @param out_length pointer to receive the number of addresses found.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @retval #TCS_ERROR_NOT_SUPPORTED if @p address_family is not supported on this platform (e.g. ::TCS_FAMILY_PACKET on non-Linux).
 */
 TcsResult tcs_address_resolve(const char* hostname,
                               TcsFamily address_family,
-                              struct TcsAddress addresses[],
+                              struct TcsAddress out_addresses[],
                               size_t addresses_length,
                               size_t* out_length);
 
@@ -1825,15 +1825,15 @@ TcsResult tcs_address_resolve(const char* hostname,
 *
 * @param interface_id_filter interface ID to filter by, or 0 for all interfaces.
 * @param address_family_filter address family filter, or ::TCS_FAMILY_ANY for all.
-* @param interface_addresses array to receive results, or NULL to only count.
-* @param interface_addresses_length number of elements in the array.
+* @param out_interface_addresses array to receive results, or NULL to only count.
+* @param interface_addresses_length number of elements in the @p out_interface_addresses array.
 * @param out_length pointer to receive the total number of results available, which may exceed @p interface_addresses_length.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @note If @p address_family_filter is not supported on this platform (e.g. ::TCS_FAMILY_PACKET on non-Linux), no entries match and *out_length is 0.
 */
 TcsResult tcs_address_list(TcsInterfaceId interface_id_filter,
                            TcsFamily address_family_filter,
-                           struct TcsInterfaceAddress interface_addresses[],
+                           struct TcsInterfaceAddress out_interface_addresses[],
                            size_t interface_addresses_length,
                            size_t* out_length);
 
