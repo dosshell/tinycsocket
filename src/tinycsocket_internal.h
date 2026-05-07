@@ -1394,7 +1394,11 @@ TcsResult tcs_opt_set(TcsSocket socket,
 * @param[in,out] option_size is a pointer the byte size of the data pointed by @p out_option_value.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_get(TcsSocket socket, int32_t level, int32_t option_name, void* out_option_value, size_t* option_size);
+TcsResult tcs_opt_get(TcsSocket socket,
+                      int32_t level,
+                      int32_t option_name,
+                      void* out_option_value,
+                      size_t* option_size);
 
 /**
 * @brief Query the socket type (e.g. ::TCS_SOCKET_STREAM or ::TCS_SOCKET_DGRAM).

@@ -1400,7 +1400,11 @@ TcsResult tcs_opt_set(TcsSocket socket,
 * @param[in,out] option_size is a pointer the byte size of the data pointed by @p out_option_value.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_get(TcsSocket socket, int32_t level, int32_t option_name, void* out_option_value, size_t* option_size);
+TcsResult tcs_opt_get(TcsSocket socket,
+                      int32_t level,
+                      int32_t option_name,
+                      void* out_option_value,
+                      size_t* option_size);
 
 /**
 * @brief Query the socket type (e.g. ::TCS_SOCKET_STREAM or ::TCS_SOCKET_DGRAM).
@@ -3873,8 +3877,7 @@ TcsResult tcs_address_resolve(const char* hostname,
     }
     else
     {
-        for (struct addrinfo* iter = native_addrinfo_list; iter != NULL && i < addresses_length;
-             iter = iter->ai_next)
+        for (struct addrinfo* iter = native_addrinfo_list; iter != NULL && i < addresses_length; iter = iter->ai_next)
         {
             if (iter->ai_addr == NULL)
                 continue;
@@ -3998,9 +4001,8 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
 #endif
     if (!supported)
         return TCS_SUCCESS;
-    T
 
-        int fd = socket(AF_INET, SOCK_DGRAM, 0);
+    int fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd < 0)
         return errno2retcode(errno);
 
@@ -4067,7 +4069,8 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
             {
                 if (out_interface_addresses != NULL && populated < interface_addresses_length)
                 {
-                    strncpy(out_interface_addresses[populated].iface.name, ifr->ifr_name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
+                    strncpy(
+                        out_interface_addresses[populated].iface.name, ifr->ifr_name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
                     out_interface_addresses[populated].iface.name[TCS_CFG_INTERFACE_NAME_SIZE - 1] = '\0';
                     out_interface_addresses[populated].iface.id = iface_id;
                     out_interface_addresses[populated].address = address;
@@ -4091,7 +4094,8 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
             {
                 if (out_interface_addresses != NULL && populated < interface_addresses_length)
                 {
-                    strncpy(out_interface_addresses[populated].iface.name, ifr->ifr_name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
+                    strncpy(
+                        out_interface_addresses[populated].iface.name, ifr->ifr_name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
                     out_interface_addresses[populated].iface.name[TCS_CFG_INTERFACE_NAME_SIZE - 1] = '\0';
                     out_interface_addresses[populated].iface.id = iface_id;
                     out_interface_addresses[populated].address.family = TCS_FAMILY_PACKET;

@@ -1582,8 +1582,7 @@ TcsResult tcs_address_resolve(const char* hostname,
     }
     else
     {
-        for (struct addrinfo* iter = native_addrinfo_list; iter != NULL && i < addresses_length;
-             iter = iter->ai_next)
+        for (struct addrinfo* iter = native_addrinfo_list; iter != NULL && i < addresses_length; iter = iter->ai_next)
         {
             if (iter->ai_addr == NULL)
                 continue;
@@ -1775,7 +1774,8 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
             {
                 if (out_interface_addresses != NULL && populated < interface_addresses_length)
                 {
-                    strncpy(out_interface_addresses[populated].iface.name, ifr->ifr_name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
+                    strncpy(
+                        out_interface_addresses[populated].iface.name, ifr->ifr_name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
                     out_interface_addresses[populated].iface.name[TCS_CFG_INTERFACE_NAME_SIZE - 1] = '\0';
                     out_interface_addresses[populated].iface.id = iface_id;
                     out_interface_addresses[populated].address = address;
@@ -1799,7 +1799,8 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
             {
                 if (out_interface_addresses != NULL && populated < interface_addresses_length)
                 {
-                    strncpy(out_interface_addresses[populated].iface.name, ifr->ifr_name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
+                    strncpy(
+                        out_interface_addresses[populated].iface.name, ifr->ifr_name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
                     out_interface_addresses[populated].iface.name[TCS_CFG_INTERFACE_NAME_SIZE - 1] = '\0';
                     out_interface_addresses[populated].iface.id = iface_id;
                     out_interface_addresses[populated].address.family = TCS_FAMILY_PACKET;
