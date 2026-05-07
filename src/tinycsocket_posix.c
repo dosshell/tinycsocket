@@ -106,13 +106,13 @@ const int32_t TCS_WAIT_INF = -1;
 static long tcs_iov_max = 1024; // Default, updated by tcs_lib_init() via sysconf(_SC_IOV_MAX)
 
 // Addresses
-const uint32_t TCS_ADDRESS_ANY_IPV4 = INADDR_ANY;
-const uint32_t TCS_ADDRESS_LOOPBACK_IPV4 = INADDR_LOOPBACK;
-const uint32_t TCS_ADDRESS_BROADCAST_IPV4 = INADDR_BROADCAST;
-const uint32_t TCS_ADDRESS_NONE_IPV4 = INADDR_NONE;
+const TcsAddressIpv4 TCS_ADDRESS_ANY_IPV4 = INADDR_ANY;
+const TcsAddressIpv4 TCS_ADDRESS_LOOPBACK_IPV4 = INADDR_LOOPBACK;
+const TcsAddressIpv4 TCS_ADDRESS_BROADCAST_IPV4 = INADDR_BROADCAST;
+const TcsAddressIpv4 TCS_ADDRESS_NONE_IPV4 = INADDR_NONE;
 
-const struct TcsIpv6Address TCS_ADDRESS_ANY_IPV6 = {{0}};
-const struct TcsIpv6Address TCS_ADDRESS_LOOPBACK_IPV6 = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}};
+const struct TcsAddressIpv6 TCS_ADDRESS_ANY_IPV6 = {{0}};
+const struct TcsAddressIpv6 TCS_ADDRESS_LOOPBACK_IPV6 = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}};
 
 // Family
 const TcsFamily TCS_FAMILY_ANY = {AF_UNSPEC};
@@ -138,11 +138,17 @@ const uint32_t TCS_MSG_WAITALL = MSG_WAITALL;
 const uint32_t TCS_MSG_SENDALL = 0x80000000;
 
 // Backlog
-const int32_t TCS_BACKLOG_MAX = SOMAXCONN;
+const int TCS_BACKLOG_MAX = SOMAXCONN;
 
 // Option levels
 const int32_t TCS_SOL_SOCKET = SOL_SOCKET;
 const int32_t TCS_SOL_IP = IPPROTO_IP; // Same as SOL_IP but crossplatform (BSD)
+const int32_t TCS_SOL_TCP = IPPROTO_TCP;
+#if TCS_HAS_AF_PACKET
+const int32_t TCS_SOL_PACKET = SOL_PACKET;
+#else
+const int32_t TCS_SOL_PACKET = -1;
+#endif
 
 // Socket options
 const int32_t TCS_SO_TYPE = SO_TYPE;

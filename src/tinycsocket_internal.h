@@ -305,10 +305,12 @@ const char* tcs_strerror(TcsResult result);
 /**
  * @brief IPv6 address (16 bytes), analogous to POSIX struct in6_addr.
  */
-struct TcsIpv6Address
+struct TcsAddressIpv6
 {
     uint8_t bytes[16];
 };
+
+typedef uint32_t TcsAddressIpv4;
 
 /**
  * @brief Network Address
@@ -324,13 +326,13 @@ struct TcsAddress
         unsigned char _storage[24]; /**< Ensures full zero-initialization when copied from TCS_ADDRESS_NONE */
         struct
         {
-            uint32_t address; /**< Same byte order as the host */
-            uint16_t port;    /**< Same byte order as the host */
+            TcsAddressIpv4 address; /**< Same byte order as the host */
+            uint16_t port;          /**< Same byte order as the host */
 
         } ipv4;
         struct
         {
-            struct TcsIpv6Address address;
+            struct TcsAddressIpv6 address;
             TcsInterfaceId
                 scope_id;  /**< Native type. Only valid for local link addresses. See ::tcs_interface_list(). */
             uint16_t port; /**< Same byte order as the host */
@@ -400,13 +402,13 @@ static const struct TcsAddress TCS_ADDRESS_NONE = {{0}, {{0}}};
 #pragma GCC diagnostic pop
 #endif
 
-extern const uint32_t TCS_ADDRESS_ANY_IPV4;
-extern const uint32_t TCS_ADDRESS_LOOPBACK_IPV4;
-extern const uint32_t TCS_ADDRESS_BROADCAST_IPV4;
-extern const uint32_t TCS_ADDRESS_NONE_IPV4;
+extern const TcsAddressIpv4 TCS_ADDRESS_ANY_IPV4;
+extern const TcsAddressIpv4 TCS_ADDRESS_LOOPBACK_IPV4;
+extern const TcsAddressIpv4 TCS_ADDRESS_BROADCAST_IPV4;
+extern const TcsAddressIpv4 TCS_ADDRESS_NONE_IPV4;
 
-extern const struct TcsIpv6Address TCS_ADDRESS_ANY_IPV6;
-extern const struct TcsIpv6Address TCS_ADDRESS_LOOPBACK_IPV6;
+extern const struct TcsAddressIpv6 TCS_ADDRESS_ANY_IPV6;
+extern const struct TcsAddressIpv6 TCS_ADDRESS_LOOPBACK_IPV6;
 
 extern const TcsSocket TCS_SOCKET_INVALID; /**< Define new sockets to this value, always. */
 static const uint32_t TCS_FLAG_NONE = 0;
@@ -428,11 +430,13 @@ extern const uint32_t TCS_MSG_WAITALL;
 extern const uint32_t TCS_MSG_SENDALL;
 
 // Backlog
-extern const int32_t TCS_BACKLOG_MAX; /**< Max number of queued sockets when listening */
+extern const int TCS_BACKLOG_MAX; /**< Max number of queued sockets when listening */
 
 // Option levels
 extern const int32_t TCS_SOL_SOCKET; /**< Socket option level for socket options */
 extern const int32_t TCS_SOL_IP;     /**< IP option level for socket options */
+extern const int32_t TCS_SOL_TCP;    /**< TCP option level for socket options */
+extern const int32_t TCS_SOL_PACKET; /**< Packet option level for socket options. Linux-only; -1 elsewhere. */
 
 // Socket options
 extern const int32_t TCS_SO_TYPE;
@@ -452,12 +456,12 @@ extern const int32_t TCS_IP_MEMBERSHIP_ADD;
 extern const int32_t TCS_IP_MEMBERSHIP_DROP;
 extern const int32_t TCS_IP_MULTICAST_LOOP;
 
+// TCP options
+extern const int32_t TCS_TCP_NODELAY;
+
 // Packet options
 extern const int32_t TCS_PACKET_MEMBERSHIP_ADD;
 extern const int32_t TCS_PACKET_MEMBERSHIP_DROP;
-
-// TCP options
-extern const int32_t TCS_TCP_NODELAY;
 
 // Use for timeout to wait until infinity happens
 extern const int32_t TCS_WAIT_INF;

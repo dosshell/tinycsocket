@@ -311,10 +311,12 @@ const char* tcs_strerror(TcsResult result);
 /**
  * @brief IPv6 address (16 bytes), analogous to POSIX struct in6_addr.
  */
-struct TcsIpv6Address
+struct TcsAddressIpv6
 {
     uint8_t bytes[16];
 };
+
+typedef uint32_t TcsAddressIpv4;
 
 /**
  * @brief Network Address
@@ -330,13 +332,13 @@ struct TcsAddress
         unsigned char _storage[24]; /**< Ensures full zero-initialization when copied from TCS_ADDRESS_NONE */
         struct
         {
-            uint32_t address; /**< Same byte order as the host */
-            uint16_t port;    /**< Same byte order as the host */
+            TcsAddressIpv4 address; /**< Same byte order as the host */
+            uint16_t port;          /**< Same byte order as the host */
 
         } ipv4;
         struct
         {
-            struct TcsIpv6Address address;
+            struct TcsAddressIpv6 address;
             TcsInterfaceId
                 scope_id;  /**< Native type. Only valid for local link addresses. See ::tcs_interface_list(). */
             uint16_t port; /**< Same byte order as the host */
@@ -406,13 +408,13 @@ static const struct TcsAddress TCS_ADDRESS_NONE = {{0}, {{0}}};
 #pragma GCC diagnostic pop
 #endif
 
-extern const uint32_t TCS_ADDRESS_ANY_IPV4;
-extern const uint32_t TCS_ADDRESS_LOOPBACK_IPV4;
-extern const uint32_t TCS_ADDRESS_BROADCAST_IPV4;
-extern const uint32_t TCS_ADDRESS_NONE_IPV4;
+extern const TcsAddressIpv4 TCS_ADDRESS_ANY_IPV4;
+extern const TcsAddressIpv4 TCS_ADDRESS_LOOPBACK_IPV4;
+extern const TcsAddressIpv4 TCS_ADDRESS_BROADCAST_IPV4;
+extern const TcsAddressIpv4 TCS_ADDRESS_NONE_IPV4;
 
-extern const struct TcsIpv6Address TCS_ADDRESS_ANY_IPV6;
-extern const struct TcsIpv6Address TCS_ADDRESS_LOOPBACK_IPV6;
+extern const struct TcsAddressIpv6 TCS_ADDRESS_ANY_IPV6;
+extern const struct TcsAddressIpv6 TCS_ADDRESS_LOOPBACK_IPV6;
 
 extern const TcsSocket TCS_SOCKET_INVALID; /**< Define new sockets to this value, always. */
 static const uint32_t TCS_FLAG_NONE = 0;
@@ -434,11 +436,13 @@ extern const uint32_t TCS_MSG_WAITALL;
 extern const uint32_t TCS_MSG_SENDALL;
 
 // Backlog
-extern const int32_t TCS_BACKLOG_MAX; /**< Max number of queued sockets when listening */
+extern const int TCS_BACKLOG_MAX; /**< Max number of queued sockets when listening */
 
 // Option levels
 extern const int32_t TCS_SOL_SOCKET; /**< Socket option level for socket options */
 extern const int32_t TCS_SOL_IP;     /**< IP option level for socket options */
+extern const int32_t TCS_SOL_TCP;    /**< TCP option level for socket options */
+extern const int32_t TCS_SOL_PACKET; /**< Packet option level for socket options. Linux-only; -1 elsewhere. */
 
 // Socket options
 extern const int32_t TCS_SO_TYPE;
@@ -458,12 +462,12 @@ extern const int32_t TCS_IP_MEMBERSHIP_ADD;
 extern const int32_t TCS_IP_MEMBERSHIP_DROP;
 extern const int32_t TCS_IP_MULTICAST_LOOP;
 
+// TCP options
+extern const int32_t TCS_TCP_NODELAY;
+
 // Packet options
 extern const int32_t TCS_PACKET_MEMBERSHIP_ADD;
 extern const int32_t TCS_PACKET_MEMBERSHIP_DROP;
-
-// TCP options
-extern const int32_t TCS_TCP_NODELAY;
 
 // Use for timeout to wait until infinity happens
 extern const int32_t TCS_WAIT_INF;
@@ -2412,13 +2416,13 @@ const int32_t TCS_WAIT_INF = -1;
 static long tcs_iov_max = 1024; // Default, updated by tcs_lib_init() via sysconf(_SC_IOV_MAX)
 
 // Addresses
-const uint32_t TCS_ADDRESS_ANY_IPV4 = INADDR_ANY;
-const uint32_t TCS_ADDRESS_LOOPBACK_IPV4 = INADDR_LOOPBACK;
-const uint32_t TCS_ADDRESS_BROADCAST_IPV4 = INADDR_BROADCAST;
-const uint32_t TCS_ADDRESS_NONE_IPV4 = INADDR_NONE;
+const TcsAddressIpv4 TCS_ADDRESS_ANY_IPV4 = INADDR_ANY;
+const TcsAddressIpv4 TCS_ADDRESS_LOOPBACK_IPV4 = INADDR_LOOPBACK;
+const TcsAddressIpv4 TCS_ADDRESS_BROADCAST_IPV4 = INADDR_BROADCAST;
+const TcsAddressIpv4 TCS_ADDRESS_NONE_IPV4 = INADDR_NONE;
 
-const struct TcsIpv6Address TCS_ADDRESS_ANY_IPV6 = {{0}};
-const struct TcsIpv6Address TCS_ADDRESS_LOOPBACK_IPV6 = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}};
+const struct TcsAddressIpv6 TCS_ADDRESS_ANY_IPV6 = {{0}};
+const struct TcsAddressIpv6 TCS_ADDRESS_LOOPBACK_IPV6 = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}};
 
 // Family
 const TcsFamily TCS_FAMILY_ANY = {AF_UNSPEC};
@@ -2444,11 +2448,17 @@ const uint32_t TCS_MSG_WAITALL = MSG_WAITALL;
 const uint32_t TCS_MSG_SENDALL = 0x80000000;
 
 // Backlog
-const int32_t TCS_BACKLOG_MAX = SOMAXCONN;
+const int TCS_BACKLOG_MAX = SOMAXCONN;
 
 // Option levels
 const int32_t TCS_SOL_SOCKET = SOL_SOCKET;
 const int32_t TCS_SOL_IP = IPPROTO_IP; // Same as SOL_IP but crossplatform (BSD)
+const int32_t TCS_SOL_TCP = IPPROTO_TCP;
+#if TCS_HAS_AF_PACKET
+const int32_t TCS_SOL_PACKET = SOL_PACKET;
+#else
+const int32_t TCS_SOL_PACKET = -1;
+#endif
 
 // Socket options
 const int32_t TCS_SO_TYPE = SO_TYPE;
@@ -2911,11 +2921,7 @@ TcsResult tcs_send_to(TcsSocket socket,
     }
 }
 
-TcsResult tcs_sendv(TcsSocket socket,
-                    const struct TcsIoVec* iov,
-                    size_t iov_length,
-                    uint32_t flags,
-                    size_t* sent_size)
+TcsResult tcs_sendv(TcsSocket socket, const struct TcsIoVec* iov, size_t iov_length, uint32_t flags, size_t* sent_size)
 {
     if (socket == TCS_SOCKET_INVALID || iov == NULL || iov_length == 0)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -4011,8 +4017,9 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
 #endif
     if (!supported)
         return TCS_SUCCESS;
+    T
 
-    int fd = socket(AF_INET, SOCK_DGRAM, 0);
+        int fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd < 0)
         return errno2retcode(errno);
 
@@ -4035,7 +4042,8 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
         }
         if (ifc.ifc_len < buf_len)
             break;
-        if (interface_addresses != NULL && out_length == NULL && (size_t)ifc.ifc_len / sizeof(struct ifreq) >= interface_addresses_length)
+        if (interface_addresses != NULL && out_length == NULL &&
+            (size_t)ifc.ifc_len / sizeof(struct ifreq) >= interface_addresses_length)
             break;
         buf_len *= 2;
         if (buf != stack_buf)
@@ -4285,13 +4293,13 @@ const TcsSocket TCS_SOCKET_INVALID = INVALID_SOCKET;
 const int32_t TCS_WAIT_INF = -1;
 
 // Addresses
-const uint32_t TCS_ADDRESS_ANY_IPV4 = INADDR_ANY;
-const uint32_t TCS_ADDRESS_LOOPBACK_IPV4 = INADDR_LOOPBACK;
-const uint32_t TCS_ADDRESS_BROADCAST_IPV4 = INADDR_BROADCAST;
-const uint32_t TCS_ADDRESS_NONE_IPV4 = INADDR_NONE;
+const TcsAddressIpv4 TCS_ADDRESS_ANY_IPV4 = INADDR_ANY;
+const TcsAddressIpv4 TCS_ADDRESS_LOOPBACK_IPV4 = INADDR_LOOPBACK;
+const TcsAddressIpv4 TCS_ADDRESS_BROADCAST_IPV4 = INADDR_BROADCAST;
+const TcsAddressIpv4 TCS_ADDRESS_NONE_IPV4 = INADDR_NONE;
 
-const struct TcsIpv6Address TCS_ADDRESS_ANY_IPV6 = {{0}};
-const struct TcsIpv6Address TCS_ADDRESS_LOOPBACK_IPV6 = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}};
+const struct TcsAddressIpv6 TCS_ADDRESS_ANY_IPV6 = {{0}};
+const struct TcsAddressIpv6 TCS_ADDRESS_LOOPBACK_IPV6 = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}};
 
 // Family
 const TcsFamily TCS_FAMILY_ANY = {AF_UNSPEC};
@@ -4313,11 +4321,13 @@ const uint32_t TCS_MSG_WAITALL = 0x8; // Binary compatible when it does not exis
 const uint32_t TCS_MSG_SENDALL = 0x80000000;
 
 // Backlog
-const int32_t TCS_BACKLOG_MAX = SOMAXCONN;
+const int TCS_BACKLOG_MAX = SOMAXCONN;
 
 // Option levels
 const int32_t TCS_SOL_SOCKET = SOL_SOCKET;
 const int32_t TCS_SOL_IP = IPPROTO_IP;
+const int32_t TCS_SOL_TCP = IPPROTO_TCP;
+const int32_t TCS_SOL_PACKET = -1; // No equivalent on Windows
 
 // Socket options
 const int32_t TCS_SO_TYPE = SO_TYPE;
@@ -4724,11 +4734,7 @@ TcsResult tcs_send_to(TcsSocket socket,
     }
 }
 
-TcsResult tcs_sendv(TcsSocket socket,
-                    const struct TcsIoVec* iov,
-                    size_t iov_length,
-                    uint32_t flags,
-                    size_t* sent_size)
+TcsResult tcs_sendv(TcsSocket socket, const struct TcsIoVec* iov, size_t iov_length, uint32_t flags, size_t* sent_size)
 {
     if (socket == TCS_SOCKET_INVALID || iov == NULL || iov_length == 0)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -5297,8 +5303,7 @@ TcsResult tcs_opt_set(TcsSocket socket,
     if (option_name == -1)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
-    int sockopt_status =
-        setsockopt(socket, (int)level, (int)option_name, (const char*)option_value, (int)option_size);
+    int sockopt_status = setsockopt(socket, (int)level, (int)option_name, (const char*)option_value, (int)option_size);
     return socketstatus2retcode(sockopt_status);
 }
 
@@ -6052,52 +6057,52 @@ const char* tcs_strerror(TcsResult result)
 {
     switch (result)
     {
-    case TCS_SUCCESS:
-        return "Success";
-    case TCS_AGAIN:
-        return "Try again";
-    case TCS_IN_PROGRESS:
-        return "Operation in progress";
-    case TCS_SHUTDOWN:
-        return "Socket shutdown";
-    case TCS_ERROR_UNKNOWN:
-        return "Unknown error";
-    case TCS_ERROR_MEMORY:
-        return "Out of memory";
-    case TCS_ERROR_INVALID_ARGUMENT:
-        return "Invalid argument";
-    case TCS_ERROR_SYSTEM:
-        return "System error";
-    case TCS_ERROR_PERMISSION_DENIED:
-        return "Permission denied";
-    case TCS_ERROR_NOT_IMPLEMENTED:
-        return "Not implemented";
-    case TCS_ERROR_NOT_SUPPORTED:
-        return "Not supported";
-    case TCS_ERROR_ADDRESS_LOOKUP_FAILED:
-        return "Address lookup failed";
-    case TCS_ERROR_CONNECTION_REFUSED:
-        return "Connection refused";
-    case TCS_ERROR_NOT_CONNECTED:
-        return "Not connected";
-    case TCS_ERROR_SOCKET_CLOSED:
-        return "Socket closed";
-    case TCS_ERROR_WOULD_BLOCK:
-        return "Operation would block";
-    case TCS_ERROR_TIMED_OUT:
-        return "Timed out";
-    case TCS_ERROR_TEMPORARY_FAILURE:
-        return "Temporary failure";
-    case TCS_ERROR_NETWORK_UNREACHABLE:
-        return "Network unreachable";
-    case TCS_ERROR_CONNECTION_RESET:
-        return "Connection reset";
-    case TCS_ERROR_ADDRESS_IN_USE:
-        return "Address in use";
-    case TCS_ERROR_LIBRARY_NOT_INITIALIZED:
-        return "Library not initialized";
-    case TCS_ERROR_ILL_FORMED_MESSAGE:
-        return "Ill-formed message";
+        case TCS_SUCCESS:
+            return "Success";
+        case TCS_AGAIN:
+            return "Try again";
+        case TCS_IN_PROGRESS:
+            return "Operation in progress";
+        case TCS_SHUTDOWN:
+            return "Socket shutdown";
+        case TCS_ERROR_UNKNOWN:
+            return "Unknown error";
+        case TCS_ERROR_MEMORY:
+            return "Out of memory";
+        case TCS_ERROR_INVALID_ARGUMENT:
+            return "Invalid argument";
+        case TCS_ERROR_SYSTEM:
+            return "System error";
+        case TCS_ERROR_PERMISSION_DENIED:
+            return "Permission denied";
+        case TCS_ERROR_NOT_IMPLEMENTED:
+            return "Not implemented";
+        case TCS_ERROR_NOT_SUPPORTED:
+            return "Not supported";
+        case TCS_ERROR_ADDRESS_LOOKUP_FAILED:
+            return "Address lookup failed";
+        case TCS_ERROR_CONNECTION_REFUSED:
+            return "Connection refused";
+        case TCS_ERROR_NOT_CONNECTED:
+            return "Not connected";
+        case TCS_ERROR_SOCKET_CLOSED:
+            return "Socket closed";
+        case TCS_ERROR_WOULD_BLOCK:
+            return "Operation would block";
+        case TCS_ERROR_TIMED_OUT:
+            return "Timed out";
+        case TCS_ERROR_TEMPORARY_FAILURE:
+            return "Temporary failure";
+        case TCS_ERROR_NETWORK_UNREACHABLE:
+            return "Network unreachable";
+        case TCS_ERROR_CONNECTION_RESET:
+            return "Connection reset";
+        case TCS_ERROR_ADDRESS_IN_USE:
+            return "Address in use";
+        case TCS_ERROR_LIBRARY_NOT_INITIALIZED:
+            return "Library not initialized";
+        case TCS_ERROR_ILL_FORMED_MESSAGE:
+            return "Ill-formed message";
     }
     return "Unknown TcsResult";
 }
@@ -6380,7 +6385,10 @@ TcsResult tcs_socket_packet(TcsSocket* out_socket, const struct TcsAddress* bind
     return TCS_SUCCESS;
 }
 
-TcsResult tcs_socket_packet_str(TcsSocket* out_socket, const char* interface_name, uint16_t protocol, TcsSocketType type)
+TcsResult tcs_socket_packet_str(TcsSocket* out_socket,
+                                const char* interface_name,
+                                uint16_t protocol,
+                                TcsSocketType type)
 {
     if (out_socket == NULL || *out_socket != TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -7440,7 +7448,8 @@ bool tcs_address_is_link_local(const struct TcsAddress* addr)
     if (addr->family.native == TCS_FAMILY_IPV4.native)
         return (addr->data.ipv4.address >> 16) == 0xA9FE; // 169.254.0.0/16
     if (addr->family.native == TCS_FAMILY_IPV6.native)
-        return addr->data.ipv6.address.bytes[0] == 0xFE && (addr->data.ipv6.address.bytes[1] & 0xC0) == 0x80; // fe80::/10
+        return addr->data.ipv6.address.bytes[0] == 0xFE &&
+               (addr->data.ipv6.address.bytes[1] & 0xC0) == 0x80; // fe80::/10
     return false;
 }
 
