@@ -184,7 +184,7 @@ TEST_CASE("UDP Test")
 
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_FAMILY_IPV4;
-    local_address.data.ipv4.address = TCS_ADDRESS_ANY_IPV4;
+    local_address.data.ipv4.address = TCS_ADDRESS_IPV4_ANY;
     local_address.data.ipv4.port = 1432;
 
     CHECK(tcs_bind(socket_recv, &local_address) == TCS_SUCCESS);
@@ -197,7 +197,7 @@ TEST_CASE("UDP Test")
 
     TcsAddress address;
     address.family = TCS_FAMILY_IPV4;
-    address.data.ipv4.address = TCS_ADDRESS_LOOPBACK_IPV4;
+    address.data.ipv4.address = TCS_ADDRESS_IPV4_LOOPBACK;
     address.data.ipv4.port = 1432;
 
     // When
@@ -227,7 +227,7 @@ TEST_CASE("Bind UDP")
     // When
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_FAMILY_IPV4;
-    local_address.data.ipv4.address = TCS_ADDRESS_ANY_IPV4;
+    local_address.data.ipv4.address = TCS_ADDRESS_IPV4_ANY;
     local_address.data.ipv4.port = 1465;
 
     TcsResult sts = tcs_bind(socket, &local_address);
@@ -281,7 +281,7 @@ TEST_CASE("Simple TCP Test")
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_FAMILY_IPV4;
-    local_address.data.ipv4.address = TCS_ADDRESS_ANY_IPV4;
+    local_address.data.ipv4.address = TCS_ADDRESS_IPV4_ANY;
     local_address.data.ipv4.port = 1212;
     CHECK(tcs_bind(listen_socket, &local_address) == TCS_SUCCESS);
     REQUIRE(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
@@ -321,7 +321,7 @@ TEST_CASE("Simple 2 msg tcs_receive_line")
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_FAMILY_IPV4;
-    local_address.data.ipv4.address = TCS_ADDRESS_ANY_IPV4;
+    local_address.data.ipv4.address = TCS_ADDRESS_IPV4_ANY;
     local_address.data.ipv4.port = 1215;
     CHECK(tcs_bind(listen_socket, &local_address) == TCS_SUCCESS);
     CHECK(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
@@ -381,7 +381,7 @@ TEST_CASE("Partial msg tcs_receive_line")
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_FAMILY_IPV4;
-    local_address.data.ipv4.address = TCS_ADDRESS_ANY_IPV4;
+    local_address.data.ipv4.address = TCS_ADDRESS_IPV4_ANY;
     local_address.data.ipv4.port = 1216;
     CHECK(tcs_bind(listen_socket, &local_address) == TCS_SUCCESS);
     REQUIRE(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
@@ -429,7 +429,7 @@ TEST_CASE("sendv")
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_FAMILY_IPV4;
-    local_address.data.ipv4.address = TCS_ADDRESS_ANY_IPV4;
+    local_address.data.ipv4.address = TCS_ADDRESS_IPV4_ANY;
     local_address.data.ipv4.port = 1217;
     CHECK(tcs_bind(listen_socket, &local_address) == TCS_SUCCESS);
     REQUIRE(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
@@ -477,7 +477,7 @@ TEST_CASE("Simple TCP Netstring Test")
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_FAMILY_IPV4;
-    local_address.data.ipv4.address = TCS_ADDRESS_ANY_IPV4;
+    local_address.data.ipv4.address = TCS_ADDRESS_IPV4_ANY;
     local_address.data.ipv4.port = 1218;
     CHECK(tcs_bind(listen_socket, &local_address) == TCS_SUCCESS);
     REQUIRE(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
@@ -517,7 +517,7 @@ TEST_CASE("Netstring with multi-digit length")
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_FAMILY_IPV4;
-    local_address.data.ipv4.address = TCS_ADDRESS_ANY_IPV4;
+    local_address.data.ipv4.address = TCS_ADDRESS_IPV4_ANY;
     local_address.data.ipv4.port = 1213;
     CHECK(tcs_bind(listen_socket, &local_address) == TCS_SUCCESS);
     CHECK(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
@@ -558,7 +558,7 @@ TEST_CASE("Netstring with overflowing length is rejected")
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_FAMILY_IPV4;
-    local_address.data.ipv4.address = TCS_ADDRESS_ANY_IPV4;
+    local_address.data.ipv4.address = TCS_ADDRESS_IPV4_ANY;
     local_address.data.ipv4.port = 1214;
     CHECK(tcs_bind(listen_socket, &local_address) == TCS_SUCCESS);
     CHECK(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
@@ -632,7 +632,7 @@ TEST_CASE("tcs_socket_tcp bind and connect")
 
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_FAMILY_IPV4;
-    local_address.data.ipv4.address = TCS_ADDRESS_LOOPBACK_IPV4;
+    local_address.data.ipv4.address = TCS_ADDRESS_IPV4_LOOPBACK;
     local_address.data.ipv4.port = 1470;
 
     CHECK(tcs_socket_tcp(&listen_socket, &local_address, NULL, 0) == TCS_SUCCESS);
@@ -640,7 +640,7 @@ TEST_CASE("tcs_socket_tcp bind and connect")
 
     struct TcsAddress remote_address = TCS_ADDRESS_NONE;
     remote_address.family = TCS_FAMILY_IPV4;
-    remote_address.data.ipv4.address = TCS_ADDRESS_LOOPBACK_IPV4;
+    remote_address.data.ipv4.address = TCS_ADDRESS_IPV4_LOOPBACK;
     remote_address.data.ipv4.port = 1470;
 
     CHECK(tcs_socket_tcp(&client_socket, NULL, &remote_address, 5000) == TCS_SUCCESS);
@@ -675,7 +675,7 @@ TEST_CASE("tcs_socket_tcp invalid arguments")
     // Family mismatch
     struct TcsAddress local4 = TCS_ADDRESS_NONE;
     local4.family = TCS_FAMILY_IPV4;
-    local4.data.ipv4.address = TCS_ADDRESS_LOOPBACK_IPV4;
+    local4.data.ipv4.address = TCS_ADDRESS_IPV4_LOOPBACK;
     local4.data.ipv4.port = 1470;
 
     struct TcsAddress remote6 = TCS_ADDRESS_NONE;
@@ -698,7 +698,7 @@ TEST_CASE("tcs_socket_tcp connect timeout")
     // Connect to a non-listening port should time out
     struct TcsAddress remote_address = TCS_ADDRESS_NONE;
     remote_address.family = TCS_FAMILY_IPV4;
-    remote_address.data.ipv4.address = TCS_ADDRESS_LOOPBACK_IPV4;
+    remote_address.data.ipv4.address = TCS_ADDRESS_IPV4_LOOPBACK;
     remote_address.data.ipv4.port = 1471;
 
     TcsSocket socket = TCS_SOCKET_INVALID;
@@ -759,7 +759,7 @@ TEST_CASE("tcs_socket_udp bind and send_to")
 
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_FAMILY_IPV4;
-    local_address.data.ipv4.address = TCS_ADDRESS_ANY_IPV4;
+    local_address.data.ipv4.address = TCS_ADDRESS_IPV4_ANY;
     local_address.data.ipv4.port = 1473;
 
     CHECK(tcs_socket_udp(&socket_recv, &local_address, NULL) == TCS_SUCCESS);
@@ -767,7 +767,7 @@ TEST_CASE("tcs_socket_udp bind and send_to")
 
     struct TcsAddress remote_address = TCS_ADDRESS_NONE;
     remote_address.family = TCS_FAMILY_IPV4;
-    remote_address.data.ipv4.address = TCS_ADDRESS_LOOPBACK_IPV4;
+    remote_address.data.ipv4.address = TCS_ADDRESS_IPV4_LOOPBACK;
     remote_address.data.ipv4.port = 1473;
 
     CHECK(tcs_socket_udp(&socket_send, NULL, &remote_address) == TCS_SUCCESS);
@@ -804,7 +804,7 @@ TEST_CASE("tcs_socket_udp invalid arguments")
     // Family mismatch
     struct TcsAddress local4 = TCS_ADDRESS_NONE;
     local4.family = TCS_FAMILY_IPV4;
-    local4.data.ipv4.address = TCS_ADDRESS_LOOPBACK_IPV4;
+    local4.data.ipv4.address = TCS_ADDRESS_IPV4_LOOPBACK;
     local4.data.ipv4.port = 1473;
 
     struct TcsAddress remote6 = TCS_ADDRESS_NONE;
@@ -885,7 +885,7 @@ TEST_CASE("tcs_poll_wait simple write")
 
     TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_FAMILY_IPV4;
-    local_address.data.ipv4.address = TCS_ADDRESS_ANY_IPV4;
+    local_address.data.ipv4.address = TCS_ADDRESS_IPV4_ANY;
     local_address.data.ipv4.port = 1219;
     CHECK(tcs_bind(socket, &local_address) == TCS_SUCCESS);
 
@@ -926,7 +926,7 @@ TEST_CASE("tcs_poll_wait simple read")
     int allocation_diff_before = TCS_MEM_DIFF();
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_FAMILY_IPV4;
-    local_address.data.ipv4.address = TCS_ADDRESS_ANY_IPV4;
+    local_address.data.ipv4.address = TCS_ADDRESS_IPV4_ANY;
     local_address.data.ipv4.port = 5679;
     CHECK(tcs_bind(socket, &local_address) == TCS_SUCCESS);
     int user_data = 1337;
@@ -983,7 +983,7 @@ TEST_CASE("tcs_poll_wait partial")
 
         struct TcsAddress local_address = TCS_ADDRESS_NONE;
         local_address.family = TCS_FAMILY_IPV4;
-        local_address.data.ipv4.address = TCS_ADDRESS_ANY_IPV4;
+        local_address.data.ipv4.address = TCS_ADDRESS_IPV4_ANY;
         local_address.data.ipv4.port = (uint16_t)(5000 + i);
         CHECK(tcs_bind(socket[i], &local_address) == TCS_SUCCESS);
         user_data[i] = 5000 + i;
@@ -1044,7 +1044,7 @@ TEST_CASE("tcs_poll_modify")
 
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_FAMILY_IPV4;
-    local_address.data.ipv4.address = TCS_ADDRESS_ANY_IPV4;
+    local_address.data.ipv4.address = TCS_ADDRESS_IPV4_ANY;
     local_address.data.ipv4.port = 5680;
     CHECK(tcs_bind(socket, &local_address) == TCS_SUCCESS);
 
@@ -1155,7 +1155,7 @@ TEST_CASE("Get loopback address")
     for (size_t i = 0; i < ifaddrs_display; ++i)
     {
         if (ifaddrs[i].address.family.native == TCS_FAMILY_IPV4.native &&
-            ifaddrs[i].address.data.ipv4.address == TCS_ADDRESS_LOOPBACK_IPV4)
+            ifaddrs[i].address.data.ipv4.address == TCS_ADDRESS_IPV4_LOOPBACK)
         {
             char out_str[70];
             tcs_address_to_str(&ifaddrs[i].address, out_str);
@@ -1179,7 +1179,7 @@ TEST_CASE("tcs_util_address_to_string with only IPv4")
     TcsAddress addr;
     addr.family = TCS_FAMILY_IPV4;
     addr.data.ipv4.port = 0;
-    addr.data.ipv4.address = TCS_ADDRESS_LOOPBACK_IPV4;
+    addr.data.ipv4.address = TCS_ADDRESS_IPV4_LOOPBACK;
 
     // When
     char address_str[70];
@@ -1195,7 +1195,7 @@ TEST_CASE("tcs_util_address_to_string with IPv4 and port")
     TcsAddress addr;
     addr.family = TCS_FAMILY_IPV4;
     addr.data.ipv4.port = 1234;
-    addr.data.ipv4.address = TCS_ADDRESS_LOOPBACK_IPV4;
+    addr.data.ipv4.address = TCS_ADDRESS_IPV4_LOOPBACK;
 
     // When
     char address_str[70];
@@ -1217,7 +1217,7 @@ TEST_CASE("tcs_util_string_to_address with only IPv4")
     // Then
     CHECK(address.family.native == TCS_FAMILY_IPV4.native);
     CHECK(address.data.ipv4.port == 0);
-    CHECK(address.data.ipv4.address == TCS_ADDRESS_LOOPBACK_IPV4);
+    CHECK(address.data.ipv4.address == TCS_ADDRESS_IPV4_LOOPBACK);
     CHECK(tcs_address_parse("127.256.0.1", &address) == TCS_ERROR_INVALID_ARGUMENT);
     CHECK(tcs_address_parse("-1.0.0.1", &address) == TCS_ERROR_INVALID_ARGUMENT);
     CHECK(tcs_address_parse("0xFF.01.1.0xFF", &address) == TCS_SUCCESS);
@@ -1236,7 +1236,7 @@ TEST_CASE("tcs_util_string_to_address with IPv4and port")
     // Then
     CHECK(address.family.native == TCS_FAMILY_IPV4.native);
     CHECK(address.data.ipv4.port == 1234);
-    CHECK(address.data.ipv4.address == TCS_ADDRESS_LOOPBACK_IPV4);
+    CHECK(address.data.ipv4.address == TCS_ADDRESS_IPV4_LOOPBACK);
     CHECK(tcs_address_parse("127.255.0.1:65536", &address) == TCS_ERROR_INVALID_ARGUMENT);
     CHECK(tcs_address_parse("1.0.0.1:-1", &address) == TCS_ERROR_INVALID_ARGUMENT);
     CHECK(tcs_address_parse("0xFF.01.1.0xFF:0xFFFF", &address) == TCS_SUCCESS);
@@ -1550,7 +1550,7 @@ TEST_CASE("Simple Multicast Add Membership")
     // Given
     TcsAddress loopback = TCS_ADDRESS_NONE;
     loopback.family = TCS_FAMILY_IPV4;
-    loopback.data.ipv4.address = TCS_ADDRESS_LOOPBACK_IPV4;
+    loopback.data.ipv4.address = TCS_ADDRESS_IPV4_LOOPBACK;
 
     TcsAddress address_any = {TCS_FAMILY_IPV4, {{0, 0}}};
     address_any.data.ipv4.port = 1901;
@@ -1591,7 +1591,7 @@ TEST_CASE("tcs_opt_membership_add_str")
 
     TcsAddress loopback = TCS_ADDRESS_NONE;
     loopback.family = TCS_FAMILY_IPV4;
-    loopback.data.ipv4.address = TCS_ADDRESS_LOOPBACK_IPV4;
+    loopback.data.ipv4.address = TCS_ADDRESS_IPV4_LOOPBACK;
     loopback.data.ipv4.port = 1902;
 
     TcsSocket socket = TCS_SOCKET_INVALID;
@@ -1614,7 +1614,7 @@ TEST_CASE("Multicast Add-Drop-Add Membership")
     // Given
     TcsAddress loopback = TCS_ADDRESS_NONE;
     loopback.family = TCS_FAMILY_IPV4;
-    loopback.data.ipv4.address = TCS_ADDRESS_LOOPBACK_IPV4;
+    loopback.data.ipv4.address = TCS_ADDRESS_IPV4_LOOPBACK;
 
     TcsSocket socket_send = TCS_SOCKET_INVALID;
     TcsSocket socket_recv = TCS_SOCKET_INVALID;
@@ -1670,7 +1670,7 @@ TEST_CASE("tcs_opt_membership_drop_str")
 
     TcsAddress loopback = TCS_ADDRESS_NONE;
     loopback.family = TCS_FAMILY_IPV4;
-    loopback.data.ipv4.address = TCS_ADDRESS_LOOPBACK_IPV4;
+    loopback.data.ipv4.address = TCS_ADDRESS_IPV4_LOOPBACK;
     loopback.data.ipv4.port = 1903;
 
     TcsSocket socket = TCS_SOCKET_INVALID;
@@ -2409,7 +2409,7 @@ TEST_CASE("tcs_address_socket_local on TCP")
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     struct TcsAddress bind_address = TCS_ADDRESS_NONE;
     bind_address.family = TCS_FAMILY_IPV4;
-    bind_address.data.ipv4.address = TCS_ADDRESS_LOOPBACK_IPV4;
+    bind_address.data.ipv4.address = TCS_ADDRESS_IPV4_LOOPBACK;
     bind_address.data.ipv4.port = 1260;
     CHECK(tcs_bind(listen_socket, &bind_address) == TCS_SUCCESS);
     REQUIRE(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
@@ -2424,7 +2424,7 @@ TEST_CASE("tcs_address_socket_local on TCP")
 
     // Then
     CHECK_POSIX(local_addr.family.native == TCS_FAMILY_IPV4.native);
-    CHECK_POSIX(local_addr.data.ipv4.address == TCS_ADDRESS_LOOPBACK_IPV4);
+    CHECK_POSIX(local_addr.data.ipv4.address == TCS_ADDRESS_IPV4_LOOPBACK);
     CHECK_POSIX(local_addr.data.ipv4.port != 0);
 
     // Clean up
@@ -2447,7 +2447,7 @@ TEST_CASE("tcs_address_socket_remote on TCP")
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     struct TcsAddress bind_address = TCS_ADDRESS_NONE;
     bind_address.family = TCS_FAMILY_IPV4;
-    bind_address.data.ipv4.address = TCS_ADDRESS_LOOPBACK_IPV4;
+    bind_address.data.ipv4.address = TCS_ADDRESS_IPV4_LOOPBACK;
     bind_address.data.ipv4.port = 1261;
     CHECK(tcs_bind(listen_socket, &bind_address) == TCS_SUCCESS);
     REQUIRE(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
@@ -2462,7 +2462,7 @@ TEST_CASE("tcs_address_socket_remote on TCP")
 
     // Then
     CHECK_POSIX(remote_addr.family.native == TCS_FAMILY_IPV4.native);
-    CHECK_POSIX(remote_addr.data.ipv4.address == TCS_ADDRESS_LOOPBACK_IPV4);
+    CHECK_POSIX(remote_addr.data.ipv4.address == TCS_ADDRESS_IPV4_LOOPBACK);
     CHECK_POSIX(remote_addr.data.ipv4.port == 1261);
 
     // Clean up
@@ -2529,14 +2529,14 @@ TEST_CASE("IPv6 Simple TCP Test")
     CHECK(tcs_opt_reuse_address_set(listen_socket, true) == TCS_SUCCESS);
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_FAMILY_IPV6;
-    local_address.data.ipv6.address = TCS_ADDRESS_LOOPBACK_IPV6;
+    local_address.data.ipv6.address = TCS_ADDRESS_IPV6_LOOPBACK;
     local_address.data.ipv6.port = 1214;
     CHECK(tcs_bind(listen_socket, &local_address) == TCS_SUCCESS);
     REQUIRE(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
 
     struct TcsAddress connect_address = TCS_ADDRESS_NONE;
     connect_address.family = TCS_FAMILY_IPV6;
-    connect_address.data.ipv6.address = TCS_ADDRESS_LOOPBACK_IPV6;
+    connect_address.data.ipv6.address = TCS_ADDRESS_IPV6_LOOPBACK;
     connect_address.data.ipv6.port = 1214;
     REQUIRE(tcs_connect(client_socket, &connect_address) == TCS_SUCCESS);
 
@@ -2568,7 +2568,7 @@ TEST_CASE("IPv6 UDP Test")
 
     struct TcsAddress local_address = TCS_ADDRESS_NONE;
     local_address.family = TCS_FAMILY_IPV6;
-    local_address.data.ipv6.address = TCS_ADDRESS_ANY_IPV6;
+    local_address.data.ipv6.address = TCS_ADDRESS_IPV6_ANY;
     local_address.data.ipv6.port = 1433;
     CHECK(tcs_bind(socket_recv, &local_address) == TCS_SUCCESS);
 
@@ -2579,7 +2579,7 @@ TEST_CASE("IPv6 UDP Test")
 
     struct TcsAddress dest = TCS_ADDRESS_NONE;
     dest.family = TCS_FAMILY_IPV6;
-    dest.data.ipv6.address = TCS_ADDRESS_LOOPBACK_IPV6;
+    dest.data.ipv6.address = TCS_ADDRESS_IPV6_LOOPBACK;
     dest.data.ipv6.port = 1433;
 
     CHECK(tcs_send_to(socket_send, msg, sizeof(msg), TCS_FLAG_NONE, &dest, &sent) == TCS_SUCCESS);
@@ -2768,7 +2768,7 @@ TEST_CASE("IPv6 address to string loopback")
 {
     TcsAddress addr = TCS_ADDRESS_NONE;
     addr.family = TCS_FAMILY_IPV6;
-    addr.data.ipv6.address = TCS_ADDRESS_LOOPBACK_IPV6;
+    addr.data.ipv6.address = TCS_ADDRESS_IPV6_LOOPBACK;
     char str[70];
     CHECK(tcs_address_to_str(&addr, str) == TCS_SUCCESS);
     CHECK_EQ(str, "::1");
@@ -2778,7 +2778,7 @@ TEST_CASE("IPv6 address to string all-zeros")
 {
     TcsAddress addr = TCS_ADDRESS_NONE;
     addr.family = TCS_FAMILY_IPV6;
-    addr.data.ipv6.address = TCS_ADDRESS_ANY_IPV6;
+    addr.data.ipv6.address = TCS_ADDRESS_IPV6_ANY;
     char str[70];
     CHECK(tcs_address_to_str(&addr, str) == TCS_SUCCESS);
     CHECK_EQ(str, "::");
@@ -2788,7 +2788,7 @@ TEST_CASE("IPv6 address to string with port")
 {
     TcsAddress addr = TCS_ADDRESS_NONE;
     addr.family = TCS_FAMILY_IPV6;
-    addr.data.ipv6.address = TCS_ADDRESS_LOOPBACK_IPV6;
+    addr.data.ipv6.address = TCS_ADDRESS_IPV6_LOOPBACK;
     addr.data.ipv6.port = 8080;
     char str[70];
     CHECK(tcs_address_to_str(&addr, str) == TCS_SUCCESS);
@@ -2843,7 +2843,7 @@ TEST_CASE("IPv6 address utility functions")
 {
     TcsAddress loopback = TCS_ADDRESS_NONE;
     loopback.family = TCS_FAMILY_IPV6;
-    loopback.data.ipv6.address = TCS_ADDRESS_LOOPBACK_IPV6;
+    loopback.data.ipv6.address = TCS_ADDRESS_IPV6_LOOPBACK;
     CHECK(tcs_address_is_supported(&loopback));
     CHECK(tcs_address_is_loopback(&loopback));
     CHECK_FALSE(tcs_address_is_any(&loopback));
@@ -2851,7 +2851,7 @@ TEST_CASE("IPv6 address utility functions")
 
     TcsAddress any = TCS_ADDRESS_NONE;
     any.family = TCS_FAMILY_IPV6;
-    any.data.ipv6.address = TCS_ADDRESS_ANY_IPV6;
+    any.data.ipv6.address = TCS_ADDRESS_IPV6_ANY;
     CHECK(tcs_address_is_supported(&any));
     CHECK(tcs_address_is_any(&any));
     CHECK_FALSE(tcs_address_is_loopback(&any));
@@ -2891,10 +2891,10 @@ TEST_CASE("IPv6 address is_equal")
 {
     TcsAddress a = TCS_ADDRESS_NONE;
     a.family = TCS_FAMILY_IPV6;
-    a.data.ipv6.address = TCS_ADDRESS_LOOPBACK_IPV6;
+    a.data.ipv6.address = TCS_ADDRESS_IPV6_LOOPBACK;
     TcsAddress b = TCS_ADDRESS_NONE;
     b.family = TCS_FAMILY_IPV6;
-    b.data.ipv6.address = TCS_ADDRESS_LOOPBACK_IPV6;
+    b.data.ipv6.address = TCS_ADDRESS_IPV6_LOOPBACK;
     CHECK(tcs_address_is_equal(&a, &b));
 
     b.data.ipv6.port = 80;

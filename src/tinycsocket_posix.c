@@ -106,13 +106,13 @@ const int32_t TCS_WAIT_INF = -1;
 static long tcs_iov_max = 1024; // Default, updated by tcs_lib_init() via sysconf(_SC_IOV_MAX)
 
 // Addresses
-const TcsAddressIpv4 TCS_ADDRESS_ANY_IPV4 = INADDR_ANY;
-const TcsAddressIpv4 TCS_ADDRESS_LOOPBACK_IPV4 = INADDR_LOOPBACK;
-const TcsAddressIpv4 TCS_ADDRESS_BROADCAST_IPV4 = INADDR_BROADCAST;
-const TcsAddressIpv4 TCS_ADDRESS_NONE_IPV4 = INADDR_NONE;
+const TcsAddressIpv4 TCS_ADDRESS_IPV4_ANY = INADDR_ANY;
+const TcsAddressIpv4 TCS_ADDRESS_IPV4_LOOPBACK = INADDR_LOOPBACK;
+const TcsAddressIpv4 TCS_ADDRESS_IPV4_BROADCAST = INADDR_BROADCAST;
+const TcsAddressIpv4 TCS_ADDRESS_IPV4_NONE = INADDR_NONE;
 
-const struct TcsAddressIpv6 TCS_ADDRESS_ANY_IPV6 = {{0}};
-const struct TcsAddressIpv6 TCS_ADDRESS_LOOPBACK_IPV6 = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}};
+const struct TcsAddressIpv6 TCS_ADDRESS_IPV6_ANY = {{0}};
+const struct TcsAddressIpv6 TCS_ADDRESS_IPV6_LOOPBACK = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}};
 
 // Family
 const TcsFamily TCS_FAMILY_ANY = {AF_UNSPEC};

@@ -389,13 +389,13 @@ static const struct TcsAddress TCS_ADDRESS_NONE = {{0}, {{0}}};
 #pragma GCC diagnostic pop
 #endif
 
-extern const TcsAddressIpv4 TCS_ADDRESS_ANY_IPV4;
-extern const TcsAddressIpv4 TCS_ADDRESS_LOOPBACK_IPV4;
-extern const TcsAddressIpv4 TCS_ADDRESS_BROADCAST_IPV4;
-extern const TcsAddressIpv4 TCS_ADDRESS_NONE_IPV4;
+extern const TcsAddressIpv4 TCS_ADDRESS_IPV4_ANY;
+extern const TcsAddressIpv4 TCS_ADDRESS_IPV4_LOOPBACK;
+extern const TcsAddressIpv4 TCS_ADDRESS_IPV4_BROADCAST;
+extern const TcsAddressIpv4 TCS_ADDRESS_IPV4_NONE;
 
-extern const struct TcsAddressIpv6 TCS_ADDRESS_ANY_IPV6;
-extern const struct TcsAddressIpv6 TCS_ADDRESS_LOOPBACK_IPV6;
+extern const struct TcsAddressIpv6 TCS_ADDRESS_IPV6_ANY;
+extern const struct TcsAddressIpv6 TCS_ADDRESS_IPV6_LOOPBACK;
 
 extern const TcsSocket TCS_SOCKET_INVALID; /**< Define new sockets to this value, always. */
 static const uint32_t TCS_FLAG_NONE = 0;
@@ -576,7 +576,7 @@ TcsResult tcs_socket(TcsSocket* out_socket, TcsFamily family, TcsSocketType type
 *
 *   struct TcsAddress local = TCS_ADDRESS_NONE;
 *   local.family = TCS_FAMILY_IPV4;
-*   local.data.ipv4.address = TCS_ADDRESS_ANY_IPV4;
+*   local.data.ipv4.address = TCS_ADDRESS_IPV4_ANY;
 *   local.data.ipv4.port = 8080;
 *
 *   TcsSocket server = TCS_SOCKET_INVALID;
@@ -683,7 +683,7 @@ TcsResult tcs_socket_tcp_str(TcsSocket* out_socket,
 *
 *   struct TcsAddress local = TCS_ADDRESS_NONE;
 *   local.family = TCS_FAMILY_IPV4;
-*   local.data.ipv4.address = TCS_ADDRESS_ANY_IPV4;
+*   local.data.ipv4.address = TCS_ADDRESS_IPV4_ANY;
 *   local.data.ipv4.port = 8080;
 *
 *   TcsSocket socket = TCS_SOCKET_INVALID;
@@ -889,7 +889,7 @@ TcsResult tcs_close(TcsSocket* socket);
  *
  *   struct TcsAddress local_address = TCS_ADDRESS_NONE;
  *   local_address.family = TCS_FAMILY_IPV4;
- *   local_address.data.ipv4.address = TCS_ADDRESS_ANY_IPV4; // Bind to all interfaces
+ *   local_address.data.ipv4.address = TCS_ADDRESS_IPV4_ANY; // Bind to all interfaces
  *   local_address.data.ipv4.port = 8080;
  *
  *   TcsResult bind_res = tcs_bind(server_socket, &local_address);
@@ -910,7 +910,7 @@ TcsResult tcs_close(TcsSocket* socket);
  * @endcode
  *
  * @param[in] socket The socket to bind. Must be a valid socket created with tcs_socket().
- * @param[in] local_address The local address structure to bind to. Use TCS_ADDRESS_ANY_IPV4 for the address field to bind to all interfaces.
+ * @param[in] local_address The local address structure to bind to. Use TCS_ADDRESS_IPV4_ANY for the address field to bind to all interfaces.
  *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  * @retval #TCS_ERROR_INVALID_ARGUMENT if socket is invalid or local_address is NULL.
@@ -2397,13 +2397,13 @@ const int32_t TCS_WAIT_INF = -1;
 static long tcs_iov_max = 1024; // Default, updated by tcs_lib_init() via sysconf(_SC_IOV_MAX)
 
 // Addresses
-const TcsAddressIpv4 TCS_ADDRESS_ANY_IPV4 = INADDR_ANY;
-const TcsAddressIpv4 TCS_ADDRESS_LOOPBACK_IPV4 = INADDR_LOOPBACK;
-const TcsAddressIpv4 TCS_ADDRESS_BROADCAST_IPV4 = INADDR_BROADCAST;
-const TcsAddressIpv4 TCS_ADDRESS_NONE_IPV4 = INADDR_NONE;
+const TcsAddressIpv4 TCS_ADDRESS_IPV4_ANY = INADDR_ANY;
+const TcsAddressIpv4 TCS_ADDRESS_IPV4_LOOPBACK = INADDR_LOOPBACK;
+const TcsAddressIpv4 TCS_ADDRESS_IPV4_BROADCAST = INADDR_BROADCAST;
+const TcsAddressIpv4 TCS_ADDRESS_IPV4_NONE = INADDR_NONE;
 
-const struct TcsAddressIpv6 TCS_ADDRESS_ANY_IPV6 = {{0}};
-const struct TcsAddressIpv6 TCS_ADDRESS_LOOPBACK_IPV6 = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}};
+const struct TcsAddressIpv6 TCS_ADDRESS_IPV6_ANY = {{0}};
+const struct TcsAddressIpv6 TCS_ADDRESS_IPV6_LOOPBACK = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}};
 
 // Family
 const TcsFamily TCS_FAMILY_ANY = {AF_UNSPEC};
@@ -4274,13 +4274,13 @@ const TcsSocket TCS_SOCKET_INVALID = INVALID_SOCKET;
 const int32_t TCS_WAIT_INF = -1;
 
 // Addresses
-const TcsAddressIpv4 TCS_ADDRESS_ANY_IPV4 = INADDR_ANY;
-const TcsAddressIpv4 TCS_ADDRESS_LOOPBACK_IPV4 = INADDR_LOOPBACK;
-const TcsAddressIpv4 TCS_ADDRESS_BROADCAST_IPV4 = INADDR_BROADCAST;
-const TcsAddressIpv4 TCS_ADDRESS_NONE_IPV4 = INADDR_NONE;
+const TcsAddressIpv4 TCS_ADDRESS_IPV4_ANY = INADDR_ANY;
+const TcsAddressIpv4 TCS_ADDRESS_IPV4_LOOPBACK = INADDR_LOOPBACK;
+const TcsAddressIpv4 TCS_ADDRESS_IPV4_BROADCAST = INADDR_BROADCAST;
+const TcsAddressIpv4 TCS_ADDRESS_IPV4_NONE = INADDR_NONE;
 
-const struct TcsAddressIpv6 TCS_ADDRESS_ANY_IPV6 = {{0}};
-const struct TcsAddressIpv6 TCS_ADDRESS_LOOPBACK_IPV6 = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}};
+const struct TcsAddressIpv6 TCS_ADDRESS_IPV6_ANY = {{0}};
+const struct TcsAddressIpv6 TCS_ADDRESS_IPV6_LOOPBACK = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}};
 
 // Family
 const TcsFamily TCS_FAMILY_ANY = {AF_UNSPEC};
@@ -7434,7 +7434,7 @@ bool tcs_address_is_any(const struct TcsAddress* addr)
     if (addr == NULL)
         return false;
     if (addr->family.native == TCS_FAMILY_IPV4.native)
-        return addr->data.ipv4.address == TCS_ADDRESS_ANY_IPV4;
+        return addr->data.ipv4.address == TCS_ADDRESS_IPV4_ANY;
     if (addr->family.native == TCS_FAMILY_IPV6.native)
     {
         static const uint8_t any6[16] = {0};
@@ -7460,7 +7460,7 @@ bool tcs_address_is_loopback(const struct TcsAddress* addr)
     if (addr == NULL)
         return false;
     if (addr->family.native == TCS_FAMILY_IPV4.native)
-        return addr->data.ipv4.address == TCS_ADDRESS_LOOPBACK_IPV4;
+        return addr->data.ipv4.address == TCS_ADDRESS_IPV4_LOOPBACK;
     if (addr->family.native == TCS_FAMILY_IPV6.native)
         return addr->data.ipv6.address.bytes[0] == 0 && addr->data.ipv6.address.bytes[1] == 0 &&
                addr->data.ipv6.address.bytes[2] == 0 && addr->data.ipv6.address.bytes[3] == 0 &&
@@ -7496,7 +7496,7 @@ bool tcs_address_is_broadcast(const struct TcsAddress* addr)
     if (addr == NULL)
         return false;
     if (addr->family.native == TCS_FAMILY_IPV4.native)
-        return addr->data.ipv4.address == TCS_ADDRESS_BROADCAST_IPV4;
+        return addr->data.ipv4.address == TCS_ADDRESS_IPV4_BROADCAST;
     if (addr->family.native == TCS_FAMILY_PACKET.native)
         return addr->data.packet.mac[0] == 0xFF && addr->data.packet.mac[1] == 0xFF &&
                addr->data.packet.mac[2] == 0xFF && addr->data.packet.mac[3] == 0xFF &&

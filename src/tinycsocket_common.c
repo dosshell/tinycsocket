@@ -1439,7 +1439,7 @@ bool tcs_address_is_any(const struct TcsAddress* addr)
     if (addr == NULL)
         return false;
     if (addr->family.native == TCS_FAMILY_IPV4.native)
-        return addr->data.ipv4.address == TCS_ADDRESS_ANY_IPV4;
+        return addr->data.ipv4.address == TCS_ADDRESS_IPV4_ANY;
     if (addr->family.native == TCS_FAMILY_IPV6.native)
     {
         static const uint8_t any6[16] = {0};
@@ -1465,7 +1465,7 @@ bool tcs_address_is_loopback(const struct TcsAddress* addr)
     if (addr == NULL)
         return false;
     if (addr->family.native == TCS_FAMILY_IPV4.native)
-        return addr->data.ipv4.address == TCS_ADDRESS_LOOPBACK_IPV4;
+        return addr->data.ipv4.address == TCS_ADDRESS_IPV4_LOOPBACK;
     if (addr->family.native == TCS_FAMILY_IPV6.native)
         return addr->data.ipv6.address.bytes[0] == 0 && addr->data.ipv6.address.bytes[1] == 0 &&
                addr->data.ipv6.address.bytes[2] == 0 && addr->data.ipv6.address.bytes[3] == 0 &&
@@ -1501,7 +1501,7 @@ bool tcs_address_is_broadcast(const struct TcsAddress* addr)
     if (addr == NULL)
         return false;
     if (addr->family.native == TCS_FAMILY_IPV4.native)
-        return addr->data.ipv4.address == TCS_ADDRESS_BROADCAST_IPV4;
+        return addr->data.ipv4.address == TCS_ADDRESS_IPV4_BROADCAST;
     if (addr->family.native == TCS_FAMILY_PACKET.native)
         return addr->data.packet.mac[0] == 0xFF && addr->data.packet.mac[1] == 0xFF &&
                addr->data.packet.mac[2] == 0xFF && addr->data.packet.mac[3] == 0xFF &&
