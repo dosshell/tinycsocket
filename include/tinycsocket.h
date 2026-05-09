@@ -29,7 +29,7 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-static const char* const TCS_VERSION_TXT = "v0.3.77";
+static const char* const TCS_VERSION_TXT = "v0.3.78";
 extern const char* const TCS_LICENSE_TXT;
 
 /*
@@ -2369,6 +2369,7 @@ static inline int tds_map_remove(void** keys,
 #include <sys/socket.h> // pretty much everything
 #include <sys/types.h>  // POSIX.1 compatibility
 #include <sys/uio.h>    // struct iovec
+#include <time.h>       // clock_gettime()
 #include <unistd.h>     // close()
 
 #if TCS_HAS_GETIFADDRS
@@ -2987,6 +2988,172 @@ TcsResult tcs_receive(TcsSocket socket, uint8_t* buffer, size_t buffer_size, uin
     if (buffer == NULL && buffer_size > 0)
         return TCS_ERROR_INVALID_ARGUMENT;
 
+    if (buffer_size == 0)
+    {
+        if (received_size != NULL)
+            *received_size = 0;
+        return TCS_SUCCESS;
+    }
+
+#if defined(__CYGWIN__)
+    // Workaround for cygwin bug (introduced 2020 in cygwin, still present when this code is written)
+    // Cygwin's recv(MSG_WAITALL) loops forever after peer FIN.
+    // The loop in winsup/cygwin/fhandler/socket_inet.cc::recv_internal has no exit for a successful zero-byte WSARecv,
+    // and FD_CLOSE stays latched, so the loop re-enters wait_for_events and WSARecv repeatedly.
+    TcsSocketType cygwin_sock_type = {0};
+    bool is_stream = (flags & MSG_WAITALL) && ((flags & MSG_PEEK) || !(flags & MSG_OOB)) &&
+                     tcs_opt_type_get(socket, &cygwin_sock_type) == TCS_SUCCESS &&
+                     cygwin_sock_type.native == TCS_SOCKET_STREAM.native;
+    if (is_stream)
+    {
+        uint32_t base_flags = flags & ~(uint32_t)MSG_WAITALL;
+        size_t total = 0;
+        int loop_errno = 0;
+        bool peer_closed = false;
+        bool deadline_hit = false;
+
+        // Nonblocking sockets must never wait in poll(); the native recv()
+        // already returns EAGAIN immediately, which the epilog converts to
+        // TCS_ERROR_WOULD_BLOCK.
+        int fcntl_flags = fcntl(socket, F_GETFL, 0);
+        bool is_nonblock = (fcntl_flags != -1 && (fcntl_flags & O_NONBLOCK));
+
+        // SO_RCVTIMEO == 0 means block forever; otherwise compute monotonic deadline.
+        int timeout = 0;
+        tcs_opt_receive_timeout_get(socket, &timeout);
+        bool has_deadline = (timeout > 0 && !is_nonblock);
+        int64_t deadline_ns = 0;
+        if (has_deadline)
+        {
+            struct timespec ts;
+            clock_gettime(CLOCK_MONOTONIC, &ts);
+            deadline_ns = (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec + (int64_t)timeout * 1000000LL;
+        }
+
+        if (!(flags & MSG_PEEK))
+        {
+            while (total < buffer_size)
+            {
+                // Cap each retry to the remaining deadline so a peer that
+                // trickles bytes can't keep resetting the per-recv SO_RCVTIMEO
+                // and extend the call past the configured timeout.
+                if (has_deadline)
+                {
+                    struct timespec now;
+                    clock_gettime(CLOCK_MONOTONIC, &now);
+                    int64_t now_ns = (int64_t)now.tv_sec * 1000000000LL + now.tv_nsec;
+                    if (now_ns >= deadline_ns)
+                    {
+                        deadline_hit = true;
+                        break;
+                    }
+                    int remaining_ms = (int)((deadline_ns - now_ns + 999999LL) / 1000000LL);
+                    struct pollfd pfd = {socket, POLLIN, 0};
+                    int perr = poll(&pfd, 1, remaining_ms);
+                    if (perr < 0)
+                    {
+                        if (errno == EINTR)
+                            continue;
+                        loop_errno = errno;
+                        break;
+                    }
+                    if (perr == 0)
+                    {
+                        deadline_hit = true;
+                        break;
+                    }
+                }
+                ssize_t r = recv(socket, (char*)buffer + total, buffer_size - total, (int)base_flags);
+                if (r > 0)
+                {
+                    total += (size_t)r;
+                }
+                else if (r == 0)
+                {
+                    peer_closed = true;
+                    break;
+                }
+                else
+                {
+                    if (errno == EINTR)
+                        continue;
+                    loop_errno = errno;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            struct pollfd pfd = {socket, 0, 0};
+
+            for (;;)
+            {
+                // Peek what is currently buffered. If nothing has grown since the
+                // last iteration, this is a no-op on `total`; otherwise it captures more.
+                ssize_t r = recv(socket, (char*)buffer, buffer_size, (int)base_flags);
+                if (r > 0)
+                    total = (size_t)r;
+                else if (r == 0)
+                    peer_closed = true;
+                else if (errno == EINTR)
+                    continue;
+                else
+                    loop_errno = errno;
+
+                if (total >= buffer_size || peer_closed || loop_errno != 0)
+                    break;
+
+                if (has_deadline)
+                {
+                    struct timespec now;
+                    clock_gettime(CLOCK_MONOTONIC, &now);
+                    if ((int64_t)now.tv_sec * 1000000000LL + now.tv_nsec >= deadline_ns)
+                    {
+                        deadline_hit = true;
+                        break;
+                    }
+                }
+
+                // Wait briefly for state change. POLLHUP/POLLERR/POLLNVAL fire even
+                // with events=0; on close we just flag peer_closed and let the next
+                // iteration's peek capture any straggler bytes.
+                int perr = poll(&pfd, 1, 1);
+                if (perr < 0)
+                {
+                    if (errno == EINTR)
+                        continue;
+                    loop_errno = errno;
+                    break;
+                }
+                if (pfd.revents & (POLLHUP | POLLERR | POLLNVAL))
+                    peer_closed = true;
+            }
+        }
+
+        if (received_size != NULL)
+            *received_size = total;
+        if (total > 0)
+            return TCS_SUCCESS;
+        if (loop_errno != 0)
+        {
+#if (EAGAIN == EWOULDBLOCK)
+            if (loop_errno == EAGAIN)
+            {
+                if (is_nonblock)
+                    return TCS_ERROR_WOULD_BLOCK;
+                return TCS_ERROR_TIMED_OUT;
+            }
+#endif
+            return errno2retcode(loop_errno);
+        }
+        if (peer_closed)
+            return TCS_SHUTDOWN;
+        if (deadline_hit)
+            return TCS_ERROR_TIMED_OUT;
+        return TCS_SUCCESS;
+    }
+#endif
+
     ssize_t recv_status = recv(socket, (char*)buffer, buffer_size, TCS_DEFAULT_RECV_FLAGS | (int)flags);
 
     if (recv_status > 0)
@@ -3011,16 +3178,12 @@ TcsResult tcs_receive(TcsSocket socket, uint8_t* buffer, size_t buffer_size, uin
 #if (EAGAIN == EWOULDBLOCK)
         if (errno == EAGAIN)
         {
-            bool is_nonblocking = false;
             int fcntl_flags = fcntl(socket, F_GETFL, 0);
             if (fcntl_flags == -1)
                 return errno2retcode(errno);
             if (fcntl_flags & O_NONBLOCK)
-                is_nonblocking = true;
-            if (is_nonblocking)
                 return TCS_ERROR_WOULD_BLOCK;
-            else
-                return TCS_ERROR_TIMED_OUT;
+            return TCS_ERROR_TIMED_OUT;
         }
 #endif
         return errno2retcode(errno);
