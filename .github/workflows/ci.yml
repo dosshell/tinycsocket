@@ -67,6 +67,55 @@ jobs:
           path: ./cobertura.xml
           retention-days: 7
 
+  linux-valgrind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install valgrind
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y valgrind ninja-build
+      - name: Build
+        run: |
+          cmake -G "Ninja" -B build -DCMAKE_BUILD_TYPE=Debug -DTCS_ENABLE_TESTS=ON -DTCS_WARNINGS_AS_ERRORS=ON
+          cmake --build build
+      - name: Run tests under valgrind
+        run: |
+          set -e -o pipefail
+          sudo ip link set lo multicast on
+          status=0
+
+          run_under_valgrind() {
+            local binary="$1"
+
+            echo "### ${binary}" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            set +e
+            sudo capsh --caps='cap_net_raw+eip' -- -c \
+              "valgrind \
+                --leak-check=full \
+                --show-leak-kinds=all \
+                --errors-for-leak-kinds=all \
+                --track-origins=yes \
+                --track-fds=yes \
+                --error-exitcode=1 \
+                ${binary}" \
+              2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+            local test_status=${PIPESTATUS[0]}
+            set -e
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+            if [ "$test_status" -ne 0 ]; then
+              status="$test_status"
+            fi
+            return 0
+          }
+
+          run_under_valgrind ./build/tests/tests
+          run_under_valgrind ./build/tests/tests_header_only
+          exit "$status"
+
   # ---- BUILDS ----
 
   msvc-build:
