@@ -29,7 +29,7 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-static const char* const TCS_VERSION_TXT = "v0.3.78";
+static const char* const TCS_VERSION_TXT = "v0.3.79";
 extern const char* const TCS_LICENSE_TXT;
 
 /*
@@ -124,7 +124,7 @@ extern const char* const TCS_LICENSE_TXT;
 * - TcsResult tcs_address_socket_remote(TcsSocket socket, struct TcsAddress* out_remote_address);
 * - TcsResult tcs_address_socket_family(TcsSocket socket, TcsFamily* out_family);
 * - TcsResult tcs_address_parse(const char str[], struct TcsAddress* out_address);
-* - TcsResult tcs_address_to_str(const struct TcsAddress* address, char out_str[70]);
+* - TcsResult tcs_address_to_str(const struct TcsAddress* address, char out_str[], size_t str_length, size_t* out_length);
 * - bool tcs_address_is_equal(const struct TcsAddress* l, const struct TcsAddress* r);
 * - bool tcs_address_is_any(const struct TcsAddress* addr);
 * - bool tcs_address_is_link_local(const struct TcsAddress* addr);
@@ -1901,14 +1901,17 @@ TcsResult tcs_address_parse(const char str[], struct TcsAddress* out_address);
 
 /**
  * @brief Convert an address to a string.
- * 
+ *
  * This will make a verbose string representation of the address.
- * 
+ * Pass @c out_str=NULL and @c str_length=0 with @c out_length set to query the required size.
+ *
  * @param[in] address the address to convert.
- * @param[out] out_str buffer of at least 70 bytes to receive the string representation.
- * @return #TCS_SUCCESS if successful, otherwise the error code.
+ * @param[out] out_str buffer to receive the null-terminated string representation.
+ * @param[in] str_length capacity of @c out_str in bytes. A buffer of 70 bytes is always sufficient for any supported address family.
+ * @param[out] out_length receives the length of the written string excluding the null terminator. May be NULL.
+ * @return #TCS_SUCCESS if successful, #TCS_ERROR_MEMORY if @c out_str is too small, otherwise the error code.
  */
-TcsResult tcs_address_to_str(const struct TcsAddress* address, char out_str[70]);
+TcsResult tcs_address_to_str(const struct TcsAddress* address, char out_str[], size_t str_length, size_t* out_length);
 
 /** @brief Check if two addresses are equal. Returns false for NULL, mismatched, unknown, or unsupported address families. */
 bool tcs_address_is_equal(const struct TcsAddress* l, const struct TcsAddress* r);
@@ -7473,12 +7476,17 @@ TcsResult tcs_address_parse(const char str[], struct TcsAddress* out_address)
     return TCS_SUCCESS;
 }
 
-TcsResult tcs_address_to_str(const struct TcsAddress* address, char str[70])
+TcsResult tcs_address_to_str(const struct TcsAddress* address, char out_str[], size_t str_length, size_t* out_length)
 {
-    if (address == NULL || str == NULL)
+    if (address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (out_str == NULL && str_length != 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (out_str == NULL && out_length == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    memset(str, 0, 70);
+    char str[70];
+    memset(str, 0, sizeof str);
     if (address->family.native == TCS_FAMILY_IPV4.native)
     {
         uint32_t d = address->data.ipv4.address;
@@ -7488,9 +7496,9 @@ TcsResult tcs_address_to_str(const struct TcsAddress* address, char str[70])
         uint8_t b3 = (uint8_t)((d >> 16) & 0xFF);
         uint8_t b4 = (uint8_t)((d >> 24) & 0xFF);
         if (p == 0)
-            snprintf(str, 70, "%i.%i.%i.%i", b4, b3, b2, b1);
+            snprintf(str, sizeof str, "%i.%i.%i.%i", b4, b3, b2, b1);
         else
-            snprintf(str, 70, "%i.%i.%i.%i:%i", b4, b3, b2, b1, p);
+            snprintf(str, sizeof str, "%i.%i.%i.%i:%i", b4, b3, b2, b1, p);
     }
     else if (address->family.native == TCS_FAMILY_IPV6.native)
     {
@@ -7545,18 +7553,18 @@ TcsResult tcs_address_to_str(const struct TcsAddress* address, char str[70])
         uint16_t p = address->data.ipv6.port;
         TcsInterfaceId sc = address->data.ipv6.scope_id;
         if (p != 0 && sc != 0)
-            snprintf(str, 70, "[%s%%%u]:%u", addr_str, (unsigned int)sc, (unsigned int)p);
+            snprintf(str, sizeof str, "[%s%%%u]:%u", addr_str, (unsigned int)sc, (unsigned int)p);
         else if (p != 0)
-            snprintf(str, 70, "[%s]:%u", addr_str, (unsigned int)p);
+            snprintf(str, sizeof str, "[%s]:%u", addr_str, (unsigned int)p);
         else if (sc != 0)
-            snprintf(str, 70, "%s%%%u", addr_str, (unsigned int)sc);
+            snprintf(str, sizeof str, "%s%%%u", addr_str, (unsigned int)sc);
         else
-            snprintf(str, 70, "%s", addr_str);
+            snprintf(str, sizeof str, "%s", addr_str);
     }
     else if (address->family.native == TCS_FAMILY_PACKET.native)
     {
         snprintf(str,
-                 70,
+                 sizeof str,
                  "%02X:%02X:%02X:%02X:%02X:%02X",
                  address->data.packet.mac[0],
                  address->data.packet.mac[1],
@@ -7569,6 +7577,15 @@ TcsResult tcs_address_to_str(const struct TcsAddress* address, char str[70])
     {
         return TCS_ERROR_NOT_IMPLEMENTED;
     }
+
+    size_t written = strlen(str);
+    if (out_length != NULL)
+        *out_length = written;
+    if (out_str == NULL)
+        return TCS_SUCCESS;
+    if (str_length <= written)
+        return TCS_ERROR_MEMORY;
+    memcpy(out_str, str, written + 1);
 
     return TCS_SUCCESS;
 }

@@ -23,7 +23,7 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-static const char* const TCS_VERSION_TXT = "v0.3.78";
+static const char* const TCS_VERSION_TXT = "v0.3.79";
 extern const char* const TCS_LICENSE_TXT;
 
 /*
@@ -118,7 +118,7 @@ extern const char* const TCS_LICENSE_TXT;
 * - TcsResult tcs_address_socket_remote(TcsSocket socket, struct TcsAddress* out_remote_address);
 * - TcsResult tcs_address_socket_family(TcsSocket socket, TcsFamily* out_family);
 * - TcsResult tcs_address_parse(const char str[], struct TcsAddress* out_address);
-* - TcsResult tcs_address_to_str(const struct TcsAddress* address, char out_str[70]);
+* - TcsResult tcs_address_to_str(const struct TcsAddress* address, char out_str[], size_t str_length, size_t* out_length);
 * - bool tcs_address_is_equal(const struct TcsAddress* l, const struct TcsAddress* r);
 * - bool tcs_address_is_any(const struct TcsAddress* addr);
 * - bool tcs_address_is_link_local(const struct TcsAddress* addr);
@@ -1895,14 +1895,17 @@ TcsResult tcs_address_parse(const char str[], struct TcsAddress* out_address);
 
 /**
  * @brief Convert an address to a string.
- * 
+ *
  * This will make a verbose string representation of the address.
- * 
+ * Pass @c out_str=NULL and @c str_length=0 with @c out_length set to query the required size.
+ *
  * @param[in] address the address to convert.
- * @param[out] out_str buffer of at least 70 bytes to receive the string representation.
- * @return #TCS_SUCCESS if successful, otherwise the error code.
+ * @param[out] out_str buffer to receive the null-terminated string representation.
+ * @param[in] str_length capacity of @c out_str in bytes. A buffer of 70 bytes is always sufficient for any supported address family.
+ * @param[out] out_length receives the length of the written string excluding the null terminator. May be NULL.
+ * @return #TCS_SUCCESS if successful, #TCS_ERROR_MEMORY if @c out_str is too small, otherwise the error code.
  */
-TcsResult tcs_address_to_str(const struct TcsAddress* address, char out_str[70]);
+TcsResult tcs_address_to_str(const struct TcsAddress* address, char out_str[], size_t str_length, size_t* out_length);
 
 /** @brief Check if two addresses are equal. Returns false for NULL, mismatched, unknown, or unsupported address families. */
 bool tcs_address_is_equal(const struct TcsAddress* l, const struct TcsAddress* r);
