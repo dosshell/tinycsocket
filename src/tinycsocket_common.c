@@ -1311,12 +1311,17 @@ TcsResult tcs_address_parse(const char str[], struct TcsAddress* out_address)
     return TCS_SUCCESS;
 }
 
-TcsResult tcs_address_to_str(const struct TcsAddress* address, char str[70])
+TcsResult tcs_address_to_str(const struct TcsAddress* address, char out_str[], size_t str_length, size_t* out_length)
 {
-    if (address == NULL || str == NULL)
+    if (address == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (out_str == NULL && str_length != 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (out_str == NULL && out_length == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    memset(str, 0, 70);
+    char str[70];
+    memset(str, 0, sizeof str);
     if (address->family.native == TCS_FAMILY_IPV4.native)
     {
         uint32_t d = address->data.ipv4.address;
@@ -1326,9 +1331,9 @@ TcsResult tcs_address_to_str(const struct TcsAddress* address, char str[70])
         uint8_t b3 = (uint8_t)((d >> 16) & 0xFF);
         uint8_t b4 = (uint8_t)((d >> 24) & 0xFF);
         if (p == 0)
-            snprintf(str, 70, "%i.%i.%i.%i", b4, b3, b2, b1);
+            snprintf(str, sizeof str, "%i.%i.%i.%i", b4, b3, b2, b1);
         else
-            snprintf(str, 70, "%i.%i.%i.%i:%i", b4, b3, b2, b1, p);
+            snprintf(str, sizeof str, "%i.%i.%i.%i:%i", b4, b3, b2, b1, p);
     }
     else if (address->family.native == TCS_FAMILY_IPV6.native)
     {
@@ -1383,18 +1388,18 @@ TcsResult tcs_address_to_str(const struct TcsAddress* address, char str[70])
         uint16_t p = address->data.ipv6.port;
         TcsInterfaceId sc = address->data.ipv6.scope_id;
         if (p != 0 && sc != 0)
-            snprintf(str, 70, "[%s%%%u]:%u", addr_str, (unsigned int)sc, (unsigned int)p);
+            snprintf(str, sizeof str, "[%s%%%u]:%u", addr_str, (unsigned int)sc, (unsigned int)p);
         else if (p != 0)
-            snprintf(str, 70, "[%s]:%u", addr_str, (unsigned int)p);
+            snprintf(str, sizeof str, "[%s]:%u", addr_str, (unsigned int)p);
         else if (sc != 0)
-            snprintf(str, 70, "%s%%%u", addr_str, (unsigned int)sc);
+            snprintf(str, sizeof str, "%s%%%u", addr_str, (unsigned int)sc);
         else
-            snprintf(str, 70, "%s", addr_str);
+            snprintf(str, sizeof str, "%s", addr_str);
     }
     else if (address->family.native == TCS_FAMILY_PACKET.native)
     {
         snprintf(str,
-                 70,
+                 sizeof str,
                  "%02X:%02X:%02X:%02X:%02X:%02X",
                  address->data.packet.mac[0],
                  address->data.packet.mac[1],
@@ -1407,6 +1412,15 @@ TcsResult tcs_address_to_str(const struct TcsAddress* address, char str[70])
     {
         return TCS_ERROR_NOT_IMPLEMENTED;
     }
+
+    size_t written = strlen(str);
+    if (out_length != NULL)
+        *out_length = written;
+    if (out_str == NULL)
+        return TCS_SUCCESS;
+    if (str_length <= written)
+        return TCS_ERROR_MEMORY;
+    memcpy(out_str, str, written + 1);
 
     return TCS_SUCCESS;
 }

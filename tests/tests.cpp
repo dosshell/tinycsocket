@@ -1128,7 +1128,7 @@ TEST_CASE("Interface list")
         for (size_t j = 0; j < addr_display; ++j)
         {
             char addr_str[70];
-            tcs_address_to_str(&addresses[j].address, addr_str);
+            tcs_address_to_str(&addresses[j].address, addr_str, sizeof addr_str, NULL);
             printf("  Address %u,%zu: %s\n", interfaces[i].id, j, addr_str);
         }
     }
@@ -1158,7 +1158,7 @@ TEST_CASE("Get loopback address")
             ifaddrs[i].address.data.ipv4.address == TCS_ADDRESS_IPV4_LOOPBACK)
         {
             char out_str[70];
-            tcs_address_to_str(&ifaddrs[i].address, out_str);
+            tcs_address_to_str(&ifaddrs[i].address, out_str, sizeof out_str, NULL);
             printf("Interface loopback: %u; %s; %s\n", ifaddrs[i].iface.id, ifaddrs[i].iface.name, out_str);
             found_loopback = true;
         }
@@ -1183,7 +1183,7 @@ TEST_CASE("tcs_util_address_to_string with only IPv4")
 
     // When
     char address_str[70];
-    tcs_address_to_str(&addr, address_str);
+    tcs_address_to_str(&addr, address_str, sizeof address_str, NULL);
 
     // Then
     CHECK_EQ(address_str, "127.0.0.1");
@@ -1199,7 +1199,7 @@ TEST_CASE("tcs_util_address_to_string with IPv4 and port")
 
     // When
     char address_str[70];
-    tcs_address_to_str(&addr, address_str);
+    tcs_address_to_str(&addr, address_str, sizeof address_str, NULL);
 
     // Then
     CHECK_EQ(address_str, "127.0.0.1:1234");
@@ -2770,7 +2770,7 @@ TEST_CASE("IPv6 address to string loopback")
     addr.family = TCS_FAMILY_IPV6;
     addr.data.ipv6.address = TCS_ADDRESS_IPV6_LOOPBACK;
     char str[70];
-    CHECK(tcs_address_to_str(&addr, str) == TCS_SUCCESS);
+    CHECK(tcs_address_to_str(&addr, str, sizeof str, NULL) == TCS_SUCCESS);
     CHECK_EQ(str, "::1");
 }
 
@@ -2780,7 +2780,7 @@ TEST_CASE("IPv6 address to string all-zeros")
     addr.family = TCS_FAMILY_IPV6;
     addr.data.ipv6.address = TCS_ADDRESS_IPV6_ANY;
     char str[70];
-    CHECK(tcs_address_to_str(&addr, str) == TCS_SUCCESS);
+    CHECK(tcs_address_to_str(&addr, str, sizeof str, NULL) == TCS_SUCCESS);
     CHECK_EQ(str, "::");
 }
 
@@ -2791,7 +2791,7 @@ TEST_CASE("IPv6 address to string with port")
     addr.data.ipv6.address = TCS_ADDRESS_IPV6_LOOPBACK;
     addr.data.ipv6.port = 8080;
     char str[70];
-    CHECK(tcs_address_to_str(&addr, str) == TCS_SUCCESS);
+    CHECK(tcs_address_to_str(&addr, str, sizeof str, NULL) == TCS_SUCCESS);
     CHECK_EQ(str, "[::1]:8080");
 }
 
@@ -2802,27 +2802,27 @@ TEST_CASE("IPv6 address to string RFC 5952 compliance")
 
     // Leading zeros suppressed
     CHECK(tcs_address_parse("2001:0db8::0001", &addr) == TCS_SUCCESS);
-    CHECK(tcs_address_to_str(&addr, str) == TCS_SUCCESS);
+    CHECK(tcs_address_to_str(&addr, str, sizeof str, NULL) == TCS_SUCCESS);
     CHECK_EQ(str, "2001:db8::1");
 
     // Single zero group NOT compressed to ::
     CHECK(tcs_address_parse("2001:db8:0:1:1:1:1:1", &addr) == TCS_SUCCESS);
-    CHECK(tcs_address_to_str(&addr, str) == TCS_SUCCESS);
+    CHECK(tcs_address_to_str(&addr, str, sizeof str, NULL) == TCS_SUCCESS);
     CHECK_EQ(str, "2001:db8:0:1:1:1:1:1");
 
     // Longest zero run compressed, first run wins on tie
     CHECK(tcs_address_parse("1:0:0:2:0:0:0:3", &addr) == TCS_SUCCESS);
-    CHECK(tcs_address_to_str(&addr, str) == TCS_SUCCESS);
+    CHECK(tcs_address_to_str(&addr, str, sizeof str, NULL) == TCS_SUCCESS);
     CHECK_EQ(str, "1:0:0:2::3");
 
     // Equal length runs: first wins
     CHECK(tcs_address_parse("1:0:0:2:3:0:0:4", &addr) == TCS_SUCCESS);
-    CHECK(tcs_address_to_str(&addr, str) == TCS_SUCCESS);
+    CHECK(tcs_address_to_str(&addr, str, sizeof str, NULL) == TCS_SUCCESS);
     CHECK_EQ(str, "1::2:3:0:0:4");
 
     // Lowercase hex
     CHECK(tcs_address_parse("ABCD:EF01::1", &addr) == TCS_SUCCESS);
-    CHECK(tcs_address_to_str(&addr, str) == TCS_SUCCESS);
+    CHECK(tcs_address_to_str(&addr, str, sizeof str, NULL) == TCS_SUCCESS);
     CHECK_EQ(str, "abcd:ef01::1");
 }
 
@@ -2834,7 +2834,7 @@ TEST_CASE("IPv6 address roundtrip")
         TcsAddress addr;
         CHECK(tcs_address_parse(inputs[i], &addr) == TCS_SUCCESS);
         char str[70];
-        CHECK(tcs_address_to_str(&addr, str) == TCS_SUCCESS);
+        CHECK(tcs_address_to_str(&addr, str, sizeof str, NULL) == TCS_SUCCESS);
         CHECK_EQ(str, inputs[i]);
     }
 }
