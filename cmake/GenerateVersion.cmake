@@ -58,6 +58,4 @@ string(REGEX REPLACE
 if(NOT "${content}" STREQUAL "${new_content}")
     file(WRITE "${HEADER_FILE}" "${new_content}")
     message(STATUS "Updated TCS_VERSION_TXT to \"${version}\"")
-else()
-    message(STATUS "TCS_VERSION_TXT already \"${version}\"")
 endif()
