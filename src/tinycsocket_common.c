@@ -130,6 +130,13 @@ TcsResult tcs_socket_tcp(TcsSocket* out_socket,
     if (local_address != NULL && remote_address != NULL &&
         local_address->family.native != remote_address->family.native)
         return TCS_ERROR_INVALID_ARGUMENT;
+    // A remote address without a port can never be connected to
+    if (remote_address != NULL && remote_address->family.native == TCS_FAMILY_IPV4.native &&
+        remote_address->data.ipv4.port == 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (remote_address != NULL && remote_address->family.native == TCS_FAMILY_IPV6.native &&
+        remote_address->data.ipv6.port == 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
     if (timeout_ms < 0 && timeout_ms != TCS_WAIT_INF)
         return TCS_ERROR_INVALID_ARGUMENT;
 
@@ -281,6 +288,15 @@ TcsResult tcs_socket_udp(TcsSocket* out_socket,
         local_address->family.native != remote_address->family.native)
         return TCS_ERROR_INVALID_ARGUMENT;
 
+    // A multicast group joined on a bound socket is the only remote address the socket is not connected to
+    bool is_multicast = remote_address != NULL && tcs_address_is_multicast(remote_address);
+    bool do_connect = remote_address != NULL && (!is_multicast || local_address == NULL);
+    // A remote address without a port can never be connected to
+    if (do_connect && remote_address->family.native == TCS_FAMILY_IPV4.native && remote_address->data.ipv4.port == 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (do_connect && remote_address->family.native == TCS_FAMILY_IPV6.native && remote_address->data.ipv6.port == 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
     TcsFamily family = local_address != NULL ? local_address->family : remote_address->family;
 
     TcsResult res = tcs_socket(out_socket, family, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP);
@@ -305,8 +321,6 @@ TcsResult tcs_socket_udp(TcsSocket* out_socket,
 
     if (remote_address != NULL)
     {
-        bool is_multicast = tcs_address_is_multicast(remote_address);
-
         if (is_multicast)
         {
             res = tcs_opt_membership_add(*out_socket, remote_address);
@@ -317,7 +331,7 @@ TcsResult tcs_socket_udp(TcsSocket* out_socket,
             }
         }
 
-        if (!is_multicast || local_address == NULL)
+        if (do_connect)
         {
             res = tcs_connect(*out_socket, remote_address);
             if (res != TCS_SUCCESS)
