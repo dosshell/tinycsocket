@@ -29,7 +29,7 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-static const char* const TCS_VERSION_TXT = "v0.3.82";
+static const char* const TCS_VERSION_TXT = "v0.3.83";
 extern const char* const TCS_LICENSE_TXT;
 
 /*

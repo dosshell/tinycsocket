@@ -134,15 +134,15 @@ These platforms are tested for every pull request. All configurations are tested
 
 | OS                                | Compiler                           | Arch     | Notes                    |
 |-----------------------------------|------------------------------------|----------|--------------------------|
-| Windows Server 2025               | MSVC v19.44                        | x86      |                          |
-| Windows Server 2025               | MSVC v19.44                        | x64      |                          |
+| Windows Server 2025               | MSVC v19.5x                        | x86      |                          |
+| Windows Server 2025               | MSVC v19.5x                        | x64      |                          |
 | Windows Server 2025               | i686-w64-mingw32-gcc-posix v13     | x86      | WINVER 0x500             |
 | Windows Server 2025               | i686-w64-mingw32-gcc-posix v13     | x86      | WINVER 0x502             |
 | Windows Server 2025               | i686-w64-mingw32-gcc v15.2         | x86      | WINVER 0x603             |
 | Windows Server 2025               | x86_64-w64-mingw32-gcc-posix v13   | x64      | WINVER 0x502             |
 | Windows Server 2025               | x86_64-w64-mingw32-gcc v15.2       | x64      | WINVER 0x603             |
-| Wine (Alpine 3.23)                | MSVC v19.44                        | x86      |                          |
-| Wine (Alpine 3.23)                | MSVC v19.44                        | x64      |                          |
+| Wine (Alpine 3.23)                | MSVC v19.5x                        | x86      |                          |
+| Wine (Alpine 3.23)                | MSVC v19.5x                        | x64      |                          |
 | Wine (Alpine 3.23)                | i686-w64-mingw32-gcc-posix v13     | x86      | WINVER 0x500             |
 | Wine (Alpine 3.23)                | i686-w64-mingw32-gcc-posix v13     | x86      | WINVER 0x502             |
 | Wine (Alpine 3.23)                | i686-w64-mingw32-gcc v15.2         | x86      | WINVER 0x603             |
