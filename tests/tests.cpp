@@ -1556,18 +1556,18 @@ TEST_CASE("TCS_TCP_NODELAY")
     CHECK(tcs_socket(&socket_true, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
 
     // When
-    CHECK(tcs_opt_ip_no_delay_set(socket_false, false) == TCS_SUCCESS);
-    CHECK(tcs_opt_ip_no_delay_set(socket_true, true) == TCS_SUCCESS);
-    CHECK(tcs_opt_ip_no_delay_set(socket_null, true) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_opt_tcp_no_delay_set(socket_false, false) == TCS_SUCCESS);
+    CHECK(tcs_opt_tcp_no_delay_set(socket_true, true) == TCS_SUCCESS);
+    CHECK(tcs_opt_tcp_no_delay_set(socket_null, true) == TCS_ERROR_INVALID_ARGUMENT);
 
     // Then
     bool socket_false_value = true;
     bool socket_true_value = false;
     bool socket_null_value = false;
-    CHECK(tcs_opt_ip_no_delay_get(socket_false, &socket_false_value) == TCS_SUCCESS);
-    CHECK(tcs_opt_ip_no_delay_get(socket_true, &socket_true_value) == TCS_SUCCESS);
-    CHECK(tcs_opt_ip_no_delay_get(socket_null, &socket_null_value) == TCS_ERROR_INVALID_ARGUMENT);
-    CHECK(tcs_opt_ip_no_delay_get(socket_true, NULL) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_opt_tcp_no_delay_get(socket_false, &socket_false_value) == TCS_SUCCESS);
+    CHECK(tcs_opt_tcp_no_delay_get(socket_true, &socket_true_value) == TCS_SUCCESS);
+    CHECK(tcs_opt_tcp_no_delay_get(socket_null, &socket_null_value) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_opt_tcp_no_delay_get(socket_true, NULL) == TCS_ERROR_INVALID_ARGUMENT);
 
     CHECK(socket_false_value == false);
     CHECK(socket_true_value == true);
@@ -1583,9 +1583,9 @@ TEST_CASE("TCS_TCP_NODELAY")
     CHECK(native_true != 0);
 
     // Toggling back must clear it again
-    CHECK(tcs_opt_ip_no_delay_set(socket_true, false) == TCS_SUCCESS);
+    CHECK(tcs_opt_tcp_no_delay_set(socket_true, false) == TCS_SUCCESS);
     socket_true_value = true;
-    CHECK(tcs_opt_ip_no_delay_get(socket_true, &socket_true_value) == TCS_SUCCESS);
+    CHECK(tcs_opt_tcp_no_delay_get(socket_true, &socket_true_value) == TCS_SUCCESS);
     CHECK(socket_true_value == false);
     native_true = -1;
     native_size = sizeof(native_true);

@@ -98,8 +98,8 @@ extern const char* const TCS_LICENSE_TXT;
 * - TcsResult tcs_opt_receive_timeout_get(TcsSocket socket, int* out_timeout_ms);
 * - TcsResult tcs_opt_linger_set(TcsSocket socket, bool do_linger, int timeout_seconds);
 * - TcsResult tcs_opt_linger_get(TcsSocket socket, bool* out_do_linger, int* out_timeout_seconds);
-* - TcsResult tcs_opt_ip_no_delay_set(TcsSocket socket, bool use_no_delay);
-* - TcsResult tcs_opt_ip_no_delay_get(TcsSocket socket, bool* out_is_no_delay_used);
+* - TcsResult tcs_opt_tcp_no_delay_set(TcsSocket socket, bool use_no_delay);
+* - TcsResult tcs_opt_tcp_no_delay_get(TcsSocket socket, bool* out_is_no_delay_used);
 * - TcsResult tcs_opt_out_of_band_inline_set(TcsSocket socket, bool enable_oob);
 * - TcsResult tcs_opt_out_of_band_inline_get(TcsSocket socket, bool* out_is_oob_enabled);
 * - TcsResult tcs_opt_priority_set(TcsSocket socket, int priority);
@@ -1629,7 +1629,7 @@ TcsResult tcs_opt_linger_get(TcsSocket socket, bool* out_do_linger, int* out_tim
 * @param[in] use_no_delay set to true to disable Nagle's algorithm (lower latency), false to enable it.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_ip_no_delay_set(TcsSocket socket, bool use_no_delay);
+TcsResult tcs_opt_tcp_no_delay_set(TcsSocket socket, bool use_no_delay);
 
 /**
 * @brief Query whether Nagle's algorithm is disabled on a socket.
@@ -1638,7 +1638,7 @@ TcsResult tcs_opt_ip_no_delay_set(TcsSocket socket, bool use_no_delay);
 * @param[out] out_is_no_delay_used pointer to receive the current setting.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 */
-TcsResult tcs_opt_ip_no_delay_get(TcsSocket socket, bool* out_is_no_delay_used);
+TcsResult tcs_opt_tcp_no_delay_get(TcsSocket socket, bool* out_is_no_delay_used);
 
 /**
 * @brief Enable or disable inline reception of out-of-band data.
@@ -3571,8 +3571,8 @@ TcsResult tcs_opt_linger_get(TcsSocket socket, bool* do_linger, int* timeout_sec
     return sts;
 }
 
-// tcs_opt_ip_no_delay_set() is defined in tinycsocket_common.c
-// tcs_opt_ip_no_delay_get() is defined in tinycsocket_common.c
+// tcs_opt_tcp_no_delay_set() is defined in tinycsocket_common.c
+// tcs_opt_tcp_no_delay_get() is defined in tinycsocket_common.c
 // tcs_opt_out_of_band_inline_set() is defined in tinycsocket_common.c
 // tcs_opt_out_of_band_inline_get() is defined in tinycsocket_common.c
 // tcs_opt_priority_set() is defined in tinycsocket_common.c
@@ -5582,8 +5582,8 @@ TcsResult tcs_opt_linger_get(TcsSocket socket, bool* do_linger, int* timeout_sec
     return sts;
 }
 
-// tcs_opt_ip_no_delay_set() is defined in tinycsocket_common.c
-// tcs_opt_ip_no_delay_get() is defined in tinycsocket_common.c
+// tcs_opt_tcp_no_delay_set() is defined in tinycsocket_common.c
+// tcs_opt_tcp_no_delay_get() is defined in tinycsocket_common.c
 // tcs_opt_out_of_band_inline_set() is defined in tinycsocket_common.c
 // tcs_opt_out_of_band_inline_get() is defined in tinycsocket_common.c
 // tcs_opt_priority_set() is defined in tinycsocket_common.c
@@ -6997,7 +6997,7 @@ TcsResult tcs_opt_receive_buffer_size_get(TcsSocket socket, size_t* receive_buff
 // tcs_opt_linger_set() is defined in OS specific files
 // tcs_opt_linger_get() is defined in OS specific files
 
-TcsResult tcs_opt_ip_no_delay_set(TcsSocket socket, bool use_no_delay)
+TcsResult tcs_opt_tcp_no_delay_set(TcsSocket socket, bool use_no_delay)
 {
     if (socket == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -7006,7 +7006,7 @@ TcsResult tcs_opt_ip_no_delay_set(TcsSocket socket, bool use_no_delay)
     return tcs_opt_set(socket, TCS_SOL_TCP, TCS_TCP_NODELAY, &b, sizeof(b));
 }
 
-TcsResult tcs_opt_ip_no_delay_get(TcsSocket socket, bool* is_no_delay_used)
+TcsResult tcs_opt_tcp_no_delay_get(TcsSocket socket, bool* is_no_delay_used)
 {
     if (socket == TCS_SOCKET_INVALID || is_no_delay_used == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;

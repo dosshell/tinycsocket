@@ -828,7 +828,7 @@ TcsResult tcs_opt_receive_buffer_size_get(TcsSocket socket, size_t* receive_buff
 // tcs_opt_linger_set() is defined in OS specific files
 // tcs_opt_linger_get() is defined in OS specific files
 
-TcsResult tcs_opt_ip_no_delay_set(TcsSocket socket, bool use_no_delay)
+TcsResult tcs_opt_tcp_no_delay_set(TcsSocket socket, bool use_no_delay)
 {
     if (socket == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
@@ -837,7 +837,7 @@ TcsResult tcs_opt_ip_no_delay_set(TcsSocket socket, bool use_no_delay)
     return tcs_opt_set(socket, TCS_SOL_TCP, TCS_TCP_NODELAY, &b, sizeof(b));
 }
 
-TcsResult tcs_opt_ip_no_delay_get(TcsSocket socket, bool* is_no_delay_used)
+TcsResult tcs_opt_tcp_no_delay_get(TcsSocket socket, bool* is_no_delay_used)
 {
     if (socket == TCS_SOCKET_INVALID || is_no_delay_used == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
