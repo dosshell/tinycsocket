@@ -1542,6 +1542,62 @@ TEST_CASE("TCS_SO_OOBINLINE")
     REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
+TEST_CASE("TCS_TCP_NODELAY")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    TcsSocket socket_false = TCS_SOCKET_INVALID;
+    TcsSocket socket_true = TCS_SOCKET_INVALID;
+    TcsSocket socket_null = TCS_SOCKET_INVALID;
+
+    CHECK(tcs_socket(&socket_false, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    CHECK(tcs_socket(&socket_true, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+
+    // When
+    CHECK(tcs_opt_ip_no_delay_set(socket_false, false) == TCS_SUCCESS);
+    CHECK(tcs_opt_ip_no_delay_set(socket_true, true) == TCS_SUCCESS);
+    CHECK(tcs_opt_ip_no_delay_set(socket_null, true) == TCS_ERROR_INVALID_ARGUMENT);
+
+    // Then
+    bool socket_false_value = true;
+    bool socket_true_value = false;
+    bool socket_null_value = false;
+    CHECK(tcs_opt_ip_no_delay_get(socket_false, &socket_false_value) == TCS_SUCCESS);
+    CHECK(tcs_opt_ip_no_delay_get(socket_true, &socket_true_value) == TCS_SUCCESS);
+    CHECK(tcs_opt_ip_no_delay_get(socket_null, &socket_null_value) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(tcs_opt_ip_no_delay_get(socket_true, NULL) == TCS_ERROR_INVALID_ARGUMENT);
+
+    CHECK(socket_false_value == false);
+    CHECK(socket_true_value == true);
+
+    // The option must end up as TCP_NODELAY on the TCP level, verify through the raw option API
+    int native_false = -1;
+    int native_true = -1;
+    size_t native_size = sizeof(native_false);
+    CHECK(tcs_opt_get(socket_false, TCS_SOL_TCP, TCS_TCP_NODELAY, &native_false, &native_size) == TCS_SUCCESS);
+    native_size = sizeof(native_true);
+    CHECK(tcs_opt_get(socket_true, TCS_SOL_TCP, TCS_TCP_NODELAY, &native_true, &native_size) == TCS_SUCCESS);
+    CHECK(native_false == 0);
+    CHECK(native_true != 0);
+
+    // Toggling back must clear it again
+    CHECK(tcs_opt_ip_no_delay_set(socket_true, false) == TCS_SUCCESS);
+    socket_true_value = true;
+    CHECK(tcs_opt_ip_no_delay_get(socket_true, &socket_true_value) == TCS_SUCCESS);
+    CHECK(socket_true_value == false);
+    native_true = -1;
+    native_size = sizeof(native_true);
+    CHECK(tcs_opt_get(socket_true, TCS_SOL_TCP, TCS_TCP_NODELAY, &native_true, &native_size) == TCS_SUCCESS);
+    CHECK(native_true == 0);
+
+    // Clean up
+    CHECK(tcs_close(&socket_false) == TCS_SUCCESS);
+    CHECK(tcs_close(&socket_true) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+}
+
 TEST_CASE("Simple Multicast Add Membership")
 {
     // Setup
