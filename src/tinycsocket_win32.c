@@ -150,10 +150,12 @@ const int32_t TCS_SO_OOBINLINE = SO_OOBINLINE;
 const int32_t TCS_SO_PRIORITY = -1;
 
 // IP options
-const int32_t TCS_TCP_NODELAY = TCP_NODELAY;
 const int32_t TCS_IP_MEMBERSHIP_ADD = IP_ADD_MEMBERSHIP;
 const int32_t TCS_IP_MEMBERSHIP_DROP = IP_DROP_MEMBERSHIP;
 const int32_t TCS_IP_MULTICAST_LOOP = IP_MULTICAST_LOOP;
+
+// TCP options
+const int32_t TCS_TCP_NODELAY = TCP_NODELAY;
 
 // ######## Internal Helpers ########
 

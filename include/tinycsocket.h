@@ -29,7 +29,7 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-static const char* const TCS_VERSION_TXT = "v0.3.81";
+static const char* const TCS_VERSION_TXT = "v0.3.82";
 extern const char* const TCS_LICENSE_TXT;
 
 /*
@@ -2471,10 +2471,12 @@ const int32_t TCS_SO_PRIORITY = -1;
 #endif
 
 // IP options
-const int32_t TCS_TCP_NODELAY = TCP_NODELAY;
 const int32_t TCS_IP_MEMBERSHIP_ADD = IP_ADD_MEMBERSHIP;
 const int32_t TCS_IP_MEMBERSHIP_DROP = IP_DROP_MEMBERSHIP;
 const int32_t TCS_IP_MULTICAST_LOOP = IP_MULTICAST_LOOP;
+
+// TCP options
+const int32_t TCS_TCP_NODELAY = TCP_NODELAY;
 
 #if TCS_HAS_AF_PACKET
 const int32_t TCS_PACKET_MEMBERSHIP_ADD = PACKET_ADD_MEMBERSHIP;
@@ -4494,10 +4496,12 @@ const int32_t TCS_SO_OOBINLINE = SO_OOBINLINE;
 const int32_t TCS_SO_PRIORITY = -1;
 
 // IP options
-const int32_t TCS_TCP_NODELAY = TCP_NODELAY;
 const int32_t TCS_IP_MEMBERSHIP_ADD = IP_ADD_MEMBERSHIP;
 const int32_t TCS_IP_MEMBERSHIP_DROP = IP_DROP_MEMBERSHIP;
 const int32_t TCS_IP_MULTICAST_LOOP = IP_MULTICAST_LOOP;
+
+// TCP options
+const int32_t TCS_TCP_NODELAY = TCP_NODELAY;
 
 // ######## Internal Helpers ########
 
@@ -6999,7 +7003,7 @@ TcsResult tcs_opt_ip_no_delay_set(TcsSocket socket, bool use_no_delay)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     int b = use_no_delay ? 1 : 0;
-    return tcs_opt_set(socket, TCS_SOL_IP, TCS_TCP_NODELAY, &b, sizeof(b));
+    return tcs_opt_set(socket, TCS_SOL_TCP, TCS_TCP_NODELAY, &b, sizeof(b));
 }
 
 TcsResult tcs_opt_ip_no_delay_get(TcsSocket socket, bool* is_no_delay_used)
@@ -7008,7 +7012,7 @@ TcsResult tcs_opt_ip_no_delay_get(TcsSocket socket, bool* is_no_delay_used)
         return TCS_ERROR_INVALID_ARGUMENT;
     int b = 0;
     size_t s = sizeof(b);
-    TcsResult sts = tcs_opt_get(socket, TCS_SOL_IP, TCS_TCP_NODELAY, &b, &s);
+    TcsResult sts = tcs_opt_get(socket, TCS_SOL_TCP, TCS_TCP_NODELAY, &b, &s);
     *is_no_delay_used = b;
     return sts;
 }

@@ -834,7 +834,7 @@ TcsResult tcs_opt_ip_no_delay_set(TcsSocket socket, bool use_no_delay)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     int b = use_no_delay ? 1 : 0;
-    return tcs_opt_set(socket, TCS_SOL_IP, TCS_TCP_NODELAY, &b, sizeof(b));
+    return tcs_opt_set(socket, TCS_SOL_TCP, TCS_TCP_NODELAY, &b, sizeof(b));
 }
 
 TcsResult tcs_opt_ip_no_delay_get(TcsSocket socket, bool* is_no_delay_used)
@@ -843,7 +843,7 @@ TcsResult tcs_opt_ip_no_delay_get(TcsSocket socket, bool* is_no_delay_used)
         return TCS_ERROR_INVALID_ARGUMENT;
     int b = 0;
     size_t s = sizeof(b);
-    TcsResult sts = tcs_opt_get(socket, TCS_SOL_IP, TCS_TCP_NODELAY, &b, &s);
+    TcsResult sts = tcs_opt_get(socket, TCS_SOL_TCP, TCS_TCP_NODELAY, &b, &s);
     *is_no_delay_used = b;
     return sts;
 }
