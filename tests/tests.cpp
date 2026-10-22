@@ -784,6 +784,180 @@ TEST_CASE("tcs_socket_tcp_str bind and connect")
     REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
+TEST_CASE("tcs_socket_tcp_str hostname with port")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    // Both ends are given as "hostname:port" (as in the examples), so they resolve to the same address family.
+    TcsSocket listen_socket = TCS_SOCKET_INVALID;
+    TcsSocket accept_socket = TCS_SOCKET_INVALID;
+    TcsSocket client_socket = TCS_SOCKET_INVALID;
+
+    TcsResult listen_res = tcs_socket_tcp_str(&listen_socket, "localhost:1475", NULL, 0);
+    CHECK(listen_res == TCS_SUCCESS);
+    if (listen_res == TCS_SUCCESS)
+    {
+        // The port from the string must have been used when binding
+        struct TcsAddress bound_address = TCS_ADDRESS_NONE;
+        CHECK(tcs_address_socket_local(listen_socket, &bound_address) == TCS_SUCCESS);
+        if (bound_address.family.native == TCS_FAMILY_IPV6.native)
+            CHECK(bound_address.data.ipv6.port == 1475);
+        else
+            CHECK(bound_address.data.ipv4.port == 1475);
+
+        REQUIRE(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
+
+        // When
+        TcsResult connect_res = tcs_socket_tcp_str(&client_socket, NULL, "localhost:1475", 5000);
+        CHECK(connect_res == TCS_SUCCESS);
+        if (connect_res == TCS_SUCCESS) // Guard: never block in accept if the connect failed
+        {
+            CHECK(tcs_accept(listen_socket, &accept_socket, NULL) == TCS_SUCCESS);
+
+            const uint8_t* send_buffer = (const uint8_t*)"hostname";
+            uint8_t recv_buffer[8] = {0};
+            CHECK(tcs_send(client_socket, send_buffer, 8, TCS_MSG_SENDALL, NULL) == TCS_SUCCESS);
+            CHECK(tcs_receive(accept_socket, recv_buffer, 8, TCS_MSG_WAITALL, NULL) == TCS_SUCCESS);
+
+            // Then
+            CHECK(memcmp(recv_buffer, send_buffer, 8) == 0);
+        }
+        else
+        {
+            CHECK(client_socket == TCS_SOCKET_INVALID);
+        }
+    }
+    else
+    {
+        CHECK(listen_socket == TCS_SOCKET_INVALID);
+    }
+
+    // Clean up
+    if (client_socket != TCS_SOCKET_INVALID)
+        CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
+    if (accept_socket != TCS_SOCKET_INVALID)
+        CHECK(tcs_close(&accept_socket) == TCS_SUCCESS);
+    if (listen_socket != TCS_SOCKET_INVALID)
+        CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+}
+
+TEST_CASE("tcs_socket_tcp_str IPv6 bracket notation bind and connect")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    TcsSocket listen_socket = TCS_SOCKET_INVALID;
+    TcsSocket accept_socket = TCS_SOCKET_INVALID;
+    TcsSocket client_socket = TCS_SOCKET_INVALID;
+
+    REQUIRE(tcs_socket_tcp_str(&listen_socket, "[::1]:1476", NULL, 0) == TCS_SUCCESS);
+    REQUIRE(tcs_listen(listen_socket, TCS_BACKLOG_MAX) == TCS_SUCCESS);
+
+    // When
+    TcsResult connect_res = tcs_socket_tcp_str(&client_socket, NULL, "[::1]:1476", 5000);
+    CHECK(connect_res == TCS_SUCCESS);
+    if (connect_res == TCS_SUCCESS) // Guard: never block in accept if the connect failed
+    {
+        struct TcsAddress peer_address = TCS_ADDRESS_NONE;
+        CHECK(tcs_accept(listen_socket, &accept_socket, &peer_address) == TCS_SUCCESS);
+        CHECK(peer_address.family.native == TCS_FAMILY_IPV6.native);
+        CHECK(tcs_address_is_loopback(&peer_address));
+
+        const uint8_t* send_buffer = (const uint8_t*)"ipv6";
+        uint8_t recv_buffer[8] = {0};
+        CHECK(tcs_send(client_socket, send_buffer, 4, TCS_MSG_SENDALL, NULL) == TCS_SUCCESS);
+        CHECK(tcs_receive(accept_socket, recv_buffer, 4, TCS_MSG_WAITALL, NULL) == TCS_SUCCESS);
+
+        // Then
+        CHECK(memcmp(recv_buffer, send_buffer, 4) == 0);
+    }
+    else
+    {
+        CHECK(client_socket == TCS_SOCKET_INVALID);
+    }
+
+    // Clean up
+    if (client_socket != TCS_SOCKET_INVALID)
+        CHECK(tcs_close(&client_socket) == TCS_SUCCESS);
+    if (accept_socket != TCS_SOCKET_INVALID)
+        CHECK(tcs_close(&accept_socket) == TCS_SUCCESS);
+    CHECK(tcs_close(&listen_socket) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+}
+
+TEST_CASE("tcs_socket_tcp_str invalid arguments")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // NULL out_socket
+    CHECK(tcs_socket_tcp_str(NULL, "127.0.0.1:1477", NULL, 0) == TCS_ERROR_INVALID_ARGUMENT);
+
+    // Both addresses NULL
+    TcsSocket socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_tcp_str(&socket, NULL, NULL, 0) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(socket == TCS_SOCKET_INVALID);
+
+    // out_socket already holds a socket, it must be left untouched
+    TcsSocket existing = TCS_SOCKET_INVALID;
+    REQUIRE(tcs_socket(&existing, TCS_FAMILY_IPV4, TCS_SOCKET_STREAM, TCS_PROTOCOL_IP_TCP) == TCS_SUCCESS);
+    const TcsSocket existing_copy = existing;
+    CHECK(tcs_socket_tcp_str(&existing, "127.0.0.1:1477", NULL, 0) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(existing == existing_copy);
+    CHECK(tcs_close(&existing) == TCS_SUCCESS);
+
+    // Negative timeout other than TCS_WAIT_INF
+    socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_tcp_str(&socket, NULL, "127.0.0.1:1477", -2) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(socket == TCS_SOCKET_INVALID);
+
+    // Address that can neither be parsed nor resolved
+    socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_tcp_str(&socket, NULL, "not an address", 100) != TCS_SUCCESS);
+    CHECK(socket == TCS_SOCKET_INVALID);
+
+    // Port out of range or not numeric
+    socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_tcp_str(&socket, "localhost:99999", NULL, 0) != TCS_SUCCESS);
+    CHECK(socket == TCS_SOCKET_INVALID);
+    socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_tcp_str(&socket, "localhost:14ab", NULL, 0) != TCS_SUCCESS);
+    CHECK(socket == TCS_SOCKET_INVALID);
+
+    // Family mismatch between local and remote
+    socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_tcp_str(&socket, "127.0.0.1:1477", "[::1]:1477", 100) != TCS_SUCCESS);
+    CHECK(socket == TCS_SOCKET_INVALID);
+
+    // Clean up
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+}
+
+TEST_CASE("tcs_socket_tcp_str connect failure leaves socket invalid")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Connect to a port nobody listens on
+    TcsSocket socket = TCS_SOCKET_INVALID;
+    TcsResult res = tcs_socket_tcp_str(&socket, NULL, "127.0.0.1:1478", 100);
+
+    if (res != TCS_ERROR_TIMED_OUT && res != TCS_ERROR_CONNECTION_REFUSED)
+    {
+        WARN(res == TCS_ERROR_TIMED_OUT);
+        WARN(res == TCS_ERROR_CONNECTION_REFUSED);
+        CHECK((res == TCS_ERROR_TIMED_OUT || res == TCS_ERROR_CONNECTION_REFUSED));
+    }
+    CHECK(socket == TCS_SOCKET_INVALID);
+
+    // Clean up
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+}
+
 TEST_CASE("tcs_socket_udp bind and send_to")
 {
     // Setup
@@ -885,6 +1059,169 @@ TEST_CASE("tcs_socket_udp_str bind and send_to")
     // Clean up
     CHECK(tcs_close(&socket_send) == TCS_SUCCESS);
     CHECK(tcs_close(&socket_recv) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+}
+
+TEST_CASE("tcs_socket_udp_str hostname with port")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // Given
+    // Both ends are given as "hostname:port" (as in the examples), so they resolve to the same address family.
+    TcsSocket socket_recv = TCS_SOCKET_INVALID;
+    TcsSocket socket_send = TCS_SOCKET_INVALID;
+
+    TcsResult bind_res = tcs_socket_udp_str(&socket_recv, "localhost:1479", NULL);
+    CHECK(bind_res == TCS_SUCCESS);
+    if (bind_res == TCS_SUCCESS)
+    {
+        // The port from the string must have been used when binding
+        struct TcsAddress bound_address = TCS_ADDRESS_NONE;
+        CHECK(tcs_address_socket_local(socket_recv, &bound_address) == TCS_SUCCESS);
+        if (bound_address.family.native == TCS_FAMILY_IPV6.native)
+            CHECK(bound_address.data.ipv6.port == 1479);
+        else
+            CHECK(bound_address.data.ipv4.port == 1479);
+
+        CHECK(tcs_opt_receive_timeout_set(socket_recv, 5000) == TCS_SUCCESS);
+
+        // When
+        TcsResult connect_res = tcs_socket_udp_str(&socket_send, NULL, "localhost:1479");
+        CHECK(connect_res == TCS_SUCCESS);
+        if (connect_res == TCS_SUCCESS)
+        {
+            const uint8_t* send_buffer = (const uint8_t*)"udp";
+            uint8_t recv_buffer[8] = {0};
+            size_t received = 0;
+            struct TcsAddress source_address = TCS_ADDRESS_NONE;
+            CHECK(tcs_send(socket_send, send_buffer, 3, TCS_FLAG_NONE, NULL) == TCS_SUCCESS);
+            CHECK(tcs_receive_from(socket_recv, recv_buffer, 8, TCS_FLAG_NONE, &source_address, &received) ==
+                  TCS_SUCCESS);
+
+            // Then
+            CHECK(received == 3);
+            CHECK(memcmp(recv_buffer, send_buffer, 3) == 0);
+            CHECK(source_address.family.native == bound_address.family.native);
+            CHECK(tcs_address_is_loopback(&source_address));
+        }
+        else
+        {
+            CHECK(socket_send == TCS_SOCKET_INVALID);
+        }
+    }
+    else
+    {
+        CHECK(socket_recv == TCS_SOCKET_INVALID);
+    }
+
+    // Clean up
+    if (socket_send != TCS_SOCKET_INVALID)
+        CHECK(tcs_close(&socket_send) == TCS_SUCCESS);
+    if (socket_recv != TCS_SOCKET_INVALID)
+        CHECK(tcs_close(&socket_recv) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+}
+
+TEST_CASE("tcs_socket_udp_str invalid arguments")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // NULL out_socket
+    CHECK(tcs_socket_udp_str(NULL, "127.0.0.1:1480", NULL) == TCS_ERROR_INVALID_ARGUMENT);
+
+    // Both addresses NULL
+    TcsSocket socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_udp_str(&socket, NULL, NULL) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(socket == TCS_SOCKET_INVALID);
+
+    // out_socket already holds a socket, it must be left untouched
+    TcsSocket existing = TCS_SOCKET_INVALID;
+    REQUIRE(tcs_socket(&existing, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
+    const TcsSocket existing_copy = existing;
+    CHECK(tcs_socket_udp_str(&existing, "127.0.0.1:1480", NULL) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(existing == existing_copy);
+    CHECK(tcs_close(&existing) == TCS_SUCCESS);
+
+    // Address that can neither be parsed nor resolved
+    socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_udp_str(&socket, "not an address", NULL) != TCS_SUCCESS);
+    CHECK(socket == TCS_SOCKET_INVALID);
+
+    // Port out of range or not numeric
+    socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_udp_str(&socket, "localhost:99999", NULL) != TCS_SUCCESS);
+    CHECK(socket == TCS_SOCKET_INVALID);
+    socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_udp_str(&socket, "localhost:14ab", NULL) != TCS_SUCCESS);
+    CHECK(socket == TCS_SOCKET_INVALID);
+
+    // Family mismatch between local and remote
+    socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_udp_str(&socket, "127.0.0.1:1480", "[::1]:1480") != TCS_SUCCESS);
+    CHECK(socket == TCS_SOCKET_INVALID);
+
+    // Clean up
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+}
+
+TEST_CASE("Socket presets: remote address needs a port, local address does not")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    // A remote address with port 0 can never be meaningful, reject it up front
+    struct TcsAddress remote_no_port = TCS_ADDRESS_NONE;
+    remote_no_port.family = TCS_FAMILY_IPV4;
+    remote_no_port.data.ipv4.address = TCS_ADDRESS_IPV4_LOOPBACK;
+    remote_no_port.data.ipv4.port = 0;
+
+    TcsSocket socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_tcp(&socket, NULL, &remote_no_port, 100) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(socket == TCS_SOCKET_INVALID);
+    if (socket != TCS_SOCKET_INVALID) // Do not leak the socket while this test is red
+        tcs_close(&socket);
+    socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_udp(&socket, NULL, &remote_no_port) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(socket == TCS_SOCKET_INVALID);
+    if (socket != TCS_SOCKET_INVALID) // Do not leak the socket while this test is red
+        tcs_close(&socket);
+    socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_tcp_str(&socket, NULL, "localhost", 100) == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(socket == TCS_SOCKET_INVALID);
+    if (socket != TCS_SOCKET_INVALID) // Do not leak the socket while this test is red
+        tcs_close(&socket);
+    socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_udp_str(&socket, NULL, "127.0.0.1") == TCS_ERROR_INVALID_ARGUMENT);
+    CHECK(socket == TCS_SOCKET_INVALID);
+    if (socket != TCS_SOCKET_INVALID) // Do not leak the socket while this test is red
+        tcs_close(&socket);
+
+    // A local address without port means "any free port", and the chosen port must be readable afterwards
+    socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_tcp_str(&socket, "localhost", NULL, 0) == TCS_SUCCESS);
+    if (socket != TCS_SOCKET_INVALID)
+    {
+        struct TcsAddress bound_address = TCS_ADDRESS_NONE;
+        CHECK(tcs_address_socket_local(socket, &bound_address) == TCS_SUCCESS);
+        if (bound_address.family.native == TCS_FAMILY_IPV6.native)
+            CHECK(bound_address.data.ipv6.port != 0);
+        else
+            CHECK(bound_address.data.ipv4.port != 0);
+        CHECK(tcs_close(&socket) == TCS_SUCCESS);
+    }
+    socket = TCS_SOCKET_INVALID;
+    CHECK(tcs_socket_udp_str(&socket, "127.0.0.1", NULL) == TCS_SUCCESS);
+    if (socket != TCS_SOCKET_INVALID)
+    {
+        struct TcsAddress bound_address = TCS_ADDRESS_NONE;
+        CHECK(tcs_address_socket_local(socket, &bound_address) == TCS_SUCCESS);
+        CHECK(bound_address.data.ipv4.port != 0);
+        CHECK(tcs_close(&socket) == TCS_SUCCESS);
+    }
+
+    // Clean up
     REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
@@ -1134,6 +1471,74 @@ TEST_CASE("Address information count")
     // Clean up
     REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
+TEST_CASE("tcs_address_resolve hostname with port")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+
+    struct TcsAddress addresses[4];
+    size_t count = 0;
+
+    // "hostname:port" must resolve and carry the port on every returned address
+    CHECK(tcs_address_resolve("localhost:1212", TCS_FAMILY_ANY, addresses, 4, &count) == TCS_SUCCESS);
+    CHECK(count > 0);
+    for (size_t i = 0; i < count && i < 4; ++i)
+    {
+        CHECK(tcs_address_is_loopback(&addresses[i]));
+        if (addresses[i].family.native == TCS_FAMILY_IPV6.native)
+            CHECK(addresses[i].data.ipv6.port == 1212);
+        else
+            CHECK(addresses[i].data.ipv4.port == 1212);
+    }
+
+    // Family filter still applies
+    count = 0;
+    CHECK(tcs_address_resolve("localhost:1213", TCS_FAMILY_IPV4, addresses, 4, &count) == TCS_SUCCESS);
+    CHECK(count > 0);
+    CHECK(addresses[0].family.native == TCS_FAMILY_IPV4.native);
+    CHECK(addresses[0].data.ipv4.address == TCS_ADDRESS_IPV4_LOOPBACK);
+    CHECK(addresses[0].data.ipv4.port == 1213);
+
+    // Counting only (no output array) must work with a port too
+    count = 0;
+    CHECK(tcs_address_resolve("localhost:1212", TCS_FAMILY_ANY, NULL, 0, &count) == TCS_SUCCESS);
+    CHECK(count > 0);
+
+    // Without port the port is 0
+    count = 0;
+    CHECK(tcs_address_resolve("localhost", TCS_FAMILY_IPV4, addresses, 4, &count) == TCS_SUCCESS);
+    CHECK(count > 0);
+    CHECK(addresses[0].data.ipv4.port == 0);
+
+    // Numeric forms are unchanged: port when given, IPv6 without brackets has no port
+    count = 0;
+    CHECK(tcs_address_resolve("127.0.0.1:80", TCS_FAMILY_ANY, addresses, 4, &count) == TCS_SUCCESS);
+    CHECK(count == 1);
+    CHECK(addresses[0].family.native == TCS_FAMILY_IPV4.native);
+    CHECK(addresses[0].data.ipv4.port == 80);
+    count = 0;
+    CHECK(tcs_address_resolve("[::1]:443", TCS_FAMILY_ANY, addresses, 4, &count) == TCS_SUCCESS);
+    CHECK(count == 1);
+    CHECK(addresses[0].family.native == TCS_FAMILY_IPV6.native);
+    CHECK(addresses[0].data.ipv6.port == 443);
+    count = 0;
+    CHECK(tcs_address_resolve("::1", TCS_FAMILY_ANY, addresses, 4, &count) == TCS_SUCCESS);
+    CHECK(count == 1);
+    CHECK(addresses[0].family.native == TCS_FAMILY_IPV6.native);
+    CHECK(addresses[0].data.ipv6.port == 0);
+
+    // Bad ports are rejected
+    count = 0;
+    CHECK(tcs_address_resolve("localhost:99999", TCS_FAMILY_ANY, addresses, 4, &count) != TCS_SUCCESS);
+    count = 0;
+    CHECK(tcs_address_resolve("localhost:14ab", TCS_FAMILY_ANY, addresses, 4, &count) != TCS_SUCCESS);
+    count = 0;
+    CHECK(tcs_address_resolve("localhost:", TCS_FAMILY_ANY, addresses, 4, &count) != TCS_SUCCESS);
+
+    // Clean up
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+}
+
 TEST_CASE("Interface list")
 {
     // Setup
