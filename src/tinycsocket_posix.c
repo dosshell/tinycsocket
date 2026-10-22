@@ -1707,6 +1707,35 @@ TcsResult tcs_address_resolve(const char* hostname,
     if (address_family.native == -1) // sentinel for unsupported families (e.g. TCS_FAMILY_PACKET on non-Linux)
         return TCS_ERROR_NOT_SUPPORTED;
 
+    // getaddrinfo() does not understand "hostname:port". A string with exactly one ':' carries a port, which is
+    // split off here and applied to the results. Brackets belong to numeric IPv6 only, handled by the fast path.
+    if (strpbrk(hostname, "[]") != NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    char host[256]; // Hostnames are at most 253 characters
+    uint16_t port = 0;
+    const char* colon = strchr(hostname, ':');
+    bool has_port = colon != NULL && strchr(colon + 1, ':') == NULL;
+    size_t host_size = has_port ? (size_t)(colon - hostname) : strlen(hostname);
+    if (host_size == 0 || host_size >= sizeof host)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (has_port)
+    {
+        if (colon[1] == '\0')
+            return TCS_ERROR_INVALID_ARGUMENT;
+        unsigned long port_value = 0;
+        for (const char* c = colon + 1; *c != '\0'; ++c)
+        {
+            if (*c < '0' || *c > '9')
+                return TCS_ERROR_INVALID_ARGUMENT;
+            port_value = port_value * 10 + (unsigned long)(*c - '0');
+            if (port_value > 65535)
+                return TCS_ERROR_INVALID_ARGUMENT;
+        }
+        port = (uint16_t)port_value;
+    }
+    memcpy(host, hostname, host_size);
+    host[host_size] = '\0';
+
     struct addrinfo native_hints;
     memset(&native_hints, 0, sizeof native_hints);
     native_hints.ai_family = address_family.native;
@@ -1715,7 +1744,7 @@ TcsResult tcs_address_resolve(const char* hostname,
     native_hints.ai_protocol = IPPROTO_UDP;
 
     struct addrinfo* native_addrinfo_list = NULL;
-    int sts = getaddrinfo(hostname, NULL, &native_hints, &native_addrinfo_list);
+    int sts = getaddrinfo(host, NULL, &native_hints, &native_addrinfo_list);
 
     // TODO: Move error codes to errno2retcode()
     if (sts == EAI_SYSTEM)
@@ -1754,6 +1783,10 @@ TcsResult tcs_address_resolve(const char* hostname,
             TcsResult convert_address_status = native2sockaddr(iter->ai_addr, &out_addresses[i]);
             if (convert_address_status != TCS_SUCCESS)
                 continue;
+            if (out_addresses[i].family.native == TCS_FAMILY_IPV4.native)
+                out_addresses[i].data.ipv4.port = port;
+            else if (out_addresses[i].family.native == TCS_FAMILY_IPV6.native)
+                out_addresses[i].data.ipv6.port = port;
             i++;
         }
     }
