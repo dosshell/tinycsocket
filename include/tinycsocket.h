@@ -29,7 +29,7 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-static const char* const TCS_VERSION_TXT = "v0.3.86";
+static const char* const TCS_VERSION_TXT = "v0.3.87";
 extern const char* const TCS_LICENSE_TXT;
 
 /*
@@ -569,7 +569,7 @@ TcsResult tcs_socket(TcsSocket* out_socket, TcsFamily family, TcsSocketType type
 *
 * Creates an IPv4 or IPv6 TCP socket based on the address family of the provided address(es).
 * If @p local_address is not NULL, SO_REUSEADDR is set and the socket is bound to it.
-* If @p remote_address is not NULL, the socket connects to it.
+* If @p remote_address is not NULL, the socket connects to it, so it must have a port.
 * At least one of @p local_address or @p remote_address must be non-NULL.
 * If both are provided, they must have the same address family.
 * On failure, *out_socket is always set back to #TCS_SOCKET_INVALID.
@@ -606,7 +606,7 @@ TcsResult tcs_socket(TcsSocket* out_socket, TcsFamily family, TcsSocketType type
 * @param[in] timeout_ms maximum time in milliseconds to wait for connection, or #TCS_WAIT_INF for OS default timeout. Ignored if @p remote_address is NULL.
 *
 * @return #TCS_SUCCESS if successful, otherwise the error code.
-* @retval #TCS_ERROR_INVALID_ARGUMENT if @p out_socket is NULL, if *out_socket is not #TCS_SOCKET_INVALID, if both addresses are NULL, or if both are provided with different address families.
+* @retval #TCS_ERROR_INVALID_ARGUMENT if @p out_socket is NULL, if *out_socket is not #TCS_SOCKET_INVALID, if both addresses are NULL, if both are provided with different address families, or if @p remote_address has port 0.
 * @retval #TCS_ERROR_CONNECTION_REFUSED if the remote server refused the connection.
 * @retval #TCS_ERROR_TIMED_OUT if the connection attempt timed out.
 *
@@ -623,7 +623,9 @@ TcsResult tcs_socket_tcp(TcsSocket* out_socket,
 * @brief Create a TCP socket from string addresses, optionally bind and/or connect.
 *
 * Resolves the address strings with ::tcs_address_resolve() and delegates to ::tcs_socket_tcp().
-* Addresses must include a port, e.g. "127.0.0.1:8080" or "[::1]:8080".
+* Addresses are given as "host:port", e.g. "localhost:8080", "127.0.0.1:8080" or "[::1]:8080".
+* The first resolved address is used. @p remote_address must include a port.
+* @p local_address without a port binds to a port chosen by the operating system.
 * At least one of @p local_address or @p remote_address must be non-NULL.
 * On failure, *out_socket is always set back to #TCS_SOCKET_INVALID.
 *
@@ -654,7 +656,8 @@ TcsResult tcs_socket_tcp(TcsSocket* out_socket,
 * @param[in] timeout_ms maximum time in milliseconds to wait for connection, or #TCS_WAIT_INF for OS default timeout. Ignored if @p remote_address is NULL.
 *
 * @return #TCS_SUCCESS if successful, otherwise the error code.
-* @retval #TCS_ERROR_INVALID_ARGUMENT if @p out_socket is NULL, if *out_socket is not #TCS_SOCKET_INVALID, or if both addresses are NULL.
+* @retval #TCS_ERROR_INVALID_ARGUMENT if @p out_socket is NULL, if *out_socket is not #TCS_SOCKET_INVALID, if both addresses are NULL, if an address string is malformed, or if @p remote_address has no port.
+* @retval #TCS_ERROR_ADDRESS_LOOKUP_FAILED if an address string could not be resolved.
 * @retval #TCS_ERROR_CONNECTION_REFUSED if the remote server refused the connection.
 * @retval #TCS_ERROR_TIMED_OUT if the connection attempt timed out.
 *
@@ -677,6 +680,7 @@ TcsResult tcs_socket_tcp_str(TcsSocket* out_socket,
 * When only @p remote_address is given (no @p local_address), the socket is also connected,
 * allowing use of ::tcs_send(). When both are given, the socket is not connected to avoid
 * filtering out multicast traffic — use ::tcs_send_to() instead.
+* Whenever the socket is connected, @p remote_address must have a port.
 * At least one of @p local_address or @p remote_address must be non-NULL.
 * If both are provided, they must have the same address family.
 * On failure, *out_socket is always set back to #TCS_SOCKET_INVALID.
@@ -712,7 +716,7 @@ TcsResult tcs_socket_tcp_str(TcsSocket* out_socket,
 * @param[in] remote_address address to connect to, or NULL to skip connecting.
 *
 * @return #TCS_SUCCESS if successful, otherwise the error code.
-* @retval #TCS_ERROR_INVALID_ARGUMENT if @p out_socket is NULL, if *out_socket is not #TCS_SOCKET_INVALID, if both addresses are NULL, or if both are provided with different address families.
+* @retval #TCS_ERROR_INVALID_ARGUMENT if @p out_socket is NULL, if *out_socket is not #TCS_SOCKET_INVALID, if both addresses are NULL, if both are provided with different address families, or if @p remote_address is connected to but has port 0.
 *
 * @see tcs_socket_udp_str()
 * @see tcs_close()
@@ -724,8 +728,10 @@ TcsResult tcs_socket_udp(TcsSocket* out_socket,
 /**
 * @brief Create a UDP socket from string addresses, optionally bind and/or connect.
 *
-* Parses the address strings with ::tcs_address_resolve() and delegates to ::tcs_socket_udp().
-* Addresses must include a port, e.g. "127.0.0.1:8080" or "[::1]:8080".
+* Resolves the address strings with ::tcs_address_resolve() and delegates to ::tcs_socket_udp().
+* Addresses are given as "host:port", e.g. "localhost:8080", "127.0.0.1:8080" or "[::1]:8080".
+* The first resolved address is used. A @p remote_address that the socket connects to must include a port.
+* @p local_address without a port binds to a port chosen by the operating system.
 * At least one of @p local_address or @p remote_address must be non-NULL.
 * On failure, *out_socket is always set back to #TCS_SOCKET_INVALID.
 *
@@ -755,7 +761,8 @@ TcsResult tcs_socket_udp(TcsSocket* out_socket,
 * @param[in] remote_address address string to connect to, or NULL to skip connecting.
 *
 * @return #TCS_SUCCESS if successful, otherwise the error code.
-* @retval #TCS_ERROR_INVALID_ARGUMENT if @p out_socket is NULL, if *out_socket is not #TCS_SOCKET_INVALID, or if both addresses are NULL.
+* @retval #TCS_ERROR_INVALID_ARGUMENT if @p out_socket is NULL, if *out_socket is not #TCS_SOCKET_INVALID, if both addresses are NULL, if an address string is malformed, or if @p remote_address is connected to but has no port.
+* @retval #TCS_ERROR_ADDRESS_LOOKUP_FAILED if an address string could not be resolved.
 *
 * @see tcs_socket_udp()
 * @see tcs_close()
@@ -1831,7 +1838,17 @@ TcsResult tcs_interface_list(struct TcsInterface out_interfaces[], size_t interf
 /**
 * @brief Resolve a hostname to one or more addresses.
 *
-* @param[in] hostname hostname or IP string to resolve.
+* The string may include a port, which is then set on every returned address:
+* @verbatim
+* localhost
+* localhost:1212
+* 192.168.0.1:1212
+* [::1]:1212
+* @endverbatim
+* Numeric addresses are parsed with ::tcs_address_parse() without any lookup.
+* Without a port, the port of the returned addresses is 0.
+*
+* @param[in] hostname hostname or IP string to resolve, optionally with a port.
 * @param[in] address_family address family filter, or ::TCS_FAMILY_ANY for all.
 * @param[out] out_addresses array to receive resolved addresses, or NULL to only count.
 * @param[in] addresses_length number of elements in the @p out_addresses array.
@@ -4022,6 +4039,35 @@ TcsResult tcs_address_resolve(const char* hostname,
     if (address_family.native == -1) // sentinel for unsupported families (e.g. TCS_FAMILY_PACKET on non-Linux)
         return TCS_ERROR_NOT_SUPPORTED;
 
+    // getaddrinfo() does not understand "hostname:port". A string with exactly one ':' carries a port, which is
+    // split off here and applied to the results. Brackets belong to numeric IPv6 only, handled by the fast path.
+    if (strpbrk(hostname, "[]") != NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    char host[256]; // Hostnames are at most 253 characters
+    uint16_t port = 0;
+    const char* colon = strchr(hostname, ':');
+    bool has_port = colon != NULL && strchr(colon + 1, ':') == NULL;
+    size_t host_size = has_port ? (size_t)(colon - hostname) : strlen(hostname);
+    if (host_size == 0 || host_size >= sizeof host)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (has_port)
+    {
+        if (colon[1] == '\0')
+            return TCS_ERROR_INVALID_ARGUMENT;
+        unsigned long port_value = 0;
+        for (const char* c = colon + 1; *c != '\0'; ++c)
+        {
+            if (*c < '0' || *c > '9')
+                return TCS_ERROR_INVALID_ARGUMENT;
+            port_value = port_value * 10 + (unsigned long)(*c - '0');
+            if (port_value > 65535)
+                return TCS_ERROR_INVALID_ARGUMENT;
+        }
+        port = (uint16_t)port_value;
+    }
+    memcpy(host, hostname, host_size);
+    host[host_size] = '\0';
+
     struct addrinfo native_hints;
     memset(&native_hints, 0, sizeof native_hints);
     native_hints.ai_family = address_family.native;
@@ -4030,7 +4076,7 @@ TcsResult tcs_address_resolve(const char* hostname,
     native_hints.ai_protocol = IPPROTO_UDP;
 
     struct addrinfo* native_addrinfo_list = NULL;
-    int sts = getaddrinfo(hostname, NULL, &native_hints, &native_addrinfo_list);
+    int sts = getaddrinfo(host, NULL, &native_hints, &native_addrinfo_list);
 
     // TODO: Move error codes to errno2retcode()
     if (sts == EAI_SYSTEM)
@@ -4069,6 +4115,10 @@ TcsResult tcs_address_resolve(const char* hostname,
             TcsResult convert_address_status = native2sockaddr(iter->ai_addr, &out_addresses[i]);
             if (convert_address_status != TCS_SUCCESS)
                 continue;
+            if (out_addresses[i].family.native == TCS_FAMILY_IPV4.native)
+                out_addresses[i].data.ipv4.port = port;
+            else if (out_addresses[i].family.native == TCS_FAMILY_IPV6.native)
+                out_addresses[i].data.ipv6.port = port;
             i++;
         }
     }
@@ -6923,12 +6973,41 @@ TcsResult tcs_address_resolve(const char* hostname,
     if (address_family.native == TCS_FAMILY_PACKET.native) // Only the numeric fast path above can give a MAC address
         return TCS_ERROR_NOT_SUPPORTED;
 
+    // getaddrinfo() does not understand "hostname:port". A string with exactly one ':' carries a port, which is
+    // split off here and applied to the results. Brackets belong to numeric IPv6 only, handled by the fast path.
+    if (strpbrk(hostname, "[]") != NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    char host[256]; // Hostnames are at most 253 characters
+    uint16_t port = 0;
+    const char* colon = strchr(hostname, ':');
+    bool has_port = colon != NULL && strchr(colon + 1, ':') == NULL;
+    size_t host_size = has_port ? (size_t)(colon - hostname) : strlen(hostname);
+    if (host_size == 0 || host_size >= sizeof host)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (has_port)
+    {
+        if (colon[1] == '\0')
+            return TCS_ERROR_INVALID_ARGUMENT;
+        unsigned long port_value = 0;
+        for (const char* c = colon + 1; *c != '\0'; ++c)
+        {
+            if (*c < '0' || *c > '9')
+                return TCS_ERROR_INVALID_ARGUMENT;
+            port_value = port_value * 10 + (unsigned long)(*c - '0');
+            if (port_value > 65535)
+                return TCS_ERROR_INVALID_ARGUMENT;
+        }
+        port = (uint16_t)port_value;
+    }
+    memcpy(host, hostname, host_size);
+    host[host_size] = '\0';
+
     ADDRINFOA native_hints;
     memset(&native_hints, 0, sizeof native_hints);
     native_hints.ai_family = address_family.native;
 
     PADDRINFOA native_addrinfo_list = NULL;
-    int getaddrinfo_status = getaddrinfo(hostname, NULL, &native_hints, &native_addrinfo_list);
+    int getaddrinfo_status = getaddrinfo(host, NULL, &native_hints, &native_addrinfo_list);
     if (getaddrinfo_status != 0)
         return TCS_ERROR_ADDRESS_LOOKUP_FAILED;
 
@@ -6950,6 +7029,10 @@ TcsResult tcs_address_resolve(const char* hostname,
             TcsResult address_convert_status = native2sockaddr(iter->ai_addr, &out_addresses[i]);
             if (address_convert_status != TCS_SUCCESS)
                 continue;
+            if (out_addresses[i].family.native == TCS_FAMILY_IPV4.native)
+                out_addresses[i].data.ipv4.port = port;
+            else if (out_addresses[i].family.native == TCS_FAMILY_IPV6.native)
+                out_addresses[i].data.ipv6.port = port;
             i++;
         }
     }
@@ -7292,6 +7375,13 @@ TcsResult tcs_socket_tcp(TcsSocket* out_socket,
     if (local_address != NULL && remote_address != NULL &&
         local_address->family.native != remote_address->family.native)
         return TCS_ERROR_INVALID_ARGUMENT;
+    // A remote address without a port can never be connected to
+    if (remote_address != NULL && remote_address->family.native == TCS_FAMILY_IPV4.native &&
+        remote_address->data.ipv4.port == 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (remote_address != NULL && remote_address->family.native == TCS_FAMILY_IPV6.native &&
+        remote_address->data.ipv6.port == 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
     if (timeout_ms < 0 && timeout_ms != TCS_WAIT_INF)
         return TCS_ERROR_INVALID_ARGUMENT;
 
@@ -7443,6 +7533,15 @@ TcsResult tcs_socket_udp(TcsSocket* out_socket,
         local_address->family.native != remote_address->family.native)
         return TCS_ERROR_INVALID_ARGUMENT;
 
+    // A multicast group joined on a bound socket is the only remote address the socket is not connected to
+    bool is_multicast = remote_address != NULL && tcs_address_is_multicast(remote_address);
+    bool do_connect = remote_address != NULL && (!is_multicast || local_address == NULL);
+    // A remote address without a port can never be connected to
+    if (do_connect && remote_address->family.native == TCS_FAMILY_IPV4.native && remote_address->data.ipv4.port == 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+    if (do_connect && remote_address->family.native == TCS_FAMILY_IPV6.native && remote_address->data.ipv6.port == 0)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
     TcsFamily family = local_address != NULL ? local_address->family : remote_address->family;
 
     TcsResult res = tcs_socket(out_socket, family, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP);
@@ -7467,8 +7566,6 @@ TcsResult tcs_socket_udp(TcsSocket* out_socket,
 
     if (remote_address != NULL)
     {
-        bool is_multicast = tcs_address_is_multicast(remote_address);
-
         if (is_multicast)
         {
             res = tcs_opt_membership_add(*out_socket, remote_address);
@@ -7479,7 +7576,7 @@ TcsResult tcs_socket_udp(TcsSocket* out_socket,
             }
         }
 
-        if (!is_multicast || local_address == NULL)
+        if (do_connect)
         {
             res = tcs_connect(*out_socket, remote_address);
             if (res != TCS_SUCCESS)
