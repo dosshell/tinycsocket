@@ -173,10 +173,12 @@ const int32_t TCS_SO_PRIORITY = -1;
 #endif
 
 // IP options
-const int32_t TCS_TCP_NODELAY = TCP_NODELAY;
 const int32_t TCS_IP_MEMBERSHIP_ADD = IP_ADD_MEMBERSHIP;
 const int32_t TCS_IP_MEMBERSHIP_DROP = IP_DROP_MEMBERSHIP;
 const int32_t TCS_IP_MULTICAST_LOOP = IP_MULTICAST_LOOP;
+
+// TCP options
+const int32_t TCS_TCP_NODELAY = TCP_NODELAY;
 
 #if TCS_HAS_AF_PACKET
 const int32_t TCS_PACKET_MEMBERSHIP_ADD = PACKET_ADD_MEMBERSHIP;
@@ -1271,8 +1273,8 @@ TcsResult tcs_opt_linger_get(TcsSocket socket, bool* do_linger, int* timeout_sec
     return sts;
 }
 
-// tcs_opt_ip_no_delay_set() is defined in tinycsocket_common.c
-// tcs_opt_ip_no_delay_get() is defined in tinycsocket_common.c
+// tcs_opt_tcp_no_delay_set() is defined in tinycsocket_common.c
+// tcs_opt_tcp_no_delay_get() is defined in tinycsocket_common.c
 // tcs_opt_out_of_band_inline_set() is defined in tinycsocket_common.c
 // tcs_opt_out_of_band_inline_get() is defined in tinycsocket_common.c
 // tcs_opt_priority_set() is defined in tinycsocket_common.c
