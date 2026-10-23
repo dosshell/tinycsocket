@@ -43,6 +43,7 @@
 #include <iphlpapi.h> // GetAdaptersAddresses
 #include <ws2tcpip.h> // getaddrinfo
 
+#include <limits.h> // INT_MAX
 #include <stdio.h>  // fprintf (debug diagnostics)
 #include <stdlib.h> // Malloc for GetAdaptersAddresses
 #include <string.h> // memset
@@ -112,7 +113,9 @@ const struct TcsAddressIpv6 TCS_ADDRESS_IPV6_LOOPBACK = {{0, 0, 0, 0, 0, 0, 0, 0
 const TcsFamily TCS_FAMILY_ANY = {AF_UNSPEC};
 const TcsFamily TCS_FAMILY_IPV4 = {AF_INET};
 const TcsFamily TCS_FAMILY_IPV6 = {AF_INET6};
-const TcsFamily TCS_FAMILY_PACKET = {-1}; /* AF_PACKET unsupported on Windows */
+// Windows has no AF_PACKET. Packet sockets are emulated with Npcap, see tcs_lib_init(). The value never reaches
+// Winsock, it only needs to differ from every AF_* value.
+const TcsFamily TCS_FAMILY_PACKET = {1000};
 
 // Type
 const TcsSocketType TCS_SOCKET_STREAM = {SOCK_STREAM};
@@ -218,13 +221,49 @@ static TcsResult socketstatus2retcode(int status)
     }
 }
 
+// Lists the adapters with GetAdaptersAddresses(). *out_adapters is NULL when there are none. Free it with free().
+static TcsResult adapters_get(PIP_ADAPTER_ADDRESSES* out_adapters)
+{
+    const int MAX_TRIES = 5;
+    ULONG buffer_size = 15000; // From msdn recommendation
+    PIP_ADAPTER_ADDRESSES adapters = NULL;
+    ULONG adapter_sts = ERROR_NO_DATA;
+    for (int i = 0; i < MAX_TRIES; ++i)
+    {
+        adapters = (PIP_ADAPTER_ADDRESSES)malloc(buffer_size);
+        if (adapters == NULL)
+            return TCS_ERROR_MEMORY;
+        adapter_sts = GetAdaptersAddresses(AF_UNSPEC,
+                                           GAA_FLAG_SKIP_DNS_SERVER | GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST,
+                                           NULL,
+                                           adapters,
+                                           &buffer_size);
+        if (adapter_sts != ERROR_BUFFER_OVERFLOW)
+            break;
+        free(adapters);
+        adapters = NULL;
+    }
+    if (adapter_sts == ERROR_NO_DATA)
+    {
+        free(adapters);
+        *out_adapters = NULL;
+        return TCS_SUCCESS;
+    }
+    if (adapter_sts != NO_ERROR)
+    {
+        // Debug: log the actual Windows error code for diagnostics
+        fprintf(stderr, "GetAdaptersAddresses failed with error: %lu (0x%lX)\n", adapter_sts, adapter_sts);
+        free(adapters);
+        return TCS_ERROR_UNKNOWN;
+    }
+    *out_adapters = adapters;
+    return TCS_SUCCESS;
+}
+
 static TcsResult sockaddr2native(const struct TcsAddress* in_addr, PSOCKADDR out_addr, int* out_addrlen)
 {
     if (in_addr == NULL || out_addr == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
-
-    if (in_addr->family.native == -1) // sentinel for unsupported families (e.g. TCS_FAMILY_PACKET on Windows)
-        return TCS_ERROR_NOT_SUPPORTED;
 
     if (in_addr->family.native == TCS_FAMILY_ANY.native)
     {
@@ -255,7 +294,7 @@ static TcsResult sockaddr2native(const struct TcsAddress* in_addr, PSOCKADDR out
     }
     else if (in_addr->family.native == TCS_FAMILY_PACKET.native)
     {
-        return TCS_ERROR_NOT_SUPPORTED;
+        return TCS_ERROR_NOT_SUPPORTED; // Packet addresses have no sockaddr on Windows, only packet sockets take them
     }
     return TCS_ERROR_NOT_SUPPORTED;
 }
@@ -292,16 +331,292 @@ static TcsResult native2sockaddr(const PSOCKADDR in_addr, struct TcsAddress* out
     return TCS_SUCCESS;
 }
 
+// ######## Packet Sockets (Npcap) ########
+//
+// Windows has no AF_PACKET. Packet sockets are emulated on top of Npcap, whose wpcap.dll is loaded at runtime by
+// tcs_lib_init(). Nothing from the Npcap SDK is needed at build time: the few pcap types and functions used are
+// declared here, and their ABI has been frozen since WinPcap. A packet socket is an index into g_packet_sockets with
+// the top bit set, which can never collide with a kernel SOCKET handle.
+//
+// Supported: Npcap 1.00 (2020) or later, the first stable release. Every function resolved by npcap_load() exists in
+// all Npcap releases, since Npcap has always shipped a libpcap newer than 1.5. pcap_set_immediate_mode() is what rules
+// out WinPcap and Win10Pcap, which stop at libpcap 1.0; a fallback to pcap_setmintocopy(p, 0) would admit them.
+// Behaviour that depends on the version: 802.1Q tags are restored on receive from Npcap 1.81 (fixed for TCI 0 in 1.82
+// and for stacked tags in 1.88). Before that, NDIS has already stripped the tag, so tagged frames arrive untagged. The
+// filter in packet_socket_filter() matches both cases.
+
+typedef struct pcap pcap_t;
+
+struct pcap_pkthdr
+{
+    struct timeval ts;
+    unsigned int caplen;
+    unsigned int len;
+};
+
+struct bpf_program
+{
+    unsigned int bf_len;
+    struct bpf_insn* bf_insns;
+};
+
+#define TCS_PCAP_ERRBUF_SIZE 256
+#define TCS_PCAP_NETMASK_UNKNOWN 0xffffffffu
+#define TCS_PCAP_DLT_EN10MB 1
+#define TCS_PCAP_ERROR_NO_SUCH_DEVICE (-5)
+#define TCS_PCAP_ERROR_PERM_DENIED (-8)
+#define TCS_PCAP_ERROR_IFACE_NOT_UP (-9)
+#define TCS_PCAP_ERROR_PROMISC_PERM_DENIED (-11)
+
+typedef pcap_t*(__cdecl* TcsPcapCreate)(const char*, char*);
+typedef int(__cdecl* TcsPcapSetInt)(pcap_t*, int);
+typedef int(__cdecl* TcsPcapGetInt)(pcap_t*);
+typedef int(__cdecl* TcsPcapSetNonblock)(pcap_t*, int, char*);
+typedef HANDLE(__cdecl* TcsPcapGetEvent)(pcap_t*);
+typedef int(__cdecl* TcsPcapCompile)(pcap_t*, struct bpf_program*, const char*, int, unsigned int);
+typedef int(__cdecl* TcsPcapSetFilter)(pcap_t*, struct bpf_program*);
+typedef void(__cdecl* TcsPcapFreeCode)(struct bpf_program*);
+typedef int(__cdecl* TcsPcapNextEx)(pcap_t*, struct pcap_pkthdr**, const unsigned char**);
+typedef int(__cdecl* TcsPcapSendPacket)(pcap_t*, const unsigned char*, int);
+typedef void(__cdecl* TcsPcapClose)(pcap_t*);
+
+static struct
+{
+    HMODULE module; // NULL when Npcap is not installed or the library is not initialized
+    int init_count; // tcs_lib_init() calls not yet matched by tcs_lib_cleanup()
+    TcsPcapCreate create;
+    TcsPcapSetInt set_snaplen;
+    TcsPcapSetInt set_promisc;
+    TcsPcapSetInt set_immediate_mode;
+    TcsPcapGetInt activate;
+    TcsPcapGetInt datalink;
+    TcsPcapSetNonblock setnonblock;
+    TcsPcapGetEvent getevent;
+    TcsPcapCompile compile;
+    TcsPcapSetFilter setfilter;
+    TcsPcapFreeCode freecode;
+    TcsPcapNextEx next_ex;
+    TcsPcapSendPacket sendpacket;
+    TcsPcapClose close;
+} g_npcap;
+
+struct TcsPacketSocket
+{
+    pcap_t* pcap; // NULL until bound
+    int type;     // SOCK_DGRAM or SOCK_RAW
+    uint16_t protocol;
+    TcsInterfaceId interface_id;
+    uint8_t mac[6];         // The adapter's own address, source of DGRAM frames
+    int receive_timeout_ms; // 0 waits forever
+    bool nonblocking;
+    uint8_t* groups; // Joined multicast addresses, 6 bytes each
+    size_t group_count;
+};
+
+#ifndef TCS_CFG_PACKET_SOCKETS_MAX
+#define TCS_CFG_PACKET_SOCKETS_MAX 64
+#endif
+#define TCS_PACKET_SOCKET_TAG ((TcsSocket)1 << (sizeof(TcsSocket) * 8 - 1))
+
+static struct TcsPacketSocket* g_packet_sockets[TCS_CFG_PACKET_SOCKETS_MAX];
+
+static struct TcsPacketSocket* packet_socket_get(TcsSocket socket)
+{
+    if (socket == TCS_SOCKET_INVALID || (socket & TCS_PACKET_SOCKET_TAG) == 0)
+        return NULL;
+    TcsSocket index = socket & ~TCS_PACKET_SOCKET_TAG;
+    if (index >= TCS_CFG_PACKET_SOCKETS_MAX)
+        return NULL;
+    return g_packet_sockets[index];
+}
+
+static void npcap_load(void)
+{
+    // Npcap installs to System32\Npcap. LOAD_WITH_ALTERED_SEARCH_PATH makes the loader find Packet.dll next to
+    // wpcap.dll without SetDllDirectory(), which would affect the whole process. The plain name is the fallback
+    // recommended by Npcap, for installations in WinPcap compatible mode.
+    const char suffix[] = "\\Npcap\\wpcap.dll";
+    char path[MAX_PATH];
+    UINT system_dir_size = GetSystemDirectoryA(path, MAX_PATH);
+    HMODULE m = NULL;
+    if (system_dir_size != 0 && system_dir_size + sizeof suffix <= MAX_PATH)
+    {
+        memcpy(path + system_dir_size, suffix, sizeof suffix);
+        m = LoadLibraryExA(path, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+    }
+    if (m == NULL)
+        m = LoadLibraryA("wpcap.dll");
+    if (m == NULL)
+        return;
+
+    // FARPROC is cast through void (*)(void), which gcc treats as compatible with every function pointer type
+    g_npcap.create = (TcsPcapCreate)(void (*)(void))GetProcAddress(m, "pcap_create");
+    g_npcap.set_snaplen = (TcsPcapSetInt)(void (*)(void))GetProcAddress(m, "pcap_set_snaplen");
+    g_npcap.set_promisc = (TcsPcapSetInt)(void (*)(void))GetProcAddress(m, "pcap_set_promisc");
+    g_npcap.set_immediate_mode = (TcsPcapSetInt)(void (*)(void))GetProcAddress(m, "pcap_set_immediate_mode");
+    g_npcap.activate = (TcsPcapGetInt)(void (*)(void))GetProcAddress(m, "pcap_activate");
+    g_npcap.datalink = (TcsPcapGetInt)(void (*)(void))GetProcAddress(m, "pcap_datalink");
+    g_npcap.setnonblock = (TcsPcapSetNonblock)(void (*)(void))GetProcAddress(m, "pcap_setnonblock");
+    g_npcap.getevent = (TcsPcapGetEvent)(void (*)(void))GetProcAddress(m, "pcap_getevent");
+    g_npcap.compile = (TcsPcapCompile)(void (*)(void))GetProcAddress(m, "pcap_compile");
+    g_npcap.setfilter = (TcsPcapSetFilter)(void (*)(void))GetProcAddress(m, "pcap_setfilter");
+    g_npcap.freecode = (TcsPcapFreeCode)(void (*)(void))GetProcAddress(m, "pcap_freecode");
+    g_npcap.next_ex = (TcsPcapNextEx)(void (*)(void))GetProcAddress(m, "pcap_next_ex");
+    g_npcap.sendpacket = (TcsPcapSendPacket)(void (*)(void))GetProcAddress(m, "pcap_sendpacket");
+    g_npcap.close = (TcsPcapClose)(void (*)(void))GetProcAddress(m, "pcap_close");
+
+    if (g_npcap.create == NULL || g_npcap.set_snaplen == NULL || g_npcap.set_promisc == NULL ||
+        g_npcap.set_immediate_mode == NULL || g_npcap.activate == NULL || g_npcap.datalink == NULL ||
+        g_npcap.setnonblock == NULL || g_npcap.getevent == NULL || g_npcap.compile == NULL ||
+        g_npcap.setfilter == NULL || g_npcap.freecode == NULL || g_npcap.next_ex == NULL ||
+        g_npcap.sendpacket == NULL || g_npcap.close == NULL)
+    {
+        FreeLibrary(m);
+        return;
+    }
+    g_npcap.module = m;
+}
+
+// Installs a BPF filter giving the socket the frames a Linux packet socket with the same protocol and memberships
+// would see. Npcap cannot program the adapter's multicast filter, so memberships need promiscuous mode and the filter
+// then also limits the destinations to the adapter's own address, broadcast and the joined groups.
+static TcsResult packet_socket_filter(const struct TcsPacketSocket* ps, pcap_t* pcap)
+{
+    bool filter_protocol = ps->protocol != TCS_PROTOCOL_ETH_ALL;
+    if (!filter_protocol && ps->group_count == 0)
+        return TCS_SUCCESS;
+
+    size_t expression_size = 128 + 36 * (ps->group_count + 1);
+    char* expression = (char*)malloc(expression_size);
+    if (expression == NULL)
+        return TCS_ERROR_MEMORY;
+    size_t pos = 0;
+    if (ps->group_count > 0)
+    {
+        struct TcsAddress mac = TCS_ADDRESS_NONE;
+        mac.family = TCS_FAMILY_PACKET;
+        char mac_str[18];
+        memcpy(mac.data.packet.mac, ps->mac, 6);
+        tcs_address_to_str(&mac, mac_str, sizeof mac_str, NULL);
+        pos += (size_t)snprintf(expression + pos, expression_size - pos, "(ether dst %s or ether broadcast", mac_str);
+        for (size_t i = 0; i < ps->group_count; ++i)
+        {
+            memcpy(mac.data.packet.mac, ps->groups + i * 6, 6);
+            tcs_address_to_str(&mac, mac_str, sizeof mac_str, NULL);
+            pos += (size_t)snprintf(expression + pos, expression_size - pos, " or ether dst %s", mac_str);
+        }
+        pos += (size_t)snprintf(expression + pos, expression_size - pos, "%s", filter_protocol ? ") and " : ")");
+    }
+    if (filter_protocol)
+    {
+        // Tagged frames are matched too, Linux delivers them untagged with the inner protocol
+        snprintf(expression + pos,
+                 expression_size - pos,
+                 "(ether proto 0x%04x or (vlan and ether proto 0x%04x))",
+                 (unsigned int)ps->protocol,
+                 (unsigned int)ps->protocol);
+    }
+
+    struct bpf_program program;
+    memset(&program, 0, sizeof program);
+    int compile_sts = g_npcap.compile(pcap, &program, expression, 1, TCS_PCAP_NETMASK_UNKNOWN);
+    free(expression);
+    if (compile_sts != 0)
+        return TCS_ERROR_SYSTEM;
+    int setfilter_sts = g_npcap.setfilter(pcap, &program);
+    g_npcap.freecode(&program);
+    return setfilter_sts == 0 ? TCS_SUCCESS : TCS_ERROR_SYSTEM;
+}
+
+// Opens the Npcap handle of a packet socket from its current state, replacing the previous handle on success
+static TcsResult packet_socket_open(struct TcsPacketSocket* ps)
+{
+    PIP_ADAPTER_ADDRESSES adapters = NULL;
+    TcsResult adapters_sts = adapters_get(&adapters);
+    if (adapters_sts != TCS_SUCCESS)
+        return adapters_sts;
+
+    // Npcap names its devices after the adapter GUID
+    const char prefix[] = "\\Device\\NPF_";
+    char device[sizeof prefix + MAX_ADAPTER_NAME_LENGTH + 4];
+    bool found = false;
+    for (PIP_ADAPTER_ADDRESSES iter = adapters; iter != NULL && !found; iter = iter->Next)
+    {
+        size_t name_size = strlen(iter->AdapterName) + 1;
+        if (iter->IfIndex != ps->interface_id || iter->PhysicalAddressLength != 6 ||
+            sizeof prefix - 1 + name_size > sizeof device)
+            continue;
+        memcpy(device, prefix, sizeof prefix - 1);
+        memcpy(device + sizeof prefix - 1, iter->AdapterName, name_size);
+        memcpy(ps->mac, iter->PhysicalAddress, 6);
+        found = true;
+    }
+    free(adapters);
+    if (!found)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    char errbuf[TCS_PCAP_ERRBUF_SIZE];
+    pcap_t* pcap = g_npcap.create(device, errbuf);
+    if (pcap == NULL)
+        return TCS_ERROR_SYSTEM;
+    g_npcap.set_snaplen(pcap, 65535);
+    g_npcap.set_promisc(pcap, ps->group_count > 0);
+    g_npcap.set_immediate_mode(pcap, 1); // Deliver every frame at once instead of batching them in the driver
+    int activate_sts = g_npcap.activate(pcap);
+    if (activate_sts < 0)
+    {
+        g_npcap.close(pcap);
+        if (activate_sts == TCS_PCAP_ERROR_PERM_DENIED || activate_sts == TCS_PCAP_ERROR_PROMISC_PERM_DENIED)
+            return TCS_ERROR_PERMISSION_DENIED;
+        if (activate_sts == TCS_PCAP_ERROR_NO_SUCH_DEVICE)
+            return TCS_ERROR_INVALID_ARGUMENT;
+        if (activate_sts == TCS_PCAP_ERROR_IFACE_NOT_UP)
+            return TCS_ERROR_NETWORK_UNREACHABLE;
+        return TCS_ERROR_SYSTEM;
+    }
+    // Receiving waits on the handle's event instead, so the socket's timeout and blocking mode can change later
+    if (g_npcap.datalink(pcap) != TCS_PCAP_DLT_EN10MB || g_npcap.setnonblock(pcap, 1, errbuf) != 0)
+    {
+        g_npcap.close(pcap);
+        return TCS_ERROR_NOT_SUPPORTED;
+    }
+    TcsResult filter_sts = packet_socket_filter(ps, pcap);
+    if (filter_sts != TCS_SUCCESS)
+    {
+        g_npcap.close(pcap);
+        return filter_sts;
+    }
+    if (ps->pcap != NULL)
+        g_npcap.close(ps->pcap);
+    ps->pcap = pcap;
+    return TCS_SUCCESS;
+}
+
 TcsResult tcs_lib_init(void)
 {
     WSADATA wsa_data;
     if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0)
         return TCS_ERROR_SYSTEM;
+    // Npcap is optional, without it packet sockets are not supported
+    if (g_npcap.init_count++ == 0)
+        npcap_load();
     return TCS_SUCCESS;
 }
 
 TcsResult tcs_lib_cleanup(void)
 {
+    if (g_npcap.init_count > 0 && --g_npcap.init_count == 0 && g_npcap.module != NULL)
+    {
+        // Like WSACleanup(), the last cleanup closes every socket still open
+        for (size_t i = 0; i < TCS_CFG_PACKET_SOCKETS_MAX; ++i)
+        {
+            TcsSocket socket = TCS_PACKET_SOCKET_TAG | (TcsSocket)i;
+            if (g_packet_sockets[i] != NULL)
+                tcs_close(&socket);
+        }
+        FreeLibrary(g_npcap.module);
+        memset(&g_npcap, 0, sizeof g_npcap);
+    }
     WSACleanup();
     return TCS_SUCCESS;
 }
@@ -310,8 +625,28 @@ TcsResult tcs_socket(TcsSocket* out_socket, TcsFamily family, TcsSocketType type
 {
     if (out_socket == NULL || *out_socket != TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
-    if (family.native == -1) // sentinel for unsupported families (e.g. TCS_FAMILY_PACKET on Windows)
-        return TCS_ERROR_NOT_SUPPORTED;
+
+    if (family.native == TCS_FAMILY_PACKET.native)
+    {
+        if (g_npcap.module == NULL)
+            return TCS_ERROR_NOT_SUPPORTED;
+        if (type.native != SOCK_DGRAM && type.native != SOCK_RAW)
+            return TCS_ERROR_NOT_SUPPORTED;
+        size_t index = 0;
+        while (index < TCS_CFG_PACKET_SOCKETS_MAX && g_packet_sockets[index] != NULL)
+            ++index;
+        if (index == TCS_CFG_PACKET_SOCKETS_MAX)
+            return TCS_ERROR_MEMORY;
+        struct TcsPacketSocket* ps = (struct TcsPacketSocket*)malloc(sizeof *ps);
+        if (ps == NULL)
+            return TCS_ERROR_MEMORY;
+        memset(ps, 0, sizeof *ps);
+        ps->type = type.native;
+        ps->protocol = protocol;
+        g_packet_sockets[index] = ps;
+        *out_socket = TCS_PACKET_SOCKET_TAG | (TcsSocket)index;
+        return TCS_SUCCESS;
+    }
 
     TcsSocket new_socket = socket(family.native, type.native, (int)protocol);
 
@@ -339,6 +674,18 @@ TcsResult tcs_close(TcsSocket* socket)
     if (socket == NULL || *socket == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
 
+    struct TcsPacketSocket* ps = packet_socket_get(*socket);
+    if (ps != NULL)
+    {
+        if (ps->pcap != NULL)
+            g_npcap.close(ps->pcap);
+        free(ps->groups);
+        free(ps);
+        g_packet_sockets[*socket & ~TCS_PACKET_SOCKET_TAG] = NULL;
+        *socket = TCS_SOCKET_INVALID;
+        return TCS_SUCCESS;
+    }
+
     int close_status = closesocket(*socket);
     if (close_status != SOCKET_ERROR)
     {
@@ -360,6 +707,19 @@ TcsResult tcs_bind(TcsSocket socket, const struct TcsAddress* address)
     if (address == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
+    struct TcsPacketSocket* ps = packet_socket_get(socket);
+    if (ps != NULL)
+    {
+        if (address->family.native != TCS_FAMILY_PACKET.native)
+            return TCS_ERROR_INVALID_ARGUMENT;
+        if (address->data.packet.interface_id == 0)
+            return TCS_ERROR_NOT_SUPPORTED; // An Npcap handle belongs to one adapter, there is no "all interfaces"
+        ps->interface_id = address->data.packet.interface_id;
+        if (address->data.packet.protocol != 0)
+            ps->protocol = address->data.packet.protocol;
+        return packet_socket_open(ps);
+    }
+
     SOCKADDR_STORAGE native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
     int addrlen = 0;
@@ -377,6 +737,9 @@ TcsResult tcs_connect(TcsSocket socket, const struct TcsAddress* address)
 
     if (address == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
+
+    if (packet_socket_get(socket) != NULL)
+        return TCS_ERROR_NOT_SUPPORTED;
 
     SOCKADDR_STORAGE native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
@@ -403,6 +766,8 @@ TcsResult tcs_listen(TcsSocket socket, int backlog)
 {
     if (socket == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
+    if (packet_socket_get(socket) != NULL)
+        return TCS_ERROR_NOT_SUPPORTED;
 
     int status = listen(socket, (int)backlog);
     return socketstatus2retcode(status);
@@ -412,6 +777,8 @@ TcsResult tcs_accept(TcsSocket listener, TcsSocket* out_socket, struct TcsAddres
 {
     if (listener == TCS_SOCKET_INVALID || out_socket == NULL || *out_socket != TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
+    if (packet_socket_get(listener) != NULL)
+        return TCS_ERROR_NOT_SUPPORTED;
 
     SOCKADDR_STORAGE native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
@@ -443,6 +810,8 @@ TcsResult tcs_shutdown(TcsSocket socket, TcsShutdownDirection direction)
         return TCS_ERROR_INVALID_ARGUMENT;
     if (direction < 0 || direction > 2)
         return TCS_ERROR_INVALID_ARGUMENT;
+    if (packet_socket_get(socket) != NULL)
+        return TCS_ERROR_NOT_SUPPORTED;
 
     const int how = LUT[direction];
     int shutdown_status = shutdown(socket, how);
@@ -461,6 +830,18 @@ TcsResult tcs_send(TcsSocket socket, const uint8_t* buffer, size_t buffer_size, 
 
     if (buffer == NULL || buffer_size == 0)
         return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct TcsPacketSocket* ps = packet_socket_get(socket);
+    if (ps != NULL)
+    {
+        // Only whole frames can be sent without a destination
+        if (ps->type != SOCK_RAW)
+            return TCS_ERROR_INVALID_ARGUMENT;
+        struct TcsAddress self = TCS_ADDRESS_NONE;
+        self.family = TCS_FAMILY_PACKET;
+        self.data.packet.interface_id = ps->interface_id;
+        return tcs_send_to(socket, buffer, buffer_size, flags & ~TCS_MSG_SENDALL, &self, sent_size);
+    }
 
     // Send all
     if (flags & TCS_MSG_SENDALL)
@@ -518,6 +899,51 @@ TcsResult tcs_send_to(TcsSocket socket,
     if (flags & TCS_MSG_SENDALL)
         return TCS_ERROR_NOT_IMPLEMENTED;
 
+    struct TcsPacketSocket* ps = packet_socket_get(socket);
+    if (ps != NULL)
+    {
+        if (sent_size != NULL)
+            *sent_size = 0;
+        if (ps->pcap == NULL)
+            return TCS_ERROR_INVALID_ARGUMENT; // Not bound
+        if (destination_address->family.native != TCS_FAMILY_PACKET.native)
+            return TCS_ERROR_INVALID_ARGUMENT;
+        if (destination_address->data.packet.interface_id != 0 &&
+            destination_address->data.packet.interface_id != ps->interface_id)
+            return TCS_ERROR_INVALID_ARGUMENT;
+        if (buffer_size > INT_MAX - 14)
+            return TCS_ERROR_INVALID_ARGUMENT;
+
+        const uint8_t* frame = buffer;
+        size_t frame_size = buffer_size;
+        uint8_t* dgram_frame = NULL;
+        if (ps->type == SOCK_DGRAM)
+        {
+            // Ethernet header: destination, source, EtherType. Like Linux, the socket's protocol is the fallback.
+            uint16_t protocol = destination_address->data.packet.protocol != 0
+                                    ? destination_address->data.packet.protocol
+                                    : ps->protocol;
+            frame_size = buffer_size + 14;
+            dgram_frame = (uint8_t*)malloc(frame_size);
+            if (dgram_frame == NULL)
+                return TCS_ERROR_MEMORY;
+            memcpy(dgram_frame, destination_address->data.packet.mac, 6);
+            memcpy(dgram_frame + 6, ps->mac, 6);
+            dgram_frame[12] = (uint8_t)(protocol >> 8);
+            dgram_frame[13] = (uint8_t)(protocol & 0xFF);
+            if (buffer_size > 0)
+                memcpy(dgram_frame + 14, buffer, buffer_size);
+            frame = dgram_frame;
+        }
+        int send_sts = g_npcap.sendpacket(ps->pcap, frame, (int)frame_size);
+        free(dgram_frame);
+        if (send_sts != 0)
+            return TCS_ERROR_SYSTEM;
+        if (sent_size != NULL)
+            *sent_size = buffer_size;
+        return TCS_SUCCESS;
+    }
+
     SOCKADDR_STORAGE native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
     int addrlen = 0;
@@ -550,6 +976,31 @@ TcsResult tcs_sendv(TcsSocket socket, const struct TcsIoVec* iov, size_t iov_len
 
     if (flags & TCS_MSG_SENDALL)
         return TCS_ERROR_NOT_IMPLEMENTED;
+
+    if (packet_socket_get(socket) != NULL)
+    {
+        // A frame is sent in one piece, so the buffers are gathered first
+        size_t total_size = 0;
+        for (size_t i = 0; i < iov_length; ++i)
+        {
+            if (iov[i].buffer == NULL && iov[i].buffer_size > 0)
+                return TCS_ERROR_INVALID_ARGUMENT;
+            total_size += iov[i].buffer_size;
+        }
+        uint8_t* gathered = (uint8_t*)malloc(total_size > 0 ? total_size : 1);
+        if (gathered == NULL)
+            return TCS_ERROR_MEMORY;
+        size_t pos = 0;
+        for (size_t i = 0; i < iov_length; ++i)
+        {
+            if (iov[i].buffer_size > 0)
+                memcpy(gathered + pos, iov[i].buffer, iov[i].buffer_size);
+            pos += iov[i].buffer_size;
+        }
+        TcsResult send_sts = tcs_send(socket, gathered, total_size, flags, sent_size);
+        free(gathered);
+        return send_sts;
+    }
 
     WSABUF stack_buffers[TCS_CFG_SENDV_STACK_MAX];
     WSABUF* native_buffers = stack_buffers;
@@ -607,6 +1058,9 @@ TcsResult tcs_receive(TcsSocket socket, uint8_t* buffer, size_t buffer_size, uin
         return TCS_ERROR_INVALID_ARGUMENT;
     if (buffer == NULL && buffer_size > 0)
         return TCS_ERROR_INVALID_ARGUMENT;
+
+    if (packet_socket_get(socket) != NULL)
+        return tcs_receive_from(socket, buffer, buffer_size, flags, NULL, received_size);
 
 #if WINVER <= 0x501
     if (flags & TCS_MSG_WAITALL)
@@ -672,6 +1126,75 @@ TcsResult tcs_receive_from(TcsSocket socket,
         return TCS_ERROR_INVALID_ARGUMENT;
     if (received_size != NULL)
         *received_size = 0;
+
+    struct TcsPacketSocket* ps = packet_socket_get(socket);
+    if (ps != NULL)
+    {
+        if (ps->pcap == NULL)
+            return TCS_ERROR_INVALID_ARGUMENT; // Not bound
+        if (flags & TCS_MSG_PEEK)
+            return TCS_ERROR_NOT_SUPPORTED;
+
+        DWORD start = GetTickCount();
+        for (;;)
+        {
+            struct pcap_pkthdr* header = NULL;
+            const unsigned char* frame = NULL;
+            int next_sts = g_npcap.next_ex(ps->pcap, &header, &frame);
+            if (next_sts < 0)
+                return TCS_ERROR_SYSTEM;
+            if (next_sts == 1)
+            {
+                size_t frame_size = header->caplen;
+                size_t offset = 0;
+                uint16_t protocol = frame_size >= 14 ? (uint16_t)((frame[12] << 8) | frame[13]) : 0;
+                if (ps->type == SOCK_DGRAM)
+                {
+                    if (frame_size < 14)
+                        continue;
+                    offset = 14;
+                    if (protocol == 0x8100 && frame_size >= 18) // 802.1Q tag, stripped like Linux does
+                    {
+                        protocol = (uint16_t)((frame[16] << 8) | frame[17]);
+                        offset = 18;
+                    }
+                }
+                size_t payload_size = frame_size - offset;
+                size_t copy_size = payload_size < buffer_size ? payload_size : buffer_size;
+                if (copy_size > 0)
+                    memcpy(buffer, frame + offset, copy_size);
+                if (received_size != NULL)
+                    *received_size = copy_size;
+                if (source_address != NULL)
+                {
+                    *source_address = TCS_ADDRESS_NONE;
+                    source_address->family = TCS_FAMILY_PACKET;
+                    source_address->data.packet.interface_id = ps->interface_id;
+                    source_address->data.packet.protocol = protocol;
+                    if (frame_size >= 12)
+                        memcpy(source_address->data.packet.mac, frame + 6, 6);
+                }
+                return TCS_SUCCESS;
+            }
+
+            // Nothing queued. The event is signaled by the driver when a frame arrives.
+            if (ps->nonblocking)
+                return TCS_ERROR_WOULD_BLOCK;
+            DWORD wait_ms = INFINITE;
+            if (ps->receive_timeout_ms > 0)
+            {
+                DWORD elapsed_ms = GetTickCount() - start;
+                if (elapsed_ms >= (DWORD)ps->receive_timeout_ms)
+                    return TCS_ERROR_TIMED_OUT;
+                wait_ms = (DWORD)ps->receive_timeout_ms - elapsed_ms;
+            }
+            DWORD wait_sts = WaitForSingleObject(g_npcap.getevent(ps->pcap), wait_ms);
+            if (wait_sts == WAIT_TIMEOUT)
+                return TCS_ERROR_TIMED_OUT;
+            if (wait_sts != WAIT_OBJECT_0)
+                return TCS_ERROR_SYSTEM;
+        }
+    }
 
     SOCKADDR_STORAGE native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
@@ -758,6 +1281,8 @@ TcsResult tcs_poll_add(struct TcsPoll* poll, TcsSocket socket, void* user_data, 
 {
     if (poll == NULL || socket == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
+    if (packet_socket_get(socket) != NULL)
+        return TCS_ERROR_NOT_SUPPORTED; // select() cannot wait on an Npcap handle
 
     int map_sts = tds_map_socket_user_add(&poll->user_data, socket, user_data);
     if (map_sts != 0)
@@ -1111,6 +1636,8 @@ TcsResult tcs_opt_set(TcsSocket socket,
 
     if (option_name == -1)
         return TCS_ERROR_NOT_IMPLEMENTED;
+    if (packet_socket_get(socket) != NULL)
+        return TCS_ERROR_NOT_SUPPORTED;
 
     int sockopt_status = setsockopt(socket, (int)level, (int)option_name, (const char*)option_value, (int)option_size);
     return socketstatus2retcode(sockopt_status);
@@ -1123,6 +1650,16 @@ TcsResult tcs_opt_get(TcsSocket socket, int32_t level, int32_t option_name, void
 
     if (option_name == -1)
         return TCS_ERROR_NOT_IMPLEMENTED;
+
+    struct TcsPacketSocket* ps = packet_socket_get(socket);
+    if (ps != NULL)
+    {
+        if (level != TCS_SOL_SOCKET || option_name != TCS_SO_TYPE || *option_size < sizeof ps->type)
+            return TCS_ERROR_NOT_SUPPORTED;
+        memcpy(out_option_value, &ps->type, sizeof ps->type);
+        *option_size = sizeof ps->type;
+        return TCS_SUCCESS;
+    }
 
     int optlen = (int)*option_size;
     int sockopt_status = getsockopt(socket, (int)level, (int)option_name, (char*)out_option_value, &optlen);
@@ -1189,6 +1726,13 @@ TcsResult tcs_opt_receive_timeout_set(TcsSocket socket, int timeout_ms)
     if (socket == TCS_SOCKET_INVALID || timeout_ms < 0)
         return TCS_ERROR_INVALID_ARGUMENT;
 
+    struct TcsPacketSocket* ps = packet_socket_get(socket);
+    if (ps != NULL)
+    {
+        ps->receive_timeout_ms = timeout_ms;
+        return TCS_SUCCESS;
+    }
+
     return tcs_opt_set(socket, TCS_SOL_SOCKET, TCS_SO_RCVTIMEO, &timeout_ms, sizeof(timeout_ms));
 }
 
@@ -1196,6 +1740,13 @@ TcsResult tcs_opt_receive_timeout_get(TcsSocket socket, int* timeout_ms)
 {
     if (socket == TCS_SOCKET_INVALID || timeout_ms == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct TcsPacketSocket* ps = packet_socket_get(socket);
+    if (ps != NULL)
+    {
+        *timeout_ms = ps->receive_timeout_ms;
+        return TCS_SUCCESS;
+    }
 
     DWORD t = 0;
     size_t t_size = sizeof(t);
@@ -1248,6 +1799,13 @@ TcsResult tcs_opt_nonblocking_set(TcsSocket socket, bool do_non_blocking)
     if (socket == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
 
+    struct TcsPacketSocket* ps = packet_socket_get(socket);
+    if (ps != NULL)
+    {
+        ps->nonblocking = do_non_blocking;
+        return TCS_SUCCESS;
+    }
+
     u_long mode = do_non_blocking ? 1 : 0;
     int sts = ioctlsocket((SOCKET)socket, (long)FIONBIO, &mode);
     return socketstatus2retcode(sts);
@@ -1255,8 +1813,16 @@ TcsResult tcs_opt_nonblocking_set(TcsSocket socket, bool do_non_blocking)
 
 TcsResult tcs_opt_nonblocking_get(TcsSocket socket, bool* is_non_blocking)
 {
-    (void)socket;
-    (void)is_non_blocking;
+    if (socket == TCS_SOCKET_INVALID || is_non_blocking == NULL)
+        return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct TcsPacketSocket* ps = packet_socket_get(socket);
+    if (ps != NULL)
+    {
+        *is_non_blocking = ps->nonblocking;
+        return TCS_SUCCESS;
+    }
+
     // Win32 does not provide an API to query the non-blocking state of a socket
     return TCS_ERROR_NOT_SUPPORTED;
 }
@@ -1270,6 +1836,9 @@ TcsResult tcs_opt_membership_add(TcsSocket socket, const struct TcsAddress* mult
 
     if (multicast_address == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
+
+    if (packet_socket_get(socket) != NULL)
+        return tcs_opt_membership_add_to(socket, NULL, multicast_address);
 
     SOCKADDR_STORAGE address_native_local;
     memset(&address_native_local, 0, sizeof address_native_local);
@@ -1296,6 +1865,26 @@ TcsResult tcs_opt_membership_add_to(TcsSocket socket,
         return TCS_ERROR_INVALID_ARGUMENT;
     if (multicast_address == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct TcsPacketSocket* ps = packet_socket_get(socket);
+    if (ps != NULL)
+    {
+        if (multicast_address->family.native != TCS_FAMILY_PACKET.native)
+            return TCS_ERROR_INVALID_ARGUMENT;
+        uint8_t* groups = (uint8_t*)realloc(ps->groups, (ps->group_count + 1) * 6);
+        if (groups == NULL)
+            return TCS_ERROR_MEMORY;
+        memcpy(groups + ps->group_count * 6, multicast_address->data.packet.mac, 6);
+        ps->groups = groups;
+        ps->group_count++;
+        if (ps->pcap == NULL)
+            return TCS_SUCCESS; // Applied by tcs_bind()
+        // Promiscuous mode is fixed when a handle is opened, so the first group reopens it. Queued frames are lost.
+        TcsResult sts = ps->group_count == 1 ? packet_socket_open(ps) : packet_socket_filter(ps, ps->pcap);
+        if (sts != TCS_SUCCESS)
+            ps->group_count--;
+        return sts;
+    }
 
     if (multicast_address->family.native == TCS_FAMILY_IPV4.native)
     {
@@ -1328,6 +1917,9 @@ TcsResult tcs_opt_membership_drop(TcsSocket socket, const struct TcsAddress* mul
     if (multicast_address == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
+    if (packet_socket_get(socket) != NULL)
+        return tcs_opt_membership_drop_from(socket, NULL, multicast_address);
+
     SOCKADDR_STORAGE address_native_local;
     memset(&address_native_local, 0, sizeof address_native_local);
     int address_native_local_size = sizeof address_native_local;
@@ -1354,6 +1946,34 @@ TcsResult tcs_opt_membership_drop_from(TcsSocket socket,
     if (multicast_address == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
 
+    struct TcsPacketSocket* ps = packet_socket_get(socket);
+    if (ps != NULL)
+    {
+        if (multicast_address->family.native != TCS_FAMILY_PACKET.native)
+            return TCS_ERROR_INVALID_ARGUMENT;
+        size_t i = 0;
+        while (i < ps->group_count && memcmp(ps->groups + i * 6, multicast_address->data.packet.mac, 6) != 0)
+            ++i;
+        if (i == ps->group_count)
+            return TCS_ERROR_INVALID_ARGUMENT;
+        // The group is swapped to the end, so a failed update is undone by restoring the count
+        size_t last = ps->group_count - 1;
+        if (i != last)
+        {
+            uint8_t dropped[6];
+            memcpy(dropped, ps->groups + i * 6, 6);
+            memcpy(ps->groups + i * 6, ps->groups + last * 6, 6);
+            memcpy(ps->groups + last * 6, dropped, 6);
+        }
+        ps->group_count--;
+        if (ps->pcap == NULL)
+            return TCS_SUCCESS;
+        TcsResult sts = ps->group_count == 0 ? packet_socket_open(ps) : packet_socket_filter(ps, ps->pcap);
+        if (sts != TCS_SUCCESS)
+            ps->group_count++;
+        return sts;
+    }
+
     if (multicast_address->family.native == TCS_FAMILY_IPV4.native)
     {
         struct ip_mreq imr;
@@ -1379,6 +1999,8 @@ TcsResult tcs_opt_multicast_interface_set(TcsSocket socket, const struct TcsAddr
 {
     if (socket == TCS_SOCKET_INVALID || local_address == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
+    if (packet_socket_get(socket) != NULL)
+        return TCS_ERROR_NOT_SUPPORTED;
 
     if (local_address->family.native == TCS_FAMILY_IPV4.native)
     {
@@ -1398,6 +2020,8 @@ TcsResult tcs_opt_multicast_loop_set(TcsSocket socket, bool do_loopback)
 {
     if (socket == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
+    if (packet_socket_get(socket) != NULL)
+        return TCS_ERROR_NOT_SUPPORTED;
 
     DWORD val = do_loopback ? 1 : 0;
     return tcs_opt_set(socket, TCS_SOL_IP, IP_MULTICAST_LOOP, &val, sizeof(val));
@@ -1407,6 +2031,8 @@ TcsResult tcs_opt_multicast_loop_get(TcsSocket socket, bool* is_loopback)
 {
     if (socket == TCS_SOCKET_INVALID || is_loopback == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
+    if (packet_socket_get(socket) != NULL)
+        return TCS_ERROR_NOT_SUPPORTED;
 
     DWORD val = 0;
     size_t s = sizeof(val);
@@ -1501,44 +2127,12 @@ TcsResult tcs_interface_list(struct TcsInterface out_interfaces[], size_t interf
     if (out_length != NULL)
         *out_length = 0;
 
-    const int MAX_TRIES = 5;
-    ULONG buffer_size = 15000; // From msdn recommendation
     PIP_ADAPTER_ADDRESSES adapters = NULL;
-    ULONG adapter_sts = ERROR_NO_DATA;
-    for (int i = 0; i < MAX_TRIES; ++i)
-    {
-        adapters = (PIP_ADAPTER_ADDRESSES)malloc(buffer_size);
-        if (adapters == NULL)
-            return TCS_ERROR_MEMORY;
-        adapter_sts = GetAdaptersAddresses(AF_UNSPEC,
-                                           GAA_FLAG_SKIP_DNS_SERVER | GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST,
-                                           NULL,
-                                           adapters,
-                                           &buffer_size);
-        if (adapter_sts == ERROR_BUFFER_OVERFLOW)
-        {
-            free(adapters);
-            adapters = NULL;
-        }
-        else
-        {
-            break;
-        }
-    }
-    if (adapter_sts == ERROR_NO_DATA)
-    {
-        if (adapters != NULL)
-            free(adapters);
+    TcsResult adapters_sts = adapters_get(&adapters);
+    if (adapters_sts != TCS_SUCCESS)
+        return adapters_sts;
+    if (adapters == NULL)
         return TCS_SUCCESS;
-    }
-    if (adapter_sts != NO_ERROR)
-    {
-        // Debug: log the actual Windows error code for diagnostics
-        fprintf(stderr, "GetAdaptersAddresses failed with error: %lu (0x%lX)\n", adapter_sts, adapter_sts);
-        if (adapters != NULL)
-            free(adapters);
-        return TCS_ERROR_UNKNOWN;
-    }
 
     {
         size_t i = 0;
@@ -1605,7 +2199,7 @@ TcsResult tcs_address_resolve(const char* hostname,
         }
     }
 
-    if (address_family.native == -1) // sentinel for unsupported families (e.g. TCS_FAMILY_PACKET on Windows)
+    if (address_family.native == TCS_FAMILY_PACKET.native) // Only the numeric fast path above can give a MAC address
         return TCS_ERROR_NOT_SUPPORTED;
 
     ADDRINFOA native_hints;
@@ -1664,42 +2258,12 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
     if (out_length != NULL)
         *out_length = 0;
 
-    const int MAX_TRIES = 5;
-    ULONG buffer_size = 15000;
     PIP_ADAPTER_ADDRESSES adapters = NULL;
-    ULONG adapter_sts = ERROR_NO_DATA;
-    for (int i = 0; i < MAX_TRIES; ++i)
-    {
-        adapters = (PIP_ADAPTER_ADDRESSES)malloc(buffer_size);
-        if (adapters == NULL)
-            return TCS_ERROR_MEMORY;
-        adapter_sts = GetAdaptersAddresses(AF_UNSPEC,
-                                           GAA_FLAG_SKIP_DNS_SERVER | GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST,
-                                           NULL,
-                                           adapters,
-                                           &buffer_size);
-        if (adapter_sts == ERROR_BUFFER_OVERFLOW)
-        {
-            free(adapters);
-            adapters = NULL;
-        }
-        else
-        {
-            break;
-        }
-    }
-    if (adapter_sts == ERROR_NO_DATA)
-    {
-        if (adapters != NULL)
-            free(adapters);
+    TcsResult adapters_sts = adapters_get(&adapters);
+    if (adapters_sts != TCS_SUCCESS)
+        return adapters_sts;
+    if (adapters == NULL)
         return TCS_SUCCESS;
-    }
-    if (adapter_sts != NO_ERROR)
-    {
-        if (adapters != NULL)
-            free(adapters);
-        return TCS_ERROR_UNKNOWN;
-    }
 
     size_t populated = 0;
     for (PIP_ADAPTER_ADDRESSES iter = adapters; iter != NULL; iter = iter->Next)
@@ -1723,13 +2287,9 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
             if (address_iter->Address.lpSockaddr == NULL)
                 continue;
 
-            if (address_family_filter.native != TCS_FAMILY_ANY.native)
-            {
-                if (address_family_filter.native == -1) /* unsupported sentinel */
-                    continue;
-                if (address_iter->Address.lpSockaddr->sa_family != address_family_filter.native)
-                    continue;
-            }
+            if (address_family_filter.native != TCS_FAMILY_ANY.native &&
+                address_iter->Address.lpSockaddr->sa_family != address_family_filter.native)
+                continue;
 
             struct TcsAddress address = TCS_ADDRESS_NONE;
             TcsResult convert_sts = native2sockaddr(address_iter->Address.lpSockaddr, &address);
@@ -1758,6 +2318,38 @@ TcsResult tcs_address_list(unsigned int interface_id_filter,
                 (*out_length)++;
             }
         }
+
+        // The layer 2 address of adapters with an Ethernet MAC. Needs no Npcap, so it is listed even when packet
+        // sockets are not supported.
+        if ((address_family_filter.native == TCS_FAMILY_ANY.native ||
+             address_family_filter.native == TCS_FAMILY_PACKET.native) &&
+            iter->PhysicalAddressLength == 6)
+        {
+            if (out_interface_addresses != NULL && populated < interface_addresses_length)
+            {
+                memset(out_interface_addresses[populated].iface.name, '\0', TCS_CFG_INTERFACE_NAME_SIZE);
+                TcsResult name_sts = adapter_get_friendly_name(
+                    iter, out_interface_addresses[populated].iface.name, TCS_CFG_INTERFACE_NAME_SIZE - 1);
+                if (name_sts != TCS_SUCCESS)
+                {
+                    free(adapters);
+                    return TCS_ERROR_SYSTEM;
+                }
+                out_interface_addresses[populated].iface.id = iter->IfIndex;
+                out_interface_addresses[populated].address = TCS_ADDRESS_NONE;
+                out_interface_addresses[populated].address.family = TCS_FAMILY_PACKET;
+                out_interface_addresses[populated].address.data.packet.interface_id = iter->IfIndex;
+                memcpy(out_interface_addresses[populated].address.data.packet.mac, iter->PhysicalAddress, 6);
+                populated++;
+
+                if (out_length != NULL)
+                    (*out_length)++;
+            }
+            else if (out_interface_addresses == NULL && out_length != NULL)
+            {
+                (*out_length)++;
+            }
+        }
     }
 
     free(adapters);
@@ -1768,6 +2360,17 @@ TcsResult tcs_address_socket_local(TcsSocket socket, struct TcsAddress* local_ad
 {
     if (socket == TCS_SOCKET_INVALID || local_address == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
+
+    struct TcsPacketSocket* ps = packet_socket_get(socket);
+    if (ps != NULL)
+    {
+        *local_address = TCS_ADDRESS_NONE;
+        local_address->family = TCS_FAMILY_PACKET;
+        local_address->data.packet.interface_id = ps->interface_id;
+        local_address->data.packet.protocol = ps->protocol;
+        memcpy(local_address->data.packet.mac, ps->mac, 6);
+        return TCS_SUCCESS;
+    }
 
     SOCKADDR_STORAGE native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
@@ -1782,6 +2385,8 @@ TcsResult tcs_address_socket_remote(TcsSocket socket, struct TcsAddress* remote_
 {
     if (socket == TCS_SOCKET_INVALID || remote_address == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
+    if (packet_socket_get(socket) != NULL)
+        return TCS_ERROR_NOT_CONNECTED;
 
     SOCKADDR_STORAGE native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
@@ -1796,6 +2401,12 @@ TcsResult tcs_address_socket_family(TcsSocket socket, TcsFamily* out_family)
 {
     if (socket == TCS_SOCKET_INVALID || out_family == NULL)
         return TCS_ERROR_INVALID_ARGUMENT;
+
+    if (packet_socket_get(socket) != NULL)
+    {
+        *out_family = TCS_FAMILY_PACKET;
+        return TCS_SUCCESS;
+    }
 
     WSAPROTOCOL_INFOW info;
     memset(&info, 0, sizeof info);
@@ -1815,5 +2426,20 @@ TcsResult tcs_address_socket_family(TcsSocket socket, TcsFamily* out_family)
 // tcs_address_is_loopback() is defined in tinycsocket_common.c
 // tcs_address_is_multicast() is defined in tinycsocket_common.c
 // tcs_address_is_broadcast() is defined in tinycsocket_common.c
+
+bool tcs_address_is_supported(const struct TcsAddress* addr)
+{
+    if (addr == NULL)
+        return false;
+    if (addr->family.native == TCS_FAMILY_ANY.native)
+        return true;
+    if (addr->family.native == TCS_FAMILY_IPV4.native)
+        return true;
+    if (addr->family.native == TCS_FAMILY_IPV6.native)
+        return true;
+    if (addr->family.native == TCS_FAMILY_PACKET.native)
+        return g_npcap.module != NULL; // Loaded by tcs_lib_init() when Npcap is installed
+    return false;
+}
 
 #endif

@@ -65,6 +65,11 @@ Currently supported platforms:
 - POSIX.1-2001 compliant systems (Linux, FreeBSD, OpenBSD, MacOS, Solaris etc.)
 - Android (API level 24+ for full IPv6 interface support)
 
+Layer 2 packet sockets (`TCS_FAMILY_PACKET`) are available on Linux, and on Windows when
+[Npcap](https://npcap.com) 1.00 or later is installed. Npcap is loaded at runtime by `tcs_lib_init()`, so
+nothing extra is needed to build or link. Receiving 802.1Q VLAN tags needs Npcap 1.81 or later, older
+versions deliver tagged frames with the tag stripped.
+
 # Installation instructions
 
 The library supports both header-only and the cmake build system. When using cmake
