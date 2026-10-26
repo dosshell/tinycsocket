@@ -1523,17 +1523,4 @@ bool tcs_address_is_broadcast(const struct TcsAddress* addr)
     return false;
 }
 
-bool tcs_address_is_supported(const struct TcsAddress* addr)
-{
-    if (addr == NULL)
-        return false;
-    if (addr->family.native == TCS_FAMILY_ANY.native)
-        return true;
-    if (addr->family.native == TCS_FAMILY_IPV4.native)
-        return true;
-    if (addr->family.native == TCS_FAMILY_IPV6.native)
-        return true;
-    if (addr->family.native == TCS_FAMILY_PACKET.native)
-        return addr->family.native != -1;
-    return false;
-}
+// tcs_address_is_supported() is defined in tinycsocket_posix.c and tinycsocket_win32.c

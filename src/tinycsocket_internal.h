@@ -23,7 +23,7 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-static const char* const TCS_VERSION_TXT = "v0.3.83";
+static const char* const TCS_VERSION_TXT = "v0.3.84";
 extern const char* const TCS_LICENSE_TXT;
 
 /*
@@ -371,7 +371,7 @@ struct TcsPollEvent
 extern const TcsFamily TCS_FAMILY_ANY;    /**< Layer 4 agnostic (AF_UNSPEC) */
 extern const TcsFamily TCS_FAMILY_IPV4;   /**< INET IPv4 interface (AF_INET) */
 extern const TcsFamily TCS_FAMILY_IPV6;   /**< INET IPv6 interface (AF_INET6) */
-extern const TcsFamily TCS_FAMILY_PACKET; /**< Layer 2 interface (AF_PACKET on Linux; unsupported elsewhere) */
+extern const TcsFamily TCS_FAMILY_PACKET; /**< Layer 2 interface (AF_PACKET on Linux, Npcap on Windows) */
 
 // gcc may trigger bug #53119
 #ifdef __GNUC__
@@ -456,7 +456,11 @@ static const struct TcsPollEvent TCS_POLL_EVENT_EMPTY = {0, 0, false, false, TCS
  *
  * This function needs to be called before using any other function in the library.
  *
- * On Windows, it will initialize Winsock, otherwise it does nothing and will always return #TCS_SUCCESS.
+ * On Windows, it will initialize Winsock and load Npcap (wpcap.dll) if it is installed, which is what makes
+ * #TCS_FAMILY_PACKET sockets available there. Npcap 1.00 or later is supported. Npcap is optional: without it,
+ * packet sockets fail with #TCS_ERROR_NOT_SUPPORTED and tcs_address_is_supported() returns false for packet
+ * addresses. Receiving 802.1Q VLAN tags needs Npcap 1.81 or later, older versions deliver tagged frames with the
+ * tag stripped. On other platforms it does nothing and will always return #TCS_SUCCESS.
  *
  * You can call this multiple times, it will keep a counter of how many times you have called it (RAII friendly).
  * You should call tcs_lib_cleanup() after you are done with the library (before program exit), atleast the number of times you have called tcs_lib_init().
@@ -487,7 +491,9 @@ TcsResult tcs_lib_init(void);
  * @brief De-initialize tinycsocket library.
  *
  * You need to call this the same amount of times as you have called ::tcs_lib_init().
- * 
+ *
+ * On Windows, the last call closes any packet socket still open and unloads Npcap.
+ *
  * @return #TCS_SUCCESS if successful, otherwise the error code.
  *
  * @retval #TCS_ERROR_LIBRARY_NOT_INITIALIZED if you have not called tcs_lib_init() before calling this function.
@@ -753,7 +759,7 @@ TcsResult tcs_socket_udp_str(TcsSocket* out_socket, const char* local_address, c
 /**
 * @brief Create a packet socket bound to a network interface.
 *
-* Creates an AF_PACKET socket for sending and receiving raw L2 frames.
+* Creates a socket for sending and receiving raw L2 frames: AF_PACKET on Linux, Npcap on Windows (see tcs_lib_init()).
 * The socket is bound to the interface and protocol specified in @p bind_address.
 * On failure, *out_socket is always set back to #TCS_SOCKET_INVALID.
 *
@@ -789,6 +795,8 @@ TcsResult tcs_socket_udp_str(TcsSocket* out_socket, const char* local_address, c
 *
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @retval #TCS_ERROR_INVALID_ARGUMENT if @p out_socket is NULL, if *out_socket is not #TCS_SOCKET_INVALID, or if @p bind_address is NULL or not TCS_FAMILY_PACKET.
+* @retval #TCS_ERROR_NOT_SUPPORTED if the platform has no packet sockets, or on Windows if Npcap is not installed or @p bind_address has interface_id 0.
+* @retval #TCS_ERROR_PERMISSION_DENIED if the process may not open packet sockets, e.g. without CAP_NET_RAW on Linux.
 *
 * @see tcs_socket_packet_str()
 * @see tcs_close()
@@ -799,6 +807,7 @@ TcsResult tcs_socket_packet(TcsSocket* out_socket, const struct TcsAddress* bind
 * @brief Create a packet socket bound to a named network interface.
 *
 * Looks up the interface by name using ::tcs_interface_list() and delegates to ::tcs_socket_packet().
+* On Windows the names are the adapter names shown in the network settings, e.g. "Ethernet".
 * On failure, *out_socket is always set back to #TCS_SOCKET_INVALID.
 *
 * @code
@@ -829,6 +838,7 @@ TcsResult tcs_socket_packet(TcsSocket* out_socket, const struct TcsAddress* bind
 *
 * @return #TCS_SUCCESS if successful, otherwise the error code.
 * @retval #TCS_ERROR_INVALID_ARGUMENT if @p out_socket is NULL, if *out_socket is not #TCS_SOCKET_INVALID, or if @p interface_name is NULL or not found.
+* @retval #TCS_ERROR_NOT_SUPPORTED if the platform has no packet sockets, or on Windows if Npcap is not installed.
 *
 * @see tcs_socket_packet()
 * @see tcs_close()
@@ -1319,6 +1329,7 @@ TcsResult tcs_poll_destroy(struct TcsPoll** poll);
 * @param[in] user_data is a pointer of your choice that is associated with the socket. Use NULL if not used.
 * @param[in] flags is a bitmask of ::TcsPollFlags (e.g. TCS_POLL_READ | TCS_POLL_WRITE). Errors are always reported.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
+* @retval #TCS_ERROR_NOT_SUPPORTED on Windows if @p socket is a packet socket, an Npcap handle cannot be polled together with Winsock sockets.
 * @see tcs_poll_remove()
 */
 TcsResult tcs_poll_add(struct TcsPoll* poll, TcsSocket socket, void* user_data, uint32_t flags);
@@ -1677,6 +1688,10 @@ TcsResult tcs_opt_priority_get(TcsSocket socket, int* out_priority);
 /**
 * @brief Join a multicast group on a specific local interface.
 *
+* For packet sockets, @p multicast_address is a MAC address and @p local_address is ignored. On Windows, a membership
+* puts the adapter in promiscuous mode and Npcap filters out everything but the adapter's own address, broadcast and
+* the joined groups. The first and the last membership reopen the capture handle, frames queued in it are lost.
+*
 * @param[in] socket socket to configure.
 * @param[in] local_address local interface address to use.
 * @param[in] multicast_address multicast group address to join.
@@ -1816,7 +1831,9 @@ TcsResult tcs_interface_list(struct TcsInterface out_interfaces[], size_t interf
 * @param[in] addresses_length number of elements in the @p out_addresses array.
 * @param[out] out_length pointer to receive the number of addresses found.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
-* @retval #TCS_ERROR_NOT_SUPPORTED if @p address_family is not supported on this platform (e.g. ::TCS_FAMILY_PACKET on non-Linux).
+* @retval #TCS_ERROR_INVALID_ARGUMENT if the port is not a number in the range 0-65535.
+* @retval #TCS_ERROR_ADDRESS_LOOKUP_FAILED if the hostname could not be resolved.
+* @retval #TCS_ERROR_NOT_SUPPORTED if @p address_family is not supported on this platform, or is ::TCS_FAMILY_PACKET and @p hostname is not a MAC address.
 */
 TcsResult tcs_address_resolve(const char* hostname,
                               TcsFamily address_family,
@@ -1833,7 +1850,7 @@ TcsResult tcs_address_resolve(const char* hostname,
 * @param[in] interface_addresses_length number of elements in the @p out_interface_addresses array.
 * @param[out] out_length pointer to receive the total number of results available, which may exceed @p interface_addresses_length.
 * @return #TCS_SUCCESS if successful, otherwise the error code.
-* @note If @p address_family_filter is not supported on this platform (e.g. ::TCS_FAMILY_PACKET on non-Linux), no entries match and *out_length is 0.
+* @note If @p address_family_filter is not supported on this platform (e.g. ::TCS_FAMILY_PACKET on macOS), no entries match and *out_length is 0. On Windows, packet addresses are listed with or without Npcap.
 */
 TcsResult tcs_address_list(TcsInterfaceId interface_id_filter,
                            TcsFamily address_family_filter,
@@ -1925,7 +1942,7 @@ bool tcs_address_is_multicast(const struct TcsAddress* addr);
 /** @brief Check if the address is a broadcast address. Returns false for NULL, unknown, or unsupported address families. */
 bool tcs_address_is_broadcast(const struct TcsAddress* addr);
 
-/** @brief Check if the address family is known and supported by this platform. Returns false for NULL or unknown families. */
+/** @brief Check if the address family is known and supported by this platform. Returns false for NULL or unknown families. On Windows, packet addresses are supported once tcs_lib_init() has found Npcap. */
 bool tcs_address_is_supported(const struct TcsAddress* addr);
 
 #ifdef __cplusplus
