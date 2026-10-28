@@ -541,6 +541,9 @@ static bool (*tcs_internal_packet_address_is_supported_impl)(const struct TcsAdd
 // pcap_setmintocopy(p, 0) would admit them. Behaviour that depends on the version: 802.1Q tags are restored on
 // receive from Npcap 1.81 (fixed for TCI 0 in 1.82 and for stacked tags in 1.88). Before that, NDIS has already
 // stripped the tag, so tagged frames arrive untagged. The filter in tcs_internal_npcap_socket_filter() matches both cases.
+//
+// Not supported: Wine. Its builtin wpcap.dll forwards to the host libpcap, but pcap_getevent() is a stub that raises
+// an exception, so tcs_internal_lib_init_impl_npcap() leaves packet sockets unsupported when it detects Wine.
 
 typedef struct pcap pcap_t;
 
@@ -1100,6 +1103,10 @@ static bool tcs_internal_packet_address_is_supported_impl_npcap(const struct Tcs
 static void tcs_internal_lib_init_impl_npcap(void)
 {
     if (g_npcap.init_count++ != 0)
+        return;
+    // Wine ships its own wpcap.dll where pcap_getevent() is a stub that raises an exception, so packet sockets stay
+    // unsupported there. Checking ntdll for wine_get_version() is the detection Wine's developer FAQ recommends.
+    if (GetProcAddress(GetModuleHandleA("ntdll.dll"), "wine_get_version") != NULL)
         return;
     // Npcap installs to System32\Npcap. LOAD_WITH_ALTERED_SEARCH_PATH makes the loader find Packet.dll next to
     // wpcap.dll without SetDllDirectory(), which would affect the whole process. The plain name is the fallback
