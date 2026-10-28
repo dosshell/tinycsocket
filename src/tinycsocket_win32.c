@@ -335,8 +335,8 @@ static TcsResult native2sockaddr(const PSOCKADDR in_addr, struct TcsAddress* out
 //
 // Windows has no AF_PACKET. A packet socket is an index into a table with the top bit set, which can never collide
 // with a kernel SOCKET handle. The public functions test that bit with tcs_internal_is_socket_packet() and hand
-// packet sockets to the tcs_internal_*_impl_npcap() functions below, everything else goes to Winsock. Nothing
-// outside the Npcap section touches Npcap.
+// packet sockets to the tcs_internal_packet_*_impl function pointers below, everything else goes to Winsock.
+// Nothing outside the Npcap section touches Npcap.
 
 #define TCS_PACKET_SOCKET_TAG ((TcsSocket)1 << (sizeof(TcsSocket) * 8 - 1))
 
@@ -344,6 +344,190 @@ static bool tcs_internal_is_socket_packet(TcsSocket socket)
 {
     return socket != TCS_SOCKET_INVALID && (socket & TCS_PACKET_SOCKET_TAG) != 0;
 }
+
+// Packet socket operations go through these function pointers, so that the implementation can be chosen at runtime.
+// They start at the tcs_internal_packet_*_impl_not_supported() functions below. The Npcap section points them at
+// its implementation when tcs_lib_init() has loaded Npcap, and back when tcs_lib_cleanup() has unloaded it.
+
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4100) // Unreferenced formal parameter, the stubs ignore their arguments
+#endif
+
+static TcsResult tcs_internal_packet_socket_impl_not_supported(TcsSocket* out_socket,
+                                                               TcsFamily family,
+                                                               TcsSocketType type,
+                                                               TcsProtocol protocol)
+{
+    return TCS_ERROR_NOT_SUPPORTED;
+}
+
+static TcsResult tcs_internal_packet_close_impl_not_supported(TcsSocket* socket)
+{
+    return TCS_ERROR_NOT_SUPPORTED;
+}
+
+static TcsResult tcs_internal_packet_bind_impl_not_supported(TcsSocket socket, const struct TcsAddress* address)
+{
+    return TCS_ERROR_NOT_SUPPORTED;
+}
+
+static TcsResult tcs_internal_packet_send_impl_not_supported(TcsSocket socket,
+                                                             const uint8_t* buffer,
+                                                             size_t buffer_size,
+                                                             uint32_t flags,
+                                                             size_t* sent_size)
+{
+    return TCS_ERROR_NOT_SUPPORTED;
+}
+
+static TcsResult tcs_internal_packet_send_to_impl_not_supported(TcsSocket socket,
+                                                                const uint8_t* buffer,
+                                                                size_t buffer_size,
+                                                                uint32_t flags,
+                                                                const struct TcsAddress* destination_address,
+                                                                size_t* sent_size)
+{
+    return TCS_ERROR_NOT_SUPPORTED;
+}
+
+static TcsResult tcs_internal_packet_sendv_impl_not_supported(TcsSocket socket,
+                                                              const struct TcsIoVec* iov,
+                                                              size_t iov_length,
+                                                              uint32_t flags,
+                                                              size_t* sent_size)
+{
+    return TCS_ERROR_NOT_SUPPORTED;
+}
+
+static TcsResult tcs_internal_packet_receive_from_impl_not_supported(TcsSocket socket,
+                                                                     uint8_t* buffer,
+                                                                     size_t buffer_size,
+                                                                     uint32_t flags,
+                                                                     struct TcsAddress* source_address,
+                                                                     size_t* received_size)
+{
+    return TCS_ERROR_NOT_SUPPORTED;
+}
+
+static TcsResult tcs_internal_packet_opt_get_impl_not_supported(TcsSocket socket,
+                                                                int32_t level,
+                                                                int32_t option_name,
+                                                                void* out_option_value,
+                                                                size_t* option_size)
+{
+    return TCS_ERROR_NOT_SUPPORTED;
+}
+
+static TcsResult tcs_internal_packet_opt_receive_timeout_set_impl_not_supported(TcsSocket socket, int timeout_ms)
+{
+    return TCS_ERROR_NOT_SUPPORTED;
+}
+
+static TcsResult tcs_internal_packet_opt_receive_timeout_get_impl_not_supported(TcsSocket socket, int* timeout_ms)
+{
+    return TCS_ERROR_NOT_SUPPORTED;
+}
+
+static TcsResult tcs_internal_packet_opt_nonblocking_set_impl_not_supported(TcsSocket socket, bool do_non_blocking)
+{
+    return TCS_ERROR_NOT_SUPPORTED;
+}
+
+static TcsResult tcs_internal_packet_opt_nonblocking_get_impl_not_supported(TcsSocket socket, bool* is_non_blocking)
+{
+    return TCS_ERROR_NOT_SUPPORTED;
+}
+
+static TcsResult tcs_internal_packet_opt_membership_add_to_impl_not_supported(
+    TcsSocket socket,
+    const struct TcsAddress* local_address,
+    const struct TcsAddress* multicast_address)
+{
+    return TCS_ERROR_NOT_SUPPORTED;
+}
+
+static TcsResult tcs_internal_packet_opt_membership_drop_from_impl_not_supported(
+    TcsSocket socket,
+    const struct TcsAddress* local_address,
+    const struct TcsAddress* multicast_address)
+{
+    return TCS_ERROR_NOT_SUPPORTED;
+}
+
+static TcsResult tcs_internal_packet_address_socket_local_impl_not_supported(TcsSocket socket,
+                                                                             struct TcsAddress* local_address)
+{
+    return TCS_ERROR_NOT_SUPPORTED;
+}
+
+static bool tcs_internal_packet_address_is_supported_impl_not_supported(const struct TcsAddress* addr)
+{
+    return false;
+}
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+
+static TcsResult (*tcs_internal_packet_socket_impl)(TcsSocket* out_socket,
+                                                    TcsFamily family,
+                                                    TcsSocketType type,
+                                                    TcsProtocol protocol) =
+    tcs_internal_packet_socket_impl_not_supported;
+static TcsResult (*tcs_internal_packet_close_impl)(TcsSocket* socket) = tcs_internal_packet_close_impl_not_supported;
+static TcsResult (*tcs_internal_packet_bind_impl)(TcsSocket socket, const struct TcsAddress* address) =
+    tcs_internal_packet_bind_impl_not_supported;
+static TcsResult (*tcs_internal_packet_send_impl)(TcsSocket socket,
+                                                  const uint8_t* buffer,
+                                                  size_t buffer_size,
+                                                  uint32_t flags,
+                                                  size_t* sent_size) = tcs_internal_packet_send_impl_not_supported;
+static TcsResult (*tcs_internal_packet_send_to_impl)(TcsSocket socket,
+                                                     const uint8_t* buffer,
+                                                     size_t buffer_size,
+                                                     uint32_t flags,
+                                                     const struct TcsAddress* destination_address,
+                                                     size_t* sent_size) =
+    tcs_internal_packet_send_to_impl_not_supported;
+static TcsResult (*tcs_internal_packet_sendv_impl)(TcsSocket socket,
+                                                   const struct TcsIoVec* iov,
+                                                   size_t iov_length,
+                                                   uint32_t flags,
+                                                   size_t* sent_size) = tcs_internal_packet_sendv_impl_not_supported;
+static TcsResult (*tcs_internal_packet_receive_from_impl)(TcsSocket socket,
+                                                          uint8_t* buffer,
+                                                          size_t buffer_size,
+                                                          uint32_t flags,
+                                                          struct TcsAddress* source_address,
+                                                          size_t* received_size) =
+    tcs_internal_packet_receive_from_impl_not_supported;
+static TcsResult (*tcs_internal_packet_opt_get_impl)(TcsSocket socket,
+                                                     int32_t level,
+                                                     int32_t option_name,
+                                                     void* out_option_value,
+                                                     size_t* option_size) =
+    tcs_internal_packet_opt_get_impl_not_supported;
+static TcsResult (*tcs_internal_packet_opt_receive_timeout_set_impl)(TcsSocket socket, int timeout_ms) =
+    tcs_internal_packet_opt_receive_timeout_set_impl_not_supported;
+static TcsResult (*tcs_internal_packet_opt_receive_timeout_get_impl)(TcsSocket socket, int* timeout_ms) =
+    tcs_internal_packet_opt_receive_timeout_get_impl_not_supported;
+static TcsResult (*tcs_internal_packet_opt_nonblocking_set_impl)(TcsSocket socket, bool do_non_blocking) =
+    tcs_internal_packet_opt_nonblocking_set_impl_not_supported;
+static TcsResult (*tcs_internal_packet_opt_nonblocking_get_impl)(TcsSocket socket, bool* is_non_blocking) =
+    tcs_internal_packet_opt_nonblocking_get_impl_not_supported;
+static TcsResult (*tcs_internal_packet_opt_membership_add_to_impl)(TcsSocket socket,
+                                                                   const struct TcsAddress* local_address,
+                                                                   const struct TcsAddress* multicast_address) =
+    tcs_internal_packet_opt_membership_add_to_impl_not_supported;
+static TcsResult (*tcs_internal_packet_opt_membership_drop_from_impl)(TcsSocket socket,
+                                                                      const struct TcsAddress* local_address,
+                                                                      const struct TcsAddress* multicast_address) =
+    tcs_internal_packet_opt_membership_drop_from_impl_not_supported;
+static TcsResult (*tcs_internal_packet_address_socket_local_impl)(TcsSocket socket, struct TcsAddress* local_address) =
+    tcs_internal_packet_address_socket_local_impl_not_supported;
+static bool (*tcs_internal_packet_address_is_supported_impl)(const struct TcsAddress* addr) =
+    tcs_internal_packet_address_is_supported_impl_not_supported;
 
 // ######## Packet Sockets: Npcap ########
 //
@@ -381,17 +565,17 @@ struct bpf_program
 #define TCS_PCAP_ERROR_IFACE_NOT_UP (-9)
 #define TCS_PCAP_ERROR_PROMISC_PERM_DENIED (-11)
 
-typedef pcap_t*(__cdecl* TcsPcapCreate)(const char*, char*);
-typedef int(__cdecl* TcsPcapSetInt)(pcap_t*, int);
-typedef int(__cdecl* TcsPcapGetInt)(pcap_t*);
-typedef int(__cdecl* TcsPcapSetNonblock)(pcap_t*, int, char*);
-typedef HANDLE(__cdecl* TcsPcapGetEvent)(pcap_t*);
-typedef int(__cdecl* TcsPcapCompile)(pcap_t*, struct bpf_program*, const char*, int, unsigned int);
-typedef int(__cdecl* TcsPcapSetFilter)(pcap_t*, struct bpf_program*);
-typedef void(__cdecl* TcsPcapFreeCode)(struct bpf_program*);
-typedef int(__cdecl* TcsPcapNextEx)(pcap_t*, struct pcap_pkthdr**, const unsigned char**);
-typedef int(__cdecl* TcsPcapSendPacket)(pcap_t*, const unsigned char*, int);
-typedef void(__cdecl* TcsPcapClose)(pcap_t*);
+typedef pcap_t*(__cdecl* TcsInternalPcapCreate)(const char*, char*);
+typedef int(__cdecl* TcsInternalPcapSetInt)(pcap_t*, int);
+typedef int(__cdecl* TcsInternalPcapGetInt)(pcap_t*);
+typedef int(__cdecl* TcsInternalPcapSetNonblock)(pcap_t*, int, char*);
+typedef HANDLE(__cdecl* TcsInternalPcapGetEvent)(pcap_t*);
+typedef int(__cdecl* TcsInternalPcapCompile)(pcap_t*, struct bpf_program*, const char*, int, unsigned int);
+typedef int(__cdecl* TcsInternalPcapSetFilter)(pcap_t*, struct bpf_program*);
+typedef void(__cdecl* TcsInternalPcapFreeCode)(struct bpf_program*);
+typedef int(__cdecl* TcsInternalPcapNextEx)(pcap_t*, struct pcap_pkthdr**, const unsigned char**);
+typedef int(__cdecl* TcsInternalPcapSendPacket)(pcap_t*, const unsigned char*, int);
+typedef void(__cdecl* TcsInternalPcapClose)(pcap_t*);
 
 struct TcsInternalNpcapSocket
 {
@@ -414,20 +598,20 @@ static struct
 {
     HMODULE module; // NULL when Npcap is not installed or the library is not initialized
     int init_count; // tcs_lib_init() calls not yet matched by tcs_lib_cleanup()
-    TcsPcapCreate create;
-    TcsPcapSetInt set_snaplen;
-    TcsPcapSetInt set_promisc;
-    TcsPcapSetInt set_immediate_mode;
-    TcsPcapGetInt activate;
-    TcsPcapGetInt datalink;
-    TcsPcapSetNonblock setnonblock;
-    TcsPcapGetEvent getevent;
-    TcsPcapCompile compile;
-    TcsPcapSetFilter setfilter;
-    TcsPcapFreeCode freecode;
-    TcsPcapNextEx next_ex;
-    TcsPcapSendPacket sendpacket;
-    TcsPcapClose close;
+    TcsInternalPcapCreate create;
+    TcsInternalPcapSetInt set_snaplen;
+    TcsInternalPcapSetInt set_promisc;
+    TcsInternalPcapSetInt set_immediate_mode;
+    TcsInternalPcapGetInt activate;
+    TcsInternalPcapGetInt datalink;
+    TcsInternalPcapSetNonblock setnonblock;
+    TcsInternalPcapGetEvent getevent;
+    TcsInternalPcapCompile compile;
+    TcsInternalPcapSetFilter setfilter;
+    TcsInternalPcapFreeCode freecode;
+    TcsInternalPcapNextEx next_ex;
+    TcsInternalPcapSendPacket sendpacket;
+    TcsInternalPcapClose close;
     struct TcsInternalNpcapSocket* sockets[TCS_CFG_PACKET_SOCKETS_MAX]; // Indexed by the handle without its tag bit
 } g_npcap;
 
@@ -555,78 +739,12 @@ static TcsResult tcs_internal_npcap_socket_open(struct TcsInternalNpcapSocket* p
     return TCS_SUCCESS;
 }
 
-static void tcs_internal_lib_init_impl_npcap(void)
-{
-    if (g_npcap.init_count++ != 0)
-        return;
-    // Npcap installs to System32\Npcap. LOAD_WITH_ALTERED_SEARCH_PATH makes the loader find Packet.dll next to
-    // wpcap.dll without SetDllDirectory(), which would affect the whole process. The plain name is the fallback
-    // recommended by Npcap, for installations in WinPcap compatible mode.
-    const char suffix[] = "\\Npcap\\wpcap.dll";
-    char path[MAX_PATH];
-    UINT system_dir_size = GetSystemDirectoryA(path, MAX_PATH);
-    HMODULE m = NULL;
-    if (system_dir_size != 0 && system_dir_size + sizeof suffix <= MAX_PATH)
-    {
-        memcpy(path + system_dir_size, suffix, sizeof suffix);
-        m = LoadLibraryExA(path, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
-    }
-    if (m == NULL)
-        m = LoadLibraryA("wpcap.dll");
-    if (m == NULL)
-        return;
-
-    // FARPROC is cast through void (*)(void), which gcc treats as compatible with every function pointer type
-    g_npcap.create = (TcsPcapCreate)(void (*)(void))GetProcAddress(m, "pcap_create");
-    g_npcap.set_snaplen = (TcsPcapSetInt)(void (*)(void))GetProcAddress(m, "pcap_set_snaplen");
-    g_npcap.set_promisc = (TcsPcapSetInt)(void (*)(void))GetProcAddress(m, "pcap_set_promisc");
-    g_npcap.set_immediate_mode = (TcsPcapSetInt)(void (*)(void))GetProcAddress(m, "pcap_set_immediate_mode");
-    g_npcap.activate = (TcsPcapGetInt)(void (*)(void))GetProcAddress(m, "pcap_activate");
-    g_npcap.datalink = (TcsPcapGetInt)(void (*)(void))GetProcAddress(m, "pcap_datalink");
-    g_npcap.setnonblock = (TcsPcapSetNonblock)(void (*)(void))GetProcAddress(m, "pcap_setnonblock");
-    g_npcap.getevent = (TcsPcapGetEvent)(void (*)(void))GetProcAddress(m, "pcap_getevent");
-    g_npcap.compile = (TcsPcapCompile)(void (*)(void))GetProcAddress(m, "pcap_compile");
-    g_npcap.setfilter = (TcsPcapSetFilter)(void (*)(void))GetProcAddress(m, "pcap_setfilter");
-    g_npcap.freecode = (TcsPcapFreeCode)(void (*)(void))GetProcAddress(m, "pcap_freecode");
-    g_npcap.next_ex = (TcsPcapNextEx)(void (*)(void))GetProcAddress(m, "pcap_next_ex");
-    g_npcap.sendpacket = (TcsPcapSendPacket)(void (*)(void))GetProcAddress(m, "pcap_sendpacket");
-    g_npcap.close = (TcsPcapClose)(void (*)(void))GetProcAddress(m, "pcap_close");
-
-    if (g_npcap.create == NULL || g_npcap.set_snaplen == NULL || g_npcap.set_promisc == NULL ||
-        g_npcap.set_immediate_mode == NULL || g_npcap.activate == NULL || g_npcap.datalink == NULL ||
-        g_npcap.setnonblock == NULL || g_npcap.getevent == NULL || g_npcap.compile == NULL ||
-        g_npcap.setfilter == NULL || g_npcap.freecode == NULL || g_npcap.next_ex == NULL ||
-        g_npcap.sendpacket == NULL || g_npcap.close == NULL)
-    {
-        FreeLibrary(m);
-        return;
-    }
-    g_npcap.module = m;
-}
-
-static void tcs_internal_lib_cleanup_impl_npcap(void)
-{
-    if (g_npcap.init_count == 0 || --g_npcap.init_count != 0 || g_npcap.module == NULL)
-        return;
-    // Like WSACleanup(), the last cleanup closes every socket still open
-    for (size_t i = 0; i < TCS_CFG_PACKET_SOCKETS_MAX; ++i)
-    {
-        TcsSocket socket = TCS_PACKET_SOCKET_TAG | (TcsSocket)i;
-        if (g_npcap.sockets[i] != NULL)
-            tcs_close(&socket);
-    }
-    FreeLibrary(g_npcap.module);
-    memset(&g_npcap, 0, sizeof g_npcap);
-}
-
-static TcsResult tcs_internal_socket_impl_npcap(TcsSocket* out_socket,
-                                                TcsFamily family,
-                                                TcsSocketType type,
-                                                TcsProtocol protocol)
+static TcsResult tcs_internal_packet_socket_impl_npcap(TcsSocket* out_socket,
+                                                       TcsFamily family,
+                                                       TcsSocketType type,
+                                                       TcsProtocol protocol)
 {
     (void)family; // Always TCS_FAMILY_PACKET
-    if (g_npcap.module == NULL)
-        return TCS_ERROR_NOT_SUPPORTED;
     if (type.native != SOCK_DGRAM && type.native != SOCK_RAW)
         return TCS_ERROR_NOT_SUPPORTED;
     size_t index = 0;
@@ -645,7 +763,7 @@ static TcsResult tcs_internal_socket_impl_npcap(TcsSocket* out_socket,
     return TCS_SUCCESS;
 }
 
-static TcsResult tcs_internal_close_impl_npcap(TcsSocket* socket)
+static TcsResult tcs_internal_packet_close_impl_npcap(TcsSocket* socket)
 {
     struct TcsInternalNpcapSocket* ps = tcs_internal_npcap_socket_get(*socket);
     if (ps == NULL)
@@ -659,7 +777,7 @@ static TcsResult tcs_internal_close_impl_npcap(TcsSocket* socket)
     return TCS_SUCCESS;
 }
 
-static TcsResult tcs_internal_bind_impl_npcap(TcsSocket socket, const struct TcsAddress* address)
+static TcsResult tcs_internal_packet_bind_impl_npcap(TcsSocket socket, const struct TcsAddress* address)
 {
     struct TcsInternalNpcapSocket* ps = tcs_internal_npcap_socket_get(socket);
     if (ps == NULL)
@@ -674,11 +792,11 @@ static TcsResult tcs_internal_bind_impl_npcap(TcsSocket socket, const struct Tcs
     return tcs_internal_npcap_socket_open(ps);
 }
 
-static TcsResult tcs_internal_send_impl_npcap(TcsSocket socket,
-                                              const uint8_t* buffer,
-                                              size_t buffer_size,
-                                              uint32_t flags,
-                                              size_t* sent_size)
+static TcsResult tcs_internal_packet_send_impl_npcap(TcsSocket socket,
+                                                     const uint8_t* buffer,
+                                                     size_t buffer_size,
+                                                     uint32_t flags,
+                                                     size_t* sent_size)
 {
     struct TcsInternalNpcapSocket* ps = tcs_internal_npcap_socket_get(socket);
     if (ps == NULL)
@@ -692,12 +810,12 @@ static TcsResult tcs_internal_send_impl_npcap(TcsSocket socket,
     return tcs_send_to(socket, buffer, buffer_size, flags & ~TCS_MSG_SENDALL, &self, sent_size);
 }
 
-static TcsResult tcs_internal_send_to_impl_npcap(TcsSocket socket,
-                                                 const uint8_t* buffer,
-                                                 size_t buffer_size,
-                                                 uint32_t flags,
-                                                 const struct TcsAddress* destination_address,
-                                                 size_t* sent_size)
+static TcsResult tcs_internal_packet_send_to_impl_npcap(TcsSocket socket,
+                                                        const uint8_t* buffer,
+                                                        size_t buffer_size,
+                                                        uint32_t flags,
+                                                        const struct TcsAddress* destination_address,
+                                                        size_t* sent_size)
 {
     (void)flags; // No send flag applies to a frame
     if (sent_size != NULL)
@@ -744,11 +862,11 @@ static TcsResult tcs_internal_send_to_impl_npcap(TcsSocket socket,
     return TCS_SUCCESS;
 }
 
-static TcsResult tcs_internal_sendv_impl_npcap(TcsSocket socket,
-                                               const struct TcsIoVec* iov,
-                                               size_t iov_length,
-                                               uint32_t flags,
-                                               size_t* sent_size)
+static TcsResult tcs_internal_packet_sendv_impl_npcap(TcsSocket socket,
+                                                      const struct TcsIoVec* iov,
+                                                      size_t iov_length,
+                                                      uint32_t flags,
+                                                      size_t* sent_size)
 {
     // A frame is sent in one piece, so the buffers are gathered first
     size_t total_size = 0;
@@ -773,12 +891,12 @@ static TcsResult tcs_internal_sendv_impl_npcap(TcsSocket socket,
     return send_sts;
 }
 
-static TcsResult tcs_internal_receive_from_impl_npcap(TcsSocket socket,
-                                                      uint8_t* buffer,
-                                                      size_t buffer_size,
-                                                      uint32_t flags,
-                                                      struct TcsAddress* source_address,
-                                                      size_t* received_size)
+static TcsResult tcs_internal_packet_receive_from_impl_npcap(TcsSocket socket,
+                                                             uint8_t* buffer,
+                                                             size_t buffer_size,
+                                                             uint32_t flags,
+                                                             struct TcsAddress* source_address,
+                                                             size_t* received_size)
 {
     struct TcsInternalNpcapSocket* ps = tcs_internal_npcap_socket_get(socket);
     if (ps == NULL)
@@ -849,11 +967,11 @@ static TcsResult tcs_internal_receive_from_impl_npcap(TcsSocket socket,
     }
 }
 
-static TcsResult tcs_internal_opt_get_impl_npcap(TcsSocket socket,
-                                                 int32_t level,
-                                                 int32_t option_name,
-                                                 void* out_option_value,
-                                                 size_t* option_size)
+static TcsResult tcs_internal_packet_opt_get_impl_npcap(TcsSocket socket,
+                                                        int32_t level,
+                                                        int32_t option_name,
+                                                        void* out_option_value,
+                                                        size_t* option_size)
 {
     struct TcsInternalNpcapSocket* ps = tcs_internal_npcap_socket_get(socket);
     if (ps == NULL)
@@ -865,7 +983,7 @@ static TcsResult tcs_internal_opt_get_impl_npcap(TcsSocket socket,
     return TCS_SUCCESS;
 }
 
-static TcsResult tcs_internal_opt_receive_timeout_set_impl_npcap(TcsSocket socket, int timeout_ms)
+static TcsResult tcs_internal_packet_opt_receive_timeout_set_impl_npcap(TcsSocket socket, int timeout_ms)
 {
     struct TcsInternalNpcapSocket* ps = tcs_internal_npcap_socket_get(socket);
     if (ps == NULL)
@@ -874,7 +992,7 @@ static TcsResult tcs_internal_opt_receive_timeout_set_impl_npcap(TcsSocket socke
     return TCS_SUCCESS;
 }
 
-static TcsResult tcs_internal_opt_receive_timeout_get_impl_npcap(TcsSocket socket, int* timeout_ms)
+static TcsResult tcs_internal_packet_opt_receive_timeout_get_impl_npcap(TcsSocket socket, int* timeout_ms)
 {
     struct TcsInternalNpcapSocket* ps = tcs_internal_npcap_socket_get(socket);
     if (ps == NULL)
@@ -883,7 +1001,7 @@ static TcsResult tcs_internal_opt_receive_timeout_get_impl_npcap(TcsSocket socke
     return TCS_SUCCESS;
 }
 
-static TcsResult tcs_internal_opt_nonblocking_set_impl_npcap(TcsSocket socket, bool do_non_blocking)
+static TcsResult tcs_internal_packet_opt_nonblocking_set_impl_npcap(TcsSocket socket, bool do_non_blocking)
 {
     struct TcsInternalNpcapSocket* ps = tcs_internal_npcap_socket_get(socket);
     if (ps == NULL)
@@ -892,7 +1010,7 @@ static TcsResult tcs_internal_opt_nonblocking_set_impl_npcap(TcsSocket socket, b
     return TCS_SUCCESS;
 }
 
-static TcsResult tcs_internal_opt_nonblocking_get_impl_npcap(TcsSocket socket, bool* is_non_blocking)
+static TcsResult tcs_internal_packet_opt_nonblocking_get_impl_npcap(TcsSocket socket, bool* is_non_blocking)
 {
     struct TcsInternalNpcapSocket* ps = tcs_internal_npcap_socket_get(socket);
     if (ps == NULL)
@@ -901,9 +1019,9 @@ static TcsResult tcs_internal_opt_nonblocking_get_impl_npcap(TcsSocket socket, b
     return TCS_SUCCESS;
 }
 
-static TcsResult tcs_internal_opt_membership_add_to_impl_npcap(TcsSocket socket,
-                                                               const struct TcsAddress* local_address,
-                                                               const struct TcsAddress* multicast_address)
+static TcsResult tcs_internal_packet_opt_membership_add_to_impl_npcap(TcsSocket socket,
+                                                                      const struct TcsAddress* local_address,
+                                                                      const struct TcsAddress* multicast_address)
 {
     (void)local_address; // A packet socket is bound to one interface
     struct TcsInternalNpcapSocket* ps = tcs_internal_npcap_socket_get(socket);
@@ -927,9 +1045,9 @@ static TcsResult tcs_internal_opt_membership_add_to_impl_npcap(TcsSocket socket,
     return sts;
 }
 
-static TcsResult tcs_internal_opt_membership_drop_from_impl_npcap(TcsSocket socket,
-                                                                  const struct TcsAddress* local_address,
-                                                                  const struct TcsAddress* multicast_address)
+static TcsResult tcs_internal_packet_opt_membership_drop_from_impl_npcap(TcsSocket socket,
+                                                                         const struct TcsAddress* local_address,
+                                                                         const struct TcsAddress* multicast_address)
 {
     (void)local_address; // A packet socket is bound to one interface
     struct TcsInternalNpcapSocket* ps = tcs_internal_npcap_socket_get(socket);
@@ -961,7 +1079,7 @@ static TcsResult tcs_internal_opt_membership_drop_from_impl_npcap(TcsSocket sock
     return sts;
 }
 
-static TcsResult tcs_internal_address_socket_local_impl_npcap(TcsSocket socket, struct TcsAddress* local_address)
+static TcsResult tcs_internal_packet_address_socket_local_impl_npcap(TcsSocket socket, struct TcsAddress* local_address)
 {
     struct TcsInternalNpcapSocket* ps = tcs_internal_npcap_socket_get(socket);
     if (ps == NULL)
@@ -974,10 +1092,105 @@ static TcsResult tcs_internal_address_socket_local_impl_npcap(TcsSocket socket, 
     return TCS_SUCCESS;
 }
 
-static bool tcs_internal_address_is_supported_impl_npcap(const struct TcsAddress* addr)
+static bool tcs_internal_packet_address_is_supported_impl_npcap(const struct TcsAddress* addr)
 {
-    // Npcap is loaded by tcs_lib_init() when it is installed
-    return addr->family.native == TCS_FAMILY_PACKET.native && g_npcap.module != NULL;
+    return addr->family.native == TCS_FAMILY_PACKET.native;
+}
+
+static void tcs_internal_lib_init_impl_npcap(void)
+{
+    if (g_npcap.init_count++ != 0)
+        return;
+    // Npcap installs to System32\Npcap. LOAD_WITH_ALTERED_SEARCH_PATH makes the loader find Packet.dll next to
+    // wpcap.dll without SetDllDirectory(), which would affect the whole process. The plain name is the fallback
+    // recommended by Npcap, for installations in WinPcap compatible mode.
+    const char suffix[] = "\\Npcap\\wpcap.dll";
+    char path[MAX_PATH];
+    UINT system_dir_size = GetSystemDirectoryA(path, MAX_PATH);
+    HMODULE m = NULL;
+    if (system_dir_size != 0 && system_dir_size + sizeof suffix <= MAX_PATH)
+    {
+        memcpy(path + system_dir_size, suffix, sizeof suffix);
+        m = LoadLibraryExA(path, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+    }
+    if (m == NULL)
+        m = LoadLibraryA("wpcap.dll");
+    if (m == NULL)
+        return;
+
+    // FARPROC is cast through void (*)(void), which gcc treats as compatible with every function pointer type
+    g_npcap.create = (TcsInternalPcapCreate)(void (*)(void))GetProcAddress(m, "pcap_create");
+    g_npcap.set_snaplen = (TcsInternalPcapSetInt)(void (*)(void))GetProcAddress(m, "pcap_set_snaplen");
+    g_npcap.set_promisc = (TcsInternalPcapSetInt)(void (*)(void))GetProcAddress(m, "pcap_set_promisc");
+    g_npcap.set_immediate_mode = (TcsInternalPcapSetInt)(void (*)(void))GetProcAddress(m, "pcap_set_immediate_mode");
+    g_npcap.activate = (TcsInternalPcapGetInt)(void (*)(void))GetProcAddress(m, "pcap_activate");
+    g_npcap.datalink = (TcsInternalPcapGetInt)(void (*)(void))GetProcAddress(m, "pcap_datalink");
+    g_npcap.setnonblock = (TcsInternalPcapSetNonblock)(void (*)(void))GetProcAddress(m, "pcap_setnonblock");
+    g_npcap.getevent = (TcsInternalPcapGetEvent)(void (*)(void))GetProcAddress(m, "pcap_getevent");
+    g_npcap.compile = (TcsInternalPcapCompile)(void (*)(void))GetProcAddress(m, "pcap_compile");
+    g_npcap.setfilter = (TcsInternalPcapSetFilter)(void (*)(void))GetProcAddress(m, "pcap_setfilter");
+    g_npcap.freecode = (TcsInternalPcapFreeCode)(void (*)(void))GetProcAddress(m, "pcap_freecode");
+    g_npcap.next_ex = (TcsInternalPcapNextEx)(void (*)(void))GetProcAddress(m, "pcap_next_ex");
+    g_npcap.sendpacket = (TcsInternalPcapSendPacket)(void (*)(void))GetProcAddress(m, "pcap_sendpacket");
+    g_npcap.close = (TcsInternalPcapClose)(void (*)(void))GetProcAddress(m, "pcap_close");
+
+    if (g_npcap.create == NULL || g_npcap.set_snaplen == NULL || g_npcap.set_promisc == NULL ||
+        g_npcap.set_immediate_mode == NULL || g_npcap.activate == NULL || g_npcap.datalink == NULL ||
+        g_npcap.setnonblock == NULL || g_npcap.getevent == NULL || g_npcap.compile == NULL ||
+        g_npcap.setfilter == NULL || g_npcap.freecode == NULL || g_npcap.next_ex == NULL ||
+        g_npcap.sendpacket == NULL || g_npcap.close == NULL)
+    {
+        FreeLibrary(m);
+        return;
+    }
+    g_npcap.module = m;
+    tcs_internal_packet_socket_impl = tcs_internal_packet_socket_impl_npcap;
+    tcs_internal_packet_close_impl = tcs_internal_packet_close_impl_npcap;
+    tcs_internal_packet_bind_impl = tcs_internal_packet_bind_impl_npcap;
+    tcs_internal_packet_send_impl = tcs_internal_packet_send_impl_npcap;
+    tcs_internal_packet_send_to_impl = tcs_internal_packet_send_to_impl_npcap;
+    tcs_internal_packet_sendv_impl = tcs_internal_packet_sendv_impl_npcap;
+    tcs_internal_packet_receive_from_impl = tcs_internal_packet_receive_from_impl_npcap;
+    tcs_internal_packet_opt_get_impl = tcs_internal_packet_opt_get_impl_npcap;
+    tcs_internal_packet_opt_receive_timeout_set_impl = tcs_internal_packet_opt_receive_timeout_set_impl_npcap;
+    tcs_internal_packet_opt_receive_timeout_get_impl = tcs_internal_packet_opt_receive_timeout_get_impl_npcap;
+    tcs_internal_packet_opt_nonblocking_set_impl = tcs_internal_packet_opt_nonblocking_set_impl_npcap;
+    tcs_internal_packet_opt_nonblocking_get_impl = tcs_internal_packet_opt_nonblocking_get_impl_npcap;
+    tcs_internal_packet_opt_membership_add_to_impl = tcs_internal_packet_opt_membership_add_to_impl_npcap;
+    tcs_internal_packet_opt_membership_drop_from_impl = tcs_internal_packet_opt_membership_drop_from_impl_npcap;
+    tcs_internal_packet_address_socket_local_impl = tcs_internal_packet_address_socket_local_impl_npcap;
+    tcs_internal_packet_address_is_supported_impl = tcs_internal_packet_address_is_supported_impl_npcap;
+}
+
+static void tcs_internal_lib_cleanup_impl_npcap(void)
+{
+    if (g_npcap.init_count == 0 || --g_npcap.init_count != 0 || g_npcap.module == NULL)
+        return;
+    // Like WSACleanup(), the last cleanup closes every socket still open
+    for (size_t i = 0; i < TCS_CFG_PACKET_SOCKETS_MAX; ++i)
+    {
+        TcsSocket socket = TCS_PACKET_SOCKET_TAG | (TcsSocket)i;
+        if (g_npcap.sockets[i] != NULL)
+            tcs_close(&socket);
+    }
+    tcs_internal_packet_socket_impl = tcs_internal_packet_socket_impl_not_supported;
+    tcs_internal_packet_close_impl = tcs_internal_packet_close_impl_not_supported;
+    tcs_internal_packet_bind_impl = tcs_internal_packet_bind_impl_not_supported;
+    tcs_internal_packet_send_impl = tcs_internal_packet_send_impl_not_supported;
+    tcs_internal_packet_send_to_impl = tcs_internal_packet_send_to_impl_not_supported;
+    tcs_internal_packet_sendv_impl = tcs_internal_packet_sendv_impl_not_supported;
+    tcs_internal_packet_receive_from_impl = tcs_internal_packet_receive_from_impl_not_supported;
+    tcs_internal_packet_opt_get_impl = tcs_internal_packet_opt_get_impl_not_supported;
+    tcs_internal_packet_opt_receive_timeout_set_impl = tcs_internal_packet_opt_receive_timeout_set_impl_not_supported;
+    tcs_internal_packet_opt_receive_timeout_get_impl = tcs_internal_packet_opt_receive_timeout_get_impl_not_supported;
+    tcs_internal_packet_opt_nonblocking_set_impl = tcs_internal_packet_opt_nonblocking_set_impl_not_supported;
+    tcs_internal_packet_opt_nonblocking_get_impl = tcs_internal_packet_opt_nonblocking_get_impl_not_supported;
+    tcs_internal_packet_opt_membership_add_to_impl = tcs_internal_packet_opt_membership_add_to_impl_not_supported;
+    tcs_internal_packet_opt_membership_drop_from_impl = tcs_internal_packet_opt_membership_drop_from_impl_not_supported;
+    tcs_internal_packet_address_socket_local_impl = tcs_internal_packet_address_socket_local_impl_not_supported;
+    tcs_internal_packet_address_is_supported_impl = tcs_internal_packet_address_is_supported_impl_not_supported;
+    FreeLibrary(g_npcap.module);
+    memset(&g_npcap, 0, sizeof g_npcap);
 }
 
 TcsResult tcs_lib_init(void)
@@ -1002,7 +1215,7 @@ TcsResult tcs_socket(TcsSocket* out_socket, TcsFamily family, TcsSocketType type
         return TCS_ERROR_INVALID_ARGUMENT;
 
     if (family.native == TCS_FAMILY_PACKET.native)
-        return tcs_internal_socket_impl_npcap(out_socket, family, type, protocol);
+        return tcs_internal_packet_socket_impl(out_socket, family, type, protocol);
 
     TcsSocket new_socket = socket(family.native, type.native, (int)protocol);
 
@@ -1031,7 +1244,7 @@ TcsResult tcs_close(TcsSocket* socket)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     if (tcs_internal_is_socket_packet(*socket))
-        return tcs_internal_close_impl_npcap(socket);
+        return tcs_internal_packet_close_impl(socket);
 
     int close_status = closesocket(*socket);
     if (close_status != SOCKET_ERROR)
@@ -1055,7 +1268,7 @@ TcsResult tcs_bind(TcsSocket socket, const struct TcsAddress* address)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     if (tcs_internal_is_socket_packet(socket))
-        return tcs_internal_bind_impl_npcap(socket, address);
+        return tcs_internal_packet_bind_impl(socket, address);
 
     SOCKADDR_STORAGE native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
@@ -1169,7 +1382,7 @@ TcsResult tcs_send(TcsSocket socket, const uint8_t* buffer, size_t buffer_size, 
         return TCS_ERROR_INVALID_ARGUMENT;
 
     if (tcs_internal_is_socket_packet(socket))
-        return tcs_internal_send_impl_npcap(socket, buffer, buffer_size, flags, sent_size);
+        return tcs_internal_packet_send_impl(socket, buffer, buffer_size, flags, sent_size);
 
     // Send all
     if (flags & TCS_MSG_SENDALL)
@@ -1228,7 +1441,7 @@ TcsResult tcs_send_to(TcsSocket socket,
         return TCS_ERROR_NOT_IMPLEMENTED;
 
     if (tcs_internal_is_socket_packet(socket))
-        return tcs_internal_send_to_impl_npcap(socket, buffer, buffer_size, flags, destination_address, sent_size);
+        return tcs_internal_packet_send_to_impl(socket, buffer, buffer_size, flags, destination_address, sent_size);
 
     SOCKADDR_STORAGE native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
@@ -1264,7 +1477,7 @@ TcsResult tcs_sendv(TcsSocket socket, const struct TcsIoVec* iov, size_t iov_len
         return TCS_ERROR_NOT_IMPLEMENTED;
 
     if (tcs_internal_is_socket_packet(socket))
-        return tcs_internal_sendv_impl_npcap(socket, iov, iov_length, flags, sent_size);
+        return tcs_internal_packet_sendv_impl(socket, iov, iov_length, flags, sent_size);
 
     WSABUF stack_buffers[TCS_CFG_SENDV_STACK_MAX];
     WSABUF* native_buffers = stack_buffers;
@@ -1392,7 +1605,7 @@ TcsResult tcs_receive_from(TcsSocket socket,
         *received_size = 0;
 
     if (tcs_internal_is_socket_packet(socket))
-        return tcs_internal_receive_from_impl_npcap(socket, buffer, buffer_size, flags, source_address, received_size);
+        return tcs_internal_packet_receive_from_impl(socket, buffer, buffer_size, flags, source_address, received_size);
 
     SOCKADDR_STORAGE native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
@@ -1850,7 +2063,7 @@ TcsResult tcs_opt_get(TcsSocket socket, int32_t level, int32_t option_name, void
         return TCS_ERROR_NOT_IMPLEMENTED;
 
     if (tcs_internal_is_socket_packet(socket))
-        return tcs_internal_opt_get_impl_npcap(socket, level, option_name, out_option_value, option_size);
+        return tcs_internal_packet_opt_get_impl(socket, level, option_name, out_option_value, option_size);
 
     int optlen = (int)*option_size;
     int sockopt_status = getsockopt(socket, (int)level, (int)option_name, (char*)out_option_value, &optlen);
@@ -1918,7 +2131,7 @@ TcsResult tcs_opt_receive_timeout_set(TcsSocket socket, int timeout_ms)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     if (tcs_internal_is_socket_packet(socket))
-        return tcs_internal_opt_receive_timeout_set_impl_npcap(socket, timeout_ms);
+        return tcs_internal_packet_opt_receive_timeout_set_impl(socket, timeout_ms);
 
     return tcs_opt_set(socket, TCS_SOL_SOCKET, TCS_SO_RCVTIMEO, &timeout_ms, sizeof(timeout_ms));
 }
@@ -1929,7 +2142,7 @@ TcsResult tcs_opt_receive_timeout_get(TcsSocket socket, int* timeout_ms)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     if (tcs_internal_is_socket_packet(socket))
-        return tcs_internal_opt_receive_timeout_get_impl_npcap(socket, timeout_ms);
+        return tcs_internal_packet_opt_receive_timeout_get_impl(socket, timeout_ms);
 
     DWORD t = 0;
     size_t t_size = sizeof(t);
@@ -1983,7 +2196,7 @@ TcsResult tcs_opt_nonblocking_set(TcsSocket socket, bool do_non_blocking)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     if (tcs_internal_is_socket_packet(socket))
-        return tcs_internal_opt_nonblocking_set_impl_npcap(socket, do_non_blocking);
+        return tcs_internal_packet_opt_nonblocking_set_impl(socket, do_non_blocking);
 
     u_long mode = do_non_blocking ? 1 : 0;
     int sts = ioctlsocket((SOCKET)socket, (long)FIONBIO, &mode);
@@ -1996,7 +2209,7 @@ TcsResult tcs_opt_nonblocking_get(TcsSocket socket, bool* is_non_blocking)
         return TCS_ERROR_INVALID_ARGUMENT;
 
     if (tcs_internal_is_socket_packet(socket))
-        return tcs_internal_opt_nonblocking_get_impl_npcap(socket, is_non_blocking);
+        return tcs_internal_packet_opt_nonblocking_get_impl(socket, is_non_blocking);
 
     // Win32 does not provide an API to query the non-blocking state of a socket
     return TCS_ERROR_NOT_SUPPORTED;
@@ -2042,7 +2255,7 @@ TcsResult tcs_opt_membership_add_to(TcsSocket socket,
         return TCS_ERROR_INVALID_ARGUMENT;
 
     if (tcs_internal_is_socket_packet(socket))
-        return tcs_internal_opt_membership_add_to_impl_npcap(socket, local_address, multicast_address);
+        return tcs_internal_packet_opt_membership_add_to_impl(socket, local_address, multicast_address);
 
     if (multicast_address->family.native == TCS_FAMILY_IPV4.native)
     {
@@ -2105,7 +2318,7 @@ TcsResult tcs_opt_membership_drop_from(TcsSocket socket,
         return TCS_ERROR_INVALID_ARGUMENT;
 
     if (tcs_internal_is_socket_packet(socket))
-        return tcs_internal_opt_membership_drop_from_impl_npcap(socket, local_address, multicast_address);
+        return tcs_internal_packet_opt_membership_drop_from_impl(socket, local_address, multicast_address);
 
     if (multicast_address->family.native == TCS_FAMILY_IPV4.native)
     {
@@ -2495,7 +2708,7 @@ TcsResult tcs_address_socket_local(TcsSocket socket, struct TcsAddress* local_ad
         return TCS_ERROR_INVALID_ARGUMENT;
 
     if (tcs_internal_is_socket_packet(socket))
-        return tcs_internal_address_socket_local_impl_npcap(socket, local_address);
+        return tcs_internal_packet_address_socket_local_impl(socket, local_address);
 
     SOCKADDR_STORAGE native_sockaddr;
     memset(&native_sockaddr, 0, sizeof native_sockaddr);
@@ -2563,7 +2776,7 @@ bool tcs_address_is_supported(const struct TcsAddress* addr)
     if (addr->family.native == TCS_FAMILY_IPV6.native)
         return true;
     if (addr->family.native == TCS_FAMILY_PACKET.native)
-        return tcs_internal_address_is_supported_impl_npcap(addr);
+        return tcs_internal_packet_address_is_supported_impl(addr);
     return false;
 }
 
