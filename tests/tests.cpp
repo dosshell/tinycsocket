@@ -68,6 +68,42 @@ static inline double log10(unsigned int x)
 static constexpr size_t kInterfaceListCapacity = 128;
 static constexpr size_t kAddressListCapacity = 128;
 
+// Packet sockets need Linux with CAP_NET_RAW or Windows with Npcap. The packet tests call this after tcs_lib_init() and
+// return when it is false, which leaves a doctest warning that the test was not run. The interface is the first one
+// listed, which is lo on Linux and the first adapter with a MAC address on Windows.
+static bool packet_sockets_available(struct TcsInterfaceAddress* out_interface)
+{
+    struct TcsAddress packet_address = TCS_ADDRESS_NONE;
+    packet_address.family = TCS_FAMILY_PACKET;
+    bool supported = tcs_address_is_supported(&packet_address);
+    WARN_MESSAGE(supported, "packet sockets are not supported on this platform, the test was not run");
+    if (!supported)
+        return false;
+
+    static struct TcsInterfaceAddress addrs[kAddressListCapacity];
+    size_t addresses_found = 0;
+    CHECK(tcs_address_list(0, TCS_FAMILY_PACKET, addrs, kAddressListCapacity, &addresses_found) == TCS_SUCCESS);
+    WARN_MESSAGE(addresses_found > 0, "no packet interface was found, the test was not run");
+    if (addresses_found == 0)
+        return false;
+
+    // Binding is where the permission check happens, on Linux at socket() and on Windows when Npcap opens the adapter
+    packet_address.data.packet.interface_id = addrs[0].iface.id;
+    TcsSocket probe = TCS_SOCKET_INVALID;
+    TcsResult probe_res = tcs_socket_packet(&probe, &packet_address, TCS_SOCKET_DGRAM);
+    WARN_MESSAGE(probe_res != TCS_ERROR_PERMISSION_DENIED,
+                 "packet sockets need root or CAP_NET_RAW, the test was not run");
+    if (probe_res == TCS_ERROR_PERMISSION_DENIED)
+        return false;
+    CHECK(probe_res == TCS_SUCCESS);
+    if (probe_res != TCS_SUCCESS)
+        return false;
+    CHECK(tcs_close(&probe) == TCS_SUCCESS);
+
+    *out_interface = addrs[0];
+    return true;
+}
+
 int main(int argc, char** argv)
 {
 #ifdef _MSC_VER
@@ -1742,23 +1778,6 @@ TEST_CASE("tcs_opt_membership_drop_str")
     REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
-#if defined(__linux__)
-TEST_CASE("Simple AVTP talker")
-{
-    // Setup
-    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
-
-    TcsSocket socket = TCS_SOCKET_INVALID;
-    CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCKET_RAW, TCS_PROTOCOL_ETH_ALL) == TCS_SUCCESS);
-    TcsAddress address = TCS_ADDRESS_NONE;
-    tcs_address_parse("", &address);
-
-    CHECK(tcs_close(&socket) == TCS_SUCCESS);
-
-    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
-}
-#endif
-
 // ************* TINY DATA STRUCTURE (TDS) UNIT TESTS *************
 
 TEST_CASE("TdsList capacity hysteresis")
@@ -1976,13 +1995,18 @@ TEST_CASE("TdsMap_int_double add and remove")
     CHECK(tds_map_mymap_destroy(&map) == 0);
 }
 
-#if defined(__linux__)
 const uint8_t AVTP_DEST_ADDR[6] = {0x91, 0xe0, 0xf0, 0x00, 0xfe, 0x00};
 
 TEST_CASE("Create packet socket")
 {
     // Setup
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+    struct TcsInterfaceAddress iface;
+    if (!packet_sockets_available(&iface))
+    {
+        REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+        return;
+    }
 
     // Given
     TcsSocket socket = TCS_SOCKET_INVALID;
@@ -2002,6 +2026,12 @@ TEST_CASE("Create AVTP socket")
 {
     // Setup
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+    struct TcsInterfaceAddress iface;
+    if (!packet_sockets_available(&iface))
+    {
+        REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+        return;
+    }
 
     // Given
     TcsSocket socket = TCS_SOCKET_INVALID;
@@ -2021,6 +2051,12 @@ TEST_CASE("AVTP Create talker socket sendto")
 {
     // Setup
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+    struct TcsInterfaceAddress iface;
+    if (!packet_sockets_available(&iface))
+    {
+        REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+        return;
+    }
 
     // Given
     TcsSocket socket = TCS_SOCKET_INVALID;
@@ -2028,16 +2064,15 @@ TEST_CASE("AVTP Create talker socket sendto")
     // When
     CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCKET_DGRAM, 0x22F0) == TCS_SUCCESS);
 
-    CHECK(tcs_opt_priority_set(socket, 6) == TCS_SUCCESS); // Set priority to 6 (VLAN priority 6)
-    static struct TcsInterfaceAddress addrs[kAddressListCapacity];
-    size_t addresses_found = 0;
-    CHECK(tcs_address_list(0, TCS_FAMILY_PACKET, addrs, kAddressListCapacity, &addresses_found) == TCS_SUCCESS);
-    CHECK(addresses_found > 0);
+    CHECK_POSIX(tcs_opt_priority_set(socket, 6) == TCS_SUCCESS); // VLAN priority 6, SO_PRIORITY is Linux only
 
+    // Linux can send on an unbound packet socket, Windows opens the adapter in bind
     TcsAddress address = TCS_ADDRESS_NONE;
     address.family = TCS_FAMILY_PACKET;
-    address.data.packet.interface_id = addrs[0].iface.id;
+    address.data.packet.interface_id = iface.iface.id;
     address.data.packet.protocol = 0x22F0;
+    CHECK(tcs_bind(socket, &address) == TCS_SUCCESS);
+
     memcpy(address.data.packet.mac, AVTP_DEST_ADDR, sizeof(AVTP_DEST_ADDR));
 
     uint8_t msg[] = "hello world\n";
@@ -2056,6 +2091,12 @@ TEST_CASE("TSN Create talker socket bind")
 {
     // Setup
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+    struct TcsInterfaceAddress iface;
+    if (!packet_sockets_available(&iface))
+    {
+        REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+        return;
+    }
 
     // Given
     TcsSocket socket = TCS_SOCKET_INVALID;
@@ -2063,15 +2104,11 @@ TEST_CASE("TSN Create talker socket bind")
     // When
     CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCKET_RAW, TCS_PROTOCOL_ETH_ALL) == TCS_SUCCESS);
 
-    CHECK(tcs_opt_priority_set(socket, 6) == TCS_SUCCESS); // Set priority to 6 (VLAN priority 6)
-    static struct TcsInterfaceAddress addr[kAddressListCapacity];
-    size_t addresses_found = 0;
-    CHECK(tcs_address_list(0, TCS_FAMILY_PACKET, addr, kAddressListCapacity, &addresses_found) == TCS_SUCCESS);
-    CHECK(addresses_found > 0);
+    CHECK_POSIX(tcs_opt_priority_set(socket, 6) == TCS_SUCCESS); // VLAN priority 6, SO_PRIORITY is Linux only
 
     TcsAddress address = TCS_ADDRESS_NONE;
     address.family = TCS_FAMILY_PACKET;
-    address.data.packet.interface_id = addr[0].iface.id;
+    address.data.packet.interface_id = iface.iface.id;
     address.data.packet.protocol = 0x22F0; // Ethertype for AVTP
     memcpy(address.data.packet.mac, AVTP_DEST_ADDR, sizeof(AVTP_DEST_ADDR));
 
@@ -2079,11 +2116,11 @@ TEST_CASE("TSN Create talker socket bind")
 
     // SOCK_RAW requires a complete Ethernet frame: [6 dst MAC][6 src MAC][2 EtherType][payload]
     uint8_t frame[64] = {0};
-    memcpy(&frame[0], AVTP_DEST_ADDR, 6);                  // Destination MAC
-    memcpy(&frame[6], addr[0].address.data.packet.mac, 6); // Source MAC
-    frame[12] = 0x22;                                      // EtherType high byte (AVTP)
-    frame[13] = 0xF0;                                      // EtherType low byte
-    memcpy(&frame[14], "hello world\n", 12);               // Payload
+    memcpy(&frame[0], AVTP_DEST_ADDR, 6);                // Destination MAC
+    memcpy(&frame[6], iface.address.data.packet.mac, 6); // Source MAC
+    frame[12] = 0x22;                                    // EtherType high byte (AVTP)
+    frame[13] = 0xF0;                                    // EtherType low byte
+    memcpy(&frame[14], "hello world\n", 12);             // Payload
 
     size_t sent_size = 0;
     CHECK(tcs_send_to(socket, frame, sizeof(frame), TCS_FLAG_NONE, &address, &sent_size) == TCS_SUCCESS);
@@ -2100,6 +2137,12 @@ TEST_CASE("TSN Create listener")
 {
     // Setup
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+    struct TcsInterfaceAddress iface;
+    if (!packet_sockets_available(&iface))
+    {
+        REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+        return;
+    }
 
     // Given
     TcsSocket socket = TCS_SOCKET_INVALID;
@@ -2107,14 +2150,9 @@ TEST_CASE("TSN Create listener")
     // When
     CHECK(tcs_socket(&socket, TCS_FAMILY_PACKET, TCS_SOCKET_RAW, TCS_PROTOCOL_ETH_ALL) == TCS_SUCCESS);
 
-    static struct TcsInterfaceAddress addr[kAddressListCapacity];
-    size_t addresses_found = 0;
-    CHECK(tcs_address_list(0, TCS_FAMILY_PACKET, addr, kAddressListCapacity, &addresses_found) == TCS_SUCCESS);
-    CHECK(addresses_found > 0);
-
     TcsAddress address = TCS_ADDRESS_NONE;
     address.family = TCS_FAMILY_PACKET;
-    address.data.packet.interface_id = addr[0].iface.id;
+    address.data.packet.interface_id = iface.iface.id;
     memcpy(address.data.packet.mac, AVTP_DEST_ADDR, sizeof(AVTP_DEST_ADDR));
     address.data.packet.protocol = 0x22F0; // Ethertype for TSN
 
@@ -2134,6 +2172,12 @@ TEST_CASE("Create DGRAM packet socket with preset")
 {
     // Setup
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+    struct TcsInterfaceAddress iface;
+    if (!packet_sockets_available(&iface))
+    {
+        REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+        return;
+    }
 
     // Given
     TcsSocket socket = TCS_SOCKET_INVALID;
@@ -2149,49 +2193,23 @@ TEST_CASE("Create DGRAM packet socket with preset")
     REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
-TEST_CASE("tcs_socket_packet bind")
-{
-    // Setup
-    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
-
-    // Given
-    TcsSocket socket = TCS_SOCKET_INVALID;
-    static struct TcsInterfaceAddress addrs[kAddressListCapacity];
-    size_t addresses_found = 0;
-    CHECK(tcs_address_list(0, TCS_FAMILY_PACKET, addrs, kAddressListCapacity, &addresses_found) == TCS_SUCCESS);
-    CHECK(addresses_found > 0);
-
-    struct TcsAddress bind_address = TCS_ADDRESS_NONE;
-    bind_address.family = TCS_FAMILY_PACKET;
-    bind_address.data.packet.interface_id = addrs[0].iface.id;
-    bind_address.data.packet.protocol = 0x22F0;
-
-    // When
-    CHECK(tcs_socket_packet(&socket, &bind_address, TCS_SOCKET_DGRAM) == TCS_SUCCESS);
-
-    // Then
-    CHECK(socket != TCS_SOCKET_INVALID);
-    CHECK(tcs_close(&socket) == TCS_SUCCESS);
-
-    // Clean up
-    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
-}
-
 TEST_CASE("tcs_socket_packet sendto")
 {
     // Setup
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+    struct TcsInterfaceAddress iface;
+    if (!packet_sockets_available(&iface))
+    {
+        REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+        return;
+    }
 
     // Given
     TcsSocket socket = TCS_SOCKET_INVALID;
-    static struct TcsInterfaceAddress addrs[kAddressListCapacity];
-    size_t addresses_found = 0;
-    CHECK(tcs_address_list(0, TCS_FAMILY_PACKET, addrs, kAddressListCapacity, &addresses_found) == TCS_SUCCESS);
-    CHECK(addresses_found > 0);
 
     struct TcsAddress bind_address = TCS_ADDRESS_NONE;
     bind_address.family = TCS_FAMILY_PACKET;
-    bind_address.data.packet.interface_id = addrs[0].iface.id;
+    bind_address.data.packet.interface_id = iface.iface.id;
     bind_address.data.packet.protocol = 0x22F0;
 
     CHECK(tcs_socket_packet(&socket, &bind_address, TCS_SOCKET_DGRAM) == TCS_SUCCESS);
@@ -2199,7 +2217,7 @@ TEST_CASE("tcs_socket_packet sendto")
     // When - sendto with explicit destination
     struct TcsAddress dest_address = TCS_ADDRESS_NONE;
     dest_address.family = TCS_FAMILY_PACKET;
-    dest_address.data.packet.interface_id = addrs[0].iface.id;
+    dest_address.data.packet.interface_id = iface.iface.id;
     dest_address.data.packet.protocol = 0x22F0;
     memcpy(dest_address.data.packet.mac, AVTP_DEST_ADDR, sizeof(AVTP_DEST_ADDR));
 
@@ -2214,45 +2232,6 @@ TEST_CASE("tcs_socket_packet sendto")
     // Clean up
     REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
-
-TEST_CASE("tcs_socket_packet_str bind")
-{
-    // Setup
-    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
-
-    // Given
-    TcsSocket socket = TCS_SOCKET_INVALID;
-    static struct TcsInterface interfaces[kInterfaceListCapacity];
-    size_t iface_count = 0;
-    CHECK(tcs_interface_list(interfaces, kInterfaceListCapacity, &iface_count) == TCS_SUCCESS);
-    CHECK(iface_count > 0);
-
-    const char* iface_name = NULL;
-    for (size_t i = 0; i < iface_count; ++i)
-    {
-        if (strcmp(interfaces[i].name, "lo") != 0)
-        {
-            iface_name = interfaces[i].name;
-            break;
-        }
-    }
-    if (iface_name == NULL)
-    {
-        REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
-        return;
-    }
-
-    // When
-    CHECK(tcs_socket_packet_str(&socket, iface_name, 0x22F0, TCS_SOCKET_DGRAM) == TCS_SUCCESS);
-
-    // Then
-    CHECK(socket != TCS_SOCKET_INVALID);
-    CHECK(tcs_close(&socket) == TCS_SUCCESS);
-
-    // Clean up
-    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
-}
-#endif
 
 TEST_CASE("tcs_socket_packet invalid arguments old")
 {
@@ -2272,16 +2251,21 @@ TEST_CASE("tcs_socket_packet invalid arguments old")
     REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 
-#if defined(__linux__)
 TEST_CASE("tcs_socket_packet DGRAM")
 {
     // Setup
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+    struct TcsInterfaceAddress iface;
+    if (!packet_sockets_available(&iface))
+    {
+        REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+        return;
+    }
 
     // Given
     struct TcsAddress bind = TCS_ADDRESS_NONE;
     bind.family = TCS_FAMILY_PACKET;
-    bind.data.packet.interface_id = 1; // lo
+    bind.data.packet.interface_id = iface.iface.id;
     bind.data.packet.protocol = 0x22F0;
 
     TcsSocket socket = TCS_SOCKET_INVALID;
@@ -2301,11 +2285,17 @@ TEST_CASE("tcs_socket_packet RAW")
 {
     // Setup
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+    struct TcsInterfaceAddress iface;
+    if (!packet_sockets_available(&iface))
+    {
+        REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+        return;
+    }
 
     // Given
     struct TcsAddress bind = TCS_ADDRESS_NONE;
     bind.family = TCS_FAMILY_PACKET;
-    bind.data.packet.interface_id = 1; // lo
+    bind.data.packet.interface_id = iface.iface.id;
     bind.data.packet.protocol = 0x22F0;
 
     TcsSocket socket = TCS_SOCKET_INVALID;
@@ -2325,12 +2315,18 @@ TEST_CASE("tcs_socket_packet_str DGRAM")
 {
     // Setup
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+    struct TcsInterfaceAddress iface;
+    if (!packet_sockets_available(&iface))
+    {
+        REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+        return;
+    }
 
     // Given
     TcsSocket socket = TCS_SOCKET_INVALID;
 
     // When
-    CHECK(tcs_socket_packet_str(&socket, "lo", 0x22F0, TCS_SOCKET_DGRAM) == TCS_SUCCESS);
+    CHECK(tcs_socket_packet_str(&socket, iface.iface.name, 0x22F0, TCS_SOCKET_DGRAM) == TCS_SUCCESS);
 
     // Then
     CHECK(socket != TCS_SOCKET_INVALID);
@@ -2344,10 +2340,16 @@ TEST_CASE("tcs_socket_packet multicast add and drop str")
 {
     // Setup
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+    struct TcsInterfaceAddress iface;
+    if (!packet_sockets_available(&iface))
+    {
+        REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+        return;
+    }
 
-    // Given - create and bind a DGRAM packet socket on lo
+    // Given - create and bind a DGRAM packet socket
     TcsSocket socket = TCS_SOCKET_INVALID;
-    CHECK(tcs_socket_packet_str(&socket, "lo", 0x22F0, TCS_SOCKET_DGRAM) == TCS_SUCCESS);
+    CHECK(tcs_socket_packet_str(&socket, iface.iface.name, 0x22F0, TCS_SOCKET_DGRAM) == TCS_SUCCESS);
 
     // When/Then - join and leave a multicast MAC group via str
     CHECK(tcs_opt_membership_add_str(socket, "91:e0:f0:00:fe:00") == TCS_SUCCESS);
@@ -2357,7 +2359,6 @@ TEST_CASE("tcs_socket_packet multicast add and drop str")
     CHECK(tcs_close(&socket) == TCS_SUCCESS);
     REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
-#endif
 
 TEST_CASE("tcs_socket_packet invalid arguments")
 {
@@ -2407,48 +2408,172 @@ TEST_CASE("tcs_socket_packet_str invalid interface")
 
 TEST_CASE("Sentinel handling: TCS_FAMILY_PACKET on unsupported platform")
 {
-    // On platforms without AF_PACKET (Windows, macOS, BSDs), TCS_FAMILY_PACKET is a sentinel.
-    // All entry points that take a family must reject it consistently with TCS_ERROR_NOT_SUPPORTED
-    // instead of leaking the sentinel into OS calls.
+    // On platforms without AF_PACKET (macOS, BSDs), TCS_FAMILY_PACKET is a sentinel. All entry points that take a
+    // family must reject it consistently with TCS_ERROR_NOT_SUPPORTED instead of leaking the sentinel into OS calls.
+    // On Windows the family is real but needs Npcap at runtime, and without it the contract is the same.
     REQUIRE(tcs_lib_init() == TCS_SUCCESS);
 
-    // Probe whether this platform supports AF_PACKET by trying to create one.
+    struct TcsAddress packet_addr = TCS_ADDRESS_NONE;
+    packet_addr.family = TCS_FAMILY_PACKET;
+
+    // Probe whether packet sockets are available by trying to create one.
     TcsSocket probe = TCS_SOCKET_INVALID;
     TcsResult probe_res = tcs_socket(&probe, TCS_FAMILY_PACKET, TCS_SOCKET_RAW, TCS_PROTOCOL_ETH_ALL);
 
     if (probe_res == TCS_ERROR_NOT_SUPPORTED)
     {
-        // Unsupported platform: verify all paths agree on the contract.
+        // Unsupported: verify all paths agree on the contract.
+        CHECK(probe == TCS_SOCKET_INVALID);
+        CHECK_FALSE(tcs_address_is_supported(&packet_addr));
+
+        // The preset must fail the same way and leave the socket untouched
+        struct TcsAddress bind_addr = packet_addr;
+        bind_addr.data.packet.interface_id = 1;
+        bind_addr.data.packet.protocol = 0x22F0;
+        CHECK(tcs_socket_packet(&probe, &bind_addr, TCS_SOCKET_DGRAM) == TCS_ERROR_NOT_SUPPORTED);
         CHECK(probe == TCS_SOCKET_INVALID);
 
-        // tcs_address_resolve() must reject the sentinel filter before calling getaddrinfo()
+        // tcs_address_resolve() must reject the family before calling getaddrinfo()
         struct TcsAddress resolved = TCS_ADDRESS_NONE;
         size_t resolved_count = 0;
         CHECK(tcs_address_resolve("127.0.0.1", TCS_FAMILY_PACKET, &resolved, 1, &resolved_count) ==
               TCS_ERROR_NOT_SUPPORTED);
 
-        // tcs_address_list() must skip the unsupported filter (no entries, no error)
+        // tcs_address_list() must not fail. A sentinel platform lists nothing, Windows lists the adapters' MAC
+        // addresses since that needs no Npcap.
         static struct TcsInterfaceAddress ifaddrs[kAddressListCapacity];
         size_t ifaddr_count = 0;
         CHECK(tcs_address_list(0, TCS_FAMILY_PACKET, ifaddrs, kAddressListCapacity, &ifaddr_count) == TCS_SUCCESS);
-        CHECK(ifaddr_count == 0);
+        if (TCS_FAMILY_PACKET.native == -1)
+            CHECK(ifaddr_count == 0);
 
-        // sockaddr2native (via tcs_bind) must reject a sentinel address
+        // sockaddr2native (via tcs_bind) must reject a packet address on an IP socket
         TcsSocket udp_socket = TCS_SOCKET_INVALID;
         REQUIRE(tcs_socket(&udp_socket, TCS_FAMILY_IPV4, TCS_SOCKET_DGRAM, TCS_PROTOCOL_IP_UDP) == TCS_SUCCESS);
-        struct TcsAddress packet_addr = TCS_ADDRESS_NONE;
-        packet_addr.family = TCS_FAMILY_PACKET;
         CHECK(tcs_bind(udp_socket, &packet_addr) == TCS_ERROR_NOT_SUPPORTED);
         CHECK(tcs_close(&udp_socket) == TCS_SUCCESS);
     }
     else if (probe_res == TCS_SUCCESS)
     {
-        // Supported (Linux with CAP_NET_RAW): clean up and skip the rest.
+        // Supported (Linux with CAP_NET_RAW, Windows with Npcap): clean up and skip the rest.
+        CHECK(tcs_address_is_supported(&packet_addr));
         CHECK(tcs_close(&probe) == TCS_SUCCESS);
     }
     // Other results (e.g. TCS_ERROR_PERMISSION_DENIED on Linux without CAP_NET_RAW) are valid
     // platform-specific outcomes and not exercised by this test.
 
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+}
+
+TEST_CASE("tcs_address_socket_local on packet socket")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+    struct TcsInterfaceAddress iface;
+    if (!packet_sockets_available(&iface))
+    {
+        REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+        return;
+    }
+
+    // Given
+    struct TcsAddress bind_address = TCS_ADDRESS_NONE;
+    bind_address.family = TCS_FAMILY_PACKET;
+    bind_address.data.packet.interface_id = iface.iface.id;
+    bind_address.data.packet.protocol = 0x22F0;
+    TcsSocket socket = TCS_SOCKET_INVALID;
+    REQUIRE(tcs_socket_packet(&socket, &bind_address, TCS_SOCKET_DGRAM) == TCS_SUCCESS);
+
+    // When
+    struct TcsAddress local_address = TCS_ADDRESS_NONE;
+    CHECK(tcs_address_socket_local(socket, &local_address) == TCS_SUCCESS);
+
+    // Then
+    CHECK(local_address.family.native == TCS_FAMILY_PACKET.native);
+    CHECK(local_address.data.packet.interface_id == iface.iface.id);
+    CHECK(local_address.data.packet.protocol == 0x22F0);
+    CHECK(memcmp(local_address.data.packet.mac, iface.address.data.packet.mac, 6) == 0);
+
+    TcsSocketType type = {0};
+    CHECK(tcs_opt_type_get(socket, &type) == TCS_SUCCESS);
+    CHECK(type.native == TCS_SOCKET_DGRAM.native);
+
+    // Clean up
+    CHECK(tcs_close(&socket) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+}
+
+TEST_CASE("Packet socket receive timeout and nonblocking")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+    struct TcsInterfaceAddress iface;
+    if (!packet_sockets_available(&iface))
+    {
+        REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+        return;
+    }
+
+    // Given
+    struct TcsAddress bind_address = TCS_ADDRESS_NONE;
+    bind_address.family = TCS_FAMILY_PACKET;
+    bind_address.data.packet.interface_id = iface.iface.id;
+    bind_address.data.packet.protocol = 0x22F0;
+    TcsSocket socket = TCS_SOCKET_INVALID;
+    REQUIRE(tcs_socket_packet(&socket, &bind_address, TCS_SOCKET_DGRAM) == TCS_SUCCESS);
+
+    // When/Then - nothing is expected to talk AVTP here, but a stray frame is not an error
+    static uint8_t buffer[1500];
+    size_t received_size = 0;
+    CHECK(tcs_opt_receive_timeout_set(socket, 20) == TCS_SUCCESS);
+    TcsResult receive_res = tcs_receive(socket, buffer, sizeof(buffer), TCS_FLAG_NONE, &received_size);
+    CHECK((receive_res == TCS_ERROR_TIMED_OUT || receive_res == TCS_SUCCESS));
+
+    CHECK(tcs_opt_nonblocking_set(socket, true) == TCS_SUCCESS);
+    receive_res = tcs_receive(socket, buffer, sizeof(buffer), TCS_FLAG_NONE, &received_size);
+    CHECK((receive_res == TCS_ERROR_WOULD_BLOCK || receive_res == TCS_SUCCESS));
+
+    // Clean up
+    CHECK(tcs_close(&socket) == TCS_SUCCESS);
+    REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+}
+
+TEST_CASE("Packet socket RAW send")
+{
+    // Setup
+    REQUIRE(tcs_lib_init() == TCS_SUCCESS);
+    struct TcsInterfaceAddress iface;
+    if (!packet_sockets_available(&iface))
+    {
+        REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
+        return;
+    }
+
+    // Given - a bound RAW socket sends whole frames without a destination address
+    struct TcsAddress bind_address = TCS_ADDRESS_NONE;
+    bind_address.family = TCS_FAMILY_PACKET;
+    bind_address.data.packet.interface_id = iface.iface.id;
+    bind_address.data.packet.protocol = 0x22F0;
+    TcsSocket socket = TCS_SOCKET_INVALID;
+    REQUIRE(tcs_socket_packet(&socket, &bind_address, TCS_SOCKET_RAW) == TCS_SUCCESS);
+
+    uint8_t msg[] = "hello world\n";
+    uint8_t frame[14 + sizeof(msg)];
+    memcpy(frame, AVTP_DEST_ADDR, 6);
+    memcpy(frame + 6, iface.address.data.packet.mac, 6);
+    frame[12] = 0x22;
+    frame[13] = 0xF0;
+    memcpy(frame + 14, msg, sizeof(msg));
+
+    // When
+    size_t sent_size = 0;
+    CHECK(tcs_send(socket, frame, sizeof(frame), TCS_FLAG_NONE, &sent_size) == TCS_SUCCESS);
+
+    // Then
+    CHECK(sent_size == sizeof(frame));
+
+    // Clean up
+    CHECK(tcs_close(&socket) == TCS_SUCCESS);
     REQUIRE(tcs_lib_cleanup() == TCS_SUCCESS);
 }
 

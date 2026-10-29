@@ -2041,4 +2041,19 @@ TcsResult tcs_address_socket_family(TcsSocket socket, TcsFamily* out_family)
 // tcs_address_is_multicast() is defined in tinycsocket_common.c
 // tcs_address_is_broadcast() is defined in tinycsocket_common.c
 
+bool tcs_address_is_supported(const struct TcsAddress* addr)
+{
+    if (addr == NULL)
+        return false;
+    if (addr->family.native == TCS_FAMILY_ANY.native)
+        return true;
+    if (addr->family.native == TCS_FAMILY_IPV4.native)
+        return true;
+    if (addr->family.native == TCS_FAMILY_IPV6.native)
+        return true;
+    if (addr->family.native == TCS_FAMILY_PACKET.native)
+        return addr->family.native != -1; // -1 is the sentinel on platforms without AF_PACKET
+    return false;
+}
+
 #endif
