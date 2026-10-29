@@ -23,7 +23,7 @@
 #ifndef TINYCSOCKET_INTERNAL_H_
 #define TINYCSOCKET_INTERNAL_H_
 
-static const char* const TCS_VERSION_TXT = "v0.3.86";
+static const char* const TCS_VERSION_TXT = "v0.3.87";
 extern const char* const TCS_LICENSE_TXT;
 
 /*
@@ -563,7 +563,7 @@ TcsResult tcs_socket(TcsSocket* out_socket, TcsFamily family, TcsSocketType type
 *
 * Creates an IPv4 or IPv6 TCP socket based on the address family of the provided address(es).
 * If @p local_address is not NULL, SO_REUSEADDR is set and the socket is bound to it.
-* If @p remote_address is not NULL, the socket connects to it.
+* If @p remote_address is not NULL, the socket connects to it, so it must have a port.
 * At least one of @p local_address or @p remote_address must be non-NULL.
 * If both are provided, they must have the same address family.
 * On failure, *out_socket is always set back to #TCS_SOCKET_INVALID.
@@ -600,7 +600,7 @@ TcsResult tcs_socket(TcsSocket* out_socket, TcsFamily family, TcsSocketType type
 * @param[in] timeout_ms maximum time in milliseconds to wait for connection, or #TCS_WAIT_INF for OS default timeout. Ignored if @p remote_address is NULL.
 *
 * @return #TCS_SUCCESS if successful, otherwise the error code.
-* @retval #TCS_ERROR_INVALID_ARGUMENT if @p out_socket is NULL, if *out_socket is not #TCS_SOCKET_INVALID, if both addresses are NULL, or if both are provided with different address families.
+* @retval #TCS_ERROR_INVALID_ARGUMENT if @p out_socket is NULL, if *out_socket is not #TCS_SOCKET_INVALID, if both addresses are NULL, if both are provided with different address families, or if @p remote_address has port 0.
 * @retval #TCS_ERROR_CONNECTION_REFUSED if the remote server refused the connection.
 * @retval #TCS_ERROR_TIMED_OUT if the connection attempt timed out.
 *
@@ -617,7 +617,9 @@ TcsResult tcs_socket_tcp(TcsSocket* out_socket,
 * @brief Create a TCP socket from string addresses, optionally bind and/or connect.
 *
 * Resolves the address strings with ::tcs_address_resolve() and delegates to ::tcs_socket_tcp().
-* Addresses must include a port, e.g. "127.0.0.1:8080" or "[::1]:8080".
+* Addresses are given as "host:port", e.g. "localhost:8080", "127.0.0.1:8080" or "[::1]:8080".
+* The first resolved address is used. @p remote_address must include a port.
+* @p local_address without a port binds to a port chosen by the operating system.
 * At least one of @p local_address or @p remote_address must be non-NULL.
 * On failure, *out_socket is always set back to #TCS_SOCKET_INVALID.
 *
@@ -648,7 +650,8 @@ TcsResult tcs_socket_tcp(TcsSocket* out_socket,
 * @param[in] timeout_ms maximum time in milliseconds to wait for connection, or #TCS_WAIT_INF for OS default timeout. Ignored if @p remote_address is NULL.
 *
 * @return #TCS_SUCCESS if successful, otherwise the error code.
-* @retval #TCS_ERROR_INVALID_ARGUMENT if @p out_socket is NULL, if *out_socket is not #TCS_SOCKET_INVALID, or if both addresses are NULL.
+* @retval #TCS_ERROR_INVALID_ARGUMENT if @p out_socket is NULL, if *out_socket is not #TCS_SOCKET_INVALID, if both addresses are NULL, if an address string is malformed, or if @p remote_address has no port.
+* @retval #TCS_ERROR_ADDRESS_LOOKUP_FAILED if an address string could not be resolved.
 * @retval #TCS_ERROR_CONNECTION_REFUSED if the remote server refused the connection.
 * @retval #TCS_ERROR_TIMED_OUT if the connection attempt timed out.
 *
@@ -671,6 +674,7 @@ TcsResult tcs_socket_tcp_str(TcsSocket* out_socket,
 * When only @p remote_address is given (no @p local_address), the socket is also connected,
 * allowing use of ::tcs_send(). When both are given, the socket is not connected to avoid
 * filtering out multicast traffic — use ::tcs_send_to() instead.
+* Whenever the socket is connected, @p remote_address must have a port.
 * At least one of @p local_address or @p remote_address must be non-NULL.
 * If both are provided, they must have the same address family.
 * On failure, *out_socket is always set back to #TCS_SOCKET_INVALID.
@@ -706,7 +710,7 @@ TcsResult tcs_socket_tcp_str(TcsSocket* out_socket,
 * @param[in] remote_address address to connect to, or NULL to skip connecting.
 *
 * @return #TCS_SUCCESS if successful, otherwise the error code.
-* @retval #TCS_ERROR_INVALID_ARGUMENT if @p out_socket is NULL, if *out_socket is not #TCS_SOCKET_INVALID, if both addresses are NULL, or if both are provided with different address families.
+* @retval #TCS_ERROR_INVALID_ARGUMENT if @p out_socket is NULL, if *out_socket is not #TCS_SOCKET_INVALID, if both addresses are NULL, if both are provided with different address families, or if @p remote_address is connected to but has port 0.
 *
 * @see tcs_socket_udp_str()
 * @see tcs_close()
@@ -718,8 +722,10 @@ TcsResult tcs_socket_udp(TcsSocket* out_socket,
 /**
 * @brief Create a UDP socket from string addresses, optionally bind and/or connect.
 *
-* Parses the address strings with ::tcs_address_resolve() and delegates to ::tcs_socket_udp().
-* Addresses must include a port, e.g. "127.0.0.1:8080" or "[::1]:8080".
+* Resolves the address strings with ::tcs_address_resolve() and delegates to ::tcs_socket_udp().
+* Addresses are given as "host:port", e.g. "localhost:8080", "127.0.0.1:8080" or "[::1]:8080".
+* The first resolved address is used. A @p remote_address that the socket connects to must include a port.
+* @p local_address without a port binds to a port chosen by the operating system.
 * At least one of @p local_address or @p remote_address must be non-NULL.
 * On failure, *out_socket is always set back to #TCS_SOCKET_INVALID.
 *
@@ -749,7 +755,8 @@ TcsResult tcs_socket_udp(TcsSocket* out_socket,
 * @param[in] remote_address address string to connect to, or NULL to skip connecting.
 *
 * @return #TCS_SUCCESS if successful, otherwise the error code.
-* @retval #TCS_ERROR_INVALID_ARGUMENT if @p out_socket is NULL, if *out_socket is not #TCS_SOCKET_INVALID, or if both addresses are NULL.
+* @retval #TCS_ERROR_INVALID_ARGUMENT if @p out_socket is NULL, if *out_socket is not #TCS_SOCKET_INVALID, if both addresses are NULL, if an address string is malformed, or if @p remote_address is connected to but has no port.
+* @retval #TCS_ERROR_ADDRESS_LOOKUP_FAILED if an address string could not be resolved.
 *
 * @see tcs_socket_udp()
 * @see tcs_close()
@@ -1825,7 +1832,17 @@ TcsResult tcs_interface_list(struct TcsInterface out_interfaces[], size_t interf
 /**
 * @brief Resolve a hostname to one or more addresses.
 *
-* @param[in] hostname hostname or IP string to resolve.
+* The string may include a port, which is then set on every returned address:
+* @verbatim
+* localhost
+* localhost:1212
+* 192.168.0.1:1212
+* [::1]:1212
+* @endverbatim
+* Numeric addresses are parsed with ::tcs_address_parse() without any lookup.
+* Without a port, the port of the returned addresses is 0.
+*
+* @param[in] hostname hostname or IP string to resolve, optionally with a port.
 * @param[in] address_family address family filter, or ::TCS_FAMILY_ANY for all.
 * @param[out] out_addresses array to receive resolved addresses, or NULL to only count.
 * @param[in] addresses_length number of elements in the @p out_addresses array.
