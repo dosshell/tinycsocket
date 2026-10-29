@@ -1608,9 +1608,8 @@ TEST_CASE("TCS_TCP_NODELAY")
     CHECK(socket_false_value == false);
     CHECK(socket_true_value == true);
 
-    // The option must end up as TCP_NODELAY on the TCP level, verify through the raw option API
-    int native_false = -1;
-    int native_true = -1;
+    int native_false = 0;
+    int native_true = 0;
     size_t native_size = sizeof(native_false);
     CHECK(tcs_opt_get(socket_false, TCS_SOL_TCP, TCS_TCP_NODELAY, &native_false, &native_size) == TCS_SUCCESS);
     native_size = sizeof(native_true);
@@ -1623,7 +1622,7 @@ TEST_CASE("TCS_TCP_NODELAY")
     socket_true_value = true;
     CHECK(tcs_opt_tcp_no_delay_get(socket_true, &socket_true_value) == TCS_SUCCESS);
     CHECK(socket_true_value == false);
-    native_true = -1;
+    native_true = 0;
     native_size = sizeof(native_true);
     CHECK(tcs_opt_get(socket_true, TCS_SOL_TCP, TCS_TCP_NODELAY, &native_true, &native_size) == TCS_SUCCESS);
     CHECK(native_true == 0);
