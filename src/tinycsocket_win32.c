@@ -535,15 +535,11 @@ static bool (*tcs_internal_packet_address_is_supported_impl)(const struct TcsAdd
 // the Npcap SDK is needed at build time: the few pcap types and functions used are declared here, and their ABI has
 // been frozen since WinPcap.
 //
-// Supported: Npcap 1.00 (2020) or later, the first stable release. Every function resolved by
-// tcs_internal_lib_init_impl_npcap() exists in all Npcap releases, since Npcap has always shipped a libpcap newer than 1.5.
-// pcap_set_immediate_mode() is what rules out WinPcap and Win10Pcap, which stop at libpcap 1.0; a fallback to
-// pcap_setmintocopy(p, 0) would admit them. Behaviour that depends on the version: 802.1Q tags are restored on
-// receive from Npcap 1.81 (fixed for TCI 0 in 1.82 and for stacked tags in 1.88). Before that, NDIS has already
-// stripped the tag, so tagged frames arrive untagged. The filter in tcs_internal_npcap_socket_filter() matches both cases.
+// Please be aware of npcap license issues.
 //
-// Not supported: Wine. Its builtin wpcap.dll forwards to the host libpcap, but pcap_getevent() is a stub that raises
-// an exception, so tcs_internal_lib_init_impl_npcap() leaves packet sockets unsupported when it detects Wine.
+// Supported: Npcap 1.00 (2020) or later.
+//
+// Wine is shipped with a custom npcap implementation that is currently not supported, a WaitForSingleObject workaround is needed.
 
 typedef struct pcap pcap_t;
 
@@ -567,9 +563,13 @@ struct bpf_program
 #define TCS_PCAP_ERROR_PERM_DENIED (-8)
 #define TCS_PCAP_ERROR_IFACE_NOT_UP (-9)
 #define TCS_PCAP_ERROR_PROMISC_PERM_DENIED (-11)
+#define TCS_PCAP_OPENFLAG_PROMISCUOUS 1
+#define TCS_PCAP_OPENFLAG_NOCAPTURE_LOCAL 8
+#define TCS_PCAP_OPENFLAG_MAX_RESPONSIVENESS 16
 
-typedef pcap_t*(__cdecl* TcsInternalPcapCreate)(const char*, char*);
-typedef int(__cdecl* TcsInternalPcapSetInt)(pcap_t*, int);
+struct pcap_rmtauth; // Only ever passed as NULL
+typedef pcap_t*(__cdecl* TcsInternalPcapOpen)(const char*, int, int, int, struct pcap_rmtauth*, char*);
+typedef const char*(__cdecl* TcsInternalPcapStatusToStr)(int);
 typedef int(__cdecl* TcsInternalPcapGetInt)(pcap_t*);
 typedef int(__cdecl* TcsInternalPcapSetNonblock)(pcap_t*, int, char*);
 typedef HANDLE(__cdecl* TcsInternalPcapGetEvent)(pcap_t*);
@@ -599,13 +599,10 @@ struct TcsInternalNpcapSocket
 
 static struct
 {
-    HMODULE module; // NULL when Npcap is not installed or the library is not initialized
-    int init_count; // tcs_lib_init() calls not yet matched by tcs_lib_cleanup()
-    TcsInternalPcapCreate create;
-    TcsInternalPcapSetInt set_snaplen;
-    TcsInternalPcapSetInt set_promisc;
-    TcsInternalPcapSetInt set_immediate_mode;
-    TcsInternalPcapGetInt activate;
+    HMODULE module;
+    int init_count;
+    TcsInternalPcapOpen open;
+    TcsInternalPcapStatusToStr statustostr;
     TcsInternalPcapGetInt datalink;
     TcsInternalPcapSetNonblock setnonblock;
     TcsInternalPcapGetEvent getevent;
@@ -705,22 +702,19 @@ static TcsResult tcs_internal_npcap_socket_open(struct TcsInternalNpcapSocket* p
     if (!found)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    char errbuf[TCS_PCAP_ERRBUF_SIZE];
-    pcap_t* pcap = g_npcap.create(device, errbuf);
+    int flags = TCS_PCAP_OPENFLAG_NOCAPTURE_LOCAL | TCS_PCAP_OPENFLAG_MAX_RESPONSIVENESS;
+    if (ps->group_count > 0)
+        flags |= TCS_PCAP_OPENFLAG_PROMISCUOUS;
+    char errbuf[TCS_PCAP_ERRBUF_SIZE] = "";
+    pcap_t* pcap = g_npcap.open(device, 65535, flags, 0, NULL, errbuf);
     if (pcap == NULL)
-        return TCS_ERROR_SYSTEM;
-    g_npcap.set_snaplen(pcap, 65535);
-    g_npcap.set_promisc(pcap, ps->group_count > 0);
-    g_npcap.set_immediate_mode(pcap, 1); // Deliver every frame at once instead of batching them in the driver
-    int activate_sts = g_npcap.activate(pcap);
-    if (activate_sts < 0)
     {
-        g_npcap.close(pcap);
-        if (activate_sts == TCS_PCAP_ERROR_PERM_DENIED || activate_sts == TCS_PCAP_ERROR_PROMISC_PERM_DENIED)
+        if (strstr(errbuf, g_npcap.statustostr(TCS_PCAP_ERROR_PERM_DENIED)) != NULL ||
+            strstr(errbuf, g_npcap.statustostr(TCS_PCAP_ERROR_PROMISC_PERM_DENIED)) != NULL)
             return TCS_ERROR_PERMISSION_DENIED;
-        if (activate_sts == TCS_PCAP_ERROR_NO_SUCH_DEVICE)
+        if (strstr(errbuf, g_npcap.statustostr(TCS_PCAP_ERROR_NO_SUCH_DEVICE)) != NULL)
             return TCS_ERROR_INVALID_ARGUMENT;
-        if (activate_sts == TCS_PCAP_ERROR_IFACE_NOT_UP)
+        if (strstr(errbuf, g_npcap.statustostr(TCS_PCAP_ERROR_IFACE_NOT_UP)) != NULL)
             return TCS_ERROR_NETWORK_UNREACHABLE;
         return TCS_ERROR_SYSTEM;
     }
@@ -1126,11 +1120,8 @@ static void tcs_internal_lib_init_impl_npcap(void)
         return;
 
     // FARPROC is cast through void (*)(void), which gcc treats as compatible with every function pointer type
-    g_npcap.create = (TcsInternalPcapCreate)(void (*)(void))GetProcAddress(m, "pcap_create");
-    g_npcap.set_snaplen = (TcsInternalPcapSetInt)(void (*)(void))GetProcAddress(m, "pcap_set_snaplen");
-    g_npcap.set_promisc = (TcsInternalPcapSetInt)(void (*)(void))GetProcAddress(m, "pcap_set_promisc");
-    g_npcap.set_immediate_mode = (TcsInternalPcapSetInt)(void (*)(void))GetProcAddress(m, "pcap_set_immediate_mode");
-    g_npcap.activate = (TcsInternalPcapGetInt)(void (*)(void))GetProcAddress(m, "pcap_activate");
+    g_npcap.open = (TcsInternalPcapOpen)(void (*)(void))GetProcAddress(m, "pcap_open");
+    g_npcap.statustostr = (TcsInternalPcapStatusToStr)(void (*)(void))GetProcAddress(m, "pcap_statustostr");
     g_npcap.datalink = (TcsInternalPcapGetInt)(void (*)(void))GetProcAddress(m, "pcap_datalink");
     g_npcap.setnonblock = (TcsInternalPcapSetNonblock)(void (*)(void))GetProcAddress(m, "pcap_setnonblock");
     g_npcap.getevent = (TcsInternalPcapGetEvent)(void (*)(void))GetProcAddress(m, "pcap_getevent");
@@ -1141,8 +1132,7 @@ static void tcs_internal_lib_init_impl_npcap(void)
     g_npcap.sendpacket = (TcsInternalPcapSendPacket)(void (*)(void))GetProcAddress(m, "pcap_sendpacket");
     g_npcap.close = (TcsInternalPcapClose)(void (*)(void))GetProcAddress(m, "pcap_close");
 
-    if (g_npcap.create == NULL || g_npcap.set_snaplen == NULL || g_npcap.set_promisc == NULL ||
-        g_npcap.set_immediate_mode == NULL || g_npcap.activate == NULL || g_npcap.datalink == NULL ||
+    if (g_npcap.open == NULL || g_npcap.statustostr == NULL || g_npcap.datalink == NULL ||
         g_npcap.setnonblock == NULL || g_npcap.getevent == NULL || g_npcap.compile == NULL ||
         g_npcap.setfilter == NULL || g_npcap.freecode == NULL || g_npcap.next_ex == NULL ||
         g_npcap.sendpacket == NULL || g_npcap.close == NULL)
